@@ -18,11 +18,10 @@ export function AdminPortal() {
   return (
     <section id="admin" className="section adminSection">
       <div className="container">
-        <p className="eyebrow">Phase 2 Build</p>
-        <h2>Admin Portal</h2>
+        <span className="eyebrow">Festival Management System</span>
+        <h2>Festival Management Dashboard</h2>
         <p className="lead">
-          This is the first working admin interface. It is currently mock-based, so it gives us the screen flow,
-          content structure and management journey before we connect Supabase for secure login and live data.
+          Manage every aspect of the Black History Month Football Festival from one secure dashboard. Organise teams, fixtures, results, sponsors, media, articles and community content in real time.
         </p>
 
         <div className="adminPortalShell">

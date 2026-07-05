@@ -12,6 +12,7 @@ import { CkefaLink } from './components/CkefaLink'
 import { CkefaLogo } from './components/CkefaLogo'
 import { ArticlePage } from './components/ArticlePage'
 import { AdminPortal } from './components/AdminPortal'
+//import { Routes, Route, Navigate } from 'react-router-dom'
 import { articles, fixtures, lastYearFinalVideo, sponsors, teams } from './data/festivalData'
 
 const benefits = [

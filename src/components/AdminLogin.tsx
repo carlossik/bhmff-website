@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react'
 import { login } from '../services/login'
+import { CkefaLogo } from './CkefaLogo'
 
 type AdminLoginProps = {
     onLoginSuccess: () => void
@@ -27,37 +28,51 @@ export function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
     }
 
     return (
-        <div className="adminLoginCard">
-            <h2>Admin Login</h2>
-            <p>Sign in to manage the festival platform.</p>
+        <section id="admin" className="adminLoginPage">
+            <div className="adminLoginShell">
+                <div className="adminLoginIntro">
+                    <CkefaLogo className="adminLoginLogo" />
+                    <span className="eyebrow">Secure organiser access</span>
+                    <h2>Festival Admin Portal</h2>
+                    <p>
+                        Manage fixtures, teams, sponsors, articles, media links and festival updates
+                        for the Black History Month Football Festival.
+                    </p>
+                </div>
 
-            <form onSubmit={handleSubmit} className="adminLoginForm">
-                <label>
-                    Email
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        required
-                    />
-                </label>
+                <div className="adminLoginCard">
+                    <h3>Sign in</h3>
+                    <p>Use your authorised admin account to continue.</p>
 
-                <label>
-                    Password
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        required
-                    />
-                </label>
+                    <form onSubmit={handleSubmit} className="adminLoginForm">
+                        <label>
+                            Email address
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(event) => setEmail(event.target.value)}
+                                required
+                            />
+                        </label>
 
-                {errorMessage && <p className="formError">{errorMessage}</p>}
+                        <label>
+                            Password
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                required
+                            />
+                        </label>
 
-                <button type="submit" className="btn primary" disabled={isLoading}>
-                    {isLoading ? 'Signing in...' : 'Sign In'}
-                </button>
-            </form>
-        </div>
+                        {errorMessage && <p className="formError">{errorMessage}</p>}
+
+                        <button type="submit" className="btn primary adminLoginButton" disabled={isLoading}>
+                            {isLoading ? 'Signing in...' : 'Sign in'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
     )
 }
