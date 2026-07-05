@@ -5,7 +5,11 @@ const adminTabs = ['Dashboard', 'Teams', 'Fixtures', 'Results', 'Sponsors', 'Art
 
 type AdminTab = typeof adminTabs[number]
 
-export function AdminPortal() {
+type AdminPortalProps = {
+  onLogout: () => void
+}
+
+export function AdminPortal({ onLogout }: AdminPortalProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('Dashboard')
 
   const stats = useMemo(() => [
@@ -18,8 +22,20 @@ export function AdminPortal() {
   return (
     <section id="admin" className="section adminSection">
       <div className="container">
-        <span className="eyebrow">Festival Management System</span>
-        <h2>Festival Management Dashboard</h2>
+        <div className="adminHeader">
+          <div>
+            <span className="eyebrow">Festival Management System</span>
+            <h2>Festival Management Dashboard</h2>
+          </div>
+
+          <button
+              type="button"
+              className="btn secondary small"
+              onClick={onLogout}
+          >
+            Logout
+          </button>
+        </div>
         <p className="lead">
           Manage every aspect of the Black History Month Football Festival from one secure dashboard. Organise teams, fixtures, results, sponsors, media, articles and community content in real time.
         </p>

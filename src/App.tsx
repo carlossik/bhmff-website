@@ -12,7 +12,8 @@ import { CkefaLink } from './components/CkefaLink'
 import { CkefaLogo } from './components/CkefaLogo'
 import { ArticlePage } from './components/ArticlePage'
 import { AdminPortal } from './components/AdminPortal'
-//import { Routes, Route, Navigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
+import { AdminPage } from './pages/AdminPage'
 import { articles, fixtures, lastYearFinalVideo, sponsors, teams } from './data/festivalData'
 
 const benefits = [
@@ -31,6 +32,7 @@ const timeline = [
 ]
 
 function App() {
+    const location = useLocation()
     const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false)
     const [isCheckingSession, setIsCheckingSession] = useState(true)
     useEffect(() => {
@@ -48,7 +50,12 @@ function App() {
     if (isCheckingSession) {
         return <p className="container">Checking admin session...</p>
     }
-  return (
+
+    if (location.pathname === '/admin') {
+        return <AdminPage />
+    }
+
+    return (
     <>
       <Header />
       <Hero />
@@ -69,15 +76,7 @@ function App() {
       <Section id="sponsors" title="Sponsorship Opportunities" intro="Sponsors help make the festival safer, better organised and more visible. The month-long format creates repeated visibility across fixtures, highlights, interviews, final-day activity and community content.">
         <div className="cardGrid three">{sponsors.map((sponsor) => <article className="card sponsorCard" key={sponsor.id}><span className="badge">{sponsor.tier}</span><h3>{sponsor.name}</h3><p>{sponsor.description}</p><a className="btn primary small" href="mailto:info@ckefamedia.com">Enquire</a></article>)}</div>
       </Section>
-        {isAdminLoggedIn ? (
-            <AdminPortal />
-        ) : (
-            <AdminLogin
-                onLoginSuccess={() => {
-                    setIsAdminLoggedIn(true)
-                }}
-            />
-        )}
+
       <footer className="footer"><div className="container footerGrid"><div><strong>Black History Month Football Festival</strong><p>Powered by <CkefaLink /></p><p>Celebrating Football. Celebrating Culture. Celebrating Community.</p></div><CkefaLogo className="footerCkefaLogo" /></div></footer>
     </>
   )
