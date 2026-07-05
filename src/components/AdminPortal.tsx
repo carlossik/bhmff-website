@@ -23,24 +23,25 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('Dashboard')
   const [dbTeams, setDbTeams] = useState<DbTeam[]>([])
 
-  useEffect(() => {
-    async function loadTeams() {
-      const { data, error } = await supabase
-          .from('teams')
-          .select('*')
-          .order('created_at', { ascending: false })
+  async function loadTeams() {
+    const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Failed to load teams:', error)
-        return
-      }
-
-      setDbTeams(data ?? [])
-      console.log('Teams from Supabase:', data)
+    if (error) {
+      console.error('Failed to load teams:', error)
+      return
     }
 
+    setDbTeams(data ?? [])
+  }
+
+  useEffect(() => {
     loadTeams()
   }, [])
+
+
 
   const stats = useMemo(() => [
     { label: 'Teams', value: dbTeams.length },
@@ -108,7 +109,8 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
             )}
 
             {activeTab === 'Teams' && (
-                <TeamsManager teams={dbTeams} />
+                <TeamsManager teams={dbTeams}
+                              onTeamCreated={loadTeams} />
             )}
 
             {activeTab === 'Fixtures' && (

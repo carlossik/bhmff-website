@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { Modal } from './Modal'
 type DbTeam = {
     id: string
     name: string
@@ -9,9 +12,44 @@ type DbTeam = {
 
 type TeamsManagerProps = {
     teams: DbTeam[]
+    onTeamCreated: () => void
 }
 
-export function TeamsManager({ teams }: TeamsManagerProps) {
+export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
+    const [showAddModal, setShowAddModal] = useState(false)
+
+    const [teamName, setTeamName] = useState('')
+    const [managerName, setManagerName] = useState('')
+    const [email, setEmail] = useState('')
+    const [phone, setPhone] = useState('')
+    const [notes, setNotes] = useState('')
+
+    async function saveTeam() {
+        const { error } = await supabase.from('teams').insert({
+            name: teamName,
+            manager_name: managerName,
+            contact_email: email,
+            contact_phone: phone,
+            notes
+        })
+
+        if (error) {
+            alert(error.message)
+            return
+        }
+        onTeamCreated()
+
+        setTeamName('')
+        setManagerName('')
+        setEmail('')
+        setPhone('')
+        setNotes('')
+
+        setShowAddModal(false)
+
+        alert('Team created successfully!')
+    }
+
     return (
         <div>
             <div className="adminWorkspaceHeader">
@@ -22,7 +60,11 @@ export function TeamsManager({ teams }: TeamsManagerProps) {
                     </p>
                 </div>
 
-                <button className="btn primary" type="button">
+                <button
+                    className="btn primary"
+                    type="button"
+                    onClick={() => setShowAddModal(true)}
+                >
                     + Add Team
                 </button>
             </div>
@@ -54,6 +96,71 @@ export function TeamsManager({ teams }: TeamsManagerProps) {
                 ))}
                 </tbody>
             </table>
+            {showAddModal && (
+                <Modal
+                    title="Add Team"
+                    onClose={() => setShowAddModal(false)}
+                >
+                    <div className="adminFormGrid">
+                        <label>
+                            <span>Team Name</span>
+                            <input
+                                value={teamName}
+                                onChange={(e) => setTeamName(e.target.value)}
+                            />
+                        </label>
+
+                        <label>
+                            <span>Manager Name</span>
+                            <input
+                                value={managerName}
+                                onChange={(e) => setManagerName(e.target.value)}
+                            />
+                        </label>
+
+                        <label>
+                            <span>Email</span>
+                            <input
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </label>
+
+                        <label>
+                            <span>Phone</span>
+                            <input
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                            />
+                        </label>
+
+                        <label>
+                            <span>Notes</span>
+                            <textarea
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                            />
+                        </label>
+
+                        <div className="modalActions">
+                            <button
+                                className="btn secondary"
+                                onClick={() => setShowAddModal(false)}
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                className="btn primary"
+                                type="button"
+                                onClick={saveTeam}
+                            >
+                                Save Team
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     )
 }
