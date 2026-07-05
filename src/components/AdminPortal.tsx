@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { articles, fixtures, sponsors, teams } from '../data/festivalData'
-
+import { supabase } from '../lib/supabaseClient'
+import { TeamsManager } from './TeamsManager'
 const adminTabs = ['Dashboard', 'Teams', 'Fixtures', 'Results', 'Sponsors', 'Articles', 'Media'] as const
 
 type AdminTab = typeof adminTabs[number]
@@ -9,15 +10,44 @@ type AdminPortalProps = {
   onLogout: () => void
 }
 
+type DbTeam = {
+  id: string
+  name: string
+  manager_name: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  notes: string | null
+}
+
 export function AdminPortal({ onLogout }: AdminPortalProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('Dashboard')
+  const [dbTeams, setDbTeams] = useState<DbTeam[]>([])
+
+  useEffect(() => {
+    async function loadTeams() {
+      const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Failed to load teams:', error)
+        return
+      }
+
+      setDbTeams(data ?? [])
+      console.log('Teams from Supabase:', data)
+    }
+
+    loadTeams()
+  }, [])
 
   const stats = useMemo(() => [
-    { label: 'Teams', value: teams.length },
+    { label: 'Teams', value: dbTeams.length },
     { label: 'Fixtures', value: fixtures.length },
     { label: 'Sponsors', value: sponsors.length },
     { label: 'Articles', value: articles.length },
-  ], [])
+  ], [dbTeams.length])
 
   return (
     <section id="admin" className="section adminSection">
@@ -78,7 +108,7 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
             )}
 
             {activeTab === 'Teams' && (
-              <AdminCrud title="Manage Teams" description="Add participating clubs, managers and team profile information." fields={['Team name', 'Manager name', 'Club contact email']} records={teams.map((team) => `${team.name} — ${team.manager}`)} />
+                <TeamsManager teams={dbTeams} />
             )}
 
             {activeTab === 'Fixtures' && (
@@ -139,7 +169,7 @@ function AdminCrud({ title, description, fields, records }: AdminCrudProps) {
       </div>
 
       <div className="adminRecordList">
-        <h4>Current mock records</h4>
+        <h4><h4>Teams in database</h4></h4>
         {records.length ? records.map((record) => (
           <div className="adminRecord" key={record}>
             <span>{record}</span>

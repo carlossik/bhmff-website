@@ -48,7 +48,11 @@ function App() {
     return <ArticlePage article={activeArticle} onBack={() => setActiveArticleId(null)} />
   }
     if (isCheckingSession) {
-        return <p className="container">Checking admin session...</p>
+        return (
+            <p className="container" style={{ padding: '2rem', color: 'white' }}>
+                Checking admin session...
+            </p>
+        )
     }
 
     if (location.pathname === '/admin') {
