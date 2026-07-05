@@ -143,3 +143,22 @@
     align-items: center;
     margin-bottom: 1.5rem;
 }
+.toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10000;
+    background: #162516;
+    color: #b9f28d;
+    border: 1px solid rgba(185,242,141,.35);
+    border-radius: 12px;
+    padding: 14px 18px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.35);
+    font-weight: 700;
+}
+
+.toast-error {
+    background: #2a160f;
+    color: #ffb36b;
+    border-color: rgba(255,140,70,.55);
+}

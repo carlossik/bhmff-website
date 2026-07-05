@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { Modal } from './Modal'
+import { Modal } from './common/Modal'
+import { Toast } from './common/Toast'
 type DbTeam = {
     id: string
     name: string
@@ -23,8 +24,15 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
     const [email, setEmail] = useState('')
     const [phone, setPhone] = useState('')
     const [notes, setNotes] = useState('')
+    const [isSaving, setIsSaving] = useState(false)
+    const [toastMessage, setToastMessage] = useState('')
 
     async function saveTeam() {
+        if (!teamName.trim()) {
+            setToastMessage('Team name is required.')
+            return
+        }
+        setIsSaving(true)
         const { error } = await supabase.from('teams').insert({
             name: teamName,
             manager_name: managerName,
@@ -47,11 +55,17 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
 
         setShowAddModal(false)
 
-        alert('Team created successfully!')
+
+        setIsSaving(false)
     }
 
     return (
         <div>
+            <Toast
+                message={toastMessage}
+                type="error"
+                onClose={() => setToastMessage('')}
+            />
             <div className="adminWorkspaceHeader">
                 <div>
                     <h3>Teams</h3>
@@ -154,8 +168,9 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
                                 className="btn primary"
                                 type="button"
                                 onClick={saveTeam}
+                                disabled={isSaving}
                             >
-                                Save Team
+                                {isSaving ? 'Saving Team...' : 'Save Team'}
                             </button>
                         </div>
                     </div>
