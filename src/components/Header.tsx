@@ -7,7 +7,7 @@ const navItems = [
   ['Media', '#media'],
   ['Black History', '#history'],
   ['Sponsors', '#sponsors'],
-  ['Admin Portal', '#admin'],
+  ['Admin Portal', '/admin'],
 ]
 
 export function Header() {
