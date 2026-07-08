@@ -162,3 +162,22 @@
     color: #ffb36b;
     border-color: rgba(255,140,70,.55);
 }
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+.modalActions .btn {
+    min-width: 140px;
+}
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.modalActions .btn {
+    min-width: 140px;
+}

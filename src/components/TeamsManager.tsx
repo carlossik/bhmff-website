@@ -26,37 +26,57 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
     const [notes, setNotes] = useState('')
     const [isSaving, setIsSaving] = useState(false)
     const [toastMessage, setToastMessage] = useState('')
+    const [editingTeam, setEditingTeam] = useState<DbTeam | null>(null)
+
+
+    function resetForm() {
+        setEditingTeam(null)
+        setTeamName('')
+        setManagerName('')
+        setEmail('')
+        setPhone('')
+        setNotes('')
+        setToastMessage('')
+    }
 
     async function saveTeam() {
         if (!teamName.trim()) {
             setToastMessage('Team name is required.')
             return
         }
+
         setIsSaving(true)
-        const { error } = await supabase.from('teams').insert({
+
+        const payload = {
             name: teamName,
             manager_name: managerName,
             contact_email: email,
             contact_phone: phone,
             notes
-        })
-
-        if (error) {
-            alert(error.message)
-            return
         }
-        onTeamCreated()
 
-        setTeamName('')
-        setManagerName('')
-        setEmail('')
-        setPhone('')
-        setNotes('')
-
-        setShowAddModal(false)
-
+        const { error } = editingTeam
+            ? await supabase
+                .from('teams')
+                .update(payload)
+                .eq('id', editingTeam.id)
+            : await supabase
+                .from('teams')
+                .insert(payload)
 
         setIsSaving(false)
+
+        if (error) {
+            setToastMessage(error.message)
+            return
+        }
+
+        onTeamCreated()
+
+        resetForm()
+        setShowAddModal(false)
+
+        setToastMessage(editingTeam ? 'Team updated successfully.' : 'Team created successfully.')
     }
 
     return (
@@ -102,7 +122,19 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
                         <td>{team.contact_email ?? '-'}</td>
                         <td>{team.contact_phone ?? '-'}</td>
                         <td>
-                            <button className="btn secondary small">
+                            <button
+                                className="btn secondary small"
+                                type="button"
+                                onClick={() => {
+                                    setEditingTeam(team)
+                                    setTeamName(team.name)
+                                    setManagerName(team.manager_name ?? '')
+                                    setEmail(team.contact_email ?? '')
+                                    setPhone(team.contact_phone ?? '')
+                                    setNotes(team.notes ?? '')
+                                    setShowAddModal(true)
+                                }}
+                            >
                                 Edit
                             </button>
                         </td>
@@ -112,8 +144,11 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
             </table>
             {showAddModal && (
                 <Modal
-                    title="Add Team"
-                    onClose={() => setShowAddModal(false)}
+                    title={editingTeam ? 'Edit Team' : 'Add Team'}
+                    onClose={() => {
+                        resetForm()
+                        setShowAddModal(false)
+                    }}
                 >
                     <div className="adminFormGrid">
                         <label>
@@ -159,7 +194,11 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
                         <div className="modalActions">
                             <button
                                 className="btn secondary"
-                                onClick={() => setShowAddModal(false)}
+                                type="button"
+                                onClick={() => {
+                                    resetForm()
+                                    setShowAddModal(false)
+                                }}
                             >
                                 Cancel
                             </button>
@@ -170,7 +209,11 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
                                 onClick={saveTeam}
                                 disabled={isSaving}
                             >
-                                {isSaving ? 'Saving Team...' : 'Save Team'}
+                                {isSaving
+                                    ? 'Saving...'
+                                    : editingTeam
+                                        ? 'Update'
+                                        : 'Save'}
                             </button>
                         </div>
                     </div>
@@ -179,3 +222,4 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
         </div>
     )
 }
+
