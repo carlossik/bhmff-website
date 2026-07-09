@@ -16,6 +16,7 @@ import { useLocation } from 'react-router-dom'
 import { AdminPage } from './pages/AdminPage'
 import { articles, fixtures, lastYearFinalVideo, sponsors, teams } from './data/festivalData'
 import { supabase } from './lib/supabaseClient'
+import { TournamentCountdown } from './components/public/TournamentCountdown'
 
 const benefits = [
   ['Full Month Format', 'The festival spreads games across October instead of forcing several matches into one day.', Calendar],
@@ -82,6 +83,7 @@ function App() {
     return (
     <>
       <Header />
+        <TournamentCountdown />
       <Hero />
       <Section id="festival" title="The Festival Vision" intro="For years, the tournament was delivered in a compressed one-day format. The new model gives the event the space it deserves: better football, better welfare, stronger media coverage and a more meaningful Black History Month experience.">
         <div className="cardGrid four">{benefits.map(([title, text, Icon]) => <article className="card" key={title as string}><Icon className="icon" /><h3>{title as string}</h3><p>{text as string}</p></article>)}</div>

@@ -198,3 +198,50 @@
 .tableActions .btn {
     width: 90px;
 }
+.countdownBanner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 5%;
+    background: linear-gradient(90deg, rgba(185,242,141,.18), rgba(30,107,42,.28));
+    border-bottom: 1px solid rgba(185,242,141,.2);
+    color: var(--white);
+    font-weight: 800;
+}
+
+.countdownGrid {
+    display: flex;
+    gap: .75rem;
+}
+
+.countdownGrid div {
+    min-width: 72px;
+    text-align: center;
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(185,242,141,.2);
+    border-radius: 12px;
+    padding: .6rem .75rem;
+}
+
+.countdownGrid strong {
+    display: block;
+    font-size: 1.25rem;
+    color: var(--light-green);
+}
+
+.countdownGrid small {
+    color: var(--muted);
+}
+
+@media (max-width: 700px) {
+    .countdownBanner {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .countdownGrid {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
