@@ -15,6 +15,7 @@ import { AdminPortal } from './components/AdminPortal'
 import { useLocation } from 'react-router-dom'
 import { AdminPage } from './pages/AdminPage'
 import { articles, fixtures, lastYearFinalVideo, sponsors, teams } from './data/festivalData'
+import { supabase } from './lib/supabaseClient'
 
 const benefits = [
   ['Full Month Format', 'The festival spreads games across October instead of forcing several matches into one day.', Calendar],
@@ -42,6 +43,25 @@ function App() {
         })
     }, [])
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null)
+    const [publicTeams, setPublicTeams] = useState<any[]>([])
+    useEffect(() => {
+        async function loadPublicTeams() {
+            const { data, error } = await supabase
+                .from('teams')
+                .select('*')
+                .order('name', { ascending: true })
+
+            if (error) {
+                console.error('Failed to load public teams:', error)
+                return
+            }
+
+            setPublicTeams(data ?? [])
+        }
+
+        loadPublicTeams()
+    }, [])
+
   const activeArticle = useMemo(() => articles.find((article) => article.id === activeArticleId), [activeArticleId])
 
   if (activeArticle) {
@@ -70,8 +90,25 @@ function App() {
         <div className="timeline">{timeline.map(([week, title, detail]) => <article className="timelineItem" key={week}><div className="timelineIcon"><span>{week}</span></div><div className="timelineContent"><h3>{title}</h3><p>{detail}</p></div></article>)}</div>
         <h3 className="subheading">Sample Fixtures</h3><FixtureList fixtures={fixtures} />
       </Section>
-      <Section id="teams" title="Teams & Tables" intro="The final list of clubs will be added when registrations are confirmed. The table below shows the structure that will later be powered by the admin portal."><TeamTable teams={teams} /></Section>
-      <Section id="media" title="CKEFA Media Centre" intro="The festival will use video, photography and match storytelling to promote the players, clubs and community partners involved.">
+        <Section
+            id="teams"
+            title="Teams & Tables"
+            intro="Confirmed participating teams for the Black History Month Football Festival."
+        >
+            <TeamTable
+                teams={publicTeams.map((team, index) => ({
+                    id: index + 1,
+                    name: team.name,
+                    manager: team.manager_name ?? 'TBC',
+                    played: 0,
+                    won: 0,
+                    drawn: 0,
+                    lost: 0,
+                    goalDifference: 0,
+                    points: 0,
+                }))}
+            />
+        </Section>      <Section id="media" title="CKEFA Media Centre" intro="The festival will use video, photography and match storytelling to promote the players, clubs and community partners involved.">
         <div className="cardGrid three"><article className="videoCard featuredVideo"><iframe className="mediaIframe" src={lastYearFinalVideo.embedUrl} title={lastYearFinalVideo.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /><h3>{lastYearFinalVideo.title}</h3><p>Featured match coverage powered by <CkefaLink />.</p></article><article className="videoCard"><div className="videoPlaceholder">Goal of the Week</div><h3>Goal Highlights</h3><p>Goals, saves and key moments from each weekend can be published here and linked to YouTube.</p></article><article className="videoCard"><div className="videoPlaceholder">Interview Hub</div><h3>Player & Coach Stories</h3><p>Short interviews can capture the people and stories behind the tournament.</p></article></div>
       </Section>
       <Section id="history" title="Black History Hub" intro="This hub connects the football festival to Black History Month through short articles, community stories and learning content. It celebrates national trailblazers while also giving space to local voices, businesses and volunteers.">
