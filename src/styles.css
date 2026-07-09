@@ -226,22 +226,148 @@
 
 .countdownGrid strong {
     display: block;
-    font-size: 1.25rem;
+    font-size: clamp(3rem, 6vw, 4.5rem);
+    line-height: 1;
     color: var(--light-green);
+    font-weight: 900;
+    margin-bottom: .6rem;
 }
 
 .countdownGrid small {
+    display: block;
     color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: .85rem;
+    font-weight: 900;
 }
 
 @media (max-width: 700px) {
     .countdownBanner {
+        display: flex;
         flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 1.25rem;
         text-align: center;
+        padding: 2.5rem 5%;
+        background:
+                radial-gradient(circle at top left, rgba(185,242,141,.22), transparent 32%),
+                linear-gradient(135deg, rgba(11,33,14,.98), rgba(30,107,42,.78));
+        border-bottom: 1px solid rgba(185,242,141,.25);
+        color: var(--white);
+    }
+
+    .countdownHeading {
+        max-width: 900px;
+    }
+
+    .festivalTitle {
+        color: var(--light-green);
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        font-weight: 900;
+        margin: 0 0 .65rem;
+        font-size: clamp(.8rem, 1.4vw, 1rem);
+    }
+
+    .countdownHeading h2 {
+        font-size: clamp(2rem, 5vw, 4rem);
+        font-weight: 900;
+        margin: 0;
+        color: white;
+        text-transform: uppercase;
+        line-height: 1;
+    }
+
+    .countdownGrid {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .countdownGrid div {
+        width: 140px;
+        text-align: center;
+        background: rgba(0,0,0,.32);
+        border: 1px solid rgba(185,242,141,.28);
+        border-radius: 18px;
+        padding: 1.35rem 1rem;
+        box-shadow: 0 18px 45px rgba(0,0,0,.22);
+    }
+
+    .countdownGrid strong {
+        display: block;
+        font-size: clamp(2.2rem, 4vw, 3.4rem);
+        line-height: 1;
+        color: var(--light-green);
+        font-weight: 900;
+    }
+
+    .countdownGrid small {
+        display: block;
+        margin-top: .55rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-size: .75rem;
+        font-weight: 800;
+    }
+
+    @media (max-width: 700px) {
+        .countdownBanner {
+            padding: 2rem 1rem;
+        }
+
+        .countdownGrid div {
+            width: 120px;
+        }
     }
 
     .countdownGrid {
         flex-wrap: wrap;
         justify-content: center;
     }
+}
+.countdownBanner {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+}
+
+.countdownHeading {
+    margin-bottom: 1.5rem;
+}
+
+.festivalTitle {
+    color: var(--light-green);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-weight: 800;
+    margin-bottom: .4rem;
+}
+
+.countdownHeading h2 {
+    font-size: clamp(2rem,4vw,3.5rem);
+    font-weight: 900;
+    margin: 0;
+    color: white;
+    text-transform: uppercase;
+}
+.countdownGrid div {
+    width: 180px;
+    min-height: 180px;
+    text-align: center;
+    background: rgba(0,0,0,.32);
+    border: 1px solid rgba(185,242,141,.28);
+    border-radius: 18px;
+    padding: 1.35rem 1rem;
+    box-shadow: 0 18px 45px rgba(0,0,0,.22);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }

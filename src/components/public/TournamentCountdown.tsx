@@ -23,7 +23,7 @@ function getTimeRemaining() {
     }
 
     return {
-        label: 'Countdown to kick-off',
+        label: 'The Festival Begins In',
         days: Math.floor(difference / (1000 * 60 * 60 * 24)),
         hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
         minutes: Math.floor((difference / (1000 * 60)) % 60),
@@ -48,7 +48,13 @@ export function TournamentCountdown() {
 
     return (
         <section className="countdownBanner">
-            <span>{timeRemaining.label}</span>
+            <div className="countdownHeading">
+                <p className="festivalTitle">
+                    Black History Month Football Festival 2026
+                </p>
+
+                <h2>{timeRemaining.label}</h2>
+            </div>
 
             <div className="countdownGrid">
                 <div><strong>{timeRemaining.days}</strong><small>Days</small></div>
