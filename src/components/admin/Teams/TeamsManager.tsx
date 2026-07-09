@@ -1,15 +1,11 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
-import { Modal } from './common/Modal'
-import { Toast } from './common/Toast'
-type DbTeam = {
-    id: string
-    name: string
-    manager_name: string | null
-    contact_email: string | null
-    contact_phone: string | null
-    notes: string | null
-}
+import { supabase } from '../../../lib/supabaseClient'
+import { Modal } from '../../common/Modal'
+import { Toast } from '../../common/Toast'
+import { ConfirmDialog } from '../../common/ConfirmDialog'
+import type { DbTeam } from './teamTypes'
+import { TeamsTable } from './TeamsTable'
+
 
 type TeamsManagerProps = {
     teams: DbTeam[]
@@ -18,6 +14,8 @@ type TeamsManagerProps = {
 
 export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
     const [showAddModal, setShowAddModal] = useState(false)
+    const [editingTeam, setEditingTeam] = useState<DbTeam | null>(null)
+    const [teamToDelete, setTeamToDelete] = useState<DbTeam | null>(null)
 
     const [teamName, setTeamName] = useState('')
     const [managerName, setManagerName] = useState('')
@@ -26,8 +24,7 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
     const [notes, setNotes] = useState('')
     const [isSaving, setIsSaving] = useState(false)
     const [toastMessage, setToastMessage] = useState('')
-    const [editingTeam, setEditingTeam] = useState<DbTeam | null>(null)
-
+    const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success')
 
     function resetForm() {
         setEditingTeam(null)
@@ -36,56 +33,87 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
         setEmail('')
         setPhone('')
         setNotes('')
-        setToastMessage('')
+    }
+
+    function openAddTeamModal() {
+        resetForm()
+        setShowAddModal(true)
+    }
+
+    function openEditTeamModal(team: DbTeam) {
+        setEditingTeam(team)
+        setTeamName(team.name)
+        setManagerName(team.manager_name ?? '')
+        setEmail(team.contact_email ?? '')
+        setPhone(team.contact_phone ?? '')
+        setNotes(team.notes ?? '')
+        setShowAddModal(true)
+    }
+
+    function showToast(message: string, type: 'success' | 'error' | 'info' = 'success') {
+        setToastMessage(message)
+        setToastType(type)
     }
 
     async function saveTeam() {
         if (!teamName.trim()) {
-            setToastMessage('Team name is required.')
+            showToast('Team name is required.', 'error')
             return
         }
 
         setIsSaving(true)
 
         const payload = {
-            name: teamName,
-            manager_name: managerName,
-            contact_email: email,
-            contact_phone: phone,
-            notes
+            name: teamName.trim(),
+            manager_name: managerName.trim() || null,
+            contact_email: email.trim() || null,
+            contact_phone: phone.trim() || null,
+            notes: notes.trim() || null,
         }
 
         const { error } = editingTeam
-            ? await supabase
-                .from('teams')
-                .update(payload)
-                .eq('id', editingTeam.id)
-            : await supabase
-                .from('teams')
-                .insert(payload)
+            ? await supabase.from('teams').update(payload).eq('id', editingTeam.id)
+            : await supabase.from('teams').insert(payload)
 
         setIsSaving(false)
 
         if (error) {
-            setToastMessage(error.message)
+            showToast(error.message, 'error')
             return
         }
 
-        onTeamCreated()
-
+        await onTeamCreated()
         resetForm()
         setShowAddModal(false)
+        showToast(editingTeam ? 'Team updated successfully.' : 'Team created successfully.', 'success')
+    }
 
-        setToastMessage(editingTeam ? 'Team updated successfully.' : 'Team created successfully.')
+    async function deleteTeam() {
+        if (!teamToDelete) return
+
+        const { error } = await supabase
+            .from('teams')
+            .delete()
+            .eq('id', teamToDelete.id)
+
+        if (error) {
+            showToast(error.message, 'error')
+            return
+        }
+
+        setTeamToDelete(null)
+        await onTeamCreated()
+        showToast('Team deleted successfully.', 'success')
     }
 
     return (
         <div>
             <Toast
                 message={toastMessage}
-                type="error"
+                type={toastType}
                 onClose={() => setToastMessage('')}
             />
+
             <div className="adminWorkspaceHeader">
                 <div>
                     <h3>Teams</h3>
@@ -97,51 +125,18 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
                 <button
                     className="btn primary"
                     type="button"
-                    onClick={() => setShowAddModal(true)}
+                    onClick={openAddTeamModal}
                 >
                     + Add Team
                 </button>
             </div>
 
-            <table className="adminTable">
-                <thead>
-                <tr>
-                    <th>Team</th>
-                    <th>Manager</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th></th>
-                </tr>
-                </thead>
+            <TeamsTable
+                teams={teams}
+                onEdit={openEditTeamModal}
+                onDelete={setTeamToDelete}
+            />
 
-                <tbody>
-                {teams.map((team) => (
-                    <tr key={team.id}>
-                        <td>{team.name}</td>
-                        <td>{team.manager_name ?? '-'}</td>
-                        <td>{team.contact_email ?? '-'}</td>
-                        <td>{team.contact_phone ?? '-'}</td>
-                        <td>
-                            <button
-                                className="btn secondary small"
-                                type="button"
-                                onClick={() => {
-                                    setEditingTeam(team)
-                                    setTeamName(team.name)
-                                    setManagerName(team.manager_name ?? '')
-                                    setEmail(team.contact_email ?? '')
-                                    setPhone(team.contact_phone ?? '')
-                                    setNotes(team.notes ?? '')
-                                    setShowAddModal(true)
-                                }}
-                            >
-                                Edit
-                            </button>
-                        </td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
             {showAddModal && (
                 <Modal
                     title={editingTeam ? 'Edit Team' : 'Add Team'}
@@ -209,17 +204,23 @@ export function TeamsManager({ teams, onTeamCreated }: TeamsManagerProps) {
                                 onClick={saveTeam}
                                 disabled={isSaving}
                             >
-                                {isSaving
-                                    ? 'Saving...'
-                                    : editingTeam
-                                        ? 'Update'
-                                        : 'Save'}
+                                {isSaving ? 'Saving...' : editingTeam ? 'Update' : 'Save'}
                             </button>
                         </div>
                     </div>
                 </Modal>
             )}
+
+            {teamToDelete && (
+                <ConfirmDialog
+                    title="Delete Team"
+                    message={`Are you sure you want to delete ${teamToDelete.name}?`}
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                    onCancel={() => setTeamToDelete(null)}
+                    onConfirm={deleteTeam}
+                />
+            )}
         </div>
     )
 }
-

@@ -181,3 +181,20 @@
 .modalActions .btn {
     min-width: 140px;
 }
+.btn.danger {
+    background: #8b1e1e;
+    color: #fff;
+    border: 1px solid rgba(255,120,120,.45);
+}
+
+.btn.danger:hover {
+    background: #b32626;
+}
+.tableActions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+.tableActions .btn {
+    width: 90px;
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { articles, fixtures, sponsors, teams } from '../data/festivalData'
 import { supabase } from '../lib/supabaseClient'
-import { TeamsManager } from './TeamsManager'
+import { TeamsManager } from './admin/Teams/TeamsManager'
 const adminTabs = ['Dashboard', 'Teams', 'Fixtures', 'Results', 'Sponsors', 'Articles', 'Media'] as const
 
 type AdminTab = typeof adminTabs[number]
