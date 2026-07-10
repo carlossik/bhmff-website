@@ -1065,3 +1065,57 @@
     background: #10190f;
     color: var(--white);
 }
+.adminFormFullWidth {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+    .adminFormFullWidth {
+        grid-column: auto;
+    }
+}
+
+/* ---------- Public Fixture Venue Details ---------- */
+
+.fixtureMain {
+    flex: 1;
+}
+
+.fixtureKickoff {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1rem;
+    color: var(--muted);
+    margin: 12px 0 18px;
+}
+
+.fixtureKickoff span {
+    color: #eef8e8;
+    font-weight: 800;
+}
+
+.fixtureVenue {
+    display: grid;
+    gap: 4px;
+    margin-top: 14px;
+    padding: 16px;
+    background: rgba(0,0,0,.24);
+    border: 1px solid rgba(185,242,141,.18);
+    border-radius: 14px;
+}
+
+.fixtureVenue strong {
+    color: var(--light-green);
+    font-size: 1rem;
+}
+
+.fixtureVenue span {
+    color: #eef8e8;
+    line-height: 1.5;
+}
+
+.fixtureVenue small {
+    margin-top: 6px;
+    color: var(--muted);
+    line-height: 1.5;
+}

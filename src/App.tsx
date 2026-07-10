@@ -1,39 +1,113 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCurrentUser } from './services/auth'
+import { useLocation } from 'react-router-dom'
 import { Calendar, Camera, Shield, Users } from 'lucide-react'
+
+import { getCurrentUser } from './services/auth'
+import { supabase } from './lib/supabaseClient'
+
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { Section } from './components/Section'
-import { FixtureList } from './components/FixtureList'
+import {
+    FixtureList,
+    type PublicFixture,
+} from './components/FixtureList'
 import { TeamTable } from './components/TeamTable'
 import { CkefaLink } from './components/CkefaLink'
 import { CkefaLogo } from './components/CkefaLogo'
 import { ArticlePage } from './components/ArticlePage'
-import { useLocation } from 'react-router-dom'
-import { AdminPage } from './pages/AdminPage'
-import { articles, fixtures, lastYearFinalVideo, sponsors } from './data/festivalData'
-import { supabase } from './lib/supabaseClient'
 import { TournamentCountdown } from './components/public/TournamentCountdown'
+import { AdminPage } from './pages/AdminPage'
+
+import {
+    articles,
+    lastYearFinalVideo,
+    sponsors,
+} from './data/festivalData'
+
+type PublicTeamRow = {
+    id: string
+    name: string
+    manager_name: string | null
+}
+
+type PublicVenueRow = {
+    id: string
+    name: string
+    address: string | null
+    postcode: string | null
+    notes: string | null
+}
+
+type PublicFixtureRow = {
+    id: string
+    stage: string
+    kickoff_time: string | null
+    status: string | null
+    home_team_id: string | null
+    away_team_id: string | null
+    venue_id: string | null
+}
 
 const benefits = [
-    ['Full Month Format', 'The festival spreads games across October instead of forcing several matches into one day.', Calendar],
-    ['Player Welfare', 'Longer recovery windows help reduce fatigue, protect players and allow matches to be played properly.', Shield],
-    ['Community Platform', 'The event brings together clubs, families, volunteers, sponsors and local businesses.', Users],
-    ['CKEFA Media Coverage', 'Highlights, interviews, goals and match stories create a lasting digital archive.', Camera],
-]
+    [
+        'Full Month Format',
+        'The festival spreads games across October instead of forcing several matches into one day.',
+        Calendar,
+    ],
+    [
+        'Player Welfare',
+        'Longer recovery windows help reduce fatigue, protect players and allow matches to be played properly.',
+        Shield,
+    ],
+    [
+        'Community Platform',
+        'The event brings together clubs, families, volunteers, sponsors and local businesses.',
+        Users,
+    ],
+    [
+        'CKEFA Media Coverage',
+        'Highlights, interviews, goals and match stories create a lasting digital archive.',
+        Camera,
+    ],
+] as const
 
 const timeline = [
-    ['Weekend 1', 'Opening Weekend & Group Fixtures', 'Festival opening, team welcome, first fixtures and community activity.'],
-    ['Weekend 2', 'Group Fixtures Continue', 'More group games, sponsor activity and matchday media coverage.'],
-    ['Weekend 3', 'Semi Finals', 'The final four compete for a place in the final weekend.'],
-    ['Weekend 4', 'Grand Final', 'The finalists compete for the festival title.'],
-]
+    [
+        'Weekend 1',
+        'Opening Weekend & Group Fixtures',
+        'Festival opening, team welcome, first group fixtures and community activity.',
+    ],
+    [
+        'Weekend 2',
+        'Group Fixtures Continue',
+        'The second round of group matches, sponsor activity and matchday media coverage.',
+    ],
+    [
+        'Weekend 3',
+        'Semi Finals',
+        'The four qualifying teams compete for places in the festival final.',
+    ],
+    [
+        'Weekend 4',
+        'Grand Final',
+        'The two semi-final winners compete for the Black History Month Football Festival title.',
+    ],
+] as const
 
 function App() {
     const location = useLocation()
+
     const [isCheckingSession, setIsCheckingSession] = useState(true)
-    const [activeArticleId, setActiveArticleId] = useState<string | null>(null)
-    const [publicTeams, setPublicTeams] = useState<any[]>([])
+
+    const [activeArticleId, setActiveArticleId] =
+        useState<string | null>(null)
+
+    const [publicTeams, setPublicTeams] =
+        useState<PublicTeamRow[]>([])
+
+    const [publicFixtures, setPublicFixtures] =
+        useState<PublicFixture[]>([])
 
     useEffect(() => {
         getCurrentUser().finally(() => {
@@ -42,35 +116,166 @@ function App() {
     }, [])
 
     useEffect(() => {
-        async function loadPublicTeams() {
-            const { data, error } = await supabase
-                .from('teams')
-                .select('*')
-                .order('name', { ascending: true })
+        async function loadPublicTournamentData() {
+            const { data: festival, error: festivalError } =
+                await supabase
+                    .from('festivals')
+                    .select('id')
+                    .eq('status', 'active')
+                    .order('year', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
 
-            if (error) {
-                console.error('Failed to load public teams:', error)
+            if (festivalError) {
+                console.error(
+                    'Failed to load active festival:',
+                    festivalError
+                )
                 return
             }
 
-            setPublicTeams(data ?? [])
+            if (!festival) {
+                setPublicTeams([])
+                setPublicFixtures([])
+                return
+            }
+
+            const [
+                teamsResponse,
+                venuesResponse,
+                fixturesResponse,
+            ] = await Promise.all([
+                supabase
+                    .from('teams')
+                    .select('id, name, manager_name')
+                    .eq('festival_id', festival.id)
+                    .order('name', { ascending: true }),
+
+                supabase
+                    .from('venues')
+                    .select('id, name, address, postcode, notes')
+                    .eq('festival_id', festival.id)
+                    .order('name', { ascending: true }),
+
+                supabase
+                    .from('fixtures')
+                    .select(
+                        `
+                        id,
+                        stage,
+                        kickoff_time,
+                        status,
+                        home_team_id,
+                        away_team_id,
+                        venue_id
+                        `
+                    )
+                    .eq('festival_id', festival.id)
+                    .neq('status', 'cancelled')
+                    .order('kickoff_time', {
+                        ascending: true,
+                        nullsFirst: false,
+                    }),
+            ])
+
+            if (teamsResponse.error) {
+                console.error(
+                    'Failed to load public teams:',
+                    teamsResponse.error
+                )
+                return
+            }
+
+            if (venuesResponse.error) {
+                console.error(
+                    'Failed to load public venues:',
+                    venuesResponse.error
+                )
+                return
+            }
+
+            if (fixturesResponse.error) {
+                console.error(
+                    'Failed to load public fixtures:',
+                    fixturesResponse.error
+                )
+                return
+            }
+
+            const teams =
+                (teamsResponse.data ?? []) as PublicTeamRow[]
+
+            const venues =
+                (venuesResponse.data ?? []) as PublicVenueRow[]
+
+            const fixtureRows =
+                (fixturesResponse.data ?? []) as PublicFixtureRow[]
+
+            const teamNames = new Map(
+                teams.map((team) => [team.id, team.name])
+            )
+
+            const venueDetails = new Map(
+                venues.map((venue) => [venue.id, venue])
+            )
+
+            setPublicTeams(teams)
+
+            setPublicFixtures(
+                fixtureRows.map((fixture) => {
+                    const venue = venueDetails.get(
+                        fixture.venue_id ?? ''
+                    )
+
+                    return {
+                        id: fixture.id,
+                        stage: fixture.stage,
+                        kickoffTime: fixture.kickoff_time,
+                        status: fixture.status ?? 'scheduled',
+                        homeTeam:
+                            teamNames.get(
+                                fixture.home_team_id ?? ''
+                            ) ?? 'Home team TBC',
+                        awayTeam:
+                            teamNames.get(
+                                fixture.away_team_id ?? ''
+                            ) ?? 'Away team TBC',
+                        venueName:
+                            venue?.name ?? 'Venue to be confirmed',
+                        venueAddress: venue?.address ?? '',
+                        venuePostcode: venue?.postcode ?? '',
+                        venueNotes: venue?.notes ?? '',
+                    }
+                })
+            )
         }
 
-        loadPublicTeams()
+        loadPublicTournamentData()
     }, [])
 
     const activeArticle = useMemo(
-        () => articles.find((article) => article.id === activeArticleId),
+        () =>
+            articles.find(
+                (article) => article.id === activeArticleId
+            ),
         [activeArticleId]
     )
 
     if (activeArticle) {
-        return <ArticlePage article={activeArticle} onBack={() => setActiveArticleId(null)} />
+        return (
+            <ArticlePage
+                article={activeArticle}
+                onBack={() => setActiveArticleId(null)}
+            />
+        )
     }
 
     if (isCheckingSession) {
         return (
-            <p className="container" style={{ padding: '2rem', color: 'white' }}>
+            <p
+                className="container"
+                style={{ padding: '2rem', color: 'white' }}
+            >
                 Checking session...
             </p>
         )
@@ -93,10 +298,10 @@ function App() {
             >
                 <div className="cardGrid four">
                     {benefits.map(([title, text, Icon]) => (
-                        <article className="card" key={title as string}>
+                        <article className="card" key={title}>
                             <Icon className="icon" />
-                            <h3>{title as string}</h3>
-                            <p>{text as string}</p>
+                            <h3>{title}</h3>
+                            <p>{text}</p>
                         </article>
                     ))}
                 </div>
@@ -105,14 +310,18 @@ function App() {
             <Section
                 id="fixtures"
                 title="October Festival Schedule"
-                intro="The 2026 format is designed to give every fixture proper focus while keeping each team to one match per weekend."
+                intro="The 2026 format gives every fixture proper focus while ensuring each team plays no more than once per weekend."
             >
                 <div className="timeline">
                     {timeline.map(([week, title, detail]) => (
-                        <article className="timelineItem" key={week}>
+                        <article
+                            className="timelineItem"
+                            key={week}
+                        >
                             <div className="timelineIcon">
                                 <span>{week}</span>
                             </div>
+
                             <div className="timelineContent">
                                 <h3>{title}</h3>
                                 <p>{detail}</p>
@@ -121,8 +330,11 @@ function App() {
                     ))}
                 </div>
 
-                <h3 className="subheading">Sample Fixtures</h3>
-                <FixtureList fixtures={fixtures} />
+                <h3 className="subheading">
+                    Confirmed Fixtures
+                </h3>
+
+                <FixtureList fixtures={publicFixtures} />
             </Section>
 
             <Section
@@ -148,7 +360,7 @@ function App() {
             <Section
                 id="media"
                 title="Official Media Coverage"
-                intro="Every featured match is professionally filmed, with highlights, interviews and exclusive coverage produced by CKEFA Media throughout the festival."
+                intro="Featured matches are professionally filmed, with highlights, interviews and exclusive coverage produced by CKEFA Media throughout the festival."
             >
                 <div className="cardGrid three">
                     <article className="videoCard featuredVideo">
@@ -159,28 +371,40 @@ function App() {
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                         />
+
                         <h3>Festival Highlights</h3>
+
                         <p>
-                            Watch featured matches, finals and tournament highlights produced by CKEFA Media,
-                            bringing the best moments of the festival to supporters everywhere.
+                            Watch featured matches, finals and
+                            tournament highlights produced by CKEFA
+                            Media.
                         </p>
                     </article>
 
                     <article className="videoCard">
-                        <div className="videoPlaceholder">Match Highlights</div>
+                        <div className="videoPlaceholder">
+                            Match Highlights
+                        </div>
+
                         <h3>Match Highlights</h3>
+
                         <p>
-                            Catch goals, saves, celebrations and key moments from featured fixtures, filmed
-                            and published by CKEFA Media.
+                            Catch goals, saves, celebrations and key
+                            moments from featured festival fixtures.
                         </p>
                     </article>
 
                     <article className="videoCard">
-                        <div className="videoPlaceholder">Interviews</div>
+                        <div className="videoPlaceholder">
+                            Interviews
+                        </div>
+
                         <h3>Live Coverage & Interviews</h3>
+
                         <p>
-                            Follow interviews, post-match reactions, player spotlights and behind-the-scenes
-                            coverage throughout the festival.
+                            Follow interviews, post-match reactions,
+                            player spotlights and behind-the-scenes
+                            coverage.
                         </p>
                     </article>
                 </div>
@@ -189,18 +413,27 @@ function App() {
             <Section
                 id="history"
                 title="Black History Hub"
-                intro="This hub connects the football festival to Black History Month through short articles, community stories and learning content."
+                intro="Connecting the football festival to Black History Month through articles, community stories and learning content."
             >
                 <div className="cardGrid four">
                     {articles.map((article) => (
-                        <article className="card articleCard" key={article.id}>
-                            <span className="badge">{article.category}</span>
+                        <article
+                            className="card articleCard"
+                            key={article.id}
+                        >
+                            <span className="badge">
+                                {article.category}
+                            </span>
+
                             <h3>{article.title}</h3>
                             <p>{article.summary}</p>
+
                             <button
                                 type="button"
                                 className="textButton"
-                                onClick={() => setActiveArticleId(article.id)}
+                                onClick={() =>
+                                    setActiveArticleId(article.id)
+                                }
                             >
                                 Read article
                             </button>
@@ -212,12 +445,18 @@ function App() {
             <Section
                 id="sponsors"
                 title="Festival Partners"
-                intro="The Black History Month Football Festival is supported by organisations committed to grassroots football, community development and creating opportunities for young people. We are actively welcoming additional partners who would like to be part of this growing community event."
+                intro="The festival is supported by organisations committed to grassroots football, community development and creating opportunities for young people. Additional partners are welcome."
             >
                 <div className="cardGrid three">
                     {sponsors.map((sponsor) => (
-                        <article className="card sponsorCard" key={sponsor.id}>
-                            <span className="badge">{sponsor.tier}</span>
+                        <article
+                            className="card sponsorCard"
+                            key={sponsor.id}
+                        >
+                            <span className="badge">
+                                {sponsor.tier}
+                            </span>
+
                             <h3>{sponsor.name}</h3>
                             <p>{sponsor.description}</p>
 
@@ -235,10 +474,20 @@ function App() {
             <footer className="footer">
                 <div className="container footerGrid">
                     <div>
-                        <strong>Black History Month Football Festival</strong>
-                        <p>Powered by <CkefaLink /></p>
-                        <p>Celebrating Football. Celebrating Culture. Celebrating Community.</p>
+                        <strong>
+                            Black History Month Football Festival
+                        </strong>
+
+                        <p>
+                            Powered by <CkefaLink />
+                        </p>
+
+                        <p>
+                            Celebrating Football. Celebrating Culture.
+                            Celebrating Community.
+                        </p>
                     </div>
+
                     <CkefaLogo className="footerCkefaLogo" />
                 </div>
             </footer>
