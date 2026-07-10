@@ -3,6 +3,7 @@ import { articles, fixtures, sponsors, teams } from '../data/festivalData'
 import { supabase } from '../lib/supabaseClient'
 import { TeamsManager } from './admin/Teams/TeamsManager'
 const adminTabs = ['Dashboard', 'Teams', 'Fixtures', 'Results', 'Sponsors', 'Articles', 'Media'] as const
+import { FixturesManager } from './admin/Fixtures/FixturesManager'
 
 type AdminTab = typeof adminTabs[number]
 
@@ -113,9 +114,7 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
                               onTeamCreated={loadTeams} />
             )}
 
-            {activeTab === 'Fixtures' && (
-              <AdminCrud title="Manage Fixtures" description="Create fixture slots for each October weekend and assign venues." fields={['Home team', 'Away team', 'Date', 'Kick-off time', 'Venue']} records={fixtures.map((fixture) => `${fixture.homeTeam} vs ${fixture.awayTeam} — ${fixture.date}`)} />
-            )}
+            {activeTab === 'Fixtures' && <FixturesManager />}
 
             {activeTab === 'Results' && (
               <AdminCrud title="Update Results" description="Enter final scores, scorers and player-of-the-match details after each game." fields={['Fixture', 'Home score', 'Away score', 'Goal scorers', 'Player of the match']} records={fixtures.filter((fixture) => fixture.score).map((fixture) => `${fixture.homeTeam} ${fixture.score} ${fixture.awayTeam}`)} />

@@ -1046,3 +1046,22 @@
         grid-template-columns: 1fr;
     }
 }
+.adminFormGrid select {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(0,0,0,.28);
+    color: var(--white);
+    padding: 12px;
+    font: inherit;
+}
+
+.adminFormGrid select:focus {
+    outline: 2px solid rgba(185,242,141,.35);
+    border-color: var(--light-green);
+}
+
+.adminFormGrid option {
+    background: #10190f;
+    color: var(--white);
+}
