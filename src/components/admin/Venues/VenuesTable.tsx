@@ -6,6 +6,31 @@ type VenuesTableProps = {
     onDelete: (venue: Venue) => void
 }
 
+function renderNotes(notes: string | null) {
+    if (!notes) return '—'
+
+    const urlPattern = /(https?:\/\/[^\s]+)/g
+    const parts = notes.split(urlPattern)
+
+    return parts.map((part, index) => {
+        if (part.match(urlPattern)) {
+            return (
+                <a
+                    key={`${part}-${index}`}
+                    href={part}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="venueMapLink"
+                >
+                    View map
+                </a>
+            )
+        }
+
+        return <span key={`${part}-${index}`}>{part}</span>
+    })
+}
+
 export function VenuesTable({
                                 venues,
                                 onEdit,
@@ -24,8 +49,8 @@ export function VenuesTable({
     }
 
     return (
-        <div className="tableWrap">
-            <table className="adminTable">
+        <div className="tableWrap adminTableWrap">
+            <table className="adminTable venuesAdminTable">
                 <thead>
                 <tr>
                     <th>Venue</th>
@@ -42,10 +67,18 @@ export function VenuesTable({
                         <td>
                             <strong>{venue.name}</strong>
                         </td>
-                        <td>{venue.address ?? '—'}</td>
+
+                        <td className="venueAddressCell">
+                            {venue.address ?? '—'}
+                        </td>
+
                         <td>{venue.postcode ?? '—'}</td>
-                        <td>{venue.notes ?? '—'}</td>
-                        <td>
+
+                        <td className="venueNotesCell">
+                            {renderNotes(venue.notes)}
+                        </td>
+
+                        <td className="venueActionsCell">
                             <div className="tableActions">
                                 <button
                                     className="btn secondary small"

@@ -49,6 +49,17 @@ function formatStatus(status: string) {
       )
 }
 
+function extractUrl(value: string) {
+  const match = value.match(/https?:\/\/[^\s]+/)
+  return match?.[0] ?? null
+}
+
+function removeUrl(value: string) {
+  return value
+      .replace(/https?:\/\/[^\s]+/, '')
+      .trim()
+}
+
 export function FixtureList({ fixtures }: FixtureListProps) {
   if (!fixtures.length) {
     return (
@@ -66,11 +77,15 @@ export function FixtureList({ fixtures }: FixtureListProps) {
       <div className="fixtureGrid">
         {fixtures.map((fixture) => {
           const kickoff = formatKickoff(fixture.kickoffTime)
+          const mapUrl = extractUrl(fixture.venueNotes)
+          const venueNotes = removeUrl(fixture.venueNotes)
 
           return (
               <article className="fixtureCard" key={fixture.id}>
                 <div className="fixtureMain">
-                  <span className="badge">{fixture.stage}</span>
+                            <span className="badge">
+                                {fixture.stage}
+                            </span>
 
                   <h3>
                     {fixture.homeTeam} vs {fixture.awayTeam}
@@ -92,15 +107,28 @@ export function FixtureList({ fixtures }: FixtureListProps) {
                         <span>{fixture.venuePostcode}</span>
                     )}
 
-                    {fixture.venueNotes && (
-                        <small>{fixture.venueNotes}</small>
+                    {venueNotes && (
+                        <small>{venueNotes}</small>
+                    )}
+
+                    {mapUrl && (
+                        <a
+                            className="fixtureMapLink"
+                            href={mapUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                          View on Google Maps
+                        </a>
                     )}
                   </div>
                 </div>
 
                 <div className="scoreBox">
                   <strong>VS</strong>
-                  <span>{formatStatus(fixture.status)}</span>
+                  <span>
+                                {formatStatus(fixture.status)}
+                            </span>
                 </div>
               </article>
           )

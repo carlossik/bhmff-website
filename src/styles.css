@@ -1119,3 +1119,112 @@
     color: var(--muted);
     line-height: 1.5;
 }
+.tableWrap{
+    overflow-x:auto;
+}
+
+.adminTable{
+    min-width:1100px;
+}
+/* ---------- Admin Table Overflow Fix ---------- */
+
+.adminWorkspace {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.adminWorkspaceHeader {
+    max-width: 100%;
+    flex-wrap: wrap;
+}
+
+.adminWorkspaceHeader > div {
+    min-width: 0;
+    flex: 1;
+}
+
+.adminWorkspaceHeader > .btn {
+    flex: 0 0 auto;
+}
+
+.adminTableWrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.venuesAdminTable {
+    min-width: 980px;
+    table-layout: fixed;
+}
+
+.venuesAdminTable th:nth-child(1) {
+    width: 15%;
+}
+
+.venuesAdminTable th:nth-child(2) {
+    width: 21%;
+}
+
+.venuesAdminTable th:nth-child(3) {
+    width: 12%;
+}
+
+.venuesAdminTable th:nth-child(4) {
+    width: 32%;
+}
+
+.venuesAdminTable th:nth-child(5) {
+    width: 20%;
+}
+
+.venueAddressCell,
+.venueNotesCell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.55;
+}
+
+.venueNotesCell {
+    max-width: 320px;
+}
+
+.venueNotesCell span {
+    white-space: pre-wrap;
+}
+
+.venueMapLink {
+    display: inline-flex;
+    margin: .4rem 0;
+    color: var(--light-green);
+    font-weight: 900;
+    text-decoration: underline;
+}
+
+.venueActionsCell {
+    white-space: nowrap;
+}
+
+.venueActionsCell .tableActions {
+    justify-content: flex-start;
+}
+.fixtureMapLink {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: 10px;
+    padding: 9px 14px;
+    border: 1px solid rgba(185, 242, 141, .32);
+    border-radius: 999px;
+    background: rgba(185, 242, 141, .08);
+    color: var(--light-green);
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.fixtureMapLink:hover {
+    background: rgba(185, 242, 141, .16);
+    border-color: var(--light-green);
+}

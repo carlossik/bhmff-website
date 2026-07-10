@@ -31,22 +31,57 @@ type PublicTeamRow = {
     manager_name: string | null
 }
 
-type PublicVenueRow = {
-    id: string
+type RelatedTeam =
+    | { name: string }
+    | { name: string }[]
+    | null
+
+type RelatedVenue =
+    | {
     name: string
     address: string | null
     postcode: string | null
     notes: string | null
 }
+    | {
+    name: string
+    address: string | null
+    postcode: string | null
+    notes: string | null
+}[]
+    | null
 
-type PublicFixtureRow = {
+type PublicFixtureRelationRow = {
     id: string
     stage: string
     kickoff_time: string | null
     status: string | null
-    home_team_id: string | null
-    away_team_id: string | null
-    venue_id: string | null
+    home_team: RelatedTeam
+    away_team: RelatedTeam
+    venue: RelatedVenue
+}
+
+function getRelatedTeamName(
+    relation: RelatedTeam,
+    fallback: string
+) {
+    if (!relation) return fallback
+
+    if (Array.isArray(relation)) {
+        return relation[0]?.name ?? fallback
+    }
+
+    return relation.name
+}
+
+function getRelatedVenue(relation: RelatedVenue) {
+    if (!relation) return null
+
+    if (Array.isArray(relation)) {
+        return relation[0] ?? null
+    }
+
+    return relation
 }
 
 const benefits = [
@@ -99,7 +134,6 @@ function App() {
     const location = useLocation()
 
     const [isCheckingSession, setIsCheckingSession] = useState(true)
-
     const [activeArticleId, setActiveArticleId] =
         useState<string | null>(null)
 
@@ -140,58 +174,51 @@ function App() {
                 return
             }
 
-            const [
-                teamsResponse,
-                venuesResponse,
-                fixturesResponse,
-            ] = await Promise.all([
-                supabase
-                    .from('teams')
-                    .select('id, name, manager_name')
-                    .eq('festival_id', festival.id)
-                    .order('name', { ascending: true }),
+            const [teamsResponse, fixturesResponse] =
+                await Promise.all([
+                    supabase
+                        .from('teams')
+                        .select('id, name, manager_name')
+                        .eq('festival_id', festival.id)
+                        .order('name', { ascending: true }),
 
-                supabase
-                    .from('venues')
-                    .select('id, name, address, postcode, notes')
-                    .eq('festival_id', festival.id)
-                    .order('name', { ascending: true }),
-
-                supabase
-                    .from('fixtures')
-                    .select(
-                        `
-                        id,
-                        stage,
-                        kickoff_time,
-                        status,
-                        home_team_id,
-                        away_team_id,
-                        venue_id
-                        `
-                    )
-                    .eq('festival_id', festival.id)
-                    .neq('status', 'cancelled')
-                    .order('kickoff_time', {
-                        ascending: true,
-                        nullsFirst: false,
-                    }),
-            ])
+                    supabase
+                        .from('fixtures')
+                        .select(`
+                            id,
+                            stage,
+                            kickoff_time,
+                            status,
+                            home_team:teams!fixtures_home_team_id_fkey (
+                                name
+                            ),
+                            away_team:teams!fixtures_away_team_id_fkey (
+                                name
+                            ),
+                            venue:venues!fixtures_venue_id_fkey (
+                                name,
+                                address,
+                                postcode,
+                                notes
+                            )
+                        `)
+                        .eq('festival_id', festival.id)
+                        .neq('status', 'cancelled')
+                        .order('kickoff_time', {
+                            ascending: true,
+                            nullsFirst: false,
+                        }),
+                ])
 
             if (teamsResponse.error) {
                 console.error(
                     'Failed to load public teams:',
                     teamsResponse.error
                 )
-                return
-            }
-
-            if (venuesResponse.error) {
-                console.error(
-                    'Failed to load public venues:',
-                    venuesResponse.error
+            } else {
+                setPublicTeams(
+                    (teamsResponse.data ?? []) as PublicTeamRow[]
                 )
-                return
             }
 
             if (fixturesResponse.error) {
@@ -199,49 +226,37 @@ function App() {
                     'Failed to load public fixtures:',
                     fixturesResponse.error
                 )
+                setPublicFixtures([])
                 return
             }
 
-            const teams =
-                (teamsResponse.data ?? []) as PublicTeamRow[]
-
-            const venues =
-                (venuesResponse.data ?? []) as PublicVenueRow[]
-
             const fixtureRows =
-                (fixturesResponse.data ?? []) as PublicFixtureRow[]
-
-            const teamNames = new Map(
-                teams.map((team) => [team.id, team.name])
-            )
-
-            const venueDetails = new Map(
-                venues.map((venue) => [venue.id, venue])
-            )
-
-            setPublicTeams(teams)
+                (fixturesResponse.data ??
+                    []) as unknown as PublicFixtureRelationRow[]
 
             setPublicFixtures(
                 fixtureRows.map((fixture) => {
-                    const venue = venueDetails.get(
-                        fixture.venue_id ?? ''
-                    )
+                    const venue = getRelatedVenue(fixture.venue)
 
                     return {
                         id: fixture.id,
                         stage: fixture.stage,
                         kickoffTime: fixture.kickoff_time,
                         status: fixture.status ?? 'scheduled',
-                        homeTeam:
-                            teamNames.get(
-                                fixture.home_team_id ?? ''
-                            ) ?? 'Home team TBC',
-                        awayTeam:
-                            teamNames.get(
-                                fixture.away_team_id ?? ''
-                            ) ?? 'Away team TBC',
+
+                        homeTeam: getRelatedTeamName(
+                            fixture.home_team,
+                            'Home team TBC'
+                        ),
+
+                        awayTeam: getRelatedTeamName(
+                            fixture.away_team,
+                            'Away team TBC'
+                        ),
+
                         venueName:
                             venue?.name ?? 'Venue to be confirmed',
+
                         venueAddress: venue?.address ?? '',
                         venuePostcode: venue?.postcode ?? '',
                         venueNotes: venue?.notes ?? '',
@@ -345,7 +360,7 @@ function App() {
                 <TeamTable
                     teams={publicTeams.map((team, index) => ({
                         id: index + 1,
-                        name: team.name,
+                        name: team.name.trim(),
                         manager: team.manager_name ?? 'TBC',
                         played: 0,
                         won: 0,
@@ -373,11 +388,9 @@ function App() {
                         />
 
                         <h3>Festival Highlights</h3>
-
                         <p>
-                            Watch featured matches, finals and
-                            tournament highlights produced by CKEFA
-                            Media.
+                            Watch featured matches, finals and tournament
+                            highlights produced by CKEFA Media.
                         </p>
                     </article>
 
@@ -387,10 +400,9 @@ function App() {
                         </div>
 
                         <h3>Match Highlights</h3>
-
                         <p>
-                            Catch goals, saves, celebrations and key
-                            moments from featured festival fixtures.
+                            Catch goals, saves, celebrations and key moments
+                            from featured festival fixtures.
                         </p>
                     </article>
 
@@ -400,11 +412,9 @@ function App() {
                         </div>
 
                         <h3>Live Coverage & Interviews</h3>
-
                         <p>
-                            Follow interviews, post-match reactions,
-                            player spotlights and behind-the-scenes
-                            coverage.
+                            Follow interviews, post-match reactions, player
+                            spotlights and behind-the-scenes coverage.
                         </p>
                     </article>
                 </div>
