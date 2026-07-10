@@ -6,15 +6,13 @@ const tournamentEnd = new Date('2026-10-31T23:59:59+00:00')
 function getTimeRemaining() {
     const now = new Date()
 
-    if (now > tournamentEnd) {
-        return null
-    }
+    if (now > tournamentEnd) return null
 
     const difference = tournamentStart.getTime() - now.getTime()
 
     if (difference <= 0) {
         return {
-            label: 'Tournament is live',
+            label: 'The Festival Is Live',
             days: 0,
             hours: 0,
             minutes: 0,
@@ -42,9 +40,7 @@ export function TournamentCountdown() {
         return () => clearInterval(timer)
     }, [])
 
-    if (!timeRemaining) {
-        return null
-    }
+    if (!timeRemaining) return null
 
     return (
         <section className="countdownBanner">
@@ -61,6 +57,11 @@ export function TournamentCountdown() {
                 <div><strong>{timeRemaining.hours}</strong><small>Hours</small></div>
                 <div><strong>{timeRemaining.minutes}</strong><small>Minutes</small></div>
                 <div><strong>{timeRemaining.seconds}</strong><small>Seconds</small></div>
+            </div>
+
+            <div className="countdownEventDetails">
+                <span>Saturday 3 October 2026</span>
+                <span>Kick-off: 09:00 AM</span>
             </div>
         </section>
     )
