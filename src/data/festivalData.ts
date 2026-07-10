@@ -29,7 +29,7 @@ export type Team = {
 export type Sponsor = {
   id: number
   name: string
-  tier: 'Gold' | 'Silver' | 'Community'
+  tier: string
   description: string
 }
 
@@ -66,9 +66,27 @@ export const teams: Team[] = [
 ]
 
 export const sponsors: Sponsor[] = [
-  { id: 1, name: 'Gold Partner', tier: 'Gold', description: 'For businesses that want headline visibility across the festival, videos, final day and community storytelling.' },
-  { id: 2, name: 'Silver Partner', tier: 'Silver', description: 'For local organisations that want strong visibility while supporting grassroots football and community development.' },
-  { id: 3, name: 'Community Partner', tier: 'Community', description: 'For small businesses, families and community groups who want to contribute to a positive local event.' },
+  {
+    id: 1,
+    name: 'CKEFA Media',
+    tier: 'Official Media Partner',
+    description:
+        'Providing professional match filming, live streaming, photography, interviews and tournament highlights throughout the festival.'
+  },
+  {
+    id: 2,
+    name: 'CKEFA Software Solutions Ltd',
+    tier: 'Technology Partner',
+    description:
+        'Designing, developing and maintaining the official Black History Month Football Festival website and digital management platform.'
+  },
+  {
+    id: 3,
+    name: 'Become a Festival Partner',
+    tier: 'Partnership Opportunities',
+    description:
+        'We welcome businesses and organisations that share our passion for grassroots football, community development and Black History Month celebrations. Partner with us to help deliver an outstanding festival while promoting your organisation to players, families and the wider community.'
+  }
 ]
 
 export const articles: Article[] = [
