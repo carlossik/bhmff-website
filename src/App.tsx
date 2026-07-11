@@ -26,6 +26,7 @@ import { CkefaLogo } from './components/CkefaLogo'
 import { ArticlePage } from './components/ArticlePage'
 import { TournamentCountdown } from './components/public/TournamentCountdown'
 import { AdminPage } from './pages/AdminPage'
+import { PublicSponsors } from './components/public/PublicSponsors'
 
 import {
     calculateStandings,
@@ -35,7 +36,6 @@ import {
 import {
     articles,
     lastYearFinalVideo,
-    sponsors,
 } from './data/festivalData'
 
 type PublicTeamRow = {
@@ -961,45 +961,8 @@ function App() {
                 title="Festival Partners"
                 intro="The festival is supported by organisations committed to grassroots football, community development and creating opportunities for young people. Additional partners are welcome."
             >
-                <div className="cardGrid three">
-                    {sponsors.map(
-                        (sponsor) => (
-                            <article
-                                className="card sponsorCard"
-                                key={
-                                    sponsor.id
-                                }
-                            >
-                                <span className="badge">
-                                    {
-                                        sponsor.tier
-                                    }
-                                </span>
-
-                                <h3>
-                                    {
-                                        sponsor.name
-                                    }
-                                </h3>
-
-                                <p>
-                                    {
-                                        sponsor.description
-                                    }
-                                </p>
-
-                                <a
-                                    className="btn primary small"
-                                    href="mailto:info@ckefamedia.com?subject=Festival Partnership Enquiry"
-                                >
-                                    Contact Us
-                                </a>
-                            </article>
-                        )
-                    )}
-                </div>
+                <PublicSponsors />
             </Section>
-
             <footer className="footer">
                 <div className="container footerGrid">
                     <div>

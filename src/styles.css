@@ -1995,3 +1995,171 @@
         grid-template-columns: 1fr;
     }
 }
+/* ---------- Sponsor Management ---------- */
+
+.sponsorLogoEditor {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 16px;
+    border: 1px solid rgba(185, 242, 141, .18);
+    border-radius: 16px;
+    background: rgba(0, 0, 0, .22);
+}
+
+.sponsorLogoEditor img {
+    width: 120px;
+    height: 90px;
+    object-fit: contain;
+    padding: 8px;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.adminCheckboxLabel {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+}
+
+.adminCheckboxLabel input {
+    width: 20px;
+    height: 20px;
+}
+
+.sponsorsTableWrap {
+    overflow-x: auto;
+}
+
+.sponsorsAdminTable {
+    min-width: 980px;
+    table-layout: fixed;
+}
+
+.sponsorsAdminTable th:nth-child(1) {
+    width: 28%;
+}
+
+.sponsorsAdminTable th:nth-child(2) {
+    width: 22%;
+}
+
+.sponsorsAdminTable th:nth-child(3) {
+    width: 18%;
+}
+
+.sponsorsAdminTable th:nth-child(4) {
+    width: 12%;
+}
+
+.sponsorsAdminTable th:nth-child(5) {
+    width: 20%;
+}
+
+.adminSponsorIdentity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.adminSponsorIdentity img,
+.adminSponsorIdentity > span {
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+    border-radius: 12px;
+}
+
+.adminSponsorIdentity img {
+    object-fit: contain;
+    padding: 5px;
+    background: #ffffff;
+}
+
+.adminSponsorIdentity > span {
+    display: grid;
+    place-items: center;
+    background: var(--light-green);
+    color: #071207;
+    font-size: .75rem;
+    font-weight: 900;
+}
+
+.sponsorWebsiteCell a {
+    color: var(--light-green);
+    font-weight: 800;
+}
+
+/* ---------- Public Sponsors ---------- */
+
+.publicSponsorCard {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.publicSponsorLogo {
+    width: 100%;
+    height: 150px;
+    flex: 0 0 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    padding: 16px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.publicSponsorLogo img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 118px;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.publicSponsorCard .badge {
+    align-self: flex-start;
+}
+
+.publicSponsorCard h3 {
+    margin-top: 18px;
+}
+
+.publicSponsorCard p {
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+
+.publicSponsorCard > .btn {
+    align-self: flex-start;
+    margin-top: auto;
+}
+
+.partnershipCallout {
+    border-color: rgba(185, 242, 141, 0.42);
+    background:
+            radial-gradient(
+                    circle at top right,
+                    rgba(185, 242, 141, 0.16),
+                    transparent 40%
+            ),
+            rgba(0, 0, 0, 0.24);
+}
+.sponsorCard.publicSponsorCard .publicSponsorLogo img {
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 118px !important;
+    object-fit: contain !important;
+    position: static !important;
+}

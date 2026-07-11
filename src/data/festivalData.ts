@@ -26,12 +26,12 @@ export type Team = {
   points: number
 }
 
-export type Sponsor = {
-  id: number
-  name: string
-  tier: string
-  description: string
-}
+// export type Sponsor = {
+//   id: number
+//   name: string
+//   tier: string
+//   description: string
+// }
 
 export type Article = {
   id: string
@@ -65,29 +65,29 @@ export const teams: Team[] = [
   { id: 4, name: 'Participating Club D', manager: 'To be confirmed', played: 0, won: 0, drawn: 0, lost: 0, goalDifference: 0, points: 0 },
 ]
 
-export const sponsors: Sponsor[] = [
-  {
-    id: 1,
-    name: 'CKEFA Media',
-    tier: 'Official Media Partner',
-    description:
-        'Providing professional match filming, live streaming, photography, interviews and tournament highlights throughout the festival.'
-  },
-  {
-    id: 2,
-    name: 'CKEFA Software Solutions Ltd',
-    tier: 'Technology Partner',
-    description:
-        'Designing, developing and maintaining the official Black History Month Football Festival website and digital management platform.'
-  },
-  {
-    id: 3,
-    name: 'Become a Festival Partner',
-    tier: 'Partnership Opportunities',
-    description:
-        'We welcome businesses and organisations that share our passion for grassroots football, community development and Black History Month celebrations. Partner with us to help deliver an outstanding festival while promoting your organisation to players, families and the wider community.'
-  }
-]
+// export const sponsors: Sponsor[] = [
+//   {
+//     id: 1,
+//     name: 'CKEFA Media',
+//     tier: 'Official Media Partner',
+//     description:
+//         'Providing professional match filming, live streaming, photography, interviews and tournament highlights throughout the festival.'
+//   },
+//   {
+//     id: 2,
+//     name: 'CKEFA Software Solutions Ltd',
+//     tier: 'Technology Partner',
+//     description:
+//         'Designing, developing and maintaining the official Black History Month Football Festival website and digital management platform.'
+//   },
+//   {
+//     id: 3,
+//     name: 'Become a Festival Partner',
+//     tier: 'Partnership Opportunities',
+//     description:
+//         'We welcome businesses and organisations that share our passion for grassroots football, community development and Black History Month celebrations. Partner with us to help deliver an outstanding festival while promoting your organisation to players, families and the wider community.'
+//   }
+// ]
 
 export const articles: Article[] = [
   {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { articles, fixtures, sponsors } from '../data/festivalData'
+import { articles, fixtures } from '../data/festivalData'
 import { supabase } from '../lib/supabaseClient'
 import { TeamsManager } from './admin/Teams/TeamsManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
@@ -8,6 +8,7 @@ import { ResultsManager } from './admin/Results/ResultsManager'
 import type { DbTeam } from './admin/Teams/teamTypes'
 import { GoalsManager } from './admin/Goals/GoalsManager'
 import { GroupsManager } from './admin/Groups/GroupsManager'
+import { SponsorsManager } from './admin/Sponsors/SponsorsManager'
 
 
 const adminTabs = [
@@ -67,7 +68,7 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
       () => [
         { label: 'Teams', value: dbTeams.length },
         { label: 'Fixtures', value: fixtures.length },
-        { label: 'Sponsors', value: sponsors.length },
+          { label: 'Sponsors', value: 'Live' },
         { label: 'Articles', value: articles.length },
       ],
       [dbTeams.length]
@@ -198,22 +199,9 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
                     <GoalsManager />
                 )}
 
-              {activeTab === 'Sponsors' && (
-                  <AdminCrud
-                      title="Manage Sponsors"
-                      description="Add sponsor profiles, partnership level, website links and logo references."
-                      fields={[
-                        'Sponsor name',
-                        'Tier',
-                        'Website',
-                        'Description',
-                      ]}
-                      records={sponsors.map(
-                          (sponsor) =>
-                              `${sponsor.name} — ${sponsor.tier}`
-                      )}
-                  />
-              )}
+                {activeTab === 'Sponsors' && (
+                    <SponsorsManager />
+                )}
 
               {activeTab === 'Articles' && (
                   <AdminCrud
