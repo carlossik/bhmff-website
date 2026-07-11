@@ -20,7 +20,7 @@ export function ResultsTable({
                                  onDelete,
                              }: ResultsTableProps) {
     const teamNames = new Map(
-        teams.map((team) => [team.id, team.name])
+        teams.map((team) => [team.id, team.name.trim()])
     )
 
     const fixtureMap = new Map(
@@ -39,8 +39,8 @@ export function ResultsTable({
     }
 
     return (
-        <div className="tableWrap adminTableWrap">
-            <table className="adminTable">
+        <div className="tableWrap adminTableWrap resultsTableWrap">
+            <table className="adminTable resultsAdminTable">
                 <thead>
                 <tr>
                     <th>Fixture</th>
@@ -67,20 +67,19 @@ export function ResultsTable({
 
                     return (
                         <tr key={result.id}>
-                            <td>
+                            <td className="resultsFixtureCell">
                                 <strong>
                                     {home} vs {away}
                                 </strong>
-                                <br />
+
                                 <span className="muted">
                                         {fixture?.stage ?? 'Fixture'}
                                     </span>
                             </td>
 
-                            <td>
+                            <td className="resultsScoreCell">
                                 <strong>
-                                    {result.home_score} -{' '}
-                                    {result.away_score}
+                                    {result.home_score} - {result.away_score}
                                 </strong>
                             </td>
 
@@ -96,14 +95,12 @@ export function ResultsTable({
                                     </span>
                             </td>
 
-                            <td>
+                            <td className="resultsActionsCell">
                                 <div className="tableActions">
                                     <button
                                         className="btn secondary small"
                                         type="button"
-                                        onClick={() =>
-                                            onEdit(result)
-                                        }
+                                        onClick={() => onEdit(result)}
                                     >
                                         Edit
                                     </button>
@@ -111,9 +108,7 @@ export function ResultsTable({
                                     <button
                                         className="btn secondary small"
                                         type="button"
-                                        onClick={() =>
-                                            onDelete(result)
-                                        }
+                                        onClick={() => onDelete(result)}
                                     >
                                         Delete
                                     </button>

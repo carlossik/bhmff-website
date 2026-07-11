@@ -3,6 +3,8 @@ export type PublicResult = {
     fixtureId: string
     stage: string
     kickoffTime: string | null
+    homeTeamId: string
+    awayTeamId: string
     homeTeam: string
     awayTeam: string
     homeScore: number
@@ -47,6 +49,7 @@ export function ResultsList({ results }: ResultsListProps) {
                 <article className="publicResultCard" key={result.id}>
                     <div className="publicResultHeader">
                         <span className="badge">{result.stage}</span>
+
                         <span className="publicResultDate">
                             {formatMatchDate(result.kickoffTime)}
                         </span>

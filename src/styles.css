@@ -1389,3 +1389,134 @@
         order: 3;
     }
 }
+/* ---------- Automatic League Table ---------- */
+
+.leagueTableHeading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.leagueTableHeading h3 {
+    margin: 6px 0 0;
+}
+
+.leagueTableHeading p {
+    max-width: 440px;
+    margin: 0;
+}
+
+.leagueTableWrap {
+    overflow-x: auto;
+}
+
+.leagueTable {
+    min-width: 820px;
+}
+
+.leagueTable th:first-child,
+.leagueTable td:first-child {
+    text-align: center;
+}
+
+.leagueTable th:not(:nth-child(2)),
+.leagueTable td:not(:nth-child(2)) {
+    text-align: center;
+}
+
+.leaguePosition {
+    width: 34px;
+    height: 34px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(185, 242, 141, .10);
+    border: 1px solid rgba(185, 242, 141, .24);
+    color: var(--light-green);
+    font-weight: 900;
+}
+
+.leagueTeamName {
+    min-width: 210px;
+    text-align: left !important;
+}
+
+.leaguePoints strong {
+    color: var(--light-green);
+    font-size: 1.1rem;
+}
+
+.leagueTable tbody tr:first-child {
+    background: rgba(185, 242, 141, .07);
+}
+
+.leagueTableRules {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: .82rem;
+}
+/* ---------- Results Admin Table Fix ---------- */
+
+.resultsTableWrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.resultsAdminTable {
+    width: 100%;
+    min-width: 820px;
+    table-layout: fixed;
+}
+
+.resultsAdminTable th:nth-child(1) {
+    width: 38%;
+}
+
+.resultsAdminTable th:nth-child(2) {
+    width: 10%;
+}
+
+.resultsAdminTable th:nth-child(3) {
+    width: 19%;
+}
+
+.resultsAdminTable th:nth-child(4) {
+    width: 14%;
+}
+
+.resultsAdminTable th:nth-child(5) {
+    width: 19%;
+}
+
+.resultsFixtureCell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.resultsFixtureCell span {
+    display: block;
+    margin-top: 6px;
+}
+
+.resultsScoreCell {
+    white-space: nowrap;
+}
+
+.resultsActionsCell {
+    white-space: nowrap;
+}
+
+.resultsActionsCell .tableActions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+}
+
+.resultsActionsCell .btn {
+    min-width: 76px;
+}
