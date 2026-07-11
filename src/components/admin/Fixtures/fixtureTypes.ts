@@ -1,4 +1,8 @@
-export type FixtureStatus = 'scheduled' | 'postponed' | 'completed' | 'cancelled'
+export type FixtureStatus =
+    | 'scheduled'
+    | 'postponed'
+    | 'completed'
+    | 'cancelled'
 
 export type Fixture = {
     id: string
@@ -6,6 +10,7 @@ export type Fixture = {
     home_team_id: string | null
     away_team_id: string | null
     venue_id: string | null
+    group_id: string | null
     stage: string
     kickoff_time: string | null
     status: FixtureStatus
@@ -24,6 +29,17 @@ export type FixtureVenue = {
     postcode: string | null
 }
 
+export type FixtureGroup = {
+    id: string
+    name: string
+    sort_order: number
+}
+
+export type FixtureGroupMembership = {
+    group_id: string
+    team_id: string
+}
+
 export type Festival = {
     id: string
     name: string
@@ -32,6 +48,7 @@ export type Festival = {
 
 export type FixtureFormValues = {
     stage: string
+    group_id: string
     home_team_id: string
     away_team_id: string
     venue_id: string

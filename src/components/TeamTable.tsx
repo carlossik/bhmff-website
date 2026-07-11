@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type {
     LeagueStanding,
 } from '../utils/calculateStandings'
@@ -27,26 +28,28 @@ function TeamIdentity({
     team: LeagueStanding
     size: 'card' | 'table'
 }) {
+    const [imageFailed, setImageFailed] = useState(false)
+
     const className =
         size === 'card'
             ? 'teamBadge'
             : 'leagueTeamLogo'
 
-    if (team.logoUrl) {
-        return (
-            <div className={className}>
+    const shouldShowLogo =
+        Boolean(team.logoUrl) && !imageFailed
+
+    return (
+        <div className={className}>
+            {shouldShowLogo ? (
                 <img
                     src={team.logoUrl}
                     alt={`${team.name} logo`}
                     loading="lazy"
+                    onError={() => setImageFailed(true)}
                 />
-            </div>
-        )
-    }
-
-    return (
-        <div className={className}>
-            {getInitials(team.name)}
+            ) : (
+                getInitials(team.name)
+            )}
         </div>
     )
 }
@@ -60,9 +63,8 @@ export function TeamTable({
                 <h3>Teams coming soon</h3>
 
                 <p>
-                    Confirmed participating clubs will
-                    appear here once registration is
-                    completed.
+                    Confirmed participating clubs will appear here once
+                    registration is completed.
                 </p>
             </div>
         )
@@ -89,23 +91,18 @@ export function TeamTable({
                             <h3>{team.name}</h3>
 
                             <p>
-                                Manager:{' '}
-                                {team.manager || 'TBC'}
+                                Manager: {team.manager || 'TBC'}
                             </p>
                         </div>
 
                         <div className="teamStatsMini">
                             <div>
-                                <strong>
-                                    {team.played}
-                                </strong>
+                                <strong>{team.played}</strong>
                                 <span>Played</span>
                             </div>
 
                             <div>
-                                <strong>
-                                    {team.points}
-                                </strong>
+                                <strong>{team.points}</strong>
                                 <span>Points</span>
                             </div>
 
@@ -129,14 +126,12 @@ export function TeamTable({
                             Live Standings
                         </span>
 
-                        <h3>
-                            Current League Table
-                        </h3>
+                        <h3>Current League Table</h3>
                     </div>
 
                     <p className="muted">
-                        The table updates automatically
-                        from published match results.
+                        The table updates automatically from published
+                        match results.
                     </p>
                 </div>
 
@@ -173,9 +168,7 @@ export function TeamTable({
                                             size="table"
                                         />
 
-                                        <strong>
-                                            {team.name}
-                                        </strong>
+                                        <strong>{team.name}</strong>
                                     </div>
                                 </td>
 
@@ -193,9 +186,7 @@ export function TeamTable({
                                 </td>
 
                                 <td className="leaguePoints">
-                                    <strong>
-                                        {team.points}
-                                    </strong>
+                                    <strong>{team.points}</strong>
                                 </td>
                             </tr>
                         ))}
@@ -204,9 +195,8 @@ export function TeamTable({
                 </div>
 
                 <p className="leagueTableRules">
-                    Teams are ranked by points, goal
-                    difference, goals scored and then
-                    alphabetical order.
+                    Teams are ranked by points, goal difference, goals
+                    scored and then alphabetical order.
                 </p>
             </div>
         </>

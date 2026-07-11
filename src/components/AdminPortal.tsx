@@ -6,16 +6,21 @@ import { FixturesManager } from './admin/Fixtures/FixturesManager'
 import { VenuesManager } from './admin/Venues/VenuesManager'
 import { ResultsManager } from './admin/Results/ResultsManager'
 import type { DbTeam } from './admin/Teams/teamTypes'
+import { GoalsManager } from './admin/Goals/GoalsManager'
+import { GroupsManager } from './admin/Groups/GroupsManager'
+
 
 const adminTabs = [
-  'Dashboard',
-  'Teams',
-  'Venues',
-  'Fixtures',
-  'Results',
-  'Sponsors',
-  'Articles',
-  'Media',
+    'Dashboard',
+    'Teams',
+    'Groups',
+    'Venues',
+    'Fixtures',
+    'Results',
+    'Goals',
+    'Sponsors',
+    'Articles',
+    'Media',
 ] as const
 
 type AdminTab = typeof adminTabs[number]
@@ -176,6 +181,10 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
                   />
               )}
 
+                {activeTab === 'Groups' && (
+                    <GroupsManager />
+                )}
+
               {activeTab === 'Venues' && (
                   <VenuesManager />
               )}
@@ -185,6 +194,9 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
               )}
 
                 {activeTab === 'Results' && <ResultsManager />}
+                {activeTab === 'Goals' && (
+                    <GoalsManager />
+                )}
 
               {activeTab === 'Sponsors' && (
                   <AdminCrud

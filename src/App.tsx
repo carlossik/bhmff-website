@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Calendar, Camera, Shield, Users } from 'lucide-react'
-
+import { PublicGroupStandings } from './components/public/PublicGroupStandings'
 import { getCurrentUser } from './services/auth'
 import { supabase } from './lib/supabaseClient'
 
@@ -16,7 +16,11 @@ import {
     ResultsList,
     type PublicResult,
 } from './components/ResultsList'
-import { TeamTable } from './components/TeamTable'
+import {
+    GoldenBootTable,
+    type PublicGoal,
+} from './components/GoldenBootTable'
+
 import { CkefaLink } from './components/CkefaLink'
 import { CkefaLogo } from './components/CkefaLogo'
 import { ArticlePage } from './components/ArticlePage'
@@ -97,6 +101,26 @@ type PublicResultRelationRow = {
     fixture: RelatedResultFixture
 }
 
+type GoalTeamRelation = {
+    id: string
+    name: string
+    logo_url: string | null
+}
+
+type RelatedGoalTeam =
+    | GoalTeamRelation
+    | GoalTeamRelation[]
+    | null
+
+type PublicGoalRelationRow = {
+    id: string
+    fixture_id: string | null
+    player_name: string
+    minute: number | null
+    video_timestamp: string | null
+    team: RelatedGoalTeam
+}
+
 function getRelatedTeam(
     relation: RelatedTeamValue
 ): RelatedTeam | null {
@@ -111,7 +135,9 @@ function getRelatedTeam(
     return relation
 }
 
-function getRelatedVenue(relation: RelatedVenue) {
+function getRelatedVenue(
+    relation: RelatedVenue
+) {
     if (!relation) {
         return null
     }
@@ -125,6 +151,20 @@ function getRelatedVenue(relation: RelatedVenue) {
 
 function getRelatedResultFixture(
     relation: RelatedResultFixture
+) {
+    if (!relation) {
+        return null
+    }
+
+    if (Array.isArray(relation)) {
+        return relation[0] ?? null
+    }
+
+    return relation
+}
+
+function getRelatedGoalTeam(
+    relation: RelatedGoalTeam
 ) {
     if (!relation) {
         return null
@@ -201,6 +241,9 @@ function App() {
     const [publicResults, setPublicResults] =
         useState<PublicResult[]>([])
 
+    const [publicGoals, setPublicGoals] =
+        useState<PublicGoal[]>([])
+
     useEffect(() => {
         getCurrentUser().finally(() => {
             setIsCheckingSession(false)
@@ -209,14 +252,18 @@ function App() {
 
     useEffect(() => {
         async function loadPublicTournamentData() {
-            const { data: festival, error: festivalError } =
-                await supabase
-                    .from('festivals')
-                    .select('id')
-                    .eq('status', 'active')
-                    .order('year', { ascending: false })
-                    .limit(1)
-                    .maybeSingle()
+            const {
+                data: festival,
+                error: festivalError,
+            } = await supabase
+                .from('festivals')
+                .select('id')
+                .eq('status', 'active')
+                .order('year', {
+                    ascending: false,
+                })
+                .limit(1)
+                .maybeSingle()
 
             if (festivalError) {
                 console.error(
@@ -230,6 +277,7 @@ function App() {
                 setPublicTeams([])
                 setPublicFixtures([])
                 setPublicResults([])
+                setPublicGoals([])
                 return
             }
 
@@ -240,8 +288,13 @@ function App() {
             ] = await Promise.all([
                 supabase
                     .from('teams')
-                    .select('id, name, manager_name,logo_url')
-                    .eq('festival_id', festival.id)
+                    .select(
+                        'id, name, manager_name, logo_url'
+                    )
+                    .eq(
+                        'festival_id',
+                        festival.id
+                    )
                     .order('name', {
                         ascending: true,
                     }),
@@ -268,12 +321,21 @@ function App() {
                             notes
                         )
                     `)
-                    .eq('festival_id', festival.id)
-                    .neq('status', 'cancelled')
-                    .order('kickoff_time', {
-                        ascending: true,
-                        nullsFirst: false,
-                    }),
+                    .eq(
+                        'festival_id',
+                        festival.id
+                    )
+                    .neq(
+                        'status',
+                        'cancelled'
+                    )
+                    .order(
+                        'kickoff_time',
+                        {
+                            ascending: true,
+                            nullsFirst: false,
+                        }
+                    ),
 
                 supabase
                     .from('results')
@@ -331,56 +393,57 @@ function App() {
                         []) as unknown as PublicFixtureRelationRow[]
 
                 setPublicFixtures(
-                    fixtureRows.map((fixture) => {
-                        const homeTeam =
-                            getRelatedTeam(
-                                fixture.home_team
-                            )
+                    fixtureRows.map(
+                        (fixture) => {
+                            const homeTeam =
+                                getRelatedTeam(
+                                    fixture.home_team
+                                )
 
-                        const awayTeam =
-                            getRelatedTeam(
-                                fixture.away_team
-                            )
+                            const awayTeam =
+                                getRelatedTeam(
+                                    fixture.away_team
+                                )
 
-                        const venue =
-                            getRelatedVenue(
-                                fixture.venue
-                            )
+                            const venue =
+                                getRelatedVenue(
+                                    fixture.venue
+                                )
 
-                        return {
-                            id: fixture.id,
-                            stage: fixture.stage,
-                            kickoffTime:
-                            fixture.kickoff_time,
-
-                            status:
-                                fixture.status ??
-                                'scheduled',
-
-                            homeTeam:
-                                homeTeam?.name.trim() ??
-                                'Home team TBC',
-
-                            awayTeam:
-                                awayTeam?.name.trim() ??
-                                'Away team TBC',
-
-                            venueName:
-                                venue?.name ??
-                                'Venue to be confirmed',
-
-                            venueAddress:
-                                venue?.address ?? '',
-
-                            venuePostcode:
-                                venue?.postcode ?? '',
-
-                            venueNotes:
-                                venue?.notes ?? '',
+                            return {
+                                id: fixture.id,
+                                stage:
+                                fixture.stage,
+                                kickoffTime:
+                                fixture.kickoff_time,
+                                status:
+                                    fixture.status ??
+                                    'scheduled',
+                                homeTeam:
+                                    homeTeam?.name.trim() ??
+                                    'Home team TBC',
+                                awayTeam:
+                                    awayTeam?.name.trim() ??
+                                    'Away team TBC',
+                                venueName:
+                                    venue?.name ??
+                                    'Venue to be confirmed',
+                                venueAddress:
+                                    venue?.address ??
+                                    '',
+                                venuePostcode:
+                                    venue?.postcode ??
+                                    '',
+                                venueNotes:
+                                    venue?.notes ??
+                                    '',
+                            }
                         }
-                    })
+                    )
                 )
             }
+
+            let mappedResults: PublicResult[] = []
 
             if (resultsResponse.error) {
                 console.error(
@@ -393,7 +456,7 @@ function App() {
                     (resultsResponse.data ??
                         []) as unknown as PublicResultRelationRow[]
 
-                const mappedResults = resultRows
+                mappedResults = resultRows
                     .map((result) => {
                         const fixture =
                             getRelatedResultFixture(
@@ -425,35 +488,25 @@ function App() {
                             id: result.id,
                             fixtureId:
                             result.fixture_id,
-
                             stage:
                             fixture.stage,
-
                             kickoffTime:
                             fixture.kickoff_time,
-
                             homeTeamId:
                             homeTeam.id,
-
                             awayTeamId:
                             awayTeam.id,
-
                             homeTeam:
                                 homeTeam.name.trim(),
-
                             awayTeam:
                                 awayTeam.name.trim(),
-
                             homeScore:
                             result.home_score,
-
                             awayScore:
                             result.away_score,
-
                             playerOfMatch:
                                 result.player_of_match ??
                                 '',
-
                             matchReport:
                                 result.match_report ??
                                 '',
@@ -465,29 +518,128 @@ function App() {
                         ): result is PublicResult =>
                             result !== null
                     )
-                    .sort((first, second) => {
-                        const firstTime =
-                            first.kickoffTime
-                                ? new Date(
-                                    first.kickoffTime
-                                ).getTime()
-                                : 0
+                    .sort(
+                        (
+                            first,
+                            second
+                        ) => {
+                            const firstTime =
+                                first.kickoffTime
+                                    ? new Date(
+                                        first.kickoffTime
+                                    ).getTime()
+                                    : 0
 
-                        const secondTime =
-                            second.kickoffTime
-                                ? new Date(
-                                    second.kickoffTime
-                                ).getTime()
-                                : 0
+                            const secondTime =
+                                second.kickoffTime
+                                    ? new Date(
+                                        second.kickoffTime
+                                    ).getTime()
+                                    : 0
 
-                        return (
-                            secondTime -
-                            firstTime
-                        )
-                    })
+                            return (
+                                secondTime -
+                                firstTime
+                            )
+                        }
+                    )
 
-                setPublicResults(mappedResults)
+                setPublicResults(
+                    mappedResults
+                )
             }
+
+            const publishedFixtureIds =
+                mappedResults.map(
+                    (result) =>
+                        result.fixtureId
+                )
+
+            if (
+                !publishedFixtureIds.length
+            ) {
+                setPublicGoals([])
+                return
+            }
+
+            const {
+                data: goalsData,
+                error: goalsError,
+            } = await supabase
+                .from('goals')
+                .select(`
+                    id,
+                    fixture_id,
+                    player_name,
+                    minute,
+                    video_timestamp,
+                    team:teams!goals_team_id_fkey (
+                        id,
+                        name,
+                        logo_url
+                    )
+                `)
+                .in(
+                    'fixture_id',
+                    publishedFixtureIds
+                )
+                .order('created_at', {
+                    ascending: true,
+                })
+
+            if (goalsError) {
+                console.error(
+                    'Failed to load public goals:',
+                    goalsError
+                )
+                setPublicGoals([])
+                return
+            }
+
+            const goalRows =
+                (goalsData ??
+                    []) as unknown as PublicGoalRelationRow[]
+
+            const mappedGoals = goalRows
+                .map((goal) => {
+                    const team =
+                        getRelatedGoalTeam(
+                            goal.team
+                        )
+
+                    if (
+                        !team ||
+                        !goal.fixture_id
+                    ) {
+                        return null
+                    }
+
+                    return {
+                        id: goal.id,
+                        fixtureId:
+                        goal.fixture_id,
+                        teamId: team.id,
+                        teamName:
+                            team.name.trim(),
+                        teamLogoUrl:
+                            team.logo_url ?? '',
+                        playerName:
+                            goal.player_name.trim(),
+                        minute:
+                        goal.minute,
+                        videoTimestamp:
+                            goal.video_timestamp ??
+                            '',
+                    }
+                })
+                .filter(
+                    (
+                        goal
+                    ): goal is PublicGoal =>
+                        goal !== null
+                )
+
+            setPublicGoals(mappedGoals)
         }
 
         loadPublicTournamentData()
@@ -506,46 +658,54 @@ function App() {
     const standingsTeams =
         useMemo<StandingsTeam[]>(
             () =>
-                publicTeams.map((team) => ({
-                    id: team.id,
-                    logoUrl: team.logo_url ?? '',
-                    name: team.name.trim(),
-                    manager:
-                        team.manager_name ??
-                        'TBC',
-                })),
+                publicTeams.map(
+                    (team) => ({
+                        id: team.id,
+                        name:
+                            team.name.trim(),
+                        manager:
+                            team.manager_name ??
+                            'TBC',
+                        logoUrl:
+                            team.logo_url ??
+                            '',
+                    })
+                ),
             [publicTeams]
         )
 
-    const leagueStandings = useMemo(
-        () =>
-            calculateStandings(
+    const leagueStandings =
+        useMemo(
+            () =>
+                calculateStandings(
+                    standingsTeams,
+                    publicResults.map(
+                        (result) => ({
+                            homeTeamId:
+                            result.homeTeamId,
+                            awayTeamId:
+                            result.awayTeamId,
+                            homeScore:
+                            result.homeScore,
+                            awayScore:
+                            result.awayScore,
+                        })
+                    )
+                ),
+            [
                 standingsTeams,
-                publicResults.map(
-                    (result) => ({
-                        homeTeamId:
-                        result.homeTeamId,
-
-                        awayTeamId:
-                        result.awayTeamId,
-
-                        homeScore:
-                        result.homeScore,
-
-                        awayScore:
-                        result.awayScore,
-                    })
-                )
-            ),
-        [standingsTeams, publicResults]
-    )
+                publicResults,
+            ]
+        )
 
     if (activeArticle) {
         return (
             <ArticlePage
                 article={activeArticle}
                 onBack={() =>
-                    setActiveArticleId(null)
+                    setActiveArticleId(
+                        null
+                    )
                 }
             />
         )
@@ -565,7 +725,10 @@ function App() {
         )
     }
 
-    if (location.pathname === '/admin') {
+    if (
+        location.pathname ===
+        '/admin'
+    ) {
         return <AdminPage />
     }
 
@@ -582,7 +745,11 @@ function App() {
             >
                 <div className="cardGrid four">
                     {benefits.map(
-                        ([title, text, Icon]) => (
+                        ([
+                             title,
+                             text,
+                             Icon,
+                         ]) => (
                             <article
                                 className="card"
                                 key={title}
@@ -603,18 +770,29 @@ function App() {
             >
                 <div className="timeline">
                     {timeline.map(
-                        ([week, title, detail]) => (
+                        ([
+                             week,
+                             title,
+                             detail,
+                         ]) => (
                             <article
                                 className="timelineItem"
                                 key={week}
                             >
                                 <div className="timelineIcon">
-                                    <span>{week}</span>
+                                    <span>
+                                        {week}
+                                    </span>
                                 </div>
 
                                 <div className="timelineContent">
-                                    <h3>{title}</h3>
-                                    <p>{detail}</p>
+                                    <h3>
+                                        {title}
+                                    </h3>
+
+                                    <p>
+                                        {detail}
+                                    </p>
                                 </div>
                             </article>
                         )
@@ -626,7 +804,9 @@ function App() {
                 </h3>
 
                 <FixtureList
-                    fixtures={publicFixtures}
+                    fixtures={
+                        publicFixtures
+                    }
                 />
             </Section>
 
@@ -636,17 +816,27 @@ function App() {
                 intro="Confirmed and published match results from the Black History Month Football Festival."
             >
                 <ResultsList
-                    results={publicResults}
+                    results={
+                        publicResults
+                    }
                 />
             </Section>
 
             <Section
                 id="teams"
-                title="Teams & Live Standings"
-                intro="Confirmed participating teams and the current league table, calculated automatically from published match results."
+                title="Teams & Group Standings"
+                intro="Live group tables calculated automatically from published group-stage results. Knockout fixtures do not affect group standings."
             >
-                <TeamTable
-                    teams={leagueStandings}
+                <PublicGroupStandings />
+            </Section>
+
+            <Section
+                id="golden-boot"
+                title="Golden Boot"
+                intro="The leading goalscorers from published Black History Month Football Festival matches."
+            >
+                <GoldenBootTable
+                    goals={publicGoals}
                 />
             </Section>
 
@@ -669,7 +859,9 @@ function App() {
                             allowFullScreen
                         />
 
-                        <h3>Festival Highlights</h3>
+                        <h3>
+                            Festival Highlights
+                        </h3>
 
                         <p>
                             Watch featured matches,
@@ -684,7 +876,9 @@ function App() {
                             Match Highlights
                         </div>
 
-                        <h3>Match Highlights</h3>
+                        <h3>
+                            Match Highlights
+                        </h3>
 
                         <p>
                             Catch goals, saves,
@@ -719,36 +913,46 @@ function App() {
                 intro="Connecting the football festival to Black History Month through articles, community stories and learning content."
             >
                 <div className="cardGrid four">
-                    {articles.map((article) => (
-                        <article
-                            className="card articleCard"
-                            key={article.id}
-                        >
-                            <span className="badge">
-                                {article.category}
-                            </span>
-
-                            <h3>
-                                {article.title}
-                            </h3>
-
-                            <p>
-                                {article.summary}
-                            </p>
-
-                            <button
-                                type="button"
-                                className="textButton"
-                                onClick={() =>
-                                    setActiveArticleId(
-                                        article.id
-                                    )
+                    {articles.map(
+                        (article) => (
+                            <article
+                                className="card articleCard"
+                                key={
+                                    article.id
                                 }
                             >
-                                Read article
-                            </button>
-                        </article>
-                    ))}
+                                <span className="badge">
+                                    {
+                                        article.category
+                                    }
+                                </span>
+
+                                <h3>
+                                    {
+                                        article.title
+                                    }
+                                </h3>
+
+                                <p>
+                                    {
+                                        article.summary
+                                    }
+                                </p>
+
+                                <button
+                                    type="button"
+                                    className="textButton"
+                                    onClick={() =>
+                                        setActiveArticleId(
+                                            article.id
+                                        )
+                                    }
+                                >
+                                    Read article
+                                </button>
+                            </article>
+                        )
+                    )}
                 </div>
             </Section>
 
@@ -758,29 +962,41 @@ function App() {
                 intro="The festival is supported by organisations committed to grassroots football, community development and creating opportunities for young people. Additional partners are welcome."
             >
                 <div className="cardGrid three">
-                    {sponsors.map((sponsor) => (
-                        <article
-                            className="card sponsorCard"
-                            key={sponsor.id}
-                        >
-                            <span className="badge">
-                                {sponsor.tier}
-                            </span>
-
-                            <h3>{sponsor.name}</h3>
-
-                            <p>
-                                {sponsor.description}
-                            </p>
-
-                            <a
-                                className="btn primary small"
-                                href="mailto:info@ckefamedia.com?subject=Festival Partnership Enquiry"
+                    {sponsors.map(
+                        (sponsor) => (
+                            <article
+                                className="card sponsorCard"
+                                key={
+                                    sponsor.id
+                                }
                             >
-                                Contact Us
-                            </a>
-                        </article>
-                    ))}
+                                <span className="badge">
+                                    {
+                                        sponsor.tier
+                                    }
+                                </span>
+
+                                <h3>
+                                    {
+                                        sponsor.name
+                                    }
+                                </h3>
+
+                                <p>
+                                    {
+                                        sponsor.description
+                                    }
+                                </p>
+
+                                <a
+                                    className="btn primary small"
+                                    href="mailto:info@ckefamedia.com?subject=Festival Partnership Enquiry"
+                                >
+                                    Contact Us
+                                </a>
+                            </article>
+                        )
+                    )}
                 </div>
             </Section>
 
@@ -793,7 +1009,8 @@ function App() {
                         </strong>
 
                         <p>
-                            Powered by <CkefaLink />
+                            Powered by{' '}
+                            <CkefaLink />
                         </p>
 
                         <p>

@@ -8,12 +8,15 @@ import type {
     Festival,
     Fixture,
     FixtureFormValues,
+    FixtureGroup,
+    FixtureGroupMembership,
     FixtureTeam,
     FixtureVenue,
 } from './fixtureTypes'
 
 const emptyForm: FixtureFormValues = {
     stage: '',
+    group_id: '',
     home_team_id: '',
     away_team_id: '',
     venue_id: '',
@@ -25,6 +28,7 @@ function toDateTimeLocal(value: string | null) {
     if (!value) return ''
 
     const date = new Date(value)
+
     const localDate = new Date(
         date.getTime() - date.getTimezoneOffset() * 60_000
     )
@@ -37,6 +41,9 @@ export function FixturesManager() {
     const [fixtures, setFixtures] = useState<Fixture[]>([])
     const [teams, setTeams] = useState<FixtureTeam[]>([])
     const [venues, setVenues] = useState<FixtureVenue[]>([])
+    const [groups, setGroups] = useState<FixtureGroup[]>([])
+    const [groupMemberships, setGroupMemberships] =
+        useState<FixtureGroupMembership[]>([])
 
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
@@ -76,26 +83,40 @@ export function FixturesManager() {
                 setFixtures([])
                 setTeams([])
                 setVenues([])
+                setGroups([])
+                setGroupMemberships([])
                 return
             }
 
-            const [fixtureRows, teamRows, venueRows] =
-                await Promise.all([
-                    fixtureService.getFixtures(activeFestival.id),
-                    fixtureService.getTeams(activeFestival.id),
-                    fixtureService.getVenues(activeFestival.id),
-                ])
+            const [
+                fixtureRows,
+                teamRows,
+                venueRows,
+                groupRows,
+            ] = await Promise.all([
+                fixtureService.getFixtures(activeFestival.id),
+                fixtureService.getTeams(activeFestival.id),
+                fixtureService.getVenues(activeFestival.id),
+                fixtureService.getGroups(activeFestival.id),
+            ])
+
+            const membershipRows =
+                await fixtureService.getGroupMemberships(
+                    groupRows.map((group) => group.id)
+                )
 
             setFixtures(fixtureRows)
             setTeams(teamRows)
             setVenues(venueRows)
+            setGroups(groupRows)
+            setGroupMemberships(membershipRows)
         } catch (error) {
-            const message =
+            showToast(
                 error instanceof Error
                     ? error.message
-                    : 'Failed to load fixture data.'
-
-            showToast(message, 'error')
+                    : 'Failed to load fixture data.',
+                'error'
+            )
         } finally {
             setIsLoading(false)
         }
@@ -113,14 +134,17 @@ export function FixturesManager() {
 
     function openEditModal(fixture: Fixture) {
         setEditingFixture(fixture)
+
         setFormValues({
             stage: fixture.stage,
+            group_id: fixture.group_id ?? '',
             home_team_id: fixture.home_team_id ?? '',
             away_team_id: fixture.away_team_id ?? '',
             venue_id: fixture.venue_id ?? '',
             kickoff_time: toDateTimeLocal(fixture.kickoff_time),
             status: fixture.status,
         })
+
         setShowModal(true)
     }
 
@@ -142,6 +166,17 @@ export function FixturesManager() {
         }
 
         if (
+            formValues.stage === 'Group Stage' &&
+            !formValues.group_id
+        ) {
+            showToast(
+                'Please select a group for this group-stage fixture.',
+                'error'
+            )
+            return
+        }
+
+        if (
             !formValues.home_team_id ||
             !formValues.away_team_id
         ) {
@@ -153,8 +188,7 @@ export function FixturesManager() {
         }
 
         if (
-            formValues.home_team_id ===
-            formValues.away_team_id
+            formValues.home_team_id === formValues.away_team_id
         ) {
             showToast(
                 'A team cannot play against itself.',
@@ -164,11 +198,36 @@ export function FixturesManager() {
         }
 
         if (!formValues.kickoff_time) {
-            showToast('Kick-off date and time are required.', 'error')
+            showToast(
+                'Kick-off date and time are required.',
+                'error'
+            )
             return
         }
 
+        if (formValues.stage === 'Group Stage') {
+            const groupTeamIds = groupMemberships
+                .filter(
+                    (membership) =>
+                        membership.group_id === formValues.group_id
+                )
+                .map((membership) => membership.team_id)
+
+            if (
+                !groupTeamIds.includes(formValues.home_team_id) ||
+                !groupTeamIds.includes(formValues.away_team_id)
+            ) {
+                showToast(
+                    'Both teams must belong to the selected group.',
+                    'error'
+                )
+                return
+            }
+        }
+
         setIsSaving(true)
+
+        const wasEditing = Boolean(editingFixture)
 
         try {
             if (editingFixture) {
@@ -187,21 +246,19 @@ export function FixturesManager() {
             await loadData()
 
             showToast(
-                editingFixture
+                wasEditing
                     ? 'Fixture updated successfully.'
                     : 'Fixture created successfully.',
                 'success'
             )
-        } catch (error: any) {
-            console.error(error)
-
+        } catch (error) {
             showToast(
-                error?.message ??
-                JSON.stringify(error) ??
-                'Failed to save fixture.',
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to save fixture.',
                 'error'
             )
-        }finally {
+        } finally {
             setIsSaving(false)
         }
     }
@@ -210,20 +267,19 @@ export function FixturesManager() {
         if (!fixtureToDelete) return
 
         try {
-            await fixtureService.deleteFixture(
-                fixtureToDelete.id
-            )
+            await fixtureService.deleteFixture(fixtureToDelete.id)
 
             setFixtureToDelete(null)
             await loadData()
+
             showToast('Fixture deleted successfully.', 'success')
         } catch (error) {
-            const message =
+            showToast(
                 error instanceof Error
                     ? error.message
-                    : 'Failed to delete fixture.'
-
-            showToast(message, 'error')
+                    : 'Failed to delete fixture.',
+                'error'
+            )
         }
     }
 
@@ -238,9 +294,10 @@ export function FixturesManager() {
             <div className="adminWorkspaceHeader">
                 <div>
                     <h3>Fixtures</h3>
+
                     <p className="muted">
-                        Create and manage fixtures for the active
-                        Black History Month Football Festival.
+                        Create group-stage and knockout fixtures for the
+                        active festival.
                     </p>
 
                     {festival && (
@@ -267,6 +324,7 @@ export function FixturesManager() {
                     fixtures={fixtures}
                     teams={teams}
                     venues={venues}
+                    groups={groups}
                     onEdit={openEditModal}
                     onDelete={setFixtureToDelete}
                 />
@@ -278,6 +336,8 @@ export function FixturesManager() {
                     values={formValues}
                     teams={teams}
                     venues={venues}
+                    groups={groups}
+                    groupMemberships={groupMemberships}
                     isSaving={isSaving}
                     onChange={setFormValues}
                     onClose={closeModal}

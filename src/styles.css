@@ -1696,3 +1696,302 @@
     padding-left: 14px;
     padding-right: 14px;
 }
+/* ---------- Goals Admin ---------- */
+
+.goalsTableWrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.goalsAdminTable {
+    min-width: 1020px;
+    table-layout: fixed;
+}
+
+.goalsAdminTable th:nth-child(1) {
+    width: 18%;
+}
+
+.goalsAdminTable th:nth-child(2) {
+    width: 17%;
+}
+
+.goalsAdminTable th:nth-child(3) {
+    width: 29%;
+}
+
+.goalsAdminTable th:nth-child(4) {
+    width: 9%;
+}
+
+.goalsAdminTable th:nth-child(5) {
+    width: 11%;
+}
+
+.goalsAdminTable th:nth-child(6) {
+    width: 16%;
+}
+
+.goalFixtureCell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.goalFixtureCell span {
+    display: block;
+    margin-top: 5px;
+}
+
+.goalActionsCell {
+    white-space: nowrap;
+}
+
+/* ---------- Golden Boot ---------- */
+
+.goldenBootWrap {
+    margin-top: 30px;
+    overflow-x: auto;
+}
+
+.goldenBootTable {
+    width: 100%;
+    min-width: 680px;
+    background:
+            radial-gradient(
+                    circle at top right,
+                    rgba(185, 242, 141, .10),
+                    transparent 34%
+            ),
+            linear-gradient(
+                    180deg,
+                    rgba(16, 22, 16, .97),
+                    rgba(7, 12, 7, .98)
+            );
+    border: 1px solid
+    rgba(185, 242, 141, .22);
+    border-radius: 20px;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+
+.goldenBootTable th,
+.goldenBootTable td {
+    padding: 16px;
+    border-bottom: 1px solid
+    rgba(185, 242, 141, .12);
+}
+
+.goldenBootTable th {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: .76rem;
+}
+
+.goldenBootTable tbody tr:first-child {
+    background:
+            rgba(185, 242, 141, .08);
+}
+
+.goldenBootClub {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.goldenBootGoals {
+    text-align: center;
+}
+
+.goldenBootGoals strong {
+    color: var(--light-green);
+    font-size: 1.4rem;
+}
+/* ---------- Group Management ---------- */
+
+.adminFieldLabel {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 800;
+}
+
+.groupTeamSelector {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.groupTeamOption {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(185, 242, 141, .18);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, .22);
+    cursor: pointer;
+}
+
+.groupTeamOption.disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.groupTeamOption input {
+    width: 18px;
+    height: 18px;
+}
+
+.groupTeamOption img,
+.groupTeamInitials {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 11px;
+}
+
+.groupTeamOption img {
+    object-fit: contain;
+    background: #fff;
+    padding: 4px;
+}
+
+.groupTeamInitials {
+    display: grid;
+    place-items: center;
+    background: var(--light-green);
+    color: #071207;
+    font-size: .72rem;
+    font-weight: 900;
+}
+
+.groupTeamOption small {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+}
+
+.adminGroupsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.adminGroupCard {
+    padding: 20px;
+    border: 1px solid rgba(185, 242, 141, .2);
+    border-radius: 20px;
+    background: rgba(0, 0, 0, .22);
+}
+
+.adminGroupHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.adminGroupHeader h4 {
+    margin: 10px 0 0;
+    font-size: 1.4rem;
+}
+
+.adminGroupTeams {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.adminGroupTeam {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(185, 242, 141, .06);
+}
+
+.adminGroupTeam img,
+.adminGroupTeam > span {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    border-radius: 10px;
+}
+
+.adminGroupTeam img {
+    object-fit: contain;
+    padding: 4px;
+    background: #fff;
+}
+
+.adminGroupTeam > span {
+    display: grid;
+    place-items: center;
+    background: var(--light-green);
+    color: #071207;
+    font-size: .7rem;
+    font-weight: 900;
+}
+
+/* ---------- Fixture Group Column ---------- */
+
+.fixturesTableWrap {
+    overflow-x: auto;
+}
+
+.fixturesAdminTable {
+    min-width: 1180px;
+}
+
+.fixtureAdminTeams span {
+    display: block;
+    margin-top: 5px;
+}
+
+.fixtureActionsCell {
+    white-space: nowrap;
+}
+
+/* ---------- Public Group Standings ---------- */
+
+.publicGroupStandings {
+    display: grid;
+    gap: 30px;
+}
+
+.publicGroupStandingCard {
+    padding: 24px;
+    border: 1px solid rgba(185, 242, 141, .22);
+    border-radius: 24px;
+    background:
+            radial-gradient(
+                    circle at top right,
+                    rgba(185, 242, 141, .1),
+                    transparent 34%
+            ),
+            linear-gradient(
+                    180deg,
+                    rgba(16, 22, 16, .97),
+                    rgba(7, 12, 7, .98)
+            );
+}
+
+.publicGroupStandingHeader {
+    margin-bottom: 20px;
+}
+
+.publicGroupStandingHeader h3 {
+    margin: 6px 0 0;
+    color: var(--light-green);
+    font-size: 1.7rem;
+}
+
+@media (max-width: 850px) {
+    .adminGroupsGrid,
+    .groupTeamSelector {
+        grid-template-columns: 1fr;
+    }
+}
