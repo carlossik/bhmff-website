@@ -1520,3 +1520,179 @@
 .resultsActionsCell .btn {
     min-width: 76px;
 }
+/* ---------- Team Logo Management ---------- */
+
+.teamLogoEditor {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 16px;
+    border: 1px solid rgba(185, 242, 141, .18);
+    border-radius: 16px;
+    background: rgba(0, 0, 0, .22);
+}
+
+.teamLogoEditor img {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    border-radius: 18px;
+    background: #ffffff;
+    padding: 8px;
+}
+
+.teamBadge {
+    overflow: hidden;
+}
+
+.teamBadge img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #ffffff;
+    padding: 7px;
+}
+
+.leagueTeamIdentity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.leagueTeamLogo {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 12px;
+    background: linear-gradient(
+            135deg,
+            var(--lime),
+            var(--light-green)
+    );
+    color: #071207;
+    font-size: .72rem;
+    font-weight: 900;
+}
+
+.leagueTeamLogo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #ffffff;
+    padding: 4px;
+}
+.teamLogoPreview {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: #111;
+    margin-bottom: 1rem;
+}
+/* ---------- Teams Admin Table ---------- */
+
+.teamsTableWrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.teamsAdminTable {
+    width: 100%;
+    min-width: 1120px;
+    table-layout: fixed;
+}
+
+.teamsAdminTable th,
+.teamsAdminTable td {
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+.teamsAdminTable th:nth-child(1) {
+    width: 26%;
+}
+
+.teamsAdminTable th:nth-child(2) {
+    width: 21%;
+}
+
+.teamsAdminTable th:nth-child(3) {
+    width: 24%;
+}
+
+.teamsAdminTable th:nth-child(4) {
+    width: 13%;
+}
+
+.teamsAdminTable th:nth-child(5) {
+    width: 16%;
+}
+
+.adminTeamIdentity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.adminTeamIdentity strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.adminTeamLogo,
+.adminTeamInitials {
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    border-radius: 12px;
+}
+
+.adminTeamLogo {
+    object-fit: contain;
+    padding: 4px;
+    background: #ffffff;
+}
+
+.adminTeamInitials {
+    display: grid;
+    place-items: center;
+    background: var(--light-green);
+    color: #071207;
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+
+.teamsManagerCell,
+.teamsEmailCell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+}
+
+.teamsPhoneCell {
+    white-space: nowrap;
+}
+
+.teamsActionsCell {
+    white-space: nowrap;
+}
+
+.teamsActionButtons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    flex-wrap: nowrap;
+}
+
+.teamsActionButtons .btn {
+    min-width: 82px;
+    padding-left: 14px;
+    padding-right: 14px;
+}

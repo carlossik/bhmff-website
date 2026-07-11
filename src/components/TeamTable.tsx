@@ -1,4 +1,6 @@
-import type { LeagueStanding } from '../utils/calculateStandings'
+import type {
+    LeagueStanding,
+} from '../utils/calculateStandings'
 
 type TeamTableProps = {
     teams: LeagueStanding[]
@@ -8,14 +10,59 @@ function formatGoalDifference(value: number) {
     return value > 0 ? `+${value}` : String(value)
 }
 
-export function TeamTable({ teams }: TeamTableProps) {
+function getInitials(name: string) {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .map((word) => word[0])
+        .join('')
+        .slice(0, 3)
+        .toUpperCase()
+}
+
+function TeamIdentity({
+                          team,
+                          size,
+                      }: {
+    team: LeagueStanding
+    size: 'card' | 'table'
+}) {
+    const className =
+        size === 'card'
+            ? 'teamBadge'
+            : 'leagueTeamLogo'
+
+    if (team.logoUrl) {
+        return (
+            <div className={className}>
+                <img
+                    src={team.logoUrl}
+                    alt={`${team.name} logo`}
+                    loading="lazy"
+                />
+            </div>
+        )
+    }
+
+    return (
+        <div className={className}>
+            {getInitials(team.name)}
+        </div>
+    )
+}
+
+export function TeamTable({
+                              teams,
+                          }: TeamTableProps) {
     if (!teams.length) {
         return (
             <div className="teamsEmptyState">
                 <h3>Teams coming soon</h3>
+
                 <p>
-                    Confirmed participating clubs will appear here once
-                    registration is completed.
+                    Confirmed participating clubs will
+                    appear here once registration is
+                    completed.
                 </p>
             </div>
         )
@@ -25,16 +72,14 @@ export function TeamTable({ teams }: TeamTableProps) {
         <>
             <div className="publicTeamsGrid">
                 {teams.map((team) => (
-                    <article className="publicTeamCard" key={team.id}>
-                        <div className="teamBadge">
-                            {team.name
-                                .split(' ')
-                                .filter(Boolean)
-                                .map((word) => word[0])
-                                .join('')
-                                .slice(0, 3)
-                                .toUpperCase()}
-                        </div>
+                    <article
+                        className="publicTeamCard"
+                        key={team.id}
+                    >
+                        <TeamIdentity
+                            team={team}
+                            size="card"
+                        />
 
                         <div>
                             <span className="badge">
@@ -44,18 +89,23 @@ export function TeamTable({ teams }: TeamTableProps) {
                             <h3>{team.name}</h3>
 
                             <p>
-                                Manager: {team.manager || 'TBC'}
+                                Manager:{' '}
+                                {team.manager || 'TBC'}
                             </p>
                         </div>
 
                         <div className="teamStatsMini">
                             <div>
-                                <strong>{team.played}</strong>
+                                <strong>
+                                    {team.played}
+                                </strong>
                                 <span>Played</span>
                             </div>
 
                             <div>
-                                <strong>{team.points}</strong>
+                                <strong>
+                                    {team.points}
+                                </strong>
                                 <span>Points</span>
                             </div>
 
@@ -79,12 +129,14 @@ export function TeamTable({ teams }: TeamTableProps) {
                             Live Standings
                         </span>
 
-                        <h3>Current League Table</h3>
+                        <h3>
+                            Current League Table
+                        </h3>
                     </div>
 
                     <p className="muted">
-                        The table updates automatically from published
-                        match results.
+                        The table updates automatically
+                        from published match results.
                     </p>
                 </div>
 
@@ -115,7 +167,16 @@ export function TeamTable({ teams }: TeamTableProps) {
                                 </td>
 
                                 <td className="leagueTeamName">
-                                    <strong>{team.name}</strong>
+                                    <div className="leagueTeamIdentity">
+                                        <TeamIdentity
+                                            team={team}
+                                            size="table"
+                                        />
+
+                                        <strong>
+                                            {team.name}
+                                        </strong>
+                                    </div>
                                 </td>
 
                                 <td>{team.played}</td>
@@ -132,7 +193,9 @@ export function TeamTable({ teams }: TeamTableProps) {
                                 </td>
 
                                 <td className="leaguePoints">
-                                    <strong>{team.points}</strong>
+                                    <strong>
+                                        {team.points}
+                                    </strong>
                                 </td>
                             </tr>
                         ))}
@@ -141,8 +204,9 @@ export function TeamTable({ teams }: TeamTableProps) {
                 </div>
 
                 <p className="leagueTableRules">
-                    Teams are ranked by points, goal difference, goals
-                    scored and then alphabetical order.
+                    Teams are ranked by points, goal
+                    difference, goals scored and then
+                    alphabetical order.
                 </p>
             </div>
         </>

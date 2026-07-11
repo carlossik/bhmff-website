@@ -5,4 +5,5 @@ export type DbTeam = {
     contact_email: string | null
     contact_phone: string | null
     notes: string | null
+    logo_url: string | null
 }

@@ -5,6 +5,7 @@ import { TeamsManager } from './admin/Teams/TeamsManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
 import { VenuesManager } from './admin/Venues/VenuesManager'
 import { ResultsManager } from './admin/Results/ResultsManager'
+import type { DbTeam } from './admin/Teams/teamTypes'
 
 const adminTabs = [
   'Dashboard',
@@ -23,14 +24,15 @@ type AdminPortalProps = {
   onLogout: () => void
 }
 
-type DbTeam = {
-  id: string
-  name: string
-  manager_name: string | null
-  contact_email: string | null
-  contact_phone: string | null
-  notes: string | null
-}
+// type DbTeam = {
+//   id: string
+//   name: string
+//   manager_name: string | null
+//   contact_email: string | null
+//   contact_phone: string | null
+//     logo_url: string | null
+//   notes: string | null
+// }
 
 export function AdminPortal({ onLogout }: AdminPortalProps) {
   const [activeTab, setActiveTab] =

@@ -2,6 +2,7 @@ export type StandingsTeam = {
     id: string
     name: string
     manager: string
+    logoUrl: string
 }
 
 export type StandingsResult = {
@@ -15,6 +16,7 @@ export type LeagueStanding = {
     id: string
     name: string
     manager: string
+    logoUrl: string
     played: number
     won: number
     drawn: number
@@ -25,7 +27,6 @@ export type LeagueStanding = {
     points: number
     position: number
 }
-
 export function calculateStandings(
     teams: StandingsTeam[],
     results: StandingsResult[]
@@ -35,6 +36,7 @@ export function calculateStandings(
     teams.forEach((team) => {
         table.set(team.id, {
             id: team.id,
+            logoUrl: team.logoUrl,
             name: team.name.trim(),
             manager: team.manager,
             played: 0,

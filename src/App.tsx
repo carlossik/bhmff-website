@@ -38,6 +38,7 @@ type PublicTeamRow = {
     id: string
     name: string
     manager_name: string | null
+    logo_url: string | null
 }
 
 type RelatedTeam = {
@@ -239,7 +240,7 @@ function App() {
             ] = await Promise.all([
                 supabase
                     .from('teams')
-                    .select('id, name, manager_name')
+                    .select('id, name, manager_name,logo_url')
                     .eq('festival_id', festival.id)
                     .order('name', {
                         ascending: true,
@@ -507,6 +508,7 @@ function App() {
             () =>
                 publicTeams.map((team) => ({
                     id: team.id,
+                    logoUrl: team.logo_url ?? '',
                     name: team.name.trim(),
                     manager:
                         team.manager_name ??
