@@ -1228,3 +1228,164 @@
     background: rgba(185, 242, 141, .16);
     border-color: var(--light-green);
 }
+.adminCheckboxLabel {
+    display: flex !important;
+    grid-template-columns: none !important;
+    align-items: center;
+    gap: 12px;
+}
+
+.adminCheckboxLabel input {
+    width: 18px;
+    height: 18px;
+}
+/* ---------- Public Results Section ---------- */
+
+.publicResultsGrid {
+    display: grid;
+    gap: 22px;
+    margin-top: 32px;
+}
+
+.publicResultCard {
+    background:
+            radial-gradient(
+                    circle at top right,
+                    rgba(185, 242, 141, .13),
+                    transparent 34%
+            ),
+            linear-gradient(
+                    180deg,
+                    rgba(16, 22, 16, .97),
+                    rgba(6, 10, 6, .98)
+            );
+    border: 1px solid rgba(185, 242, 141, .24);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .24);
+}
+
+.publicResultHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.publicResultDate {
+    color: var(--muted);
+    font-size: .9rem;
+    font-weight: 800;
+}
+
+.publicResultScore {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    margin: 28px 0;
+}
+
+.publicResultTeam {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    text-align: right;
+}
+
+.publicResultTeam.away {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.publicResultTeam span {
+    color: var(--white);
+    font-size: clamp(1rem, 2vw, 1.35rem);
+    font-weight: 900;
+}
+
+.publicResultTeam strong {
+    min-width: 72px;
+    min-height: 72px;
+    display: grid;
+    place-items: center;
+    background: rgba(185, 242, 141, .10);
+    border: 1px solid rgba(185, 242, 141, .28);
+    border-radius: 18px;
+    color: var(--light-green);
+    font-size: 2.2rem;
+}
+
+.publicResultDivider {
+    color: var(--muted);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: .72rem;
+    font-weight: 900;
+}
+
+.publicResultHighlight {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: rgba(185, 242, 141, .07);
+    border: 1px solid rgba(185, 242, 141, .16);
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+
+.publicResultHighlight span {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: .76rem;
+    font-weight: 900;
+}
+
+.publicResultHighlight strong {
+    color: var(--light-green);
+}
+
+.publicResultReport {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(185, 242, 141, .14);
+}
+
+.publicResultReport h4 {
+    margin: 0 0 8px;
+    color: var(--light-green);
+}
+
+.publicResultReport p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.65;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 760px) {
+    .publicResultScore {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .publicResultTeam,
+    .publicResultTeam.away {
+        justify-content: space-between;
+        text-align: left;
+    }
+
+    .publicResultDivider {
+        order: 2;
+    }
+
+    .publicResultTeam.away {
+        order: 3;
+    }
+}

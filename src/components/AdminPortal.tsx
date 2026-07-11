@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { TeamsManager } from './admin/Teams/TeamsManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
 import { VenuesManager } from './admin/Venues/VenuesManager'
+import { ResultsManager } from './admin/Results/ResultsManager'
 
 const adminTabs = [
   'Dashboard',
@@ -181,28 +182,7 @@ export function AdminPortal({ onLogout }: AdminPortalProps) {
                   <FixturesManager />
               )}
 
-              {activeTab === 'Results' && (
-                  <AdminCrud
-                      title="Update Results"
-                      description="Enter final scores, scorers and player-of-the-match details after each game."
-                      fields={[
-                        'Fixture',
-                        'Home score',
-                        'Away score',
-                        'Goal scorers',
-                        'Player of the match',
-                      ]}
-                      records={fixtures
-                          .filter(
-                              (fixture) =>
-                                  fixture.score
-                          )
-                          .map(
-                              (fixture) =>
-                                  `${fixture.homeTeam} ${fixture.score} ${fixture.awayTeam}`
-                          )}
-                  />
-              )}
+                {activeTab === 'Results' && <ResultsManager />}
 
               {activeTab === 'Sponsors' && (
                   <AdminCrud

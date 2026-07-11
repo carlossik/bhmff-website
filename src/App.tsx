@@ -12,6 +12,10 @@ import {
     FixtureList,
     type PublicFixture,
 } from './components/FixtureList'
+import {
+    ResultsList,
+    type PublicResult,
+} from './components/ResultsList'
 import { TeamTable } from './components/TeamTable'
 import { CkefaLink } from './components/CkefaLink'
 import { CkefaLogo } from './components/CkefaLogo'
@@ -36,19 +40,16 @@ type RelatedTeam =
     | { name: string }[]
     | null
 
-type RelatedVenue =
-    | {
+type VenueDetails = {
     name: string
     address: string | null
     postcode: string | null
     notes: string | null
 }
-    | {
-    name: string
-    address: string | null
-    postcode: string | null
-    notes: string | null
-}[]
+
+type RelatedVenue =
+    | VenueDetails
+    | VenueDetails[]
     | null
 
 type PublicFixtureRelationRow = {
@@ -61,6 +62,30 @@ type PublicFixtureRelationRow = {
     venue: RelatedVenue
 }
 
+type ResultFixtureDetails = {
+    id: string
+    festival_id: string | null
+    stage: string
+    kickoff_time: string | null
+    home_team: RelatedTeam
+    away_team: RelatedTeam
+}
+
+type RelatedResultFixture =
+    | ResultFixtureDetails
+    | ResultFixtureDetails[]
+    | null
+
+type PublicResultRelationRow = {
+    id: string
+    fixture_id: string
+    home_score: number
+    away_score: number
+    player_of_match: string | null
+    match_report: string | null
+    fixture: RelatedResultFixture
+}
+
 function getRelatedTeamName(
     relation: RelatedTeam,
     fallback: string
@@ -68,13 +93,25 @@ function getRelatedTeamName(
     if (!relation) return fallback
 
     if (Array.isArray(relation)) {
-        return relation[0]?.name ?? fallback
+        return relation[0]?.name?.trim() ?? fallback
     }
 
-    return relation.name
+    return relation.name.trim()
 }
 
 function getRelatedVenue(relation: RelatedVenue) {
+    if (!relation) return null
+
+    if (Array.isArray(relation)) {
+        return relation[0] ?? null
+    }
+
+    return relation
+}
+
+function getRelatedResultFixture(
+    relation: RelatedResultFixture
+) {
     if (!relation) return null
 
     if (Array.isArray(relation)) {
@@ -133,7 +170,9 @@ const timeline = [
 function App() {
     const location = useLocation()
 
-    const [isCheckingSession, setIsCheckingSession] = useState(true)
+    const [isCheckingSession, setIsCheckingSession] =
+        useState(true)
+
     const [activeArticleId, setActiveArticleId] =
         useState<string | null>(null)
 
@@ -142,6 +181,9 @@ function App() {
 
     const [publicFixtures, setPublicFixtures] =
         useState<PublicFixture[]>([])
+
+    const [publicResults, setPublicResults] =
+        useState<PublicResult[]>([])
 
     useEffect(() => {
         getCurrentUser().finally(() => {
@@ -171,50 +213,80 @@ function App() {
             if (!festival) {
                 setPublicTeams([])
                 setPublicFixtures([])
+                setPublicResults([])
                 return
             }
 
-            const [teamsResponse, fixturesResponse] =
-                await Promise.all([
-                    supabase
-                        .from('teams')
-                        .select('id, name, manager_name')
-                        .eq('festival_id', festival.id)
-                        .order('name', { ascending: true }),
+            const [
+                teamsResponse,
+                fixturesResponse,
+                resultsResponse,
+            ] = await Promise.all([
+                supabase
+                    .from('teams')
+                    .select('id, name, manager_name')
+                    .eq('festival_id', festival.id)
+                    .order('name', { ascending: true }),
 
-                    supabase
-                        .from('fixtures')
-                        .select(`
+                supabase
+                    .from('fixtures')
+                    .select(`
+                        id,
+                        stage,
+                        kickoff_time,
+                        status,
+                        home_team:teams!fixtures_home_team_id_fkey (
+                            name
+                        ),
+                        away_team:teams!fixtures_away_team_id_fkey (
+                            name
+                        ),
+                        venue:venues!fixtures_venue_id_fkey (
+                            name,
+                            address,
+                            postcode,
+                            notes
+                        )
+                    `)
+                    .eq('festival_id', festival.id)
+                    .neq('status', 'cancelled')
+                    .order('kickoff_time', {
+                        ascending: true,
+                        nullsFirst: false,
+                    }),
+
+                supabase
+                    .from('results')
+                    .select(`
+                        id,
+                        fixture_id,
+                        home_score,
+                        away_score,
+                        player_of_match,
+                        match_report,
+                        fixture:fixtures!results_fixture_id_fkey!inner (
                             id,
+                            festival_id,
                             stage,
                             kickoff_time,
-                            status,
                             home_team:teams!fixtures_home_team_id_fkey (
                                 name
                             ),
                             away_team:teams!fixtures_away_team_id_fkey (
                                 name
-                            ),
-                            venue:venues!fixtures_venue_id_fkey (
-                                name,
-                                address,
-                                postcode,
-                                notes
                             )
-                        `)
-                        .eq('festival_id', festival.id)
-                        .neq('status', 'cancelled')
-                        .order('kickoff_time', {
-                            ascending: true,
-                            nullsFirst: false,
-                        }),
-                ])
+                        )
+                    `)
+                    .eq('published', true)
+                    .eq('fixture.festival_id', festival.id),
+            ])
 
             if (teamsResponse.error) {
                 console.error(
                     'Failed to load public teams:',
                     teamsResponse.error
                 )
+                setPublicTeams([])
             } else {
                 setPublicTeams(
                     (teamsResponse.data ?? []) as PublicTeamRow[]
@@ -227,42 +299,133 @@ function App() {
                     fixturesResponse.error
                 )
                 setPublicFixtures([])
-                return
+            } else {
+                const fixtureRows =
+                    (fixturesResponse.data ??
+                        []) as unknown as PublicFixtureRelationRow[]
+
+                setPublicFixtures(
+                    fixtureRows.map((fixture) => {
+                        const venue =
+                            getRelatedVenue(fixture.venue)
+
+                        return {
+                            id: fixture.id,
+                            stage: fixture.stage,
+                            kickoffTime:
+                            fixture.kickoff_time,
+                            status:
+                                fixture.status ??
+                                'scheduled',
+
+                            homeTeam: getRelatedTeamName(
+                                fixture.home_team,
+                                'Home team TBC'
+                            ),
+
+                            awayTeam: getRelatedTeamName(
+                                fixture.away_team,
+                                'Away team TBC'
+                            ),
+
+                            venueName:
+                                venue?.name ??
+                                'Venue to be confirmed',
+
+                            venueAddress:
+                                venue?.address ?? '',
+
+                            venuePostcode:
+                                venue?.postcode ?? '',
+
+                            venueNotes:
+                                venue?.notes ?? '',
+                        }
+                    })
+                )
             }
 
-            const fixtureRows =
-                (fixturesResponse.data ??
-                    []) as unknown as PublicFixtureRelationRow[]
+            if (resultsResponse.error) {
+                console.error(
+                    'Failed to load public results:',
+                    resultsResponse.error
+                )
+                setPublicResults([])
+            } else {
+                const resultRows =
+                    (resultsResponse.data ??
+                        []) as unknown as PublicResultRelationRow[]
 
-            setPublicFixtures(
-                fixtureRows.map((fixture) => {
-                    const venue = getRelatedVenue(fixture.venue)
+                const mappedResults = resultRows
+                    .map((result) => {
+                        const fixture =
+                            getRelatedResultFixture(
+                                result.fixture
+                            )
 
-                    return {
-                        id: fixture.id,
-                        stage: fixture.stage,
-                        kickoffTime: fixture.kickoff_time,
-                        status: fixture.status ?? 'scheduled',
+                        if (!fixture) {
+                            return null
+                        }
 
-                        homeTeam: getRelatedTeamName(
-                            fixture.home_team,
-                            'Home team TBC'
-                        ),
+                        return {
+                            id: result.id,
+                            fixtureId: result.fixture_id,
+                            stage: fixture.stage,
+                            kickoffTime:
+                            fixture.kickoff_time,
 
-                        awayTeam: getRelatedTeamName(
-                            fixture.away_team,
-                            'Away team TBC'
-                        ),
+                            homeTeam:
+                                getRelatedTeamName(
+                                    fixture.home_team,
+                                    'Home team TBC'
+                                ),
 
-                        venueName:
-                            venue?.name ?? 'Venue to be confirmed',
+                            awayTeam:
+                                getRelatedTeamName(
+                                    fixture.away_team,
+                                    'Away team TBC'
+                                ),
 
-                        venueAddress: venue?.address ?? '',
-                        venuePostcode: venue?.postcode ?? '',
-                        venueNotes: venue?.notes ?? '',
-                    }
-                })
-            )
+                            homeScore:
+                            result.home_score,
+
+                            awayScore:
+                            result.away_score,
+
+                            playerOfMatch:
+                                result.player_of_match ??
+                                '',
+
+                            matchReport:
+                                result.match_report ?? '',
+                        }
+                    })
+                    .filter(
+                        (
+                            result
+                        ): result is PublicResult =>
+                            result !== null
+                    )
+                    .sort((first, second) => {
+                        const firstTime =
+                            first.kickoffTime
+                                ? new Date(
+                                    first.kickoffTime
+                                ).getTime()
+                                : 0
+
+                        const secondTime =
+                            second.kickoffTime
+                                ? new Date(
+                                    second.kickoffTime
+                                ).getTime()
+                                : 0
+
+                        return secondTime - firstTime
+                    })
+
+                setPublicResults(mappedResults)
+            }
         }
 
         loadPublicTournamentData()
@@ -271,7 +434,8 @@ function App() {
     const activeArticle = useMemo(
         () =>
             articles.find(
-                (article) => article.id === activeArticleId
+                (article) =>
+                    article.id === activeArticleId
             ),
         [activeArticleId]
     )
@@ -280,7 +444,9 @@ function App() {
         return (
             <ArticlePage
                 article={activeArticle}
-                onBack={() => setActiveArticleId(null)}
+                onBack={() =>
+                    setActiveArticleId(null)
+                }
             />
         )
     }
@@ -289,7 +455,10 @@ function App() {
         return (
             <p
                 className="container"
-                style={{ padding: '2rem', color: 'white' }}
+                style={{
+                    padding: '2rem',
+                    color: 'white',
+                }}
             >
                 Checking session...
             </p>
@@ -312,13 +481,18 @@ function App() {
                 intro="A month-long football celebration built around player welfare, community pride, cultural legacy and professional media coverage."
             >
                 <div className="cardGrid four">
-                    {benefits.map(([title, text, Icon]) => (
-                        <article className="card" key={title}>
-                            <Icon className="icon" />
-                            <h3>{title}</h3>
-                            <p>{text}</p>
-                        </article>
-                    ))}
+                    {benefits.map(
+                        ([title, text, Icon]) => (
+                            <article
+                                className="card"
+                                key={title}
+                            >
+                                <Icon className="icon" />
+                                <h3>{title}</h3>
+                                <p>{text}</p>
+                            </article>
+                        )
+                    )}
                 </div>
             </Section>
 
@@ -328,28 +502,42 @@ function App() {
                 intro="The 2026 format gives every fixture proper focus while ensuring each team plays no more than once per weekend."
             >
                 <div className="timeline">
-                    {timeline.map(([week, title, detail]) => (
-                        <article
-                            className="timelineItem"
-                            key={week}
-                        >
-                            <div className="timelineIcon">
-                                <span>{week}</span>
-                            </div>
+                    {timeline.map(
+                        ([week, title, detail]) => (
+                            <article
+                                className="timelineItem"
+                                key={week}
+                            >
+                                <div className="timelineIcon">
+                                    <span>{week}</span>
+                                </div>
 
-                            <div className="timelineContent">
-                                <h3>{title}</h3>
-                                <p>{detail}</p>
-                            </div>
-                        </article>
-                    ))}
+                                <div className="timelineContent">
+                                    <h3>{title}</h3>
+                                    <p>{detail}</p>
+                                </div>
+                            </article>
+                        )
+                    )}
                 </div>
 
                 <h3 className="subheading">
                     Confirmed Fixtures
                 </h3>
 
-                <FixtureList fixtures={publicFixtures} />
+                <FixtureList
+                    fixtures={publicFixtures}
+                />
+            </Section>
+
+            <Section
+                id="results"
+                title="Latest Results"
+                intro="Confirmed and published match results from the Black History Month Football Festival."
+            >
+                <ResultsList
+                    results={publicResults}
+                />
             </Section>
 
             <Section
@@ -358,17 +546,21 @@ function App() {
                 intro="Confirmed participating teams for the Black History Month Football Festival."
             >
                 <TeamTable
-                    teams={publicTeams.map((team, index) => ({
-                        id: index + 1,
-                        name: team.name.trim(),
-                        manager: team.manager_name ?? 'TBC',
-                        played: 0,
-                        won: 0,
-                        drawn: 0,
-                        lost: 0,
-                        goalDifference: 0,
-                        points: 0,
-                    }))}
+                    teams={publicTeams.map(
+                        (team, index) => ({
+                            id: index + 1,
+                            name: team.name.trim(),
+                            manager:
+                                team.manager_name ??
+                                'TBC',
+                            played: 0,
+                            won: 0,
+                            drawn: 0,
+                            lost: 0,
+                            goalDifference: 0,
+                            points: 0,
+                        })
+                    )}
                 />
             </Section>
 
@@ -381,16 +573,22 @@ function App() {
                     <article className="videoCard featuredVideo">
                         <iframe
                             className="mediaIframe"
-                            src={lastYearFinalVideo.embedUrl}
-                            title={lastYearFinalVideo.title}
+                            src={
+                                lastYearFinalVideo.embedUrl
+                            }
+                            title={
+                                lastYearFinalVideo.title
+                            }
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                         />
 
                         <h3>Festival Highlights</h3>
+
                         <p>
-                            Watch featured matches, finals and tournament
-                            highlights produced by CKEFA Media.
+                            Watch featured matches, finals
+                            and tournament highlights
+                            produced by CKEFA Media.
                         </p>
                     </article>
 
@@ -400,9 +598,12 @@ function App() {
                         </div>
 
                         <h3>Match Highlights</h3>
+
                         <p>
-                            Catch goals, saves, celebrations and key moments
-                            from featured festival fixtures.
+                            Catch goals, saves,
+                            celebrations and key moments
+                            from featured festival
+                            fixtures.
                         </p>
                     </article>
 
@@ -411,10 +612,14 @@ function App() {
                             Interviews
                         </div>
 
-                        <h3>Live Coverage & Interviews</h3>
+                        <h3>
+                            Live Coverage & Interviews
+                        </h3>
+
                         <p>
-                            Follow interviews, post-match reactions, player
-                            spotlights and behind-the-scenes coverage.
+                            Follow interviews, post-match
+                            reactions, player spotlights
+                            and behind-the-scenes coverage.
                         </p>
                     </article>
                 </div>
@@ -442,7 +647,9 @@ function App() {
                                 type="button"
                                 className="textButton"
                                 onClick={() =>
-                                    setActiveArticleId(article.id)
+                                    setActiveArticleId(
+                                        article.id
+                                    )
                                 }
                             >
                                 Read article
@@ -468,7 +675,9 @@ function App() {
                             </span>
 
                             <h3>{sponsor.name}</h3>
-                            <p>{sponsor.description}</p>
+                            <p>
+                                {sponsor.description}
+                            </p>
 
                             <a
                                 className="btn primary small"
@@ -485,7 +694,8 @@ function App() {
                 <div className="container footerGrid">
                     <div>
                         <strong>
-                            Black History Month Football Festival
+                            Black History Month Football
+                            Festival
                         </strong>
 
                         <p>
@@ -493,12 +703,15 @@ function App() {
                         </p>
 
                         <p>
-                            Celebrating Football. Celebrating Culture.
+                            Celebrating Football.
+                            Celebrating Culture.
                             Celebrating Community.
                         </p>
                     </div>
 
-                    <CkefaLogo className="footerCkefaLogo" />
+                    <CkefaLogo
+                        className="footerCkefaLogo"
+                    />
                 </div>
             </footer>
         </>
