@@ -33,7 +33,8 @@ import {
     type StandingsTeam,
 } from './utils/calculateStandings'
 
-import { lastYearFinalVideo } from './data/festivalData'
+import { usePublicMedia } from './hooks/usePublicMedia'
+import { PublicMedia } from './components/public/PublicMedia'
 import { usePublicArticles } from './hooks/usePublicArticles'
 
 type PublicTeamRow = {
@@ -235,6 +236,11 @@ function App() {
         loading: articlesLoading,
         error: articlesError,
     } = usePublicArticles()
+    const {
+        media: publicMedia,
+        loading: mediaLoading,
+        error: mediaError,
+    } = usePublicMedia()
 
     const [publicTeams, setPublicTeams] =
         useState<PublicTeamRow[]>([])
@@ -843,72 +849,16 @@ function App() {
                     goals={publicGoals}
                 />
             </Section>
-
             <Section
                 id="media"
                 title="Official Media Coverage"
                 intro="Featured matches are professionally filmed, with highlights, interviews and exclusive coverage produced by CKEFA Media throughout the festival."
             >
-                <div className="cardGrid three">
-                    <article className="videoCard featuredVideo">
-                        <iframe
-                            className="mediaIframe"
-                            src={
-                                lastYearFinalVideo.embedUrl
-                            }
-                            title={
-                                lastYearFinalVideo.title
-                            }
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                        />
-
-                        <h3>
-                            Festival Highlights
-                        </h3>
-
-                        <p>
-                            Watch featured matches,
-                            finals and tournament
-                            highlights produced by
-                            CKEFA Media.
-                        </p>
-                    </article>
-
-                    <article className="videoCard">
-                        <div className="videoPlaceholder">
-                            Match Highlights
-                        </div>
-
-                        <h3>
-                            Match Highlights
-                        </h3>
-
-                        <p>
-                            Catch goals, saves,
-                            celebrations and key
-                            moments from featured
-                            festival fixtures.
-                        </p>
-                    </article>
-
-                    <article className="videoCard">
-                        <div className="videoPlaceholder">
-                            Interviews
-                        </div>
-
-                        <h3>
-                            Live Coverage & Interviews
-                        </h3>
-
-                        <p>
-                            Follow interviews,
-                            post-match reactions,
-                            player spotlights and
-                            behind-the-scenes coverage.
-                        </p>
-                    </article>
-                </div>
+                <PublicMedia
+                    media={publicMedia}
+                    loading={mediaLoading}
+                    error={mediaError}
+                />
             </Section>
 
             <Section

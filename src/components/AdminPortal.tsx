@@ -4,6 +4,7 @@ import {
     useMemo,
     useState,
 } from 'react'
+import { MediaManager } from './admin/Media/MediaManager'
 import { fixtures } from '../data/festivalData'
 import { supabase } from '../lib/supabaseClient'
 import { TeamsManager } from './admin/Teams/TeamsManager'
@@ -300,21 +301,7 @@ export function AdminPortal({
                             )}
 
                         {activeTab === 'Media' && (
-                            <AdminCrud
-                                title="Manage Media Links"
-                                description="Add YouTube highlights, interviews, goal clips and photo gallery links."
-                                fields={[
-                                    'Media title',
-                                    'YouTube URL',
-                                    'Match',
-                                    'Description',
-                                ]}
-                                records={[
-                                    "Last Year's Final Highlights",
-                                    'Match Highlights',
-                                    'Interview Hub',
-                                ]}
-                            />
+                            <MediaManager />
                         )}
                     </main>
                 </div>

@@ -2507,3 +2507,55 @@
         max-width: 360px;
     }
 }
+/* ---------- Media admin ---------- */
+
+.mediaAdminPreview {
+    margin-top: 24px;
+    max-width: 780px;
+}
+
+.mediaAdminPreview iframe {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: 12px;
+    background: #000;
+}
+/* ---------- Public media ---------- */
+
+.publicMediaCard {
+    overflow: hidden;
+}
+
+.publicMediaCardContent {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 18px;
+}
+
+.publicMediaBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.publicMediaThumbnail {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #000;
+}
+
+.publicMediaCard h3,
+.publicMediaCard p {
+    margin: 0;
+}
+
+.publicMediaCard .textButton {
+    margin-top: auto;
+}
