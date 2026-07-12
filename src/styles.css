@@ -1601,17 +1601,12 @@
     overflow-x: auto;
 }
 
-.teamsAdminTable {
-    width: 100%;
-    min-width: 1120px;
-    table-layout: fixed;
-}
-
-.teamsAdminTable th,
-.teamsAdminTable td {
-    box-sizing: border-box;
-    vertical-align: middle;
-}
+/*.teamsClubCell,*/
+/*.teamsAdminTable th,*/
+/*.teamsAdminTable td {*/
+/*    box-sizing: border-box;*/
+/*    vertical-align: middle;*/
+/*}*/
 
 .teamsAdminTable th:nth-child(1) {
     width: 26%;
@@ -1668,28 +1663,21 @@
     font-weight: 900;
 }
 
-.teamsManagerCell,
-.teamsEmailCell {
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.45;
-}
+/*.teamsManagerCell,*/
+/*.teamsEmailCell {*/
+/*    white-space: normal;*/
+/*    overflow-wrap: anywhere;*/
+/*    line-height: 1.45;*/
+/*}*/
+/*.teamsEmailCell*/
+/*.teamsPhoneCell {*/
+/*    white-space: nowrap;*/
+/*}*/
 
-.teamsPhoneCell {
-    white-space: nowrap;
-}
+/*.teamsActionsCell {*/
+/*    white-space: nowrap;*/
+/*}*/
 
-.teamsActionsCell {
-    white-space: nowrap;
-}
-
-.teamsActionButtons {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 10px;
-    flex-wrap: nowrap;
-}
 
 .teamsActionButtons .btn {
     min-width: 82px;
@@ -2558,4 +2546,177 @@
 
 .publicMediaCard .textButton {
     margin-top: auto;
+}
+/* ---------- Team participation and visibility ---------- */
+
+.teamParticipationBadge,
+.teamVisibilityBadge {
+    display: inline-flex;
+    width: fit-content;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.teamParticipation-interested {
+    background: rgba(79, 137, 255, 0.18);
+}
+
+.teamParticipation-invited {
+    background: rgba(159, 93, 255, 0.18);
+}
+
+.teamParticipation-confirmed {
+    background: rgba(55, 177, 105, 0.18);
+}
+
+.teamParticipation-withdrawn {
+    background: rgba(220, 70, 70, 0.18);
+}
+
+.teamVisibilityPublished {
+    background: rgba(55, 177, 105, 0.18);
+}
+
+.teamVisibilityHidden {
+    background: rgba(150, 150, 150, 0.18);
+}
+/* ---------- Teams admin card layout ---------- */
+
+.teamsAdminGrid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.teamAdminCard {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid rgba(166, 255, 110, 0.2);
+    border-radius: 18px;
+    background:
+            linear-gradient(
+                    180deg,
+                    rgba(166, 255, 110, 0.045),
+                    rgba(255, 255, 255, 0.015)
+            );
+}
+
+.teamAdminCardHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.teamAdminIdentity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.teamAdminCardLogo,
+.teamAdminCardInitials {
+    width: 68px;
+    height: 68px;
+    flex-shrink: 0;
+    border-radius: 14px;
+}
+
+.teamAdminCardLogo {
+    object-fit: contain;
+    padding: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.teamAdminCardInitials {
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(166, 255, 110, 0.28);
+    background: rgba(166, 255, 110, 0.1);
+    color: var(--accent, #a6ff6e);
+    font-weight: 800;
+}
+
+.teamAdminIdentity h4 {
+    margin: 0 0 10px;
+    overflow-wrap: anywhere;
+    font-size: 1.15rem;
+}
+
+.teamAdminBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.teamAdminDetails {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.teamAdminDetails > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.teamAdminFieldLabel {
+    color: var(--muted, #a3aaa3);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.teamAdminDetails a,
+.teamAdminDetails span,
+.teamAdminDetails strong {
+    overflow-wrap: anywhere;
+}
+
+.teamAdminDetails a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.teamAdminDetails a:hover {
+    color: var(--accent, #a6ff6e);
+}
+
+.teamAdminCardActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+.teamAdminCardActions .btn {
+    flex: 1 1 auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+    .teamsAdminGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .teamAdminDetails {
+        grid-template-columns: 1fr;
+    }
+
+    .teamAdminCardActions .btn {
+        flex-basis: 100%;
+    }
 }

@@ -8,7 +8,10 @@ import {
     deleteTeamLogo,
     replaceTeamLogo,
 } from './teamService'
-import type { DbTeam } from './teamTypes'
+import type {
+    DbTeam,
+    TeamParticipationStatus,
+} from './teamTypes'
 
 type TeamsManagerProps = {
     teams: DbTeam[]
@@ -19,37 +22,74 @@ export function TeamsManager({
                                  teams,
                                  onTeamCreated,
                              }: TeamsManagerProps) {
-    const [showTeamModal, setShowTeamModal] = useState(false)
+    const [
+        showTeamModal,
+        setShowTeamModal,
+    ] = useState(false)
 
     const [editingTeam, setEditingTeam] =
         useState<DbTeam | null>(null)
 
-    const [teamToDelete, setTeamToDelete] =
-        useState<DbTeam | null>(null)
+    const [
+        teamToDelete,
+        setTeamToDelete,
+    ] = useState<DbTeam | null>(null)
 
-    const [teamName, setTeamName] = useState('')
-    const [managerName, setManagerName] = useState('')
-    const [email, setEmail] = useState('')
-    const [phone, setPhone] = useState('')
-    const [notes, setNotes] = useState('')
-
-    const [logoUrl, setLogoUrl] = useState('')
-    const [selectedLogo, setSelectedLogo] =
-        useState<File | null>(null)
-
-    const [isSaving, setIsSaving] = useState(false)
-
-    const [toastMessage, setToastMessage] =
+    const [teamName, setTeamName] =
         useState('')
 
-    const [toastType, setToastType] =
-        useState<'success' | 'error' | 'info'>(
-            'success'
+    const [
+        managerName,
+        setManagerName,
+    ] = useState('')
+
+    const [email, setEmail] =
+        useState('')
+
+    const [phone, setPhone] =
+        useState('')
+
+    const [notes, setNotes] =
+        useState('')
+
+    const [logoUrl, setLogoUrl] =
+        useState('')
+
+    const [
+        selectedLogo,
+        setSelectedLogo,
+    ] = useState<File | null>(null)
+
+    const [
+        participationStatus,
+        setParticipationStatus,
+    ] =
+        useState<TeamParticipationStatus>(
+            'interested'
         )
+
+    const [published, setPublished] =
+        useState(false)
+
+    const [isSaving, setIsSaving] =
+        useState(false)
+
+    const [
+        toastMessage,
+        setToastMessage,
+    ] = useState('')
+
+    const [toastType, setToastType] =
+        useState<
+            'success' | 'error' | 'info'
+        >('success')
 
     function showToast(
         message: string,
-        type: 'success' | 'error' | 'info' = 'success'
+        type:
+            | 'success'
+            | 'error'
+            | 'info' = 'success'
     ) {
         setToastMessage(message)
         setToastType(type)
@@ -64,6 +104,10 @@ export function TeamsManager({
         setNotes('')
         setLogoUrl('')
         setSelectedLogo(null)
+        setParticipationStatus(
+            'interested'
+        )
+        setPublished(false)
     }
 
     function closeTeamModal() {
@@ -76,29 +120,49 @@ export function TeamsManager({
         setShowTeamModal(true)
     }
 
-    function openEditTeamModal(team: DbTeam) {
+    function openEditTeamModal(
+        team: DbTeam
+    ) {
         setEditingTeam(team)
         setTeamName(team.name)
-        setManagerName(team.manager_name ?? '')
-        setEmail(team.contact_email ?? '')
-        setPhone(team.contact_phone ?? '')
+        setManagerName(
+            team.manager_name ?? ''
+        )
+        setEmail(
+            team.contact_email ?? ''
+        )
+        setPhone(
+            team.contact_phone ?? ''
+        )
         setNotes(team.notes ?? '')
         setLogoUrl(team.logo_url ?? '')
         setSelectedLogo(null)
+        setParticipationStatus(
+            team.participation_status ??
+            'interested'
+        )
+        setPublished(
+            team.published ?? false
+        )
         setShowTeamModal(true)
     }
 
     async function getActiveFestivalId() {
-        const { data, error } = await supabase
-            .from('festivals')
-            .select('id')
-            .eq('status', 'active')
-            .order('year', { ascending: false })
-            .limit(1)
-            .maybeSingle()
+        const { data, error } =
+            await supabase
+                .from('festivals')
+                .select('id')
+                .eq('status', 'active')
+                .order('year', {
+                    ascending: false,
+                })
+                .limit(1)
+                .maybeSingle()
 
         if (error) {
-            throw new Error(error.message)
+            throw new Error(
+                error.message
+            )
         }
 
         return data?.id ?? null
@@ -116,7 +180,8 @@ export function TeamsManager({
         setIsSaving(true)
 
         try {
-            let finalLogoUrl = logoUrl
+            let finalLogoUrl =
+                logoUrl
 
             if (selectedLogo) {
                 finalLogoUrl =
@@ -129,7 +194,8 @@ export function TeamsManager({
             const payload = {
                 name: teamName.trim(),
                 manager_name:
-                    managerName.trim() || null,
+                    managerName.trim() ||
+                    null,
                 contact_email:
                     email.trim() || null,
                 contact_phone:
@@ -138,16 +204,25 @@ export function TeamsManager({
                     finalLogoUrl || null,
                 notes:
                     notes.trim() || null,
+                participation_status:
+                participationStatus,
+                published,
             }
 
             if (editingTeam) {
-                const { error } = await supabase
-                    .from('teams')
-                    .update(payload)
-                    .eq('id', editingTeam.id)
+                const { error } =
+                    await supabase
+                        .from('teams')
+                        .update(payload)
+                        .eq(
+                            'id',
+                            editingTeam.id
+                        )
 
                 if (error) {
-                    throw new Error(error.message)
+                    throw new Error(
+                        error.message
+                    )
                 }
             } else {
                 const festivalId =
@@ -159,15 +234,19 @@ export function TeamsManager({
                     )
                 }
 
-                const { error } = await supabase
-                    .from('teams')
-                    .insert({
-                        ...payload,
-                        festival_id: festivalId,
-                    })
+                const { error } =
+                    await supabase
+                        .from('teams')
+                        .insert({
+                            ...payload,
+                            festival_id:
+                            festivalId,
+                        })
 
                 if (error) {
-                    throw new Error(error.message)
+                    throw new Error(
+                        error.message
+                    )
                 }
             }
 
@@ -195,19 +274,64 @@ export function TeamsManager({
         }
     }
 
+    async function togglePublished(
+        team: DbTeam
+    ) {
+        try {
+            const nextPublished =
+                !team.published
+
+            const { error } =
+                await supabase
+                    .from('teams')
+                    .update({
+                        published:
+                        nextPublished,
+                    })
+                    .eq('id', team.id)
+
+            if (error) {
+                throw new Error(
+                    error.message
+                )
+            }
+
+            await onTeamCreated()
+
+            showToast(
+                nextPublished
+                    ? `${team.name} is now visible on the public website.`
+                    : `${team.name} has been hidden from the public website.`,
+                'success'
+            )
+        } catch (error) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to update team visibility.',
+                'error'
+            )
+        }
+    }
+
     async function deleteTeam() {
-        if (!teamToDelete) return
+        if (!teamToDelete) {
+            return
+        }
 
         const team = teamToDelete
 
         try {
-            const { error } = await supabase
-                .from('teams')
-                .delete()
-                .eq('id', team.id)
+            const { error } =
+                await supabase
+                    .from('teams')
+                    .delete()
+                    .eq('id', team.id)
 
             if (error) {
-                throw new Error(error.message)
+                throw new Error(
+                    error.message
+                )
             }
 
             if (team.logo_url) {
@@ -248,15 +372,19 @@ export function TeamsManager({
                     <h3>Teams</h3>
 
                     <p className="muted">
-                        Manage participating clubs and
-                        their official team logos.
+                        Manage participating clubs,
+                        their status, public
+                        visibility and official
+                        logos.
                     </p>
                 </div>
 
                 <button
                     className="btn primary"
                     type="button"
-                    onClick={openAddTeamModal}
+                    onClick={
+                        openAddTeamModal
+                    }
                 >
                     + Add Team
                 </button>
@@ -264,8 +392,15 @@ export function TeamsManager({
 
             <TeamsTable
                 teams={teams}
-                onEdit={openEditTeamModal}
-                onDelete={setTeamToDelete}
+                onEdit={
+                    openEditTeamModal
+                }
+                onDelete={
+                    setTeamToDelete
+                }
+                onTogglePublished={
+                    togglePublished
+                }
             />
 
             {showTeamModal && (
@@ -276,11 +411,17 @@ export function TeamsManager({
                             : 'create'
                     }
                     teamName={teamName}
-                    managerName={managerName}
+                    managerName={
+                        managerName
+                    }
                     email={email}
                     phone={phone}
                     notes={notes}
                     logoUrl={logoUrl}
+                    participationStatus={
+                        participationStatus
+                    }
+                    published={published}
                     isSaving={isSaving}
                     onTeamNameChange={
                         setTeamName
@@ -288,13 +429,27 @@ export function TeamsManager({
                     onManagerNameChange={
                         setManagerName
                     }
-                    onEmailChange={setEmail}
-                    onPhoneChange={setPhone}
-                    onNotesChange={setNotes}
+                    onEmailChange={
+                        setEmail
+                    }
+                    onPhoneChange={
+                        setPhone
+                    }
+                    onNotesChange={
+                        setNotes
+                    }
+                    onParticipationStatusChange={
+                        setParticipationStatus
+                    }
+                    onPublishedChange={
+                        setPublished
+                    }
                     onLogoSelected={
                         setSelectedLogo
                     }
-                    onClose={closeTeamModal}
+                    onClose={
+                        closeTeamModal
+                    }
                     onSave={saveTeam}
                 />
             )}
@@ -306,9 +461,13 @@ export function TeamsManager({
                     confirmText="Delete"
                     cancelText="Cancel"
                     onCancel={() =>
-                        setTeamToDelete(null)
+                        setTeamToDelete(
+                            null
+                        )
                     }
-                    onConfirm={deleteTeam}
+                    onConfirm={
+                        deleteTeam
+                    }
                 />
             )}
         </div>

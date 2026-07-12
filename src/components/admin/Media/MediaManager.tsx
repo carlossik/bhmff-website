@@ -1,231 +1,178 @@
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
-import { supabase } from '../../../lib/supabaseClient'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "../../../lib/supabaseClient";
 
 const mediaCategories = [
-    'Match Highlights',
-    'Full Match Replay',
-    'Player Interview',
-    'Coach Interview',
-    'Livestream',
-    'Festival Trailer',
-    'Behind the Scenes',
-    'Photo Gallery',
-    'Podcast',
-    'Sponsor Feature',
-] as const
+    "Match Highlights",
+    "Full Match Replay",
+    "Player Interview",
+    "Coach Interview",
+    "Livestream",
+    "Festival Trailer",
+    "Behind the Scenes",
+    "Photo Gallery",
+    "Podcast",
+    "Sponsor Feature",
+] as const;
 
 const mediaStatuses = [
-    'draft',
-    'review',
-    'scheduled',
-    'published',
-    'archived',
-] as const
+    "draft",
+    "review",
+    "scheduled",
+    "published",
+    "archived",
+] as const;
 
-type MediaCategory =
-    (typeof mediaCategories)[number]
+type MediaCategory = (typeof mediaCategories)[number];
 
-type MediaStatus =
-    (typeof mediaStatuses)[number]
+type MediaStatus = (typeof mediaStatuses)[number];
 
 type DbMedia = {
-    id: string
-    title: string
-    slug: string
-    category: MediaCategory
-    status: MediaStatus
-    description: string
-    youtube_url: string | null
-    embed_url: string | null
-    thumbnail_url: string | null
-    thumbnail_alt: string | null
-    featured: boolean
-    fixture_id: string | null
-    published_at: string | null
-    created_at: string
-    updated_at: string
-}
+    id: string;
+    title: string;
+    slug: string;
+    category: MediaCategory;
+    status: MediaStatus;
+    description: string;
+    youtube_url: string | null;
+    embed_url: string | null;
+    thumbnail_url: string | null;
+    thumbnail_alt: string | null;
+    featured: boolean;
+    fixture_id: string | null;
+    published_at: string | null;
+    created_at: string;
+    updated_at: string;
+};
 
 type MediaFormState = {
-    title: string
-    slug: string
-    category: MediaCategory
-    status: MediaStatus
-    description: string
-    youtubeUrl: string
-    embedUrl: string
-    thumbnailUrl: string
-    thumbnailAlt: string
-    featured: boolean
-    publishedAt: string
-}
+    title: string;
+    slug: string;
+    category: MediaCategory;
+    status: MediaStatus;
+    description: string;
+    youtubeUrl: string;
+    embedUrl: string;
+    thumbnailUrl: string;
+    thumbnailAlt: string;
+    featured: boolean;
+    publishedAt: string;
+};
 
 const initialFormState: MediaFormState = {
-    title: '',
-    slug: '',
-    category: 'Match Highlights',
-    status: 'draft',
-    description: '',
-    youtubeUrl: '',
-    embedUrl: '',
-    thumbnailUrl: '',
-    thumbnailAlt: '',
+    title: "",
+    slug: "",
+    category: "Match Highlights",
+    status: "draft",
+    description: "",
+    youtubeUrl: "",
+    embedUrl: "",
+    thumbnailUrl: "",
+    thumbnailAlt: "",
     featured: false,
-    publishedAt: '',
-}
+    publishedAt: "",
+};
 
 function createSlug(value: string) {
     return value
         .trim()
         .toLowerCase()
-        .replace(/['’]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
+        .replace(/['’]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
 }
 
 function extractYouTubeId(value: string) {
-    const trimmedValue = value.trim()
+    const trimmedValue = value.trim();
 
     if (!trimmedValue) {
-        return null
+        return null;
     }
 
     try {
-        const url = new URL(trimmedValue)
+        const url = new URL(trimmedValue);
 
-        if (url.hostname.includes('youtu.be')) {
-            return url.pathname
-                .replace('/', '')
-                .split('/')[0] || null
+        if (url.hostname.includes("youtu.be")) {
+            return url.pathname.replace("/", "").split("/")[0] || null;
         }
 
-        if (
-            url.hostname.includes('youtube.com')
-        ) {
-            if (
-                url.pathname.startsWith('/embed/')
-            ) {
-                return (
-                    url.pathname.split('/embed/')[1]
-                        ?.split('/')[0] ?? null
-                )
+        if (url.hostname.includes("youtube.com")) {
+            if (url.pathname.startsWith("/embed/")) {
+                return url.pathname.split("/embed/")[1]?.split("/")[0] ?? null;
             }
 
-            if (
-                url.pathname.startsWith('/shorts/')
-            ) {
-                return (
-                    url.pathname.split('/shorts/')[1]
-                        ?.split('/')[0] ?? null
-                )
+            if (url.pathname.startsWith("/shorts/")) {
+                return url.pathname.split("/shorts/")[1]?.split("/")[0] ?? null;
             }
 
-            return url.searchParams.get('v')
+            return url.searchParams.get("v");
         }
     } catch {
-        return null
+        return null;
     }
 
-    return null
+    return null;
 }
 
-function createEmbedUrl(
-    youtubeUrl: string
-) {
-    const videoId =
-        extractYouTubeId(youtubeUrl)
+function createEmbedUrl(youtubeUrl: string) {
+    const videoId = extractYouTubeId(youtubeUrl);
 
-    return videoId
-        ? `https://www.youtube.com/embed/${videoId}`
-        : ''
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
 }
 
-function createThumbnailUrl(
-    youtubeUrl: string
-) {
-    const videoId =
-        extractYouTubeId(youtubeUrl)
+function createThumbnailUrl(youtubeUrl: string) {
+    const videoId = extractYouTubeId(youtubeUrl);
 
-    return videoId
-        ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-        : ''
+    return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : "";
 }
 
-function toDateTimeLocal(
-    value: string | null
-) {
+function toDateTimeLocal(value: string | null) {
     if (!value) {
-        return ''
+        return "";
     }
 
-    const date = new Date(value)
+    const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-        return ''
+        return "";
     }
 
-    const offset =
-        date.getTimezoneOffset()
+    const offset = date.getTimezoneOffset();
 
-    const localDate = new Date(
-        date.getTime() -
-        offset * 60_000
-    )
+    const localDate = new Date(date.getTime() - offset * 60_000);
 
-    return localDate
-        .toISOString()
-        .slice(0, 16)
+    return localDate.toISOString().slice(0, 16);
 }
 
 export function MediaManager() {
-    const [mediaItems, setMediaItems] =
-        useState<DbMedia[]>([])
+    const [mediaItems, setMediaItems] = useState<DbMedia[]>([]);
 
-    const [form, setForm] =
-        useState<MediaFormState>(
-            initialFormState
-        )
+    const [form, setForm] = useState<MediaFormState>(initialFormState);
 
-    const [editingId, setEditingId] =
-        useState<string | null>(null)
+    const [editingId, setEditingId] = useState<string | null>(null);
 
-    const [loading, setLoading] =
-        useState(true)
+    const [showMediaForm, setShowMediaForm] = useState(false);
 
-    const [saving, setSaving] =
-        useState(false)
+    const [loading, setLoading] = useState(true);
 
-    const [message, setMessage] =
-        useState<string | null>(null)
+    const [saving, setSaving] = useState(false);
 
-    const [
-        errorMessage,
-        setErrorMessage,
-    ] = useState<string | null>(null)
+    const [message, setMessage] = useState<string | null>(null);
+
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const editingMediaItem = useMemo(
-        () =>
-            mediaItems.find(
-                (item) =>
-                    item.id === editingId
-            ) ?? null,
-        [mediaItems, editingId]
-    )
+        () => mediaItems.find((item) => item.id === editingId) ?? null,
+        [mediaItems, editingId],
+    );
 
-    const loadMedia =
-        useCallback(async () => {
-            setLoading(true)
-            setErrorMessage(null)
+    const loadMedia = useCallback(async () => {
+        setLoading(true);
+        setErrorMessage(null);
 
-            const { data, error } =
-                await supabase
-                    .from('media')
-                    .select(`
+        const { data, error } = await supabase
+            .from("media")
+            .select(
+                `
                         id,
                         title,
                         slug,
@@ -241,831 +188,567 @@ export function MediaManager() {
                         published_at,
                         created_at,
                         updated_at
-                    `)
-                    .order('created_at', {
-                        ascending: false,
-                    })
-
-            if (error) {
-                console.error(
-                    'Failed to load media:',
-                    error
-                )
-
-                setErrorMessage(
-                    'Unable to load media records.'
-                )
-
-                setMediaItems([])
-                setLoading(false)
-                return
-            }
-
-            setMediaItems(
-                (data ?? []) as DbMedia[]
+                    `,
             )
+            .order("created_at", {
+                ascending: false,
+            });
 
-            setLoading(false)
-        }, [])
+        if (error) {
+            console.error("Failed to load media:", error);
+
+            setErrorMessage("Unable to load media records.");
+
+            setMediaItems([]);
+            setLoading(false);
+            return;
+        }
+
+        setMediaItems((data ?? []) as DbMedia[]);
+
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
-        void loadMedia()
-    }, [loadMedia])
+        void loadMedia();
+    }, [loadMedia]);
 
-    function updateForm<
-        Key extends keyof MediaFormState
-    >(
+    function updateForm<Key extends keyof MediaFormState>(
         key: Key,
-        value: MediaFormState[Key]
+        value: MediaFormState[Key],
     ) {
         setForm((current) => ({
             ...current,
             [key]: value,
-        }))
+        }));
     }
 
-    function handleTitleChange(
-        title: string
-    ) {
+    function handleTitleChange(title: string) {
         setForm((current) => ({
             ...current,
             title,
-            slug:
-                editingId || current.slug
-                    ? current.slug
-                    : createSlug(title),
-        }))
+            slug: editingId || current.slug ? current.slug : createSlug(title),
+        }));
     }
 
-    function handleYouTubeUrlChange(
-        youtubeUrl: string
-    ) {
+    function handleYouTubeUrlChange(youtubeUrl: string) {
         setForm((current) => {
-            const embedUrl =
-                createEmbedUrl(
-                    youtubeUrl
-                )
+            const embedUrl = createEmbedUrl(youtubeUrl);
 
             const thumbnailUrl =
-                current.thumbnailUrl ||
-                createThumbnailUrl(
-                    youtubeUrl
-                )
+                current.thumbnailUrl || createThumbnailUrl(youtubeUrl);
 
             return {
                 ...current,
                 youtubeUrl,
                 embedUrl,
                 thumbnailUrl,
-            }
-        })
+            };
+        });
     }
 
     function resetForm() {
-        setForm(initialFormState)
-        setEditingId(null)
-        setMessage(null)
-        setErrorMessage(null)
+        setForm(initialFormState);
+        setEditingId(null);
+        setShowMediaForm(false);
+        setMessage(null);
+        setErrorMessage(null);
     }
 
-    function startEditing(
-        item: DbMedia
-    ) {
-        setEditingId(item.id)
+    function openCreateMediaForm() {
+        setForm(initialFormState);
+        setEditingId(null);
+        setShowMediaForm(true);
+        setMessage(null);
+        setErrorMessage(null);
+    }
+
+    function startEditing(item: DbMedia) {
+        setEditingId(item.id);
+        setShowMediaForm(true);
 
         setForm({
             title: item.title,
             slug: item.slug,
             category: item.category,
             status: item.status,
-            description:
-            item.description,
-            youtubeUrl:
-                item.youtube_url ?? '',
-            embedUrl:
-                item.embed_url ?? '',
-            thumbnailUrl:
-                item.thumbnail_url ?? '',
-            thumbnailAlt:
-                item.thumbnail_alt ?? '',
+            description: item.description,
+            youtubeUrl: item.youtube_url ?? "",
+            embedUrl: item.embed_url ?? "",
+            thumbnailUrl: item.thumbnail_url ?? "",
+            thumbnailAlt: item.thumbnail_alt ?? "",
             featured: item.featured,
-            publishedAt:
-                toDateTimeLocal(
-                    item.published_at
-                ),
-        })
+            publishedAt: toDateTimeLocal(item.published_at),
+        });
 
-        setMessage(null)
-        setErrorMessage(null)
+        setMessage(null);
+        setErrorMessage(null);
 
         window.scrollTo({
             top: 0,
-            behavior: 'smooth',
-        })
+            behavior: "smooth",
+        });
     }
 
     function validateForm() {
         if (!form.title.trim()) {
-            return 'Media title is required.'
+            return "Media title is required.";
         }
 
         if (!form.slug.trim()) {
-            return 'Media slug is required.'
+            return "Media slug is required.";
         }
 
         if (
-            form.category !==
-            'Photo Gallery' &&
-            form.category !== 'Podcast' &&
+            form.category !== "Photo Gallery" &&
+            form.category !== "Podcast" &&
             !form.youtubeUrl.trim()
         ) {
-            return 'A YouTube URL is required for this media category.'
+            return "A YouTube URL is required for this media category.";
         }
 
-        if (
-            form.youtubeUrl.trim() &&
-            !extractYouTubeId(
-                form.youtubeUrl
-            )
-        ) {
-            return 'Enter a valid YouTube URL.'
+        if (form.youtubeUrl.trim() && !extractYouTubeId(form.youtubeUrl)) {
+            return "Enter a valid YouTube URL.";
         }
 
-        return null
+        return null;
     }
 
     async function saveMedia() {
-        const validationError =
-            validateForm()
+        const validationError = validateForm();
 
         if (validationError) {
-            setErrorMessage(
-                validationError
-            )
-            setMessage(null)
-            return
+            setErrorMessage(validationError);
+            setMessage(null);
+            return;
         }
 
-        setSaving(true)
-        setMessage(null)
-        setErrorMessage(null)
+        setSaving(true);
+        setMessage(null);
+        setErrorMessage(null);
 
-        const youtubeUrl =
-            form.youtubeUrl.trim()
+        const youtubeUrl = form.youtubeUrl.trim();
 
-        const embedUrl =
-            youtubeUrl
-                ? createEmbedUrl(
-                    youtubeUrl
-                )
-                : form.embedUrl.trim()
+        const embedUrl = youtubeUrl
+            ? createEmbedUrl(youtubeUrl)
+            : form.embedUrl.trim();
 
         const thumbnailUrl =
-            form.thumbnailUrl.trim() ||
-            createThumbnailUrl(
-                youtubeUrl
-            )
+            form.thumbnailUrl.trim() || createThumbnailUrl(youtubeUrl);
 
         const publishedAt =
-            form.status === 'published'
+            form.status === "published"
                 ? form.publishedAt
-                    ? new Date(
-                        form.publishedAt
-                    ).toISOString()
-                    : editingMediaItem
-                        ?.published_at ??
-                    new Date().toISOString()
+                    ? new Date(form.publishedAt).toISOString()
+                    : (editingMediaItem?.published_at ?? new Date().toISOString())
                 : form.publishedAt
-                    ? new Date(
-                        form.publishedAt
-                    ).toISOString()
-                    : null
+                    ? new Date(form.publishedAt).toISOString()
+                    : null;
 
         const payload = {
             title: form.title.trim(),
-            slug: createSlug(
-                form.slug
-            ),
+            slug: createSlug(form.slug),
             category: form.category,
             status: form.status,
-            description:
-                form.description.trim(),
-            youtube_url:
-                youtubeUrl || null,
-            embed_url:
-                embedUrl || null,
-            thumbnail_url:
-                thumbnailUrl || null,
-            thumbnail_alt:
-                form.thumbnailAlt.trim() ||
-                form.title.trim() ||
-                null,
+            description: form.description.trim(),
+            youtube_url: youtubeUrl || null,
+            embed_url: embedUrl || null,
+            thumbnail_url: thumbnailUrl || null,
+            thumbnail_alt: form.thumbnailAlt.trim() || form.title.trim() || null,
             featured: form.featured,
-            published_at:
-            publishedAt,
-        }
+            published_at: publishedAt,
+        };
 
         const response = editingId
-            ? await supabase
-                .from('media')
-                .update(payload)
-                .eq('id', editingId)
-            : await supabase
-                .from('media')
-                .insert(payload)
+            ? await supabase.from("media").update(payload).eq("id", editingId)
+            : await supabase.from("media").insert(payload);
 
         if (response.error) {
-            console.error(
-                'Failed to save media:',
-                response.error
-            )
+            console.error("Failed to save media:", response.error);
 
             setErrorMessage(
-                response.error.code ===
-                '23505'
-                    ? 'A media record with this slug already exists.'
-                    : response.error.message
-            )
+                response.error.code === "23505"
+                    ? "A media record with this slug already exists."
+                    : response.error.message,
+            );
 
-            setSaving(false)
-            return
+            setSaving(false);
+            return;
         }
 
         setMessage(
             editingId
-                ? 'Media record updated successfully.'
-                : 'Media record created successfully.'
-        )
+                ? "Media record updated successfully."
+                : "Media record created successfully.",
+        );
 
-        setForm(initialFormState)
-        setEditingId(null)
+        setForm(initialFormState);
+        setEditingId(null);
+        setShowMediaForm(false);
 
-        await loadMedia()
+        await loadMedia();
 
-        setSaving(false)
+        setSaving(false);
     }
 
-    async function updateStatus(
-        item: DbMedia,
-        status: MediaStatus
-    ) {
-        setMessage(null)
-        setErrorMessage(null)
+    async function updateStatus(item: DbMedia, status: MediaStatus) {
+        setMessage(null);
+        setErrorMessage(null);
 
         const publishedAt =
-            status === 'published'
-                ? item.published_at ??
-                new Date().toISOString()
-                : item.published_at
+            status === "published"
+                ? (item.published_at ?? new Date().toISOString())
+                : item.published_at;
 
         const { error } = await supabase
-            .from('media')
+            .from("media")
             .update({
                 status,
-                published_at:
-                publishedAt,
+                published_at: publishedAt,
             })
-            .eq('id', item.id)
+            .eq("id", item.id);
 
         if (error) {
-            console.error(
-                'Failed to update media status:',
-                error
-            )
+            console.error("Failed to update media status:", error);
 
-            setErrorMessage(
-                'Unable to update media status.'
-            )
-            return
+            setErrorMessage("Unable to update media status.");
+            return;
         }
 
-        setMessage(
-            `Media status changed to ${status}.`
-        )
+        setMessage(`Media status changed to ${status}.`);
 
-        await loadMedia()
+        await loadMedia();
     }
 
-    async function deleteMedia(
-        item: DbMedia
-    ) {
-        const confirmed =
-            window.confirm(
-                `Delete "${item.title}"? This action cannot be undone.`
-            )
+    async function deleteMedia(item: DbMedia) {
+        const confirmed = window.confirm(
+            `Delete "${item.title}"? This action cannot be undone.`,
+        );
 
         if (!confirmed) {
-            return
+            return;
         }
 
-        setMessage(null)
-        setErrorMessage(null)
+        setMessage(null);
+        setErrorMessage(null);
 
-        const { error } = await supabase
-            .from('media')
-            .delete()
-            .eq('id', item.id)
+        const { error } = await supabase.from("media").delete().eq("id", item.id);
 
         if (error) {
-            console.error(
-                'Failed to delete media:',
-                error
-            )
+            console.error("Failed to delete media:", error);
 
-            setErrorMessage(
-                'Unable to delete this media record.'
-            )
-            return
+            setErrorMessage("Unable to delete this media record.");
+            return;
         }
 
         if (editingId === item.id) {
-            resetForm()
+            resetForm();
         }
 
-        setMessage(
-            'Media record deleted successfully.'
-        )
+        setMessage("Media record deleted successfully.");
 
-        await loadMedia()
+        await loadMedia();
     }
 
     return (
         <div>
             <div className="adminWorkspaceHeader">
                 <div>
-                    <h3>
-                        Manage Festival Media
-                    </h3>
+                    <h3>Manage Festival Media</h3>
 
                     <p className="muted">
-                        Create, edit and publish
-                        videos, interviews,
-                        livestreams, podcasts and
-                        festival media.
+                        Create, edit and publish videos, interviews, livestreams, podcasts
+                        and festival media.
                     </p>
                 </div>
 
-                {editingId && (
+                {!showMediaForm ? (
                     <button
-                        className="btn secondary small"
+                        className="btn primary"
                         type="button"
+                        onClick={openCreateMediaForm}
+                    >
+                        + Add Media
+                    </button>
+                ) : (
+                    <button
+                        className="btn secondary"
+                        type="button"
+                        disabled={saving}
                         onClick={resetForm}
                     >
-                        Create new media
+                        Cancel
                     </button>
                 )}
             </div>
 
-            {message && (
-                <p className="adminSuccessMessage">
-                    {message}
-                </p>
-            )}
+            {message && <p className="adminSuccessMessage">{message}</p>}
 
-            {errorMessage && (
-                <p className="adminErrorMessage">
-                    {errorMessage}
-                </p>
-            )}
+            {errorMessage && <p className="adminErrorMessage">{errorMessage}</p>}
 
-            <div className="articleAdminForm">
-                <div className="adminFormGrid">
-                    <label>
-                        <span>
-                            Media title
-                        </span>
+            {showMediaForm && (
+                <div className="articleAdminForm">
+                    <div className="adminFormGrid">
+                        <label>
+                            <span>Media title</span>
 
-                        <input
-                            value={form.title}
-                            onChange={(event) =>
-                                handleTitleChange(
-                                    event.target
-                                        .value
-                                )
-                            }
-                            placeholder="Enter media title"
-                        />
-                    </label>
+                            <input
+                                value={form.title}
+                                onChange={(event) => handleTitleChange(event.target.value)}
+                                placeholder="Enter media title"
+                            />
+                        </label>
 
-                    <label>
-                        <span>URL slug</span>
+                        <label>
+                            <span>URL slug</span>
 
-                        <input
-                            value={form.slug}
-                            onChange={(event) =>
-                                updateForm(
-                                    'slug',
-                                    event.target
-                                        .value
-                                )
-                            }
-                            placeholder="media-url-slug"
-                        />
-                    </label>
+                            <input
+                                value={form.slug}
+                                onChange={(event) => updateForm("slug", event.target.value)}
+                                placeholder="media-url-slug"
+                            />
+                        </label>
 
-                    <label>
-                        <span>Category</span>
+                        <label>
+                            <span>Category</span>
 
-                        <select
-                            value={
-                                form.category
-                            }
-                            onChange={(event) =>
-                                updateForm(
-                                    'category',
-                                    event.target
-                                        .value as MediaCategory
-                                )
-                            }
-                        >
-                            {mediaCategories.map(
-                                (category) => (
-                                    <option
-                                        key={
-                                            category
-                                        }
-                                        value={
-                                            category
-                                        }
-                                    >
-                                        {
-                                            category
-                                        }
+                            <select
+                                value={form.category}
+                                onChange={(event) =>
+                                    updateForm("category", event.target.value as MediaCategory)
+                                }
+                            >
+                                {mediaCategories.map((category) => (
+                                    <option key={category} value={category}>
+                                        {category}
                                     </option>
-                                )
-                            )}
-                        </select>
-                    </label>
+                                ))}
+                            </select>
+                        </label>
 
-                    <label>
-                        <span>Status</span>
+                        <label>
+                            <span>Status</span>
 
-                        <select
-                            value={form.status}
-                            onChange={(event) =>
-                                updateForm(
-                                    'status',
-                                    event.target
-                                        .value as MediaStatus
-                                )
-                            }
-                        >
-                            {mediaStatuses.map(
-                                (status) => (
-                                    <option
-                                        key={
-                                            status
-                                        }
-                                        value={
-                                            status
-                                        }
-                                    >
-                                        {
-                                            status
-                                        }
+                            <select
+                                value={form.status}
+                                onChange={(event) =>
+                                    updateForm("status", event.target.value as MediaStatus)
+                                }
+                            >
+                                {mediaStatuses.map((status) => (
+                                    <option key={status} value={status}>
+                                        {status}
                                     </option>
-                                )
-                            )}
-                        </select>
-                    </label>
+                                ))}
+                            </select>
+                        </label>
 
-                    <label>
-                        <span>
-                            Publication date
-                        </span>
+                        <label>
+                            <span>Publication date</span>
 
-                        <input
-                            type="datetime-local"
-                            value={
-                                form.publishedAt
-                            }
-                            onChange={(event) =>
-                                updateForm(
-                                    'publishedAt',
-                                    event.target
-                                        .value
-                                )
-                            }
-                        />
-                    </label>
+                            <input
+                                type="datetime-local"
+                                value={form.publishedAt}
+                                onChange={(event) =>
+                                    updateForm("publishedAt", event.target.value)
+                                }
+                            />
+                        </label>
 
-                    <label className="adminCheckboxLabel">
-                        <input
-                            type="checkbox"
-                            checked={
-                                form.featured
-                            }
-                            onChange={(event) =>
-                                updateForm(
-                                    'featured',
-                                    event.target
-                                        .checked
-                                )
-                            }
-                        />
+                        <label className="adminCheckboxLabel">
+                            <input
+                                type="checkbox"
+                                checked={form.featured}
+                                onChange={(event) =>
+                                    updateForm("featured", event.target.checked)
+                                }
+                            />
 
-                        <span>
-                            Featured media
-                        </span>
-                    </label>
+                            <span>Featured media</span>
+                        </label>
 
-                    <label className="adminFormFullWidth">
-                        <span>
-                            Description
-                        </span>
+                        <label className="adminFormFullWidth">
+                            <span>Description</span>
 
-                        <textarea
-                            value={
-                                form.description
-                            }
-                            onChange={(event) =>
-                                updateForm(
-                                    'description',
-                                    event.target
-                                        .value
-                                )
-                            }
-                            placeholder="Describe this media item"
-                            rows={4}
-                        />
-                    </label>
+                            <textarea
+                                value={form.description}
+                                onChange={(event) =>
+                                    updateForm("description", event.target.value)
+                                }
+                                placeholder="Describe this media item"
+                                rows={4}
+                            />
+                        </label>
 
-                    <label className="adminFormFullWidth">
-                        <span>
-                            YouTube URL
-                        </span>
+                        <label className="adminFormFullWidth">
+                            <span>YouTube URL</span>
 
-                        <input
-                            type="url"
-                            value={
-                                form.youtubeUrl
-                            }
-                            onChange={(event) =>
-                                handleYouTubeUrlChange(
-                                    event.target
-                                        .value
-                                )
-                            }
-                            placeholder="https://www.youtube.com/watch?v=..."
-                        />
-                    </label>
+                            <input
+                                type="url"
+                                value={form.youtubeUrl}
+                                onChange={(event) => handleYouTubeUrlChange(event.target.value)}
+                                placeholder="https://www.youtube.com/watch?v=..."
+                            />
+                        </label>
 
-                    <label>
-                        <span>
-                            Embed URL
-                        </span>
+                        <label>
+                            <span>Embed URL</span>
 
-                        <input
-                            type="url"
-                            value={
-                                form.embedUrl
-                            }
-                            onChange={(event) =>
-                                updateForm(
-                                    'embedUrl',
-                                    event.target
-                                        .value
-                                )
-                            }
-                            placeholder="Generated automatically"
-                        />
-                    </label>
+                            <input
+                                type="url"
+                                value={form.embedUrl}
+                                onChange={(event) => updateForm("embedUrl", event.target.value)}
+                                placeholder="Generated automatically"
+                            />
+                        </label>
 
-                    <label>
-                        <span>
-                            Thumbnail URL
-                        </span>
+                        <label>
+                            <span>Thumbnail URL</span>
 
-                        <input
-                            type="url"
-                            value={
-                                form.thumbnailUrl
-                            }
-                            onChange={(event) =>
-                                updateForm(
-                                    'thumbnailUrl',
-                                    event.target
-                                        .value
-                                )
-                            }
-                            placeholder="Generated automatically"
-                        />
-                    </label>
+                            <input
+                                type="url"
+                                value={form.thumbnailUrl}
+                                onChange={(event) =>
+                                    updateForm("thumbnailUrl", event.target.value)
+                                }
+                                placeholder="Generated automatically"
+                            />
+                        </label>
 
-                    <label className="adminFormFullWidth">
-                        <span>
-                            Thumbnail alt text
-                        </span>
+                        <label className="adminFormFullWidth">
+                            <span>Thumbnail alt text</span>
 
-                        <input
-                            value={
-                                form.thumbnailAlt
-                            }
-                            onChange={(event) =>
-                                updateForm(
-                                    'thumbnailAlt',
-                                    event.target
-                                        .value
-                                )
-                            }
-                            placeholder="Describe the thumbnail"
-                        />
-                    </label>
-                </div>
-
-                {form.embedUrl && (
-                    <div className="mediaAdminPreview">
-                        <iframe
-                            src={form.embedUrl}
-                            title={
-                                form.title ||
-                                'Media preview'
-                            }
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                        />
+                            <input
+                                value={form.thumbnailAlt}
+                                onChange={(event) =>
+                                    updateForm("thumbnailAlt", event.target.value)
+                                }
+                                placeholder="Describe the thumbnail"
+                            />
+                        </label>
                     </div>
-                )}
 
-                <div className="adminFormActions">
-                    <button
-                        className="btn primary"
-                        type="button"
-                        disabled={saving}
-                        onClick={() =>
-                            void saveMedia()
-                        }
-                    >
-                        {saving
-                            ? 'Saving...'
-                            : editingId
-                                ? 'Update media'
-                                : 'Create media'}
-                    </button>
+                    {form.embedUrl && (
+                        <div className="mediaAdminPreview">
+                            <iframe
+                                src={form.embedUrl}
+                                title={form.title || "Media preview"}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </div>
+                    )}
 
-                    {editingId && (
+                    <div className="adminFormActions">
+                        <button
+                            className="btn primary"
+                            type="button"
+                            disabled={saving}
+                            onClick={() => void saveMedia()}
+                        >
+                            {saving
+                                ? "Saving..."
+                                : editingId
+                                    ? "Update media"
+                                    : "Create media"}
+                        </button>
+
                         <button
                             className="btn secondary"
                             type="button"
                             disabled={saving}
                             onClick={resetForm}
                         >
-                            Cancel editing
+                            Cancel
                         </button>
-                    )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div className="adminRecordList">
-                <h4>
-                    Current media
-                </h4>
+                <h4>Current media</h4>
 
                 {loading ? (
-                    <p className="muted">
-                        Loading media...
-                    </p>
+                    <p className="muted">Loading media...</p>
                 ) : mediaItems.length ? (
-                    mediaItems.map(
-                        (item) => (
-                            <article
-                                className="adminRecord articleAdminRecord"
-                                key={item.id}
-                            >
-                                {item.thumbnail_url && (
-                                    <img
-                                        className="articleAdminThumbnail"
-                                        src={
-                                            item.thumbnail_url
-                                        }
-                                        alt={
-                                            item.thumbnail_alt ??
-                                            item.title
-                                        }
-                                    />
+                    mediaItems.map((item) => (
+                        <article className="adminRecord articleAdminRecord" key={item.id}>
+                            {item.thumbnail_url && (
+                                <img
+                                    className="articleAdminThumbnail"
+                                    src={item.thumbnail_url}
+                                    alt={item.thumbnail_alt ?? item.title}
+                                />
+                            )}
+
+                            <div className="articleAdminRecordDetails">
+                                <div className="articleAdminRecordBadges">
+                                    <span className="badge">{item.category}</span>
+
+                                    <span
+                                        className={`articleStatusBadge articleStatus-${item.status}`}
+                                    >
+                    {item.status}
+                  </span>
+
+                                    {item.featured && (
+                                        <span className="featuredBadge">Featured</span>
+                                    )}
+                                </div>
+
+                                <strong>{item.title}</strong>
+
+                                <span className="muted">/{item.slug}</span>
+
+                                <p>{item.description}</p>
+                            </div>
+
+                            <div className="articleAdminRecordActions">
+                                <button type="button" onClick={() => startEditing(item)}>
+                                    Edit
+                                </button>
+
+                                {item.status !== "published" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => void updateStatus(item, "published")}
+                                    >
+                                        Publish
+                                    </button>
                                 )}
 
-                                <div className="articleAdminRecordDetails">
-                                    <div className="articleAdminRecordBadges">
-                                        <span className="badge">
-                                            {
-                                                item.category
-                                            }
-                                        </span>
-
-                                        <span
-                                            className={`articleStatusBadge articleStatus-${item.status}`}
-                                        >
-                                            {
-                                                item.status
-                                            }
-                                        </span>
-
-                                        {item.featured && (
-                                            <span className="featuredBadge">
-                                                Featured
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <strong>
-                                        {
-                                            item.title
-                                        }
-                                    </strong>
-
-                                    <span className="muted">
-                                        /
-                                        {
-                                            item.slug
-                                        }
-                                    </span>
-
-                                    <p>
-                                        {
-                                            item.description
-                                        }
-                                    </p>
-                                </div>
-
-                                <div className="articleAdminRecordActions">
+                                {item.status === "published" && (
                                     <button
                                         type="button"
-                                        onClick={() =>
-                                            startEditing(
-                                                item
-                                            )
-                                        }
+                                        onClick={() => void updateStatus(item, "draft")}
                                     >
-                                        Edit
+                                        Unpublish
                                     </button>
+                                )}
 
-                                    {item.status !==
-                                        'published' && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void updateStatus(
-                                                        item,
-                                                        'published'
-                                                    )
-                                                }
-                                            >
-                                                Publish
-                                            </button>
-                                        )}
-
-                                    {item.status ===
-                                        'published' && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void updateStatus(
-                                                        item,
-                                                        'draft'
-                                                    )
-                                                }
-                                            >
-                                                Unpublish
-                                            </button>
-                                        )}
-
-                                    {item.status !==
-                                        'archived' && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void updateStatus(
-                                                        item,
-                                                        'archived'
-                                                    )
-                                                }
-                                            >
-                                                Archive
-                                            </button>
-                                        )}
-
+                                {item.status !== "archived" && (
                                     <button
                                         type="button"
-                                        className="dangerButton"
-                                        onClick={() =>
-                                            void deleteMedia(
-                                                item
-                                            )
-                                        }
+                                        onClick={() => void updateStatus(item, "archived")}
                                     >
-                                        Delete
+                                        Archive
                                     </button>
-                                </div>
-                            </article>
-                        )
-                    )
+                                )}
+
+                                <button
+                                    type="button"
+                                    className="dangerButton"
+                                    onClick={() => void deleteMedia(item)}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </article>
+                    ))
                 ) : (
-                    <p className="muted">
-                        No media records yet.
-                    </p>
+                    <p className="muted">No media records yet.</p>
                 )}
             </div>
         </div>
-    )
+    );
 }

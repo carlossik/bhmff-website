@@ -1,3 +1,9 @@
+export type TeamParticipationStatus =
+    | 'interested'
+    | 'invited'
+    | 'confirmed'
+    | 'withdrawn'
+
 export type DbTeam = {
     id: string
     name: string
@@ -6,4 +12,6 @@ export type DbTeam = {
     contact_phone: string | null
     notes: string | null
     logo_url: string | null
+    published: boolean
+    participation_status: TeamParticipationStatus
 }

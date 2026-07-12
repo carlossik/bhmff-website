@@ -1,9 +1,13 @@
-import type { DbTeam } from './teamTypes'
+import type {
+    DbTeam,
+    TeamParticipationStatus,
+} from './teamTypes'
 
 type TeamsTableProps = {
     teams: DbTeam[]
     onEdit: (team: DbTeam) => void
     onDelete: (team: DbTeam) => void
+    onTogglePublished: (team: DbTeam) => void
 }
 
 function getInitials(teamName: string) {
@@ -16,10 +20,20 @@ function getInitials(teamName: string) {
         .toUpperCase()
 }
 
+function formatParticipationStatus(
+    status: TeamParticipationStatus
+) {
+    return (
+        status.charAt(0).toUpperCase() +
+        status.slice(1)
+    )
+}
+
 export function TeamsTable({
                                teams,
                                onEdit,
                                onDelete,
+                               onTogglePublished,
                            }: TeamsTableProps) {
     if (!teams.length) {
         return (
@@ -31,75 +45,141 @@ export function TeamsTable({
     }
 
     return (
-        <div className="tableWrap adminTableWrap teamsTableWrap">
-            <table className="adminTable teamsAdminTable">
-                <thead>
-                <tr>
-                    <th>Club</th>
-                    <th>Manager</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
+        <div className="teamsAdminGrid">
+            {teams.map((team) => (
+                <article
+                    className="teamAdminCard"
+                    key={team.id}
+                >
+                    <div className="teamAdminCardHeader">
+                        <div className="teamAdminIdentity">
+                            {team.logo_url ? (
+                                <img
+                                    className="teamAdminCardLogo"
+                                    src={team.logo_url}
+                                    alt={`${team.name} logo`}
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <div className="teamAdminCardInitials">
+                                    {getInitials(team.name)}
+                                </div>
+                            )}
 
-                <tbody>
-                {teams.map((team) => (
-                    <tr key={team.id}>
-                        <td className="teamsClubCell">
-                            <div className="adminTeamIdentity">
-                                {team.logo_url ? (
-                                    <img
-                                        className="adminTeamLogo"
-                                        src={team.logo_url}
-                                        alt={`${team.name} logo`}
-                                        loading="lazy"
-                                    />
-                                ) : (
-                                    <div className="adminTeamInitials">
-                                        {getInitials(team.name)}
-                                    </div>
-                                )}
+                            <div>
+                                <h4>{team.name}</h4>
 
-                                <strong>{team.name}</strong>
+                                <div className="teamAdminBadges">
+                                    <span
+                                        className={`teamParticipationBadge teamParticipation-${team.participation_status}`}
+                                    >
+                                        {formatParticipationStatus(
+                                            team.participation_status
+                                        )}
+                                    </span>
+
+                                    <span
+                                        className={
+                                            team.published
+                                                ? 'teamVisibilityBadge teamVisibilityPublished'
+                                                : 'teamVisibilityBadge teamVisibilityHidden'
+                                        }
+                                    >
+                                        {team.published
+                                            ? 'Public'
+                                            : 'Hidden'}
+                                    </span>
+                                </div>
                             </div>
-                        </td>
+                        </div>
+                    </div>
 
-                        <td className="teamsManagerCell">
-                            {team.manager_name ?? '—'}
-                        </td>
+                    <div className="teamAdminDetails">
+                        <div>
+                            <span className="teamAdminFieldLabel">
+                                Manager
+                            </span>
 
-                        <td className="teamsEmailCell">
-                            {team.contact_email ?? '—'}
-                        </td>
+                            <strong>
+                                {team.manager_name ?? 'Not provided'}
+                            </strong>
+                        </div>
 
-                        <td className="teamsPhoneCell">
-                            {team.contact_phone ?? '—'}
-                        </td>
+                        <div>
+                            <span className="teamAdminFieldLabel">
+                                Email
+                            </span>
 
-                        <td className="teamsActionsCell">
-                            <div className="teamsActionButtons">
-                                <button
-                                    className="btn secondary small"
-                                    type="button"
-                                    onClick={() => onEdit(team)}
+                            {team.contact_email ? (
+                                <a
+                                    href={`mailto:${team.contact_email}`}
                                 >
-                                    Edit
-                                </button>
+                                    {team.contact_email}
+                                </a>
+                            ) : (
+                                <span>Not provided</span>
+                            )}
+                        </div>
 
-                                <button
-                                    className="btn secondary small"
-                                    type="button"
-                                    onClick={() => onDelete(team)}
+                        <div>
+                            <span className="teamAdminFieldLabel">
+                                Phone
+                            </span>
+
+                            {team.contact_phone ? (
+                                <a
+                                    href={`tel:${team.contact_phone}`}
                                 >
-                                    Delete
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
+                                    {team.contact_phone}
+                                </a>
+                            ) : (
+                                <span>Not provided</span>
+                            )}
+                        </div>
+
+                        <div>
+                            <span className="teamAdminFieldLabel">
+                                Notes
+                            </span>
+
+                            <span>
+                                {team.notes?.trim() ||
+                                    'No notes added'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="teamAdminCardActions">
+                        <button
+                            className="btn secondary small"
+                            type="button"
+                            onClick={() => onEdit(team)}
+                        >
+                            Edit
+                        </button>
+
+                        <button
+                            className="btn secondary small"
+                            type="button"
+                            onClick={() =>
+                                onTogglePublished(team)
+                            }
+                        >
+                            {team.published
+                                ? 'Unpublish'
+                                : 'Publish'}
+                        </button>
+
+                        <button
+                            className="btn secondary small dangerButton"
+                            type="button"
+                            onClick={() => onDelete(team)}
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </article>
+            ))}
         </div>
     )
 }
