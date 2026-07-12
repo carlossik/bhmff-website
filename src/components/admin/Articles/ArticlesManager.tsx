@@ -158,32 +158,95 @@ function parseTags(value: string) {
         .filter(Boolean);
 }
 
+function isValidHttpUrl(value: string) {
+    try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
 function parseActions(value: string): ArticleAction[] {
     return value
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => {
+            const markdownMatch = line.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/i);
+
+            if (markdownMatch) {
+                return {
+                    label: markdownMatch[1].trim(),
+                    href: markdownMatch[2].trim(),
+                };
+            }
+
             const separatorIndex = line.indexOf("|");
 
-            if (separatorIndex === -1) {
+            if (separatorIndex !== -1) {
+                const label = line.slice(0, separatorIndex).trim();
+                const href = line.slice(separatorIndex + 1).trim();
+
+                if (label && isValidHttpUrl(href)) {
+                    return { label, href };
+                }
+
                 return null;
             }
 
-            const label = line.slice(0, separatorIndex).trim();
-
-            const href = line.slice(separatorIndex + 1).trim();
-
-            if (!label || !href) {
-                return null;
+            if (isValidHttpUrl(line)) {
+                try {
+                    const url = new URL(line);
+                    return {
+                        label: url.hostname.replace(/^www\./, ""),
+                        href: line,
+                    };
+                } catch {
+                    return null;
+                }
             }
 
-            return {
-                label,
-                href,
-            };
+            return null;
         })
         .filter((action): action is ArticleAction => action !== null);
+}
+
+function normaliseArticleActions(value: unknown): ArticleAction[] {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => {
+                if (!item || typeof item !== "object") {
+                    return null;
+                }
+
+                const action = item as Record<string, unknown>;
+
+                if (
+                    typeof action.label !== "string" ||
+                    typeof action.href !== "string" ||
+                    !isValidHttpUrl(action.href)
+                ) {
+                    return null;
+                }
+
+                return {
+                    label: action.label,
+                    href: action.href,
+                };
+            })
+            .filter((action): action is ArticleAction => action !== null);
+    }
+
+    if (typeof value === "string") {
+        try {
+            return normaliseArticleActions(JSON.parse(value));
+        } catch {
+            return parseActions(value);
+        }
+    }
+
+    return [];
 }
 
 function formatActions(actions: ArticleAction[] | null) {
@@ -302,33 +365,52 @@ export function ArticlesManager({ onArticlesChanged }: ArticlesManagerProps) {
     }
 
     function startEditing(article: DbArticle) {
-        setEditingId(article.id);
-        setShowArticleForm(true);
+        const articleBody = Array.isArray(article.body)
+            ? article.body.join("\n\n")
+            : typeof article.body === "string"
+                ? article.body
+                : "";
+
+        const articleTags = Array.isArray(article.tags)
+            ? article.tags.join(", ")
+            : typeof article.tags === "string"
+                ? article.tags
+                : "";
+
+        const articleActions = formatActions(
+            normaliseArticleActions(article.actions),
+        );
 
         setForm({
-            title: article.title,
-            slug: article.slug,
-            category: article.category,
-            status: article.status,
-            summary: article.summary,
-            hero: article.hero,
-            readTime: article.read_time,
-            body: article.body.join("\n\n"),
-            author: article.author,
+            title: article.title ?? "",
+            slug: article.slug ?? "",
+            category: article.category ?? "Festival News",
+            status: article.status ?? "draft",
+            summary: article.summary ?? "",
+            hero: article.hero ?? "",
+            readTime: article.read_time ?? "3 min read",
+            body: articleBody,
+            author: article.author ?? "CKEFA Media Editorial Team",
             publishedAt: toDateTimeLocal(article.published_at),
-            featured: article.featured,
+            featured: article.featured ?? false,
             imageUrl: article.image_url ?? "",
             imageAlt: article.image_alt ?? "",
-            tags: article.tags.join(", "),
-            actions: formatActions(article.actions),
+            tags: articleTags,
+            actions: articleActions,
         });
 
+        setEditingId(article.id);
+        setShowArticleForm(true);
         setMessage(null);
         setErrorMessage(null);
 
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth",
+        requestAnimationFrame(() => {
+            document
+                .querySelector<HTMLElement>(".articleAdminForm")
+                ?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
         });
     }
 
@@ -440,6 +522,20 @@ export function ArticlesManager({ onArticlesChanged }: ArticlesManagerProps) {
     async function saveArticle() {
         const validationError = validateForm();
 
+        const enteredActionLines = form.actions
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean);
+        const parsedActions = parseActions(form.actions);
+
+        if (enteredActionLines.length !== parsedActions.length) {
+            setErrorMessage(
+                "Each further-reading link must be entered as 'Link label | https://example.com', a plain https:// URL, or Markdown such as '[Link label](https://example.com)'.",
+            );
+            setMessage(null);
+            return;
+        }
+
         if (validationError) {
             setErrorMessage(validationError);
             setMessage(null);
@@ -474,7 +570,7 @@ export function ArticlesManager({ onArticlesChanged }: ArticlesManagerProps) {
             image_url: form.imageUrl.trim() || null,
             image_alt: form.imageAlt.trim() || null,
             tags: parseTags(form.tags),
-            actions: parseActions(form.actions),
+            actions: parsedActions,
         };
 
         const response = editingId
@@ -840,7 +936,7 @@ export function ArticlesManager({ onArticlesChanged }: ArticlesManagerProps) {
                                 value={form.actions}
                                 onChange={(event) => updateForm("actions", event.target.value)}
                                 placeholder={
-                                    "Link label | https://example.com\nSecond link | https://example.com/page"
+                                    "Link label | https://example.com\nhttps://example.com/page\n[Another resource](https://example.com/resource)"
                                 }
                                 rows={4}
                             />
