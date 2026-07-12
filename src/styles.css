@@ -2163,3 +2163,273 @@
     object-fit: contain !important;
     position: static !important;
 }
+/* ---------- Article Metadata ---------- */
+
+.articleBadgeRow {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.featuredBadge {
+    background: #d4af37;
+    color: #111;
+    font-weight: 700;
+}
+
+.articleMeta {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin: 18px 0 28px;
+    color: #999;
+    font-size: 0.92rem;
+}
+
+.articleHeroImage {
+    width: 100%;
+    border-radius: 12px;
+    margin: 30px 0;
+    object-fit: cover;
+    max-height: 500px;
+}
+
+.articleTags {
+    margin-top: 50px;
+}
+
+.articleTags h2 {
+    margin-bottom: 16px;
+}
+
+.tagList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.articleTag {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: .9rem;
+}
+
+.articleActionLinks {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+/* ---------- Article Cards ---------- */
+
+.articleCard {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 12px;
+}
+
+
+.articleCard h3 {
+    margin: 12px 0;
+}
+
+.articleCard p {
+    flex: 1;
+}
+
+.articleCard .articleMeta {
+    margin: 14px 0;
+    font-size: .85rem;
+}
+
+.articleCard .textButton {
+    margin-top: 8px;
+}
+.featuredBadge {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #d4af37;
+    color: #111;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+.articleCardImage {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.featuredBadge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 4px 10px;
+    margin: 10px 0;
+    border-radius: 999px;
+    background: #d4af37;
+    color: #111;
+    font-weight: 700;
+    font-size: .8rem;
+}
+
+.articleCard {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.articleCard .articleMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #a0a0a0;
+    font-size: .9rem;
+}
+
+.articleCard .textButton {
+    margin-top: auto;
+}
+/* ---------- Articles Admin ---------- */
+
+.articleAdminForm {
+    margin-top: 24px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.adminFormFullWidth {
+    grid-column: 1 / -1;
+}
+
+.adminCheckboxLabel {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 10px;
+    align-self: end;
+    min-height: 46px;
+}
+
+.adminCheckboxLabel input {
+    width: auto;
+    margin: 0;
+}
+
+.adminFormActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.adminSuccessMessage,
+.adminErrorMessage {
+    margin: 18px 0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.adminSuccessMessage {
+    border: 1px solid rgba(68, 180, 110, 0.45);
+    background: rgba(68, 180, 110, 0.12);
+}
+
+.adminErrorMessage {
+    border: 1px solid rgba(220, 70, 70, 0.45);
+    background: rgba(220, 70, 70, 0.12);
+}
+
+.articleAdminRecord {
+    align-items: flex-start;
+    gap: 24px;
+}
+
+.articleAdminRecordDetails {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.articleAdminRecordDetails p {
+    margin: 0;
+}
+
+.articleAdminRecordBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.articleAdminRecordActions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.articleStatusBadge {
+    display: inline-flex;
+    width: fit-content;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.articleStatus-draft {
+    background: rgba(150, 150, 150, 0.18);
+}
+
+.articleStatus-review {
+    background: rgba(79, 137, 255, 0.18);
+}
+
+.articleStatus-scheduled {
+    background: rgba(159, 93, 255, 0.18);
+}
+
+.articleStatus-published {
+    background: rgba(55, 177, 105, 0.18);
+}
+
+.articleStatus-archived {
+    background: rgba(219, 109, 60, 0.18);
+}
+
+.dangerButton {
+    border-color: rgba(220, 70, 70, 0.6) !important;
+    color: #ff8d8d !important;
+}
+
+@media (max-width: 800px) {
+    .articleAdminRecord {
+        flex-direction: column;
+    }
+
+    .articleAdminRecordActions {
+        justify-content: flex-start;
+    }
+
+    .adminFormFullWidth {
+        grid-column: auto;
+    }
+}

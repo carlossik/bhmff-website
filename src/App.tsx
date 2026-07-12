@@ -4,7 +4,7 @@ import { Calendar, Camera, Shield, Users } from 'lucide-react'
 import { PublicGroupStandings } from './components/public/PublicGroupStandings'
 import { getCurrentUser } from './services/auth'
 import { supabase } from './lib/supabaseClient'
-
+import { ArticleCard } from './components/ArticleCard'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { Section } from './components/Section'
@@ -33,10 +33,8 @@ import {
     type StandingsTeam,
 } from './utils/calculateStandings'
 
-import {
-    articles,
-    lastYearFinalVideo,
-} from './data/festivalData'
+import { lastYearFinalVideo } from './data/festivalData'
+import { usePublicArticles } from './hooks/usePublicArticles'
 
 type PublicTeamRow = {
     id: string
@@ -231,6 +229,12 @@ function App() {
 
     const [activeArticleId, setActiveArticleId] =
         useState<string | null>(null)
+
+    const {
+        articles: publicArticles,
+        loading: articlesLoading,
+        error: articlesError,
+    } = usePublicArticles()
 
     const [publicTeams, setPublicTeams] =
         useState<PublicTeamRow[]>([])
@@ -647,12 +651,12 @@ function App() {
 
     const activeArticle = useMemo(
         () =>
-            articles.find(
+            publicArticles.find(
                 (article) =>
                     article.id ===
                     activeArticleId
             ),
-        [activeArticleId]
+        [activeArticleId, publicArticles]
     )
 
     const standingsTeams =
@@ -912,48 +916,27 @@ function App() {
                 title="Black History Hub"
                 intro="Connecting the football festival to Black History Month through articles, community stories and learning content."
             >
-                <div className="cardGrid four">
-                    {articles.map(
-                        (article) => (
-                            <article
-                                className="card articleCard"
-                                key={
-                                    article.id
-                                }
-                            >
-                                <span className="badge">
-                                    {
-                                        article.category
-                                    }
-                                </span>
+                {articlesLoading && (
+                    <p>Loading articles...</p>
+                )}
 
-                                <h3>
-                                    {
-                                        article.title
-                                    }
-                                </h3>
+                {articlesError && (
+                    <p className="formError">
+                        {articlesError}
+                    </p>
+                )}
 
-                                <p>
-                                    {
-                                        article.summary
-                                    }
-                                </p>
-
-                                <button
-                                    type="button"
-                                    className="textButton"
-                                    onClick={() =>
-                                        setActiveArticleId(
-                                            article.id
-                                        )
-                                    }
-                                >
-                                    Read article
-                                </button>
-                            </article>
-                        )
-                    )}
-                </div>
+                {!articlesLoading && (
+                    <div className="cardGrid four">
+                        {publicArticles.map((article) => (
+                            <ArticleCard
+                                key={article.id}
+                                article={article}
+                                onRead={setActiveArticleId}
+                            />
+                        ))}
+                    </div>
+                )}
             </Section>
 
             <Section
