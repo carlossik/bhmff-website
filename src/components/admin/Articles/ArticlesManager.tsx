@@ -11,6 +11,15 @@ import type {
     ArticleStatus,
 } from '../../../data/festivalData'
 
+const ARTICLE_IMAGE_BUCKET = 'article-images'
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+
+const allowedImageTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+]
+
 const articleCategories: ArticleCategory[] = [
     'Black Football History',
     'Player Stories',
@@ -102,6 +111,40 @@ function createSlug(value: string) {
         .replace(/^-+|-+$/g, '')
 }
 
+function createSafeFileName(fileName: string) {
+    const extension = fileName
+        .split('.')
+        .pop()
+        ?.toLowerCase()
+
+    const baseName = fileName
+        .replace(/\.[^/.]+$/, '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+    const safeBaseName = baseName || 'article-image'
+
+    return extension
+        ? `${safeBaseName}.${extension}`
+        : safeBaseName
+}
+
+function createImagePath(fileName: string) {
+    const uniqueId =
+        typeof crypto !== 'undefined' &&
+        typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2)}`
+
+    return `articles/${Date.now()}-${uniqueId}-${createSafeFileName(
+        fileName
+    )}`
+}
+
 function toDateTimeLocal(value: string | null) {
     if (!value) {
         return ''
@@ -114,6 +157,7 @@ function toDateTimeLocal(value: string | null) {
     }
 
     const offset = date.getTimezoneOffset()
+
     const localDate = new Date(
         date.getTime() - offset * 60_000
     )
@@ -135,13 +179,16 @@ function parseTags(value: string) {
         .filter(Boolean)
 }
 
-function parseActions(value: string): ArticleAction[] {
+function parseActions(
+    value: string
+): ArticleAction[] {
     return value
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => {
-            const separatorIndex = line.indexOf('|')
+            const separatorIndex =
+                line.indexOf('|')
 
             if (separatorIndex === -1) {
                 return null
@@ -172,7 +219,9 @@ function parseActions(value: string): ArticleAction[] {
         )
 }
 
-function formatActions(actions: ArticleAction[] | null) {
+function formatActions(
+    actions: ArticleAction[] | null
+) {
     return (actions ?? [])
         .map(
             (action) =>
@@ -184,28 +233,33 @@ function formatActions(actions: ArticleAction[] | null) {
 export function ArticlesManager({
                                     onArticlesChanged,
                                 }: ArticlesManagerProps) {
-    const [articles, setArticles] = useState<DbArticle[]>(
-        []
-    )
+    const [articles, setArticles] =
+        useState<DbArticle[]>([])
 
     const [form, setForm] =
         useState<ArticleFormState>(
             initialFormState
         )
 
-    const [editingId, setEditingId] = useState<
-        string | null
-    >(null)
-
-    const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
-
-    const [message, setMessage] = useState<
-        string | null
-    >(null)
-
-    const [errorMessage, setErrorMessage] =
+    const [editingId, setEditingId] =
         useState<string | null>(null)
+
+    const [loading, setLoading] =
+        useState(true)
+
+    const [saving, setSaving] =
+        useState(false)
+
+    const [uploadingImage, setUploadingImage] =
+        useState(false)
+
+    const [message, setMessage] =
+        useState<string | null>(null)
+
+    const [
+        errorMessage,
+        setErrorMessage,
+    ] = useState<string | null>(null)
 
     const editingArticle = useMemo(
         () =>
@@ -216,55 +270,59 @@ export function ArticlesManager({
         [articles, editingId]
     )
 
-    const loadArticles = useCallback(async () => {
-        setLoading(true)
-        setErrorMessage(null)
+    const loadArticles =
+        useCallback(async () => {
+            setLoading(true)
+            setErrorMessage(null)
 
-        const { data, error } = await supabase
-            .from('articles')
-            .select(`
-                id,
-                slug,
-                title,
-                category,
-                status,
-                summary,
-                hero,
-                read_time,
-                body,
-                author,
-                published_at,
-                featured,
-                image_url,
-                image_alt,
-                tags,
-                actions,
-                created_at,
-                updated_at
-            `)
-            .order('created_at', {
-                ascending: false,
-            })
+            const { data, error } =
+                await supabase
+                    .from('articles')
+                    .select(`
+                        id,
+                        slug,
+                        title,
+                        category,
+                        status,
+                        summary,
+                        hero,
+                        read_time,
+                        body,
+                        author,
+                        published_at,
+                        featured,
+                        image_url,
+                        image_alt,
+                        tags,
+                        actions,
+                        created_at,
+                        updated_at
+                    `)
+                    .order('created_at', {
+                        ascending: false,
+                    })
 
-        if (error) {
-            console.error(
-                'Failed to load articles:',
-                error
+            if (error) {
+                console.error(
+                    'Failed to load articles:',
+                    error
+                )
+
+                setErrorMessage(
+                    'Unable to load articles.'
+                )
+
+                setArticles([])
+                setLoading(false)
+                return
+            }
+
+            setArticles(
+                (data ?? []) as DbArticle[]
             )
 
-            setErrorMessage(
-                'Unable to load articles.'
-            )
-            setArticles([])
             setLoading(false)
-            return
-        }
-
-        setArticles(
-            (data ?? []) as DbArticle[]
-        )
-        setLoading(false)
-    }, [])
+        }, [])
 
     useEffect(() => {
         void loadArticles()
@@ -300,7 +358,9 @@ export function ArticlesManager({
         setErrorMessage(null)
     }
 
-    function startEditing(article: DbArticle) {
+    function startEditing(
+        article: DbArticle
+    ) {
         setEditingId(article.id)
 
         setForm({
@@ -317,8 +377,10 @@ export function ArticlesManager({
                 article.published_at
             ),
             featured: article.featured,
-            imageUrl: article.image_url ?? '',
-            imageAlt: article.image_alt ?? '',
+            imageUrl:
+                article.image_url ?? '',
+            imageAlt:
+                article.image_alt ?? '',
             tags: article.tags.join(', '),
             actions: formatActions(
                 article.actions
@@ -362,11 +424,116 @@ export function ArticlesManager({
         return null
     }
 
+    async function uploadArticleImage(
+        file: File
+    ) {
+        setMessage(null)
+        setErrorMessage(null)
+
+        if (
+            !allowedImageTypes.includes(
+                file.type
+            )
+        ) {
+            setErrorMessage(
+                'Please select a JPEG, PNG or WebP image.'
+            )
+            return
+        }
+
+        if (
+            file.size >
+            MAX_IMAGE_SIZE_BYTES
+        ) {
+            setErrorMessage(
+                'The image must be no larger than 5 MB.'
+            )
+            return
+        }
+
+        setUploadingImage(true)
+
+        const imagePath =
+            createImagePath(file.name)
+
+        const { error: uploadError } =
+            await supabase.storage
+                .from(ARTICLE_IMAGE_BUCKET)
+                .upload(imagePath, file, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: file.type,
+                })
+
+        if (uploadError) {
+            console.error(
+                'Failed to upload article image:',
+                uploadError
+            )
+
+            setErrorMessage(
+                uploadError.message ||
+                'Unable to upload the image.'
+            )
+
+            setUploadingImage(false)
+            return
+        }
+
+        const { data: publicUrlData } =
+            supabase.storage
+                .from(ARTICLE_IMAGE_BUCKET)
+                .getPublicUrl(imagePath)
+
+        const publicUrl =
+            publicUrlData.publicUrl
+
+        if (!publicUrl) {
+            setErrorMessage(
+                'The image uploaded, but its public URL could not be generated.'
+            )
+
+            setUploadingImage(false)
+            return
+        }
+
+        setForm((current) => ({
+            ...current,
+            imageUrl: publicUrl,
+            imageAlt:
+                current.imageAlt.trim() ||
+                current.title.trim(),
+        }))
+
+        setMessage(
+            'Hero image uploaded successfully. Save the article to keep this image.'
+        )
+
+        setUploadingImage(false)
+    }
+
+    function clearArticleImage() {
+        setForm((current) => ({
+            ...current,
+            imageUrl: '',
+            imageAlt: '',
+        }))
+
+        setMessage(
+            'The hero image has been removed from the form. Save the article to apply the change.'
+        )
+
+        setErrorMessage(null)
+    }
+
     async function saveArticle() {
-        const validationError = validateForm()
+        const validationError =
+            validateForm()
 
         if (validationError) {
-            setErrorMessage(validationError)
+            setErrorMessage(
+                validationError
+            )
             setMessage(null)
             return
         }
@@ -381,7 +548,8 @@ export function ArticlesManager({
                     ? new Date(
                         form.publishedAt
                     ).toISOString()
-                    : editingArticle?.published_at ??
+                    : editingArticle
+                        ?.published_at ??
                     new Date().toISOString()
                 : form.publishedAt
                     ? new Date(
@@ -404,9 +572,11 @@ export function ArticlesManager({
             published_at: publishedAt,
             featured: form.featured,
             image_url:
-                form.imageUrl.trim() || null,
+                form.imageUrl.trim() ||
+                null,
             image_alt:
-                form.imageAlt.trim() || null,
+                form.imageAlt.trim() ||
+                null,
             tags: parseTags(form.tags),
             actions: parseActions(
                 form.actions
@@ -429,7 +599,8 @@ export function ArticlesManager({
             )
 
             setErrorMessage(
-                response.error.code === '23505'
+                response.error.code ===
+                '23505'
                     ? 'An article with this slug already exists.'
                     : response.error.message
             )
@@ -470,7 +641,8 @@ export function ArticlesManager({
             .from('articles')
             .update({
                 status,
-                published_at: publishedAt,
+                published_at:
+                publishedAt,
             })
             .eq('id', article.id)
 
@@ -494,10 +666,13 @@ export function ArticlesManager({
         onArticlesChanged?.()
     }
 
-    async function deleteArticle(article: DbArticle) {
-        const confirmed = window.confirm(
-            `Delete "${article.title}"? This action cannot be undone.`
-        )
+    async function deleteArticle(
+        article: DbArticle
+    ) {
+        const confirmed =
+            window.confirm(
+                `Delete "${article.title}"? This action cannot be undone.`
+            )
 
         if (!confirmed) {
             return
@@ -540,12 +715,14 @@ export function ArticlesManager({
             <div className="adminWorkspaceHeader">
                 <div>
                     <h3>
-                        Manage Black History Articles
+                        Manage Black History
+                        Articles
                     </h3>
 
                     <p className="muted">
-                        Create, edit, review and publish
-                        content for the Black History Hub.
+                        Create, edit, review and
+                        publish content for the Black
+                        History Hub.
                     </p>
                 </div>
 
@@ -575,13 +752,16 @@ export function ArticlesManager({
             <div className="articleAdminForm">
                 <div className="adminFormGrid">
                     <label>
-                        <span>Article title</span>
+                        <span>
+                            Article title
+                        </span>
 
                         <input
                             value={form.title}
                             onChange={(event) =>
                                 handleTitleChange(
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="Enter article title"
@@ -596,7 +776,8 @@ export function ArticlesManager({
                             onChange={(event) =>
                                 updateForm(
                                     'slug',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="article-url-slug"
@@ -607,7 +788,9 @@ export function ArticlesManager({
                         <span>Category</span>
 
                         <select
-                            value={form.category}
+                            value={
+                                form.category
+                            }
                             onChange={(event) =>
                                 updateForm(
                                     'category',
@@ -619,10 +802,16 @@ export function ArticlesManager({
                             {articleCategories.map(
                                 (category) => (
                                     <option
-                                        key={category}
-                                        value={category}
+                                        key={
+                                            category
+                                        }
+                                        value={
+                                            category
+                                        }
                                     >
-                                        {category}
+                                        {
+                                            category
+                                        }
                                     </option>
                                 )
                             )}
@@ -646,7 +835,9 @@ export function ArticlesManager({
                                 (status) => (
                                     <option
                                         key={status}
-                                        value={status}
+                                        value={
+                                            status
+                                        }
                                     >
                                         {status}
                                     </option>
@@ -663,7 +854,8 @@ export function ArticlesManager({
                             onChange={(event) =>
                                 updateForm(
                                     'author',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="Article author"
@@ -674,11 +866,14 @@ export function ArticlesManager({
                         <span>Read time</span>
 
                         <input
-                            value={form.readTime}
+                            value={
+                                form.readTime
+                            }
                             onChange={(event) =>
                                 updateForm(
                                     'readTime',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="3 min read"
@@ -686,15 +881,20 @@ export function ArticlesManager({
                     </label>
 
                     <label>
-                        <span>Publication date</span>
+                        <span>
+                            Publication date
+                        </span>
 
                         <input
                             type="datetime-local"
-                            value={form.publishedAt}
+                            value={
+                                form.publishedAt
+                            }
                             onChange={(event) =>
                                 updateForm(
                                     'publishedAt',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                         />
@@ -703,16 +903,21 @@ export function ArticlesManager({
                     <label className="adminCheckboxLabel">
                         <input
                             type="checkbox"
-                            checked={form.featured}
+                            checked={
+                                form.featured
+                            }
                             onChange={(event) =>
                                 updateForm(
                                     'featured',
-                                    event.target.checked
+                                    event.target
+                                        .checked
                                 )
                             }
                         />
 
-                        <span>Featured article</span>
+                        <span>
+                            Featured article
+                        </span>
                     </label>
 
                     <label className="adminFormFullWidth">
@@ -723,7 +928,8 @@ export function ArticlesManager({
                             onChange={(event) =>
                                 updateForm(
                                     'summary',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="Short card summary"
@@ -741,7 +947,8 @@ export function ArticlesManager({
                             onChange={(event) =>
                                 updateForm(
                                     'hero',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="Opening introduction displayed beneath the title"
@@ -750,14 +957,17 @@ export function ArticlesManager({
                     </label>
 
                     <label className="adminFormFullWidth">
-                        <span>Article body</span>
+                        <span>
+                            Article body
+                        </span>
 
                         <textarea
                             value={form.body}
                             onChange={(event) =>
                                 updateForm(
                                     'body',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="Separate paragraphs with a blank line"
@@ -765,31 +975,126 @@ export function ArticlesManager({
                         />
                     </label>
 
+                    <div className="adminFormFullWidth articleImageUploadSection">
+                        <div>
+                            <span className="articleImageUploadLabel">
+                                Hero image
+                            </span>
+
+                            <p className="muted articleImageUploadHelp">
+                                Upload a JPEG, PNG
+                                or WebP image. Maximum
+                                file size: 5 MB.
+                            </p>
+                        </div>
+
+                        <label className="articleImageUploadButton">
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                disabled={
+                                    uploadingImage
+                                }
+                                onChange={(
+                                    event
+                                ) => {
+                                    const file =
+                                        event
+                                            .target
+                                            .files?.[0]
+
+                                    if (file) {
+                                        void uploadArticleImage(
+                                            file
+                                        )
+                                    }
+
+                                    event.target.value =
+                                        ''
+                                }}
+                            />
+
+                            <span className="btn secondary">
+                                {uploadingImage
+                                    ? 'Uploading...'
+                                    : 'Choose image'}
+                            </span>
+                        </label>
+
+                        {form.imageUrl && (
+                            <div className="articleImagePreview">
+                                <img
+                                    src={
+                                        form.imageUrl
+                                    }
+                                    alt={
+                                        form.imageAlt ||
+                                        form.title ||
+                                        'Article hero preview'
+                                    }
+                                />
+
+                                <div className="articleImagePreviewActions">
+                                    <a
+                                        className="btn secondary small"
+                                        href={
+                                            form.imageUrl
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Open image
+                                    </a>
+
+                                    <button
+                                        className="btn secondary small dangerButton"
+                                        type="button"
+                                        onClick={
+                                            clearArticleImage
+                                        }
+                                    >
+                                        Remove image
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <label>
-                        <span>Hero image URL</span>
+                        <span>
+                            Hero image URL
+                        </span>
 
                         <input
                             type="url"
-                            value={form.imageUrl}
+                            value={
+                                form.imageUrl
+                            }
                             onChange={(event) =>
                                 updateForm(
                                     'imageUrl',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
-                            placeholder="https://..."
+                            placeholder="Automatically populated after upload"
                         />
                     </label>
 
                     <label>
-                        <span>Hero image alt text</span>
+                        <span>
+                            Hero image alt text
+                        </span>
 
                         <input
-                            value={form.imageAlt}
+                            value={
+                                form.imageAlt
+                            }
                             onChange={(event) =>
                                 updateForm(
                                     'imageAlt',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="Describe the image"
@@ -804,7 +1109,8 @@ export function ArticlesManager({
                             onChange={(event) =>
                                 updateForm(
                                     'tags',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder="Football history, Grassroots football, Community"
@@ -817,11 +1123,14 @@ export function ArticlesManager({
                         </span>
 
                         <textarea
-                            value={form.actions}
+                            value={
+                                form.actions
+                            }
                             onChange={(event) =>
                                 updateForm(
                                     'actions',
-                                    event.target.value
+                                    event.target
+                                        .value
                                 )
                             }
                             placeholder={
@@ -836,7 +1145,10 @@ export function ArticlesManager({
                     <button
                         className="btn primary"
                         type="button"
-                        disabled={saving}
+                        disabled={
+                            saving ||
+                            uploadingImage
+                        }
                         onClick={() =>
                             void saveArticle()
                         }
@@ -852,7 +1164,10 @@ export function ArticlesManager({
                         <button
                             className="btn secondary"
                             type="button"
-                            disabled={saving}
+                            disabled={
+                                saving ||
+                                uploadingImage
+                            }
                             onClick={resetForm}
                         >
                             Cancel editing
@@ -862,124 +1177,155 @@ export function ArticlesManager({
             </div>
 
             <div className="adminRecordList">
-                <h4>Current articles</h4>
+                <h4>
+                    Current articles
+                </h4>
 
                 {loading ? (
                     <p className="muted">
                         Loading articles...
                     </p>
                 ) : articles.length ? (
-                    articles.map((article) => (
-                        <article
-                            className="adminRecord articleAdminRecord"
-                            key={article.id}
-                        >
-                            <div className="articleAdminRecordDetails">
-                                <div className="articleAdminRecordBadges">
-                                    <span className="badge">
-                                        {article.category}
-                                    </span>
+                    articles.map(
+                        (article) => (
+                            <article
+                                className="adminRecord articleAdminRecord"
+                                key={
+                                    article.id
+                                }
+                            >
+                                {article.image_url && (
+                                    <img
+                                        className="articleAdminThumbnail"
+                                        src={
+                                            article.image_url
+                                        }
+                                        alt={
+                                            article.image_alt ??
+                                            article.title
+                                        }
+                                    />
+                                )}
 
-                                    <span
-                                        className={`articleStatusBadge articleStatus-${article.status}`}
-                                    >
-                                        {article.status}
-                                    </span>
-
-                                    {article.featured && (
-                                        <span className="featuredBadge">
-                                            Featured
+                                <div className="articleAdminRecordDetails">
+                                    <div className="articleAdminRecordBadges">
+                                        <span className="badge">
+                                            {
+                                                article.category
+                                            }
                                         </span>
-                                    )}
+
+                                        <span
+                                            className={`articleStatusBadge articleStatus-${article.status}`}
+                                        >
+                                            {
+                                                article.status
+                                            }
+                                        </span>
+
+                                        {article.featured && (
+                                            <span className="featuredBadge">
+                                                Featured
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <strong>
+                                        {
+                                            article.title
+                                        }
+                                    </strong>
+
+                                    <span className="muted">
+                                        /
+                                        {
+                                            article.slug
+                                        }
+                                    </span>
+
+                                    <p>
+                                        {
+                                            article.summary
+                                        }
+                                    </p>
                                 </div>
 
-                                <strong>
-                                    {article.title}
-                                </strong>
+                                <div className="articleAdminRecordActions">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            startEditing(
+                                                article
+                                            )
+                                        }
+                                    >
+                                        Edit
+                                    </button>
 
-                                <span className="muted">
-                                    /{article.slug}
-                                </span>
+                                    {article.status !==
+                                        'published' && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void updateStatus(
+                                                        article,
+                                                        'published'
+                                                    )
+                                                }
+                                            >
+                                                Publish
+                                            </button>
+                                        )}
 
-                                <p>
-                                    {article.summary}
-                                </p>
-                            </div>
+                                    {article.status ===
+                                        'published' && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void updateStatus(
+                                                        article,
+                                                        'draft'
+                                                    )
+                                                }
+                                            >
+                                                Unpublish
+                                            </button>
+                                        )}
 
-                            <div className="articleAdminRecordActions">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        startEditing(
-                                            article
-                                        )
-                                    }
-                                >
-                                    Edit
-                                </button>
+                                    {article.status !==
+                                        'archived' && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void updateStatus(
+                                                        article,
+                                                        'archived'
+                                                    )
+                                                }
+                                            >
+                                                Archive
+                                            </button>
+                                        )}
 
-                                {article.status !==
-                                    'published' && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void updateStatus(
-                                                    article,
-                                                    'published'
-                                                )
-                                            }
-                                        >
-                                            Publish
-                                        </button>
-                                    )}
-
-                                {article.status ===
-                                    'published' && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void updateStatus(
-                                                    article,
-                                                    'draft'
-                                                )
-                                            }
-                                        >
-                                            Unpublish
-                                        </button>
-                                    )}
-
-                                {article.status !==
-                                    'archived' && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void updateStatus(
-                                                    article,
-                                                    'archived'
-                                                )
-                                            }
-                                        >
-                                            Archive
-                                        </button>
-                                    )}
-
-                                <button
-                                    type="button"
-                                    className="dangerButton"
-                                    onClick={() =>
-                                        void deleteArticle(
-                                            article
-                                        )
-                                    }
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </article>
-                    ))
+                                    <button
+                                        type="button"
+                                        className="dangerButton"
+                                        onClick={() =>
+                                            void deleteArticle(
+                                                article
+                                            )
+                                        }
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </article>
+                        )
+                    )
                 ) : (
                     <p className="muted">
-                        No articles have been created.
+                        No articles have been
+                        created.
                     </p>
                 )}
             </div>

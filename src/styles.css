@@ -2433,3 +2433,77 @@
         grid-column: auto;
     }
 }
+/* ---------- Article image upload ---------- */
+
+.articleImageUploadSection {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.articleImageUploadLabel {
+    display: block;
+    font-weight: 700;
+}
+
+.articleImageUploadHelp {
+    margin: 6px 0 0;
+    font-size: 0.9rem;
+}
+
+.articleImageUploadButton {
+    display: inline-flex;
+    width: fit-content;
+    cursor: pointer;
+}
+
+.articleImageUploadButton input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.articleImagePreview {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 680px;
+}
+
+.articleImagePreview img {
+    display: block;
+    width: 100%;
+    max-height: 390px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.articleImagePreviewActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.articleAdminThumbnail {
+    width: 150px;
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 800px) {
+    .articleAdminThumbnail {
+        width: 100%;
+        max-width: 360px;
+    }
+}
