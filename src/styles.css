@@ -2689,6 +2689,9 @@
     color: inherit;
     text-decoration: none;
 }
+:root {
+    --accent: #a6ff6e;
+}
 
 .teamAdminDetails a:hover {
     color: var(--accent, #a6ff6e);
@@ -2780,5 +2783,173 @@
 
     .sponsorEnquiryHeader {
         flex-direction: column;
+    }
+}
+/* ---------- Sponsorship enquiries admin ---------- */
+
+.adminTabList button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.adminTabCount {
+    display: inline-grid;
+    min-width: 22px;
+    height: 22px;
+    place-items: center;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--accent, #a6ff6e);
+    color: #101810;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.enquiriesStats {
+    margin: 24px 0;
+}
+
+.enquiriesGrid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.enquiryCard {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid rgba(166, 255, 110, 0.18);
+    border-radius: 18px;
+    background:
+            linear-gradient(
+                    180deg,
+                    rgba(166, 255, 110, 0.04),
+                    rgba(255, 255, 255, 0.015)
+            );
+}
+
+.enquiryCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.enquiryCardHeader h4 {
+    margin: 10px 0 0;
+    font-size: 1.12rem;
+}
+
+.enquiryDate {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+}
+
+.enquiryStatusBadge {
+    display: inline-flex;
+    width: fit-content;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 750;
+}
+
+.enquiryStatus-new {
+    background: rgba(79, 137, 255, 0.18);
+}
+
+.enquiryStatus-contacted {
+    background: rgba(159, 93, 255, 0.18);
+}
+
+.enquiryStatus-proposal_sent {
+    background: rgba(219, 167, 60, 0.2);
+}
+
+.enquiryStatus-negotiating {
+    background: rgba(255, 123, 60, 0.2);
+}
+
+.enquiryStatus-secured {
+    background: rgba(55, 177, 105, 0.2);
+}
+
+.enquiryStatus-closed {
+    background: rgba(150, 150, 150, 0.18);
+}
+
+.enquirySummaryGrid,
+.enquiryDetailGrid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.enquirySummaryGrid > div,
+.enquiryDetailGrid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.enquirySummaryGrid a,
+.enquiryDetailGrid a {
+    color: inherit;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.enquirySummaryGrid a:hover,
+.enquiryDetailGrid a:hover {
+    color: var(--accent, #a6ff6e);
+}
+
+.enquiryMessagePreview {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.enquiryAdminModal {
+    width: min(980px, 100%);
+}
+
+.enquiryMessagePanel {
+    margin: 24px 0;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.enquiryMessagePanel p {
+    margin: 10px 0 0;
+    white-space: pre-wrap;
+}
+
+.enquiryNotesField {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+@media (max-width: 700px) {
+    .enquiryCardHeader {
+        flex-direction: column;
+    }
+
+    .enquirySummaryGrid,
+    .enquiryDetailGrid {
+        grid-template-columns: 1fr;
     }
 }

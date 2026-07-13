@@ -16,6 +16,7 @@ import { GoalsManager } from './admin/Goals/GoalsManager'
 import { GroupsManager } from './admin/Groups/GroupsManager'
 import { SponsorsManager } from './admin/Sponsors/SponsorsManager'
 import { ArticlesManager } from './admin/Articles/ArticlesManager'
+import { EnquiriesManager } from './admin/Enquiries/EnquiriesManager'
 
 const adminTabs = [
     'Dashboard',
@@ -28,6 +29,7 @@ const adminTabs = [
     'Sponsors',
     'Articles',
     'Media',
+    'Enquiries',
 ] as const
 
 type AdminTab = (typeof adminTabs)[number]
@@ -46,6 +48,9 @@ export function AdminPortal({
         useState<DbTeam[]>([])
 
     const [articleCount, setArticleCount] =
+        useState(0)
+
+    const [enquiryCount, setEnquiryCount] =
         useState(0)
 
     const loadTeams = useCallback(async () => {
@@ -88,12 +93,39 @@ export function AdminPortal({
             setArticleCount(count ?? 0)
         }, [])
 
+    const loadEnquiryCount =
+        useCallback(async () => {
+            const { count, error } =
+                await supabase
+                    .from('sponsor_enquiries')
+                    .select('id', {
+                        count: 'exact',
+                        head: true,
+                    })
+                    .eq('status', 'new')
+
+            if (error) {
+                console.error(
+                    'Failed to load enquiry count:',
+                    error
+                )
+                return
+            }
+
+            setEnquiryCount(count ?? 0)
+        }, [])
+
     useEffect(() => {
         void Promise.all([
             loadTeams(),
             loadArticleCount(),
+            loadEnquiryCount(),
         ])
-    }, [loadTeams, loadArticleCount])
+    }, [
+        loadTeams,
+        loadArticleCount,
+        loadEnquiryCount,
+    ])
 
     const stats = useMemo(
         () => [
@@ -106,15 +138,19 @@ export function AdminPortal({
                 value: fixtures.length,
             },
             {
-                label: 'Sponsors',
-                value: 'Live',
-            },
-            {
                 label: 'Articles',
                 value: articleCount,
             },
+            {
+                label: 'New Enquiries',
+                value: enquiryCount,
+            },
         ],
-        [dbTeams.length, articleCount]
+        [
+            dbTeams.length,
+            articleCount,
+            enquiryCount,
+        ]
     )
 
     return (
@@ -146,9 +182,9 @@ export function AdminPortal({
 
                 <p className="lead">
                     Manage teams, venues, fixtures,
-                    results, sponsors, media and
-                    community content from one secure
-                    dashboard.
+                    results, sponsors, enquiries,
+                    media and community content from
+                    one secure dashboard.
                 </p>
 
                 <div className="adminPortalShell">
@@ -179,6 +215,17 @@ export function AdminPortal({
                                     }
                                 >
                                     {tab}
+
+                                    {tab ===
+                                        'Enquiries' &&
+                                        enquiryCount >
+                                        0 && (
+                                            <span className="adminTabCount">
+                                                {
+                                                    enquiryCount
+                                                }
+                                            </span>
+                                        )}
                                 </button>
                             ))}
                         </div>
@@ -242,14 +289,17 @@ export function AdminPortal({
                                             </li>
 
                                             <li>
-                                                Create and publish
-                                                Black History
-                                                articles.
+                                                Review and
+                                                progress
+                                                sponsorship
+                                                enquiries.
                                             </li>
 
                                             <li>
-                                                Build the media
-                                                management centre.
+                                                Create and publish
+                                                Black History
+                                                articles and
+                                                media.
                                             </li>
                                         </ul>
                                     </div>
@@ -303,95 +353,14 @@ export function AdminPortal({
                         {activeTab === 'Media' && (
                             <MediaManager />
                         )}
+
+                        {activeTab ===
+                            'Enquiries' && (
+                                <EnquiriesManager />
+                            )}
                     </main>
                 </div>
             </div>
         </section>
-    )
-}
-
-type AdminCrudProps = {
-    title: string
-    description: string
-    fields: string[]
-    records: string[]
-}
-
-function AdminCrud({
-                       title,
-                       description,
-                       fields,
-                       records,
-                   }: AdminCrudProps) {
-    return (
-        <div>
-            <div className="adminWorkspaceHeader">
-                <div>
-                    <h3>{title}</h3>
-
-                    <p className="muted">
-                        {description}
-                    </p>
-                </div>
-
-                <button
-                    className="btn primary small"
-                    type="button"
-                >
-                    Mock Save
-                </button>
-            </div>
-
-            <div className="adminFormGrid">
-                {fields.map((field) => (
-                    <label key={field}>
-                        <span>{field}</span>
-
-                        {field
-                            .toLowerCase()
-                            .includes(
-                                'description'
-                            ) ? (
-                            <textarea
-                                placeholder={`Enter ${field.toLowerCase()}`}
-                            />
-                        ) : (
-                            <input
-                                placeholder={`Enter ${field.toLowerCase()}`}
-                            />
-                        )}
-                    </label>
-                ))}
-            </div>
-
-            <div className="adminRecordList">
-                <h4>Current records</h4>
-
-                {records.length ? (
-                    records.map((record) => (
-                        <div
-                            className="adminRecord"
-                            key={record}
-                        >
-                            <span>{record}</span>
-
-                            <div>
-                                <button type="button">
-                                    Edit
-                                </button>
-
-                                <button type="button">
-                                    Publish
-                                </button>
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <p className="muted">
-                        No records yet.
-                    </p>
-                )}
-            </div>
-        </div>
     )
 }

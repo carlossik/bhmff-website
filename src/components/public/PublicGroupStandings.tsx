@@ -109,6 +109,7 @@ export function PublicGroupStandings() {
                         .from('groups')
                         .select('id, name, sort_order')
                         .eq('festival_id', festival.id)
+                        .eq('published', true)
                         .order('sort_order', { ascending: true }),
 
                     supabase
@@ -116,8 +117,8 @@ export function PublicGroupStandings() {
                         .select(
                             'id, name, manager_name, logo_url'
                         )
-                        .eq('festival_id', festival.id),
-
+                        .eq('festival_id', festival.id)
+                        .eq('published', true),
                     supabase
                         .from('group_teams')
                         .select('group_id, team_id'),
