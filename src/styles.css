@@ -2720,3 +2720,65 @@
         flex-basis: 100%;
     }
 }
+/* ---------- Sponsorship enquiry form ---------- */
+
+.sponsorEnquiryOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(6px);
+}
+
+.sponsorEnquiryModal {
+    width: min(900px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding: 28px;
+    border: 1px solid rgba(166, 255, 110, 0.22);
+    border-radius: 20px;
+    background: #101810;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.sponsorEnquiryHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.sponsorEnquiryHeader h2 {
+    margin: 8px 0;
+}
+
+.sponsorEnquirySuccess {
+    padding: 28px;
+    border: 1px solid rgba(55, 177, 105, 0.35);
+    border-radius: 14px;
+    background: rgba(55, 177, 105, 0.1);
+}
+
+.sponsorEnquirySuccess h3 {
+    margin-top: 0;
+}
+
+@media (max-width: 700px) {
+    .sponsorEnquiryOverlay {
+        padding: 12px;
+    }
+
+    .sponsorEnquiryModal {
+        max-height: calc(100vh - 24px);
+        padding: 20px;
+    }
+
+    .sponsorEnquiryHeader {
+        flex-direction: column;
+    }
+}
