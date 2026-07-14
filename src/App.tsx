@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Calendar, Camera, Shield, Users } from 'lucide-react'
 import { PublicGroupStandings } from './components/public/PublicGroupStandings'
+import {
+    PublicTeams,
+    type PublicTeam,
+} from './components/public/PublicTeams'
 import { getCurrentUser } from './services/auth'
 import { supabase } from './lib/supabaseClient'
 import { ArticleCard } from './components/ArticleCard'
@@ -33,16 +37,8 @@ import {
     type StandingsTeam,
 } from './utils/calculateStandings'
 
-import { usePublicMedia } from './hooks/usePublicMedia'
-import { PublicMedia } from './components/public/PublicMedia'
+import { lastYearFinalVideo } from './data/festivalData'
 import { usePublicArticles } from './hooks/usePublicArticles'
-
-type PublicTeamRow = {
-    id: string
-    name: string
-    manager_name: string | null
-    logo_url: string | null
-}
 
 type RelatedTeam = {
     id: string
@@ -236,14 +232,9 @@ function App() {
         loading: articlesLoading,
         error: articlesError,
     } = usePublicArticles()
-    const {
-        media: publicMedia,
-        loading: mediaLoading,
-        error: mediaError,
-    } = usePublicMedia()
 
     const [publicTeams, setPublicTeams] =
-        useState<PublicTeamRow[]>([])
+        useState<PublicTeam[]>([])
 
     const [publicFixtures, setPublicFixtures] =
         useState<PublicFixture[]>([])
@@ -304,6 +295,11 @@ function App() {
                     .eq(
                         'festival_id',
                         festival.id
+                    )
+                    .eq('published', true)
+                    .eq(
+                        'participation_status',
+                        'confirmed'
                     )
                     .order('name', {
                         ascending: true,
@@ -387,7 +383,7 @@ function App() {
             } else {
                 setPublicTeams(
                     (teamsResponse.data ??
-                        []) as PublicTeamRow[]
+                        []) as PublicTeam[]
                 )
             }
 
@@ -835,8 +831,12 @@ function App() {
             <Section
                 id="teams"
                 title="Teams & Group Standings"
-                intro="Live group tables calculated automatically from published group-stage results. Knockout fixtures do not affect group standings."
+                intro="Meet the confirmed participating clubs and follow live group tables calculated automatically from published group-stage results."
             >
+                <PublicTeams
+                    teams={publicTeams}
+                />
+
                 <PublicGroupStandings />
             </Section>
 
@@ -849,16 +849,72 @@ function App() {
                     goals={publicGoals}
                 />
             </Section>
+
             <Section
                 id="media"
                 title="Official Media Coverage"
                 intro="Featured matches are professionally filmed, with highlights, interviews and exclusive coverage produced by CKEFA Media throughout the festival."
             >
-                <PublicMedia
-                    media={publicMedia}
-                    loading={mediaLoading}
-                    error={mediaError}
-                />
+                <div className="cardGrid three">
+                    <article className="videoCard featuredVideo">
+                        <iframe
+                            className="mediaIframe"
+                            src={
+                                lastYearFinalVideo.embedUrl
+                            }
+                            title={
+                                lastYearFinalVideo.title
+                            }
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                        />
+
+                        <h3>
+                            Festival Highlights
+                        </h3>
+
+                        <p>
+                            Watch featured matches,
+                            finals and tournament
+                            highlights produced by
+                            CKEFA Media.
+                        </p>
+                    </article>
+
+                    <article className="videoCard">
+                        <div className="videoPlaceholder">
+                            Match Highlights
+                        </div>
+
+                        <h3>
+                            Match Highlights
+                        </h3>
+
+                        <p>
+                            Catch goals, saves,
+                            celebrations and key
+                            moments from featured
+                            festival fixtures.
+                        </p>
+                    </article>
+
+                    <article className="videoCard">
+                        <div className="videoPlaceholder">
+                            Interviews
+                        </div>
+
+                        <h3>
+                            Live Coverage & Interviews
+                        </h3>
+
+                        <p>
+                            Follow interviews,
+                            post-match reactions,
+                            player spotlights and
+                            behind-the-scenes coverage.
+                        </p>
+                    </article>
+                </div>
             </Section>
 
             <Section

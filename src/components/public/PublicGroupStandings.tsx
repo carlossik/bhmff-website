@@ -118,7 +118,11 @@ export function PublicGroupStandings() {
                             'id, name, manager_name, logo_url'
                         )
                         .eq('festival_id', festival.id)
-                        .eq('published', true),
+                        .eq('published', true)
+                        .eq(
+                            'participation_status',
+                            'confirmed'
+                        ),
                     supabase
                         .from('group_teams')
                         .select('group_id, team_id'),
@@ -249,7 +253,7 @@ export function PublicGroupStandings() {
     }
 
     return (
-        <div className="publicGroupStandings">
+        <div className="publicGroupStandings" style={{ marginTop: '2rem' }}>
             {blocks.map((block) => (
                 <article
                     className="publicGroupStandingCard"
