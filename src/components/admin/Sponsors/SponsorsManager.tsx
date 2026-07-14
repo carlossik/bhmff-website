@@ -351,9 +351,7 @@ export function SponsorsManager() {
                     <h3>Sponsors</h3>
 
                     <p className="muted">
-                        Manage confirmed festival
-                        partners and public sponsor
-                        visibility.
+                        Manage confirmed partners and sponsors.
                     </p>
                 </div>
 

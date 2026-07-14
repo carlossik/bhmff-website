@@ -14,4 +14,10 @@ export type DbTeam = {
     logo_url: string | null
     published: boolean
     participation_status: TeamParticipationStatus
+    primary_home_venue_id: string | null
+}
+
+export type TeamVenueOption = {
+    id: string
+    name: string
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
+import { ConfirmDialog } from "../../common/ConfirmDialog";
 
 const mediaCategories = [
     "Match Highlights",
@@ -7,7 +8,7 @@ const mediaCategories = [
     "Player Interview",
     "Coach Interview",
     "Livestream",
-    "Festival Trailer",
+    "Competition Trailer",
     "Behind the Scenes",
     "Photo Gallery",
     "Podcast",
@@ -149,6 +150,9 @@ export function MediaManager() {
     const [form, setForm] = useState<MediaFormState>(initialFormState);
 
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    const [mediaToDelete, setMediaToDelete] =
+        useState<DbMedia | null>(null);
 
     const [showMediaForm, setShowMediaForm] = useState(false);
 
@@ -420,24 +424,27 @@ export function MediaManager() {
         await loadMedia();
     }
 
-    async function deleteMedia(item: DbMedia) {
-        const confirmed = window.confirm(
-            `Delete "${item.title}"? This action cannot be undone.`,
-        );
-
-        if (!confirmed) {
+    async function deleteMedia() {
+        if (!mediaToDelete || saving) {
             return;
         }
 
+        const item = mediaToDelete;
+
+        setSaving(true);
         setMessage(null);
         setErrorMessage(null);
 
-        const { error } = await supabase.from("media").delete().eq("id", item.id);
+        const { error } = await supabase
+            .from("media")
+            .delete()
+            .eq("id", item.id);
 
         if (error) {
             console.error("Failed to delete media:", error);
 
             setErrorMessage("Unable to delete this media record.");
+            setSaving(false);
             return;
         }
 
@@ -445,20 +452,23 @@ export function MediaManager() {
             resetForm();
         }
 
+        setMediaToDelete(null);
         setMessage("Media record deleted successfully.");
 
         await loadMedia();
+
+        setSaving(false);
     }
 
     return (
         <div>
             <div className="adminWorkspaceHeader">
                 <div>
-                    <h3>Manage Festival Media</h3>
+                    <h3>Media Library</h3>
 
                     <p className="muted">
-                        Create, edit and publish videos, interviews, livestreams, podcasts
-                        and festival media.
+                        Manage competition media including highlights, full matches,
+                        interviews, livestreams, podcasts and promotional content.
                     </p>
                 </div>
 
@@ -649,8 +659,8 @@ export function MediaManager() {
                             {saving
                                 ? "Saving..."
                                 : editingId
-                                    ? "Update media"
-                                    : "Create media"}
+                                    ? "Update Media"
+                                    : "Save Media"}
                         </button>
 
                         <button
@@ -692,7 +702,7 @@ export function MediaManager() {
                   </span>
 
                                     {item.featured && (
-                                        <span className="featuredBadge">Featured</span>
+                                        <span className="featuredBadge">Featured Content</span>
                                     )}
                                 </div>
 
@@ -738,7 +748,7 @@ export function MediaManager() {
                                 <button
                                     type="button"
                                     className="dangerButton"
-                                    onClick={() => void deleteMedia(item)}
+                                    onClick={() => setMediaToDelete(item)}
                                 >
                                     Delete
                                 </button>
@@ -746,9 +756,32 @@ export function MediaManager() {
                         </article>
                     ))
                 ) : (
-                    <p className="muted">No media records yet.</p>
+                    <p className="muted">No competition media has been added yet.</p>
                 )}
             </div>
+
+            {mediaToDelete && (
+                <ConfirmDialog
+                    title="Delete Media"
+                    message={`Are you sure you want to delete "${mediaToDelete.title}"? This action cannot be undone.`}
+                    confirmText={
+                        saving
+                            ? "Deleting..."
+                            : "Delete"
+                    }
+                    cancelText="Cancel"
+                    onCancel={() => {
+                        if (!saving) {
+                            setMediaToDelete(null);
+                        }
+                    }}
+                    onConfirm={() => {
+                        if (!saving) {
+                            void deleteMedia();
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

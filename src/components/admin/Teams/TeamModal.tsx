@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react'
+import {
+    useEffect,
+    useState,
+    type ChangeEvent,
+} from 'react'
 import { Modal } from '../../common/Modal'
 import type {
     TeamParticipationStatus,
+    TeamVenueOption,
 } from './teamTypes'
 
 type TeamModalProps = {
@@ -14,6 +19,8 @@ type TeamModalProps = {
     logoUrl: string
     participationStatus: TeamParticipationStatus
     published: boolean
+    primaryHomeVenueId: string
+    venues: TeamVenueOption[]
     isSaving: boolean
 
     onTeamNameChange: (value: string) => void
@@ -25,6 +32,7 @@ type TeamModalProps = {
         value: TeamParticipationStatus
     ) => void
     onPublishedChange: (value: boolean) => void
+    onPrimaryHomeVenueChange: (value: string) => void
     onLogoSelected: (file: File | null) => void
 
     onClose: () => void
@@ -41,6 +49,8 @@ export function TeamModal({
                               logoUrl,
                               participationStatus,
                               published,
+                              primaryHomeVenueId,
+                              venues,
                               isSaving,
                               onTeamNameChange,
                               onManagerNameChange,
@@ -49,6 +59,7 @@ export function TeamModal({
                               onNotesChange,
                               onParticipationStatusChange,
                               onPublishedChange,
+                              onPrimaryHomeVenueChange,
                               onLogoSelected,
                               onClose,
                               onSave,
@@ -61,7 +72,7 @@ export function TeamModal({
     }, [logoUrl])
 
     function handleLogoChange(
-        event: React.ChangeEvent<HTMLInputElement>
+        event: ChangeEvent<HTMLInputElement>
     ) {
         const file =
             event.target.files?.[0] ?? null
@@ -117,6 +128,8 @@ export function TeamModal({
                     <input
                         type="email"
                         value={email}
+                        maxLength={254}
+                        autoComplete="email"
                         onChange={(event) =>
                             onEmailChange(
                                 event.target.value
@@ -129,12 +142,25 @@ export function TeamModal({
                     <span>Phone</span>
 
                     <input
+                        type="tel"
+                        inputMode="tel"
                         value={phone}
-                        onChange={(event) =>
-                            onPhoneChange(
+                        maxLength={25}
+                        autoComplete="tel"
+                        pattern="[0-9+() -]*"
+                        placeholder="e.g. 07951 750370"
+                        onChange={(event) => {
+                            const value =
                                 event.target.value
-                            )
-                        }
+
+                            if (
+                                /^[0-9+() -]*$/.test(
+                                    value
+                                )
+                            ) {
+                                onPhoneChange(value)
+                            }
+                        }}
                     />
                 </label>
 
@@ -169,6 +195,36 @@ export function TeamModal({
                         <option value="withdrawn">
                             Withdrawn
                         </option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>
+                        Primary Home Venue
+                    </span>
+
+                    <select
+                        value={
+                            primaryHomeVenueId
+                        }
+                        onChange={(event) =>
+                            onPrimaryHomeVenueChange(
+                                event.target.value
+                            )
+                        }
+                    >
+                        <option value="">
+                            No home venue assigned
+                        </option>
+
+                        {venues.map((venue) => (
+                            <option
+                                key={venue.id}
+                                value={venue.id}
+                            >
+                                {venue.name}
+                            </option>
+                        ))}
                     </select>
                 </label>
 
@@ -232,6 +288,7 @@ export function TeamModal({
                     className="btn secondary"
                     type="button"
                     onClick={onClose}
+                    disabled={isSaving}
                 >
                     Cancel
                 </button>

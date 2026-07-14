@@ -34,6 +34,36 @@ const initialEnquiryForm: SponsorEnquiryForm = {
     message: '',
 }
 
+function isValidPhoneNumber(value: string) {
+    const trimmedValue = value.trim()
+
+    if (!trimmedValue) {
+        return true
+    }
+
+    if (!/^[0-9+() -]+$/.test(trimmedValue)) {
+        return false
+    }
+
+    if (
+        trimmedValue.includes('+') &&
+        !trimmedValue.startsWith('+')
+    ) {
+        return false
+    }
+
+    if (
+        (trimmedValue.match(/\+/g) ?? []).length > 1
+    ) {
+        return false
+    }
+
+    const digitCount =
+        trimmedValue.replace(/\D/g, '').length
+
+    return digitCount >= 7 && digitCount <= 15
+}
+
 export function PublicSponsors() {
     const [sponsors, setSponsors] =
         useState<PublicSponsor[]>([])
@@ -185,6 +215,10 @@ export function PublicSponsors() {
             )
         ) {
             return 'Enter a valid email address.'
+        }
+
+        if (!isValidPhoneNumber(form.phone)) {
+            return 'Enter a valid phone number containing 7 to 15 digits.'
         }
 
         if (!form.message.trim()) {
@@ -522,20 +556,32 @@ export function PublicSponsors() {
 
                                         <input
                                             type="tel"
+                                            inputMode="tel"
                                             value={
                                                 form.phone
                                             }
+                                            maxLength={25}
+                                            pattern="[0-9+() -]*"
                                             onChange={(
                                                 event
-                                            ) =>
-                                                updateForm(
-                                                    'phone',
+                                            ) => {
+                                                const value =
                                                     event
                                                         .target
                                                         .value
-                                                )
-                                            }
-                                            placeholder="Telephone number"
+
+                                                if (
+                                                    /^[0-9+() -]*$/.test(
+                                                        value
+                                                    )
+                                                ) {
+                                                    updateForm(
+                                                        'phone',
+                                                        value
+                                                    )
+                                                }
+                                            }}
+                                            placeholder="e.g. 07951 750370"
                                             autoComplete="tel"
                                         />
                                     </label>

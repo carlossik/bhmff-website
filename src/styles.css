@@ -2953,3 +2953,71 @@
         grid-template-columns: 1fr;
     }
 }
+/* ---------- Tournament generator ---------- */
+
+.tournamentGeneratorPanel {
+    margin-top: 24px;
+    padding: 24px;
+    border: 1px solid rgba(166, 255, 110, 0.18);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.generatorGroupReadiness,
+.generatorPreviewSection {
+    margin-top: 28px;
+}
+
+.generatorGroupGrid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.generatorGroupCard {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.generatorGroupCard h5 {
+    margin: 10px 0 0;
+    font-size: 1rem;
+}
+
+.generatorReady,
+.generatorWarning {
+    display: inline-flex;
+    width: fit-content;
+    flex-shrink: 0;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 750;
+}
+
+.generatorReady {
+    background: rgba(55, 177, 105, 0.18);
+}
+
+.generatorWarning {
+    background: rgba(220, 140, 70, 0.18);
+}
+
+.generatorPreviewSection .adminWorkspaceHeader {
+    margin-bottom: 18px;
+}
+
+@media (max-width: 700px) {
+    .generatorGroupCard {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

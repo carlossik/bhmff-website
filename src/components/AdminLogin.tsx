@@ -33,7 +33,7 @@ export function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                 <div className="adminLoginIntro">
                     <CkefaLogo className="adminLoginLogo" />
                     <span className="eyebrow">Secure organiser access</span>
-                    <h2>Festival Admin Portal</h2>
+                    <h2>Tournament Admin Portal</h2>
                     <p>
                         Manage fixtures, teams, sponsors, articles, media links and festival updates
                         for the Black History Month Football Festival.

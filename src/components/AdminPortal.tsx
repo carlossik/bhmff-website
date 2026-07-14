@@ -17,11 +17,13 @@ import { GroupsManager } from './admin/Groups/GroupsManager'
 import { SponsorsManager } from './admin/Sponsors/SponsorsManager'
 import { ArticlesManager } from './admin/Articles/ArticlesManager'
 import { EnquiriesManager } from './admin/Enquiries/EnquiriesManager'
+import { TournamentGenerator } from './admin/TournamentGenerator/TournamentGenerator'
 
 const adminTabs = [
     'Dashboard',
     'Teams',
     'Groups',
+    'Auto Fixture Generator',
     'Venues',
     'Fixtures',
     'Results',
@@ -162,12 +164,12 @@ export function AdminPortal({
                 <div className="adminHeader">
                     <div>
                         <span className="eyebrow">
-                            Festival Management System
+                            Tournament Management System
                         </span>
 
                         <h2>
-                            Festival Management
-                            Dashboard
+                            Competition Management
+                            Platform
                         </h2>
                     </div>
 
@@ -181,20 +183,21 @@ export function AdminPortal({
                 </div>
 
                 <p className="lead">
-                    Manage teams, venues, fixtures,
-                    results, sponsors, enquiries,
-                    media and community content from
-                    one secure dashboard.
+                    Create and manage tournaments, leagues and cup
+                    competitions from one unified platform. Generate
+                    fixtures automatically, manage teams and venues,
+                    publish results, maintain league tables and engage
+                    your community through the built-in CMS.
                 </p>
 
                 <div className="adminPortalShell">
                     <aside className="adminNavPanel">
                         <strong>
-                            Festival Admin
+                            Competition Administration
                         </strong>
 
                         <span className="muted">
-                            CKEFA Media control room
+                            Competition Management Platform
                         </span>
 
                         <div className="adminTabList">
@@ -265,41 +268,55 @@ export function AdminPortal({
 
                                     <div className="adminChecklist">
                                         <h4>
-                                            Current delivery
-                                            plan
+                                            Platform Capabilities
                                         </h4>
 
                                         <ul>
                                             <li>
-                                                Manage teams,
-                                                groups, venues
-                                                and fixtures.
+                                                Manage tournaments,
+                                                leagues and cup
+                                                competitions.
                                             </li>
 
                                             <li>
-                                                Publish results
-                                                and update league
-                                                tables.
+                                                Register teams and
+                                                assign home venues.
                                             </li>
 
                                             <li>
-                                                Manage sponsors
-                                                and partnership
-                                                visibility.
+                                                Create groups and
+                                                automatically generate
+                                                fixtures.
                                             </li>
 
                                             <li>
-                                                Review and
-                                                progress
-                                                sponsorship
+                                                Record results and
+                                                automatically update
+                                                league tables.
+                                            </li>
+
+                                            <li>
+                                                Manage goals, sponsors
+                                                and sponsorship
                                                 enquiries.
                                             </li>
 
                                             <li>
-                                                Create and publish
-                                                Black History
-                                                articles and
-                                                media.
+                                                Publish articles, news
+                                                and media using the
+                                                integrated CMS.
+                                            </li>
+
+                                            <li>
+                                                Schedule fixtures
+                                                manually or generate
+                                                them automatically.
+                                            </li>
+
+                                            <li>
+                                                Reuse competition
+                                                structures for future
+                                                tournaments.
                                             </li>
                                         </ul>
                                     </div>
@@ -318,6 +335,11 @@ export function AdminPortal({
                         {activeTab === 'Groups' && (
                             <GroupsManager />
                         )}
+
+                        {activeTab ===
+                            'Auto Fixture Generator' && (
+                                <TournamentGenerator />
+                            )}
 
                         {activeTab === 'Venues' && (
                             <VenuesManager />

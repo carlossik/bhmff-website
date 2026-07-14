@@ -86,7 +86,7 @@ export function PublicMedia({
     if (loading) {
         return (
             <p className="muted">
-                Loading festival media...
+                Loading Tournament media...
             </p>
         )
     }

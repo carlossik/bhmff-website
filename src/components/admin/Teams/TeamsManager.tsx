@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import {
+    useEffect,
+    useState,
+} from 'react'
 import { supabase } from '../../../lib/supabaseClient'
 import { Toast } from '../../common/Toast'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
@@ -11,11 +14,54 @@ import {
 import type {
     DbTeam,
     TeamParticipationStatus,
+    TeamVenueOption,
 } from './teamTypes'
 
 type TeamsManagerProps = {
     teams: DbTeam[]
     onTeamCreated: () => void
+}
+
+function isValidEmailAddress(value: string) {
+    const trimmedValue = value.trim()
+
+    if (!trimmedValue) {
+        return true
+    }
+
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        trimmedValue
+    )
+}
+
+function isValidPhoneNumber(value: string) {
+    const trimmedValue = value.trim()
+
+    if (!trimmedValue) {
+        return true
+    }
+
+    if (!/^[0-9+() -]+$/.test(trimmedValue)) {
+        return false
+    }
+
+    if (
+        trimmedValue.includes('+') &&
+        !trimmedValue.startsWith('+')
+    ) {
+        return false
+    }
+
+    if (
+        (trimmedValue.match(/\+/g) ?? []).length > 1
+    ) {
+        return false
+    }
+
+    const digitCount =
+        trimmedValue.replace(/\D/g, '').length
+
+    return digitCount >= 7 && digitCount <= 15
 }
 
 export function TeamsManager({
@@ -34,6 +80,9 @@ export function TeamsManager({
         teamToDelete,
         setTeamToDelete,
     ] = useState<DbTeam | null>(null)
+
+    const [venues, setVenues] =
+        useState<TeamVenueOption[]>([])
 
     const [teamName, setTeamName] =
         useState('')
@@ -71,6 +120,11 @@ export function TeamsManager({
     const [published, setPublished] =
         useState(false)
 
+    const [
+        primaryHomeVenueId,
+        setPrimaryHomeVenueId,
+    ] = useState('')
+
     const [isSaving, setIsSaving] =
         useState(false)
 
@@ -95,6 +149,42 @@ export function TeamsManager({
         setToastType(type)
     }
 
+    async function loadVenues() {
+        const festivalId =
+            await getActiveFestivalId()
+
+        if (!festivalId) {
+            setVenues([])
+            return
+        }
+
+        const { data, error } =
+            await supabase
+                .from('venues')
+                .select('id, name')
+                .eq(
+                    'festival_id',
+                    festivalId
+                )
+                .order('name', {
+                    ascending: true,
+                })
+
+        if (error) {
+            console.error(
+                'Failed to load venues:',
+                error
+            )
+            return
+        }
+
+        setVenues(data ?? [])
+    }
+
+    useEffect(() => {
+        void loadVenues()
+    }, [])
+
     function resetForm() {
         setEditingTeam(null)
         setTeamName('')
@@ -108,6 +198,7 @@ export function TeamsManager({
             'interested'
         )
         setPublished(false)
+        setPrimaryHomeVenueId('')
     }
 
     function closeTeamModal() {
@@ -144,6 +235,10 @@ export function TeamsManager({
         setPublished(
             team.published ?? false
         )
+        setPrimaryHomeVenueId(
+            team.primary_home_venue_id ??
+            ''
+        )
         setShowTeamModal(true)
     }
 
@@ -172,6 +267,22 @@ export function TeamsManager({
         if (!teamName.trim()) {
             showToast(
                 'Team name is required.',
+                'error'
+            )
+            return
+        }
+
+        if (!isValidEmailAddress(email)) {
+            showToast(
+                'Enter a valid email address.',
+                'error'
+            )
+            return
+        }
+
+        if (!isValidPhoneNumber(phone)) {
+            showToast(
+                'Enter a valid phone number containing 7 to 15 digits.',
                 'error'
             )
             return
@@ -207,6 +318,9 @@ export function TeamsManager({
                 participation_status:
                 participationStatus,
                 published,
+                primary_home_venue_id:
+                    primaryHomeVenueId ||
+                    null,
             }
 
             if (editingTeam) {
@@ -373,8 +487,8 @@ export function TeamsManager({
 
                     <p className="muted">
                         Manage participating clubs,
-                        their status, public
-                        visibility and official
+                        their status, home venue,
+                        public visibility and official
                         logos.
                     </p>
                 </div>
@@ -422,6 +536,10 @@ export function TeamsManager({
                         participationStatus
                     }
                     published={published}
+                    primaryHomeVenueId={
+                        primaryHomeVenueId
+                    }
+                    venues={venues}
                     isSaving={isSaving}
                     onTeamNameChange={
                         setTeamName
@@ -443,6 +561,9 @@ export function TeamsManager({
                     }
                     onPublishedChange={
                         setPublished
+                    }
+                    onPrimaryHomeVenueChange={
+                        setPrimaryHomeVenueId
                     }
                     onLogoSelected={
                         setSelectedLogo
