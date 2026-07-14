@@ -18,6 +18,7 @@ import { SponsorsManager } from './admin/Sponsors/SponsorsManager'
 import { ArticlesManager } from './admin/Articles/ArticlesManager'
 import { EnquiriesManager } from './admin/Enquiries/EnquiriesManager'
 import { TournamentGenerator } from './admin/TournamentGenerator/TournamentGenerator'
+import { UserManagement } from './admin/Users/UserManagement'
 import {
     canAccessModule,
     formatAdminRole,
@@ -38,6 +39,7 @@ const adminTabs: readonly AdminModule[] = [
     'Articles',
     'Media',
     'Enquiries',
+    'User Access',
 ]
 
 type AdminPortalProps = {
@@ -428,6 +430,15 @@ export function AdminPortal({
             case 'Enquiries':
                 return (
                     <EnquiriesManager />
+                )
+
+            case 'User Access':
+                return (
+                    <UserManagement
+                        currentProfile={
+                            profile
+                        }
+                    />
                 )
         }
     }

@@ -10,6 +10,7 @@ export type AdminProfile = {
     full_name: string | null
     role: AdminRole
     active: boolean
+    email: string | null
 }
 
 export type AdminModule =
@@ -25,6 +26,7 @@ export type AdminModule =
     | 'Articles'
     | 'Media'
     | 'Enquiries'
+    | 'User Access'
 
 const roleModules: Record<
     AdminRole,
@@ -34,6 +36,7 @@ const roleModules: Record<
         'Dashboard',
         'Results',
         'Goals',
+        'Media',
     ],
     competition_manager: [
         'Dashboard',
@@ -44,7 +47,6 @@ const roleModules: Record<
         'Fixtures',
         'Results',
         'Goals',
-        'Media',
     ],
     super_admin: [
         'Dashboard',
@@ -59,6 +61,7 @@ const roleModules: Record<
         'Articles',
         'Media',
         'Enquiries',
+        'User Access',
     ],
 }
 
@@ -97,7 +100,7 @@ export async function getCurrentAdminProfile(): Promise<AdminProfile> {
     const { data, error } = await supabase
         .from('profiles')
         .select(
-            'id, full_name, role, active'
+            'id, full_name, email, role, active'
         )
         .eq('id', user.id)
         .maybeSingle()

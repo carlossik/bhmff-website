@@ -209,29 +209,6 @@ export function TournamentGenerator() {
         [teams, config.confirmedOnly]
     )
 
-    const existingGroupFixtureIds = useMemo(
-        () =>
-            new Set(
-                existingFixtures
-                    .filter(
-                        (fixture) =>
-                            fixture.stage ===
-                            'Group Stage'
-                    )
-                    .map(
-                        (fixture) =>
-                            fixture.group_id
-                    )
-                    .filter(
-                        (
-                            groupId
-                        ): groupId is string =>
-                            Boolean(groupId)
-                    )
-            ),
-        [existingFixtures]
-    )
-
     const teamNameById = useMemo(
         () =>
             new Map(
@@ -270,6 +247,59 @@ export function TournamentGenerator() {
             ),
         [teams]
     )
+
+    function createExistingFixtureKey(
+        homeTeamId: string,
+        awayTeamId: string,
+        groupId: string | null,
+        stage: string,
+        directional: boolean
+    ) {
+        const teamsKey = directional
+            ? `${homeTeamId}:${awayTeamId}`
+            : [homeTeamId, awayTeamId]
+                .sort()
+                .join(':')
+
+        return [
+            stage,
+            groupId ?? 'none',
+            teamsKey,
+        ].join('|')
+    }
+
+    function removeExistingPairings(
+        pairings: EnginePairing[],
+        options: {
+            groupId: string | null
+            stage: string
+            directional: boolean
+        }
+    ) {
+        const existingKeys = new Set(
+            existingFixtures.map((fixture) =>
+                createExistingFixtureKey(
+                    fixture.home_team_id,
+                    fixture.away_team_id,
+                    fixture.group_id,
+                    fixture.stage,
+                    options.directional
+                )
+            )
+        )
+
+        return pairings.filter((pairing) => {
+            const key = createExistingFixtureKey(
+                pairing.homeTeamId,
+                pairing.awayTeamId,
+                options.groupId,
+                options.stage,
+                options.directional
+            )
+
+            return !existingKeys.has(key)
+        })
+    }
 
     function updateConfig<
         Key extends keyof GeneratorConfig
@@ -384,14 +414,6 @@ export function TournamentGenerator() {
             []
 
         for (const group of groups) {
-            if (
-                existingGroupFixtureIds.has(
-                    group.id
-                )
-            ) {
-                continue
-            }
-
             const groupTeamIds = memberships
                 .filter(
                     (membership) =>
@@ -413,7 +435,7 @@ export function TournamentGenerator() {
                 continue
             }
 
-            const pairings = limited
+            const generatedPairings = limited
                 ? generateLimitedSchedule(
                     groupTeamIds,
                     config.matchesPerTeam
@@ -422,9 +444,19 @@ export function TournamentGenerator() {
                     groupTeamIds
                 )
 
+            const missingPairings =
+                removeExistingPairings(
+                    generatedPairings,
+                    {
+                        groupId: group.id,
+                        stage: 'Group Stage',
+                        directional: false,
+                    }
+                )
+
             rows.push(
                 ...buildPreviewRows(
-                    pairings,
+                    missingPairings,
                     {
                         groupId: group.id,
                         groupName: group.name,
@@ -442,24 +474,39 @@ export function TournamentGenerator() {
         doubleRoundRobin: boolean,
         startDate: Date
     ) {
-        const pairings = doubleRoundRobin
-            ? generateDoubleRoundRobin(
-                eligibleTeams.map(
-                    (team) => team.id
+        const generatedPairings =
+            doubleRoundRobin
+                ? generateDoubleRoundRobin(
+                    eligibleTeams.map(
+                        (team) => team.id
+                    )
                 )
-            )
-            : generateSingleRoundRobin(
-                eligibleTeams.map(
-                    (team) => team.id
+                : generateSingleRoundRobin(
+                    eligibleTeams.map(
+                        (team) => team.id
+                    )
                 )
+
+        const missingPairings =
+            removeExistingPairings(
+                generatedPairings,
+                {
+                    groupId: null,
+                    stage: 'League',
+                    directional:
+                    doubleRoundRobin,
+                }
             )
 
-        return buildPreviewRows(pairings, {
-            groupId: null,
-            groupName: 'League',
-            stage: 'League',
-            startDate,
-        })
+        return buildPreviewRows(
+            missingPairings,
+            {
+                groupId: null,
+                groupName: 'League',
+                stage: 'League',
+                startDate,
+            }
+        )
     }
 
     function generateCupPreview(
@@ -486,8 +533,18 @@ export function TournamentGenerator() {
                 )
         )
 
+        const missingPairings =
+            removeExistingPairings(
+                draw.fixtures,
+                {
+                    groupId: null,
+                    stage: draw.roundName,
+                    directional: false,
+                }
+            )
+
         return buildPreviewRows(
-            draw.fixtures,
+            missingPairings,
             {
                 groupId: null,
                 groupName: draw.roundName,
@@ -594,8 +651,8 @@ export function TournamentGenerator() {
 
             if (!generated.length) {
                 showToast(
-                    'No fixtures could be generated. Check the selected teams, groups and existing fixtures.',
-                    'error'
+                    'No new fixtures are available to generate. The eligible pairings may already exist, or the selected teams and groups may be incomplete.',
+                    'info'
                 )
                 return
             }

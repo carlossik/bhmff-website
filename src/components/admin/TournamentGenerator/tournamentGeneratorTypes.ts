@@ -49,6 +49,8 @@ export type ExistingFixture = {
     id: string
     group_id: string | null
     stage: string
+    home_team_id: string
+    away_team_id: string
 }
 
 export type GeneratedFixturePreview = {

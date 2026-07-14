@@ -113,7 +113,13 @@ export const tournamentGeneratorService = {
     ): Promise<ExistingFixture[]> {
         const { data, error } = await supabase
             .from('fixtures')
-            .select('id, group_id, stage')
+            .select(`
+                id,
+                group_id,
+                stage,
+                home_team_id,
+                away_team_id
+            `)
             .eq('festival_id', festivalId)
 
         throwSupabaseError(
@@ -121,7 +127,7 @@ export const tournamentGeneratorService = {
             'Failed to check existing fixtures'
         )
 
-        return data ?? []
+        return (data ?? []) as ExistingFixture[]
     },
 
     async createFixtures(
