@@ -31,6 +31,7 @@ import { ArticlePage } from './components/ArticlePage'
 import { TournamentCountdown } from './components/public/TournamentCountdown'
 import { AdminPage } from './pages/AdminPage'
 import { PublicSponsors } from './components/public/PublicSponsors'
+import { DemoRequestModal } from './components/public/DemoRequestModal'
 
 import {
     calculateStandings,
@@ -218,6 +219,43 @@ const timeline = [
     ],
 ] as const
 
+const ckefaEcosystem = [
+    {
+        name: 'FCFS Events',
+        description:
+            'Create, discover and manage events, registrations and attendance through the FCFS platform.',
+        action: 'Explore FCFS',
+        url: 'https://fcfs.app',
+    },
+    {
+        name: 'CKEFA Media',
+        description:
+            'Grassroots football livestreams, match highlights, interviews and community sports coverage.',
+        action: 'Watch CKEFA Media',
+        url: 'https://www.youtube.com/@CKEFAMedia',
+    },
+    {
+        name: 'CKEFA Software Solutions',
+        description:
+            'Software development, quality engineering, AI consultancy, governance and digital transformation.',
+        action: 'Visit CKEFA',
+        url: 'https://www.ckefa.co.uk',
+    },
+    {
+        name: 'Competition Management Platform',
+        description:
+            'Need a tailored solution for your league, cup or tournament? Speak to CKEFA about a demonstration.',
+        action: 'Request a Demo',
+        requestDemo: true,
+    },
+] satisfies ReadonlyArray<{
+    name: string
+    description: string
+    action: string
+    url?: string
+    requestDemo?: boolean
+}>
+
 function App() {
     const location = useLocation()
 
@@ -226,6 +264,9 @@ function App() {
 
     const [activeArticleId, setActiveArticleId] =
         useState<string | null>(null)
+
+    const [showDemoRequest, setShowDemoRequest] =
+        useState(false)
 
     const {
         articles: publicArticles,
@@ -952,12 +993,68 @@ function App() {
             >
                 <PublicSponsors />
             </Section>
+            <Section
+                id="ckefa-ecosystem"
+                title="Part of the CKEFA Ecosystem"
+                intro="Explore the connected CKEFA products and services supporting events, grassroots sport, media and digital transformation."
+            >
+                <div className="cardGrid four">
+                    {ckefaEcosystem.map((product) => (
+                        <article
+                            className="card"
+                            key={product.name}
+                        >
+                            <span className="badge">
+                                CKEFA
+                            </span>
+
+                            <h3>{product.name}</h3>
+
+                            <p>
+                                {product.description}
+                            </p>
+
+                            {product.requestDemo ? (
+                                <button
+                                    className="btn secondary small"
+                                    type="button"
+                                    onClick={() =>
+                                        setShowDemoRequest(
+                                            true
+                                        )
+                                    }
+                                >
+                                    {product.action}
+                                </button>
+                            ) : (
+                                <a
+                                    className="btn secondary small"
+                                    href={product.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    {product.action}
+                                </a>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            </Section>
+
+            {showDemoRequest && (
+                <DemoRequestModal
+                    onClose={() =>
+                        setShowDemoRequest(false)
+                    }
+                />
+            )}
+
             <footer className="footer">
                 <div className="container footerGrid">
                     <div>
                         <strong>
-                            Black History Month
-                            Football Festival
+                            Competition Management
+                            Platform
                         </strong>
 
                         <p>
@@ -966,9 +1063,35 @@ function App() {
                         </p>
 
                         <p>
-                            Celebrating Football.
-                            Celebrating Culture.
-                            Celebrating Community.
+                            Part of the CKEFA ecosystem:
+                            software, AI, events and
+                            grassroots sports media.
+                        </p>
+
+                        <p>
+                            <a
+                                href="https://fcfs.app"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                FCFS Events
+                            </a>
+                            {' · '}
+                            <a
+                                href="https://www.youtube.com/@CKEFAMedia"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                CKEFA Media
+                            </a>
+                            {' · '}
+                            <a
+                                href="https://www.ckefa.co.uk"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                CKEFA Software Solutions
+                            </a>
                         </p>
                     </div>
 

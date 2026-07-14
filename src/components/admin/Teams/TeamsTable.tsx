@@ -29,6 +29,41 @@ function formatParticipationStatus(
     )
 }
 
+function getPublicVisibility(team: DbTeam) {
+    if (
+        team.published &&
+        team.participation_status === 'confirmed'
+    ) {
+        return {
+            label: 'Visible on public website',
+            className:
+                'teamVisibilityBadge teamVisibilityPublished',
+            description:
+                'The team is confirmed and published.',
+        }
+    }
+
+    if (!team.published) {
+        return {
+            label: 'Hidden from public website',
+            className:
+                'teamVisibilityBadge teamVisibilityHidden',
+            description:
+                'Publish the team to make it eligible for public display.',
+        }
+    }
+
+    return {
+        label: 'Hidden from public website',
+        className:
+            'teamVisibilityBadge teamVisibilityHidden',
+        description:
+            `Status is ${formatParticipationStatus(
+                team.participation_status
+            )}. Only confirmed teams appear publicly.`,
+    }
+}
+
 export function TeamsTable({
                                teams,
                                onEdit,
@@ -45,141 +80,200 @@ export function TeamsTable({
     }
 
     return (
-        <div className="teamsAdminGrid">
-            {teams.map((team) => (
-                <article
-                    className="teamAdminCard"
-                    key={team.id}
-                >
-                    <div className="teamAdminCardHeader">
-                        <div className="teamAdminIdentity">
-                            {team.logo_url ? (
-                                <img
-                                    className="teamAdminCardLogo"
-                                    src={team.logo_url}
-                                    alt={`${team.name} logo`}
-                                    loading="lazy"
-                                />
-                            ) : (
-                                <div className="teamAdminCardInitials">
-                                    {getInitials(team.name)}
+        <div>
+            <div className="adminSuccessMessage">
+                <strong>
+                    Public website visibility rules
+                </strong>
+
+                <p>
+                    A team appears on the public website
+                    only when its participation status is
+                    <strong> Confirmed</strong> and it is
+                    <strong> Published</strong>. To appear
+                    in group standings, it must also be
+                    assigned to a published group.
+                </p>
+            </div>
+
+            <div className="teamsAdminGrid">
+                {teams.map((team) => {
+                    const visibility =
+                        getPublicVisibility(team)
+
+                    return (
+                        <article
+                            className="teamAdminCard"
+                            key={team.id}
+                        >
+                            <div className="teamAdminCardHeader">
+                                <div className="teamAdminIdentity">
+                                    {team.logo_url ? (
+                                        <img
+                                            className="teamAdminCardLogo"
+                                            src={team.logo_url}
+                                            alt={`${team.name} logo`}
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="teamAdminCardInitials">
+                                            {getInitials(
+                                                team.name
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <h4>{team.name}</h4>
+
+                                        <div className="teamAdminBadges">
+                                            <span
+                                                className={`teamParticipationBadge teamParticipation-${team.participation_status}`}
+                                            >
+                                                {formatParticipationStatus(
+                                                    team.participation_status
+                                                )}
+                                            </span>
+
+                                            <span
+                                                className={
+                                                    team.published
+                                                        ? 'teamVisibilityBadge teamVisibilityPublished'
+                                                        : 'teamVisibilityBadge teamVisibilityHidden'
+                                                }
+                                            >
+                                                {team.published
+                                                    ? 'Published'
+                                                    : 'Unpublished'}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
 
-                            <div>
-                                <h4>{team.name}</h4>
-
-                                <div className="teamAdminBadges">
-                                    <span
-                                        className={`teamParticipationBadge teamParticipation-${team.participation_status}`}
-                                    >
-                                        {formatParticipationStatus(
-                                            team.participation_status
-                                        )}
+                            <div className="teamAdminDetails">
+                                <div>
+                                    <span className="teamAdminFieldLabel">
+                                        Public Visibility
                                     </span>
 
                                     <span
                                         className={
-                                            team.published
-                                                ? 'teamVisibilityBadge teamVisibilityPublished'
-                                                : 'teamVisibilityBadge teamVisibilityHidden'
+                                            visibility.className
                                         }
                                     >
-                                        {team.published
-                                            ? 'Public'
-                                            : 'Hidden'}
+                                        {visibility.label}
+                                    </span>
+
+                                    <small className="muted">
+                                        {
+                                            visibility.description
+                                        }
+                                    </small>
+                                </div>
+
+                                <div>
+                                    <span className="teamAdminFieldLabel">
+                                        Manager
+                                    </span>
+
+                                    <strong>
+                                        {team.manager_name ??
+                                            'Not provided'}
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span className="teamAdminFieldLabel">
+                                        Email
+                                    </span>
+
+                                    {team.contact_email ? (
+                                        <a
+                                            href={`mailto:${team.contact_email}`}
+                                        >
+                                            {
+                                                team.contact_email
+                                            }
+                                        </a>
+                                    ) : (
+                                        <span>
+                                            Not provided
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <span className="teamAdminFieldLabel">
+                                        Phone
+                                    </span>
+
+                                    {team.contact_phone ? (
+                                        <a
+                                            href={`tel:${team.contact_phone}`}
+                                        >
+                                            {
+                                                team.contact_phone
+                                            }
+                                        </a>
+                                    ) : (
+                                        <span>
+                                            Not provided
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <span className="teamAdminFieldLabel">
+                                        Notes
+                                    </span>
+
+                                    <span>
+                                        {team.notes?.trim() ||
+                                            'No notes added'}
                                     </span>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div className="teamAdminDetails">
-                        <div>
-                            <span className="teamAdminFieldLabel">
-                                Manager
-                            </span>
-
-                            <strong>
-                                {team.manager_name ?? 'Not provided'}
-                            </strong>
-                        </div>
-
-                        <div>
-                            <span className="teamAdminFieldLabel">
-                                Email
-                            </span>
-
-                            {team.contact_email ? (
-                                <a
-                                    href={`mailto:${team.contact_email}`}
+                            <div className="teamAdminCardActions">
+                                <button
+                                    className="btn secondary small"
+                                    type="button"
+                                    onClick={() =>
+                                        onEdit(team)
+                                    }
                                 >
-                                    {team.contact_email}
-                                </a>
-                            ) : (
-                                <span>Not provided</span>
-                            )}
-                        </div>
+                                    Edit
+                                </button>
 
-                        <div>
-                            <span className="teamAdminFieldLabel">
-                                Phone
-                            </span>
-
-                            {team.contact_phone ? (
-                                <a
-                                    href={`tel:${team.contact_phone}`}
+                                <button
+                                    className="btn secondary small"
+                                    type="button"
+                                    onClick={() =>
+                                        onTogglePublished(
+                                            team
+                                        )
+                                    }
                                 >
-                                    {team.contact_phone}
-                                </a>
-                            ) : (
-                                <span>Not provided</span>
-                            )}
-                        </div>
+                                    {team.published
+                                        ? 'Unpublish'
+                                        : 'Publish'}
+                                </button>
 
-                        <div>
-                            <span className="teamAdminFieldLabel">
-                                Notes
-                            </span>
-
-                            <span>
-                                {team.notes?.trim() ||
-                                    'No notes added'}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="teamAdminCardActions">
-                        <button
-                            className="btn secondary small"
-                            type="button"
-                            onClick={() => onEdit(team)}
-                        >
-                            Edit
-                        </button>
-
-                        <button
-                            className="btn secondary small"
-                            type="button"
-                            onClick={() =>
-                                onTogglePublished(team)
-                            }
-                        >
-                            {team.published
-                                ? 'Unpublish'
-                                : 'Publish'}
-                        </button>
-
-                        <button
-                            className="btn secondary small dangerButton"
-                            type="button"
-                            onClick={() => onDelete(team)}
-                        >
-                            Delete
-                        </button>
-                    </div>
-                </article>
-            ))}
+                                <button
+                                    className="btn secondary small dangerButton"
+                                    type="button"
+                                    onClick={() =>
+                                        onDelete(team)
+                                    }
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </article>
+                    )
+                })}
+            </div>
         </div>
     )
 }

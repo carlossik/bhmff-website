@@ -18,8 +18,14 @@ import { SponsorsManager } from './admin/Sponsors/SponsorsManager'
 import { ArticlesManager } from './admin/Articles/ArticlesManager'
 import { EnquiriesManager } from './admin/Enquiries/EnquiriesManager'
 import { TournamentGenerator } from './admin/TournamentGenerator/TournamentGenerator'
+import {
+    canAccessModule,
+    formatAdminRole,
+    type AdminModule,
+    type AdminProfile,
+} from '../services/accessControl'
 
-const adminTabs = [
+const adminTabs: readonly AdminModule[] = [
     'Dashboard',
     'Teams',
     'Groups',
@@ -32,19 +38,30 @@ const adminTabs = [
     'Articles',
     'Media',
     'Enquiries',
-] as const
-
-type AdminTab = (typeof adminTabs)[number]
+]
 
 type AdminPortalProps = {
+    profile: AdminProfile
     onLogout: () => void
 }
 
 export function AdminPortal({
+                                profile,
                                 onLogout,
                             }: AdminPortalProps) {
+    const visibleTabs = useMemo(
+        () =>
+            adminTabs.filter((tab) =>
+                canAccessModule(
+                    profile.role,
+                    tab
+                )
+            ),
+        [profile.role]
+    )
+
     const [activeTab, setActiveTab] =
-        useState<AdminTab>('Dashboard')
+        useState<AdminModule>('Dashboard')
 
     const [dbTeams, setDbTeams] =
         useState<DbTeam[]>([])
@@ -55,27 +72,61 @@ export function AdminPortal({
     const [enquiryCount, setEnquiryCount] =
         useState(0)
 
-    const loadTeams = useCallback(async () => {
-        const { data, error } = await supabase
-            .from('teams')
-            .select('*')
-            .order('created_at', {
-                ascending: false,
-            })
-
-        if (error) {
-            console.error(
-                'Failed to load teams:',
-                error
+    useEffect(() => {
+        if (
+            !visibleTabs.includes(
+                activeTab
             )
-            return
+        ) {
+            setActiveTab('Dashboard')
         }
+    }, [activeTab, visibleTabs])
 
-        setDbTeams(data ?? [])
-    }, [])
+    const loadTeams = useCallback(
+        async () => {
+            if (
+                !canAccessModule(
+                    profile.role,
+                    'Teams'
+                )
+            ) {
+                setDbTeams([])
+                return
+            }
+
+            const { data, error } =
+                await supabase
+                    .from('teams')
+                    .select('*')
+                    .order('created_at', {
+                        ascending: false,
+                    })
+
+            if (error) {
+                console.error(
+                    'Failed to load teams:',
+                    error
+                )
+                return
+            }
+
+            setDbTeams(data ?? [])
+        },
+        [profile.role]
+    )
 
     const loadArticleCount =
         useCallback(async () => {
+            if (
+                !canAccessModule(
+                    profile.role,
+                    'Articles'
+                )
+            ) {
+                setArticleCount(0)
+                return
+            }
+
             const { count, error } =
                 await supabase
                     .from('articles')
@@ -93,29 +144,62 @@ export function AdminPortal({
             }
 
             setArticleCount(count ?? 0)
-        }, [])
+        }, [profile.role])
 
     const loadEnquiryCount =
         useCallback(async () => {
-            const { count, error } =
-                await supabase
-                    .from('sponsor_enquiries')
+            if (
+                !canAccessModule(
+                    profile.role,
+                    'Enquiries'
+                )
+            ) {
+                setEnquiryCount(0)
+                return
+            }
+
+            const [
+                sponsorResponse,
+                demoResponse,
+            ] = await Promise.all([
+                supabase
+                    .from(
+                        'sponsor_enquiries'
+                    )
                     .select('id', {
                         count: 'exact',
                         head: true,
                     })
-                    .eq('status', 'new')
+                    .eq('status', 'new'),
 
-            if (error) {
+                supabase
+                    .from('demo_requests')
+                    .select('id', {
+                        count: 'exact',
+                        head: true,
+                    })
+                    .eq('status', 'new'),
+            ])
+
+            if (
+                sponsorResponse.error ||
+                demoResponse.error
+            ) {
                 console.error(
                     'Failed to load enquiry count:',
-                    error
+                    sponsorResponse.error ??
+                    demoResponse.error
                 )
                 return
             }
 
-            setEnquiryCount(count ?? 0)
-        }, [])
+            setEnquiryCount(
+                (sponsorResponse.count ??
+                    0) +
+                (demoResponse.count ??
+                    0)
+            )
+        }, [profile.role])
 
     useEffect(() => {
         void Promise.all([
@@ -129,31 +213,224 @@ export function AdminPortal({
         loadEnquiryCount,
     ])
 
-    const stats = useMemo(
-        () => [
-            {
+    const stats = useMemo(() => {
+        const items: Array<{
+            label: string
+            value: string | number
+        }> = []
+
+        if (
+            canAccessModule(
+                profile.role,
+                'Teams'
+            )
+        ) {
+            items.push({
                 label: 'Teams',
                 value: dbTeams.length,
-            },
-            {
+            })
+        }
+
+        if (
+            canAccessModule(
+                profile.role,
+                'Fixtures'
+            )
+        ) {
+            items.push({
                 label: 'Fixtures',
                 value: fixtures.length,
-            },
-            {
+            })
+        }
+
+        if (
+            canAccessModule(
+                profile.role,
+                'Articles'
+            )
+        ) {
+            items.push({
                 label: 'Articles',
                 value: articleCount,
-            },
-            {
+            })
+        }
+
+        if (
+            canAccessModule(
+                profile.role,
+                'Enquiries'
+            )
+        ) {
+            items.push({
                 label: 'New Enquiries',
                 value: enquiryCount,
-            },
-        ],
-        [
-            dbTeams.length,
-            articleCount,
-            enquiryCount,
-        ]
-    )
+            })
+        }
+
+        if (!items.length) {
+            items.push(
+                {
+                    label: 'Results',
+                    value: 'Manage',
+                },
+                {
+                    label: 'Goals',
+                    value: 'Manage',
+                }
+            )
+        }
+
+        return items
+    }, [
+        articleCount,
+        dbTeams.length,
+        enquiryCount,
+        profile.role,
+    ])
+
+    function renderActiveModule() {
+        if (
+            !canAccessModule(
+                profile.role,
+                activeTab
+            )
+        ) {
+            return (
+                <div className="teamsEmptyState">
+                    <h3>Access denied</h3>
+
+                    <p>
+                        Your account does not have
+                        permission to access this
+                        module.
+                    </p>
+                </div>
+            )
+        }
+
+        switch (activeTab) {
+            case 'Dashboard':
+                return (
+                    <div>
+                        <h3>
+                            Dashboard Overview
+                        </h3>
+
+                        <div className="statGrid adminStats">
+                            {stats.map(
+                                (stat) => (
+                                    <div
+                                        key={
+                                            stat.label
+                                        }
+                                    >
+                                        <strong>
+                                            {
+                                                stat.value
+                                            }
+                                        </strong>
+
+                                        <span>
+                                            {
+                                                stat.label
+                                            }
+                                        </span>
+                                    </div>
+                                )
+                            )}
+                        </div>
+
+                        <div className="adminChecklist">
+                            <h4>
+                                Your Access
+                            </h4>
+
+                            <p>
+                                Signed in as{' '}
+                                <strong>
+                                    {formatAdminRole(
+                                        profile.role
+                                    )}
+                                </strong>
+                                .
+                            </p>
+
+                            <ul>
+                                {visibleTabs
+                                    .filter(
+                                        (tab) =>
+                                            tab !==
+                                            'Dashboard'
+                                    )
+                                    .map(
+                                        (tab) => (
+                                            <li
+                                                key={
+                                                    tab
+                                                }
+                                            >
+                                                {
+                                                    tab
+                                                }
+                                            </li>
+                                        )
+                                    )}
+                            </ul>
+                        </div>
+                    </div>
+                )
+
+            case 'Teams':
+                return (
+                    <TeamsManager
+                        teams={dbTeams}
+                        onTeamCreated={
+                            loadTeams
+                        }
+                    />
+                )
+
+            case 'Groups':
+                return <GroupsManager />
+
+            case 'Auto Fixture Generator':
+                return (
+                    <TournamentGenerator />
+                )
+
+            case 'Venues':
+                return <VenuesManager />
+
+            case 'Fixtures':
+                return <FixturesManager />
+
+            case 'Results':
+                return <ResultsManager />
+
+            case 'Goals':
+                return <GoalsManager />
+
+            case 'Sponsors':
+                return <SponsorsManager />
+
+            case 'Articles':
+                return (
+                    <ArticlesManager
+                        onArticlesChanged={
+                            loadArticleCount
+                        }
+                    />
+                )
+
+            case 'Media':
+                return <MediaManager />
+
+            case 'Enquiries':
+                return (
+                    <EnquiriesManager />
+                )
+        }
+    }
 
     return (
         <section
@@ -164,13 +441,23 @@ export function AdminPortal({
                 <div className="adminHeader">
                     <div>
                         <span className="eyebrow">
-                            Tournament Management System
+                            Tournament Management
+                            System
                         </span>
 
                         <h2>
                             Competition Management
                             Platform
                         </h2>
+
+                        <p className="muted">
+                            {profile.full_name ??
+                                'Administrator'}
+                            {' · '}
+                            {formatAdminRole(
+                                profile.role
+                            )}
+                        </p>
                     </div>
 
                     <button
@@ -183,203 +470,64 @@ export function AdminPortal({
                 </div>
 
                 <p className="lead">
-                    Create and manage tournaments, leagues and cup
-                    competitions from one unified platform. Generate
-                    fixtures automatically, manage teams and venues,
-                    publish results, maintain league tables and engage
-                    your community through the built-in CMS.
+                    Your portal access is limited to
+                    the modules required for your
+                    assigned operational role.
                 </p>
 
                 <div className="adminPortalShell">
                     <aside className="adminNavPanel">
                         <strong>
-                            Competition Administration
+                            Competition
+                            Administration
                         </strong>
 
                         <span className="muted">
-                            Competition Management Platform
+                            {formatAdminRole(
+                                profile.role
+                            )}
                         </span>
 
                         <div className="adminTabList">
-                            {adminTabs.map((tab) => (
-                                <button
-                                    key={tab}
-                                    type="button"
-                                    className={
-                                        activeTab ===
-                                        tab
-                                            ? 'active'
-                                            : ''
-                                    }
-                                    onClick={() =>
-                                        setActiveTab(
+                            {visibleTabs.map(
+                                (tab) => (
+                                    <button
+                                        key={
                                             tab
-                                        )
-                                    }
-                                >
-                                    {tab}
+                                        }
+                                        type="button"
+                                        className={
+                                            activeTab ===
+                                            tab
+                                                ? 'active'
+                                                : ''
+                                        }
+                                        onClick={() =>
+                                            setActiveTab(
+                                                tab
+                                            )
+                                        }
+                                    >
+                                        {tab}
 
-                                    {tab ===
-                                        'Enquiries' &&
-                                        enquiryCount >
-                                        0 && (
-                                            <span className="adminTabCount">
-                                                {
-                                                    enquiryCount
-                                                }
-                                            </span>
-                                        )}
-                                </button>
-                            ))}
+                                        {tab ===
+                                            'Enquiries' &&
+                                            enquiryCount >
+                                            0 && (
+                                                <span className="adminTabCount">
+                                                    {
+                                                        enquiryCount
+                                                    }
+                                                </span>
+                                            )}
+                                    </button>
+                                )
+                            )}
                         </div>
                     </aside>
 
                     <main className="adminWorkspace">
-                        {activeTab ===
-                            'Dashboard' && (
-                                <div>
-                                    <h3>
-                                        Dashboard Overview
-                                    </h3>
-
-                                    <div className="statGrid adminStats">
-                                        {stats.map(
-                                            (stat) => (
-                                                <div
-                                                    key={
-                                                        stat.label
-                                                    }
-                                                >
-                                                    <strong>
-                                                        {
-                                                            stat.value
-                                                        }
-                                                    </strong>
-
-                                                    <span>
-                                                    {
-                                                        stat.label
-                                                    }
-                                                </span>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-
-                                    <div className="adminChecklist">
-                                        <h4>
-                                            Platform Capabilities
-                                        </h4>
-
-                                        <ul>
-                                            <li>
-                                                Manage tournaments,
-                                                leagues and cup
-                                                competitions.
-                                            </li>
-
-                                            <li>
-                                                Register teams and
-                                                assign home venues.
-                                            </li>
-
-                                            <li>
-                                                Create groups and
-                                                automatically generate
-                                                fixtures.
-                                            </li>
-
-                                            <li>
-                                                Record results and
-                                                automatically update
-                                                league tables.
-                                            </li>
-
-                                            <li>
-                                                Manage goals, sponsors
-                                                and sponsorship
-                                                enquiries.
-                                            </li>
-
-                                            <li>
-                                                Publish articles, news
-                                                and media using the
-                                                integrated CMS.
-                                            </li>
-
-                                            <li>
-                                                Schedule fixtures
-                                                manually or generate
-                                                them automatically.
-                                            </li>
-
-                                            <li>
-                                                Reuse competition
-                                                structures for future
-                                                tournaments.
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            )}
-
-                        {activeTab === 'Teams' && (
-                            <TeamsManager
-                                teams={dbTeams}
-                                onTeamCreated={
-                                    loadTeams
-                                }
-                            />
-                        )}
-
-                        {activeTab === 'Groups' && (
-                            <GroupsManager />
-                        )}
-
-                        {activeTab ===
-                            'Auto Fixture Generator' && (
-                                <TournamentGenerator />
-                            )}
-
-                        {activeTab === 'Venues' && (
-                            <VenuesManager />
-                        )}
-
-                        {activeTab ===
-                            'Fixtures' && (
-                                <FixturesManager />
-                            )}
-
-                        {activeTab === 'Results' && (
-                            <ResultsManager />
-                        )}
-
-                        {activeTab === 'Goals' && (
-                            <GoalsManager />
-                        )}
-
-                        {activeTab ===
-                            'Sponsors' && (
-                                <SponsorsManager />
-                            )}
-
-                        {activeTab ===
-                            'Articles' && (
-                                <ArticlesManager
-                                    onArticlesChanged={
-                                        loadArticleCount
-                                    }
-                                />
-                            )}
-
-                        {activeTab === 'Media' && (
-                            <MediaManager />
-                        )}
-
-                        {activeTab ===
-                            'Enquiries' && (
-                                <EnquiriesManager />
-                            )}
+                        {renderActiveModule()}
                     </main>
                 </div>
             </div>
