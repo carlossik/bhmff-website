@@ -6,6 +6,7 @@ import {
     PublicTeams,
     type PublicTeam,
 } from './components/public/PublicTeams'
+import { HomePage } from './pages/Home/HomePage'
 import { getCurrentUser } from './services/auth'
 import { supabase } from './lib/supabaseClient'
 import { ArticleCard } from './components/ArticleCard'
@@ -40,6 +41,7 @@ import {
 
 import { lastYearFinalVideo } from './data/festivalData'
 import { usePublicArticles } from './hooks/usePublicArticles'
+import { SetPasswordPage } from './pages/Auth/SetPasswordPage'
 
 type RelatedTeam = {
     id: string
@@ -242,9 +244,9 @@ const ckefaEcosystem = [
         url: 'https://www.ckefa.co.uk',
     },
     {
-        name: 'Competition Management Platform',
+        name: 'TournamentHQ',
         description:
-            'Need a tailored solution for your league, cup or tournament? Speak to CKEFA about a demonstration.',
+            'Professional tournament management software for leagues, cups, tournaments and community sports competitions.',
         action: 'Request a Demo',
         requestDemo: true,
     },
@@ -771,7 +773,12 @@ function App() {
             </p>
         )
     }
-
+    if (
+        location.pathname ===
+        '/admin/set-password'
+    ) {
+        return <SetPasswordPage />
+    }
     if (
         location.pathname ===
         '/admin'

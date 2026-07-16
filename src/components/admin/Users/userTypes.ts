@@ -17,3 +17,9 @@ export type UserAccessFormValues = {
     role: AdminRole
     active: boolean
 }
+
+export type InviteUserFormValues = {
+    fullName: string
+    email: string
+    role: AdminRole
+}

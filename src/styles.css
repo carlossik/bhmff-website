@@ -3021,3 +3021,94 @@
         flex-direction: column;
     }
 }
+/* User Access */
+.userAccessGrid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(320px, 1fr)
+    );
+    gap: 1.25rem;
+}
+
+.userAccessCard {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+}
+
+.userAccessCardHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.userAccessCardHeader > div {
+    min-width: 0;
+}
+
+.userAccessCardHeader h4 {
+    margin: 0.8rem 0 0;
+    overflow-wrap: anywhere;
+}
+
+.userAccessDate {
+    flex: 0 0 auto;
+    max-width: 9rem;
+    text-align: right;
+}
+
+.userAccessDetails {
+    display: grid;
+    grid-template-columns: repeat(
+        2,
+        minmax(0, 1fr)
+    );
+    gap: 1rem 1.5rem;
+    margin: 1.25rem 0;
+}
+
+.userAccessDetails > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.userAccessDetailFull {
+    grid-column: 1 / -1;
+}
+
+.userAccessEmail {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.userAccessCard .teamAdminCardActions {
+    margin-top: auto;
+}
+
+@media (max-width: 640px) {
+    .userAccessCardHeader {
+        flex-direction: column;
+    }
+
+    .userAccessDate {
+        max-width: none;
+        text-align: left;
+    }
+
+    .userAccessDetails {
+        grid-template-columns: 1fr;
+    }
+
+    .userAccessDetailFull {
+        grid-column: auto;
+    }
+}

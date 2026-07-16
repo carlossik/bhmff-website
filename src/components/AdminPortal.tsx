@@ -452,13 +452,12 @@ export function AdminPortal({
                 <div className="adminHeader">
                     <div>
                         <span className="eyebrow">
-                            Tournament Management
-                            System
+                            TournamentHQ
                         </span>
 
                         <h2>
-                            Competition Management
-                            Platform
+                            Professional Tournament
+                            Management Platform
                         </h2>
 
                         <p className="muted">

@@ -1,0 +1,293 @@
+/* ==========================================================
+   USER MANAGEMENT
+   TournamentHQ Admin
+========================================================== */
+
+.userManagementPage{
+    display:grid;
+    gap:2rem;
+}
+
+.userManagementHeader{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:2rem;
+    margin-bottom:.5rem;
+}
+
+.userManagementHeader h2{
+    margin:0;
+    font-size:2.2rem;
+    color:white;
+}
+
+.userManagementHeader p{
+    margin-top:.5rem;
+    color:var(--muted);
+    max-width:650px;
+}
+
+/* ==========================================================
+   Statistics
+========================================================== */
+
+.userStatsGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:1.25rem;
+    margin:2rem 0;
+}
+
+.userStatCard{
+    background:
+            radial-gradient(circle at top right,
+            rgba(185,242,141,.10),
+            transparent 40%),
+            linear-gradient(
+                    180deg,
+                    rgba(16,22,16,.98),
+                    rgba(5,9,5,.98));
+
+    border:1px solid rgba(185,242,141,.18);
+    border-radius:22px;
+
+    padding:1.75rem;
+
+    transition:.25s ease;
+
+    box-shadow:
+            0 12px 30px rgba(0,0,0,.22);
+}
+
+.userStatCard:hover{
+    transform:translateY(-4px);
+    border-color:rgba(185,242,141,.35);
+}
+
+.userStatLabel{
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:2px;
+    font-size:.75rem;
+    font-weight:800;
+}
+
+.userStatValue{
+    display:block;
+    margin-top:.8rem;
+
+    color:var(--light-green);
+
+    font-size:2.6rem;
+    font-weight:900;
+}
+
+/* ==========================================================
+   Cards
+========================================================== */
+
+.userCardGrid{
+    display:grid;
+    gap:1.4rem;
+}
+
+.userCard{
+
+    background:
+            radial-gradient(circle at top right,
+            rgba(185,242,141,.12),
+            transparent 40%),
+            linear-gradient(
+                    180deg,
+                    rgba(18,24,18,.98),
+                    rgba(6,10,6,.98));
+
+    border:1px solid rgba(185,242,141,.18);
+
+    border-radius:24px;
+
+    padding:1.8rem;
+
+    box-shadow:
+            0 16px 38px rgba(0,0,0,.22);
+
+    transition:.25s;
+}
+
+.userCard:hover{
+    transform:translateY(-3px);
+    border-color:rgba(185,242,141,.35);
+}
+
+.userCardTop{
+
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+
+    gap:1rem;
+
+    margin-bottom:1.5rem;
+}
+
+.userName{
+
+    font-size:1.35rem;
+    font-weight:900;
+    color:white;
+}
+
+.userEmail{
+
+    margin-top:.35rem;
+
+    color:var(--muted);
+}
+
+/* ==========================================================
+   Badges
+========================================================== */
+
+.roleBadge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    padding:.45rem .9rem;
+
+    border-radius:999px;
+
+    font-size:.78rem;
+
+    font-weight:900;
+
+    text-transform:uppercase;
+
+    letter-spacing:1px;
+}
+
+.role-super{
+
+    background:#3b2476;
+
+    color:white;
+}
+
+.role-manager{
+
+    background:#0057b8;
+
+    color:white;
+}
+
+.role-official{
+
+    background:#0f7c42;
+
+    color:white;
+}
+
+.statusBadge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    padding:.45rem .9rem;
+
+    border-radius:999px;
+
+    font-size:.78rem;
+
+    font-weight:900;
+}
+
+.status-active{
+
+    background:#0f7c42;
+
+    color:white;
+}
+
+.status-inactive{
+
+    background:#822020;
+
+    color:white;
+}
+
+/* ==========================================================
+   Footer
+========================================================== */
+
+.userCardFooter{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    flex-wrap:wrap;
+
+    gap:1rem;
+
+    margin-top:2rem;
+
+    padding-top:1.4rem;
+
+    border-top:1px solid rgba(185,242,141,.10);
+}
+
+.userActions{
+
+    display:flex;
+
+    gap:.75rem;
+
+    flex-wrap:wrap;
+}
+
+.userActions .btn{
+
+    min-width:150px;
+
+    justify-content:center;
+}
+
+/* ==========================================================
+   Mobile
+========================================================== */
+
+@media(max-width:900px){
+
+    .userManagementHeader{
+
+        flex-direction:column;
+    }
+
+    .userCardTop{
+
+        flex-direction:column;
+    }
+
+    .userCardFooter{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+    }
+
+    .userActions{
+
+        width:100%;
+    }
+
+    .userActions .btn{
+
+        flex:1;
+    }
+
+}
