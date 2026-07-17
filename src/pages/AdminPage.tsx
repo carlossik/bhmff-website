@@ -8,7 +8,7 @@ import { AdminLogin } from '../components/AdminLogin'
 import { AdminPortal } from '../components/AdminPortal'
 import { supabase } from '../lib/supabaseClient'
 import {getCurrentAdminProfile,type AdminProfile} from '../services/accessControl'
-
+import { OrganisationProvider } from '../context/OrganisationContext'
 
 
 
@@ -169,12 +169,16 @@ export function AdminPage() {
 
     if (session && profile) {
         return (
-            <AdminPortal
+            <OrganisationProvider
                 profile={profile}
-                onLogout={() =>
-                    void handleLogout()
-                }
-            />
+            >
+                <AdminPortal
+                    profile={profile}
+                    onLogout={() =>
+                        void handleLogout()
+                    }
+                />
+            </OrganisationProvider>
         )
     }
 

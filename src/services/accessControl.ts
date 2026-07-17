@@ -5,12 +5,33 @@ export type AdminRole =
     | 'competition_manager'
     | 'super_admin'
 
+export type Organisation = {
+    id: string
+    name: string
+    slug: string
+    status: 'active' | 'inactive' | 'suspended'
+    logo_url: string | null
+    primary_colour: string | null
+    secondary_colour: string | null
+}
+
+export type OrganisationMembership = {
+    id: string
+    organisation_id: string
+    user_id: string
+    role: AdminRole
+    active: boolean
+    organisation: Organisation
+}
+
 export type AdminProfile = {
     id: string
     full_name: string | null
+    email: string | null
     role: AdminRole
     active: boolean
-    email: string | null
+    currentOrganisation: Organisation
+    currentMembership: OrganisationMembership
 }
 
 export type AdminModule =
@@ -85,7 +106,8 @@ export function formatAdminRole(
         .join(' ')
 }
 
-export async function getCurrentAdminProfile(): Promise<AdminProfile> {
+export async function getCurrentAdminProfile():
+    Promise<AdminProfile> {
     const {
         data: { user },
         error: userError,
@@ -97,32 +119,102 @@ export async function getCurrentAdminProfile(): Promise<AdminProfile> {
         )
     }
 
-    const { data, error } = await supabase
+    const {
+        data: profileData,
+        error: profileError,
+    } = await supabase
         .from('profiles')
-        .select(
-            'id, full_name, email, role, active'
-        )
+        .select(`
+            id,
+            full_name,
+            email,
+            active,
+            deleted_at
+        `)
         .eq('id', user.id)
         .maybeSingle()
 
-    if (error) {
-        throw new Error(error.message)
+    if (profileError) {
+        throw new Error(profileError.message)
     }
 
-    if (!data) {
+    if (!profileData) {
         throw new Error(
             'Your account does not have an administrator profile.'
         )
     }
 
-    const profile =
-        data as AdminProfile
+    if (profileData.deleted_at) {
+        throw new Error(
+            'Your administrator account has been removed.'
+        )
+    }
 
-    if (!profile.active) {
+    if (!profileData.active) {
         throw new Error(
             'Your administrator account is inactive.'
         )
     }
 
-    return profile
+    const {
+        data: membershipData,
+        error: membershipError,
+    } = await supabase
+        .from('organisation_memberships')
+        .select(`
+            id,
+            organisation_id,
+            user_id,
+            role,
+            active,
+            organisation:organisations (
+                id,
+                name,
+                slug,
+                status,
+                logo_url,
+                primary_colour,
+                secondary_colour
+            )
+        `)
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .limit(1)
+        .maybeSingle()
+
+    if (membershipError) {
+        throw new Error(
+            membershipError.message
+        )
+    }
+
+    if (!membershipData) {
+        throw new Error(
+            'Your account does not belong to an active organisation.'
+        )
+    }
+
+    const membership =
+        membershipData as unknown as OrganisationMembership
+
+    if (
+        !membership.organisation ||
+        membership.organisation.status !==
+        'active'
+    ) {
+        throw new Error(
+            'Your organisation is not currently active.'
+        )
+    }
+
+    return {
+        id: profileData.id,
+        full_name: profileData.full_name,
+        email: profileData.email,
+        role: membership.role,
+        active: profileData.active,
+        currentOrganisation:
+        membership.organisation,
+        currentMembership: membership,
+    }
 }

@@ -25,6 +25,7 @@ import {
     type AdminModule,
     type AdminProfile,
 } from '../services/accessControl'
+import { useOrganisation } from '../context/OrganisationContext'
 
 const adminTabs: readonly AdminModule[] = [
     'Dashboard',
@@ -51,6 +52,8 @@ export function AdminPortal({
                                 profile,
                                 onLogout,
                             }: AdminPortalProps) {
+    const { currentOrganisation } = useOrganisation()
+
     const visibleTabs = useMemo(
         () =>
             adminTabs.filter((tab) =>
@@ -100,6 +103,10 @@ export function AdminPortal({
                 await supabase
                     .from('teams')
                     .select('*')
+                    .eq(
+                        'organisation_id',
+                        currentOrganisation.id
+                    )
                     .order('created_at', {
                         ascending: false,
                     })
@@ -114,7 +121,10 @@ export function AdminPortal({
 
             setDbTeams(data ?? [])
         },
-        [profile.role]
+        [
+            currentOrganisation.id,
+            profile.role,
+        ]
     )
 
     const loadArticleCount =
@@ -456,9 +466,13 @@ export function AdminPortal({
                         </span>
 
                         <h2>
+                            {currentOrganisation.name}
+                        </h2>
+
+                        <p className="muted">
                             Professional Tournament
                             Management Platform
-                        </h2>
+                        </p>
 
                         <p className="muted">
                             {profile.full_name ??

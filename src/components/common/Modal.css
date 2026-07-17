@@ -1,0 +1,109 @@
+/* Shared TournamentHQ modal behaviour */
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(12px, 3vh, 28px);
+    overflow: hidden;
+    background: rgba(0, 0, 0, .72);
+    backdrop-filter: blur(6px);
+}
+
+.modalCard {
+    width: min(760px, 96vw);
+    max-height: calc(100dvh - clamp(24px, 6vh, 56px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #10190f;
+    border: 1px solid rgba(170, 255, 120, .15);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+}
+
+.modalHeader {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.35rem 1.5rem;
+    margin: 0;
+    border-bottom: 1px solid var(--border);
+    background: #10190f;
+}
+
+.modalHeader h2 {
+    margin: 0;
+    font-size: clamp(1.7rem, 4vw, 2.5rem);
+    line-height: 1.1;
+}
+
+.modalCloseButton {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 8px;
+}
+
+.modalBody {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 1.5rem 1.5rem;
+    scrollbar-gutter: stable;
+}
+
+.modalBody .adminFormGrid {
+    margin-top: 1.5rem;
+}
+
+.modalBody .modalActions {
+    position: sticky;
+    bottom: -1.5rem;
+    z-index: 2;
+    margin: 1.5rem -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background: linear-gradient(
+        180deg,
+        rgba(16, 25, 15, .94),
+        #10190f 30%
+    );
+}
+
+@media (max-width: 700px) {
+    .modalOverlay {
+        align-items: flex-start;
+        padding: 8px;
+    }
+
+    .modalCard {
+        width: 100%;
+        max-height: calc(100dvh - 16px);
+        border-radius: 14px;
+    }
+
+    .modalHeader {
+        padding: 1rem;
+    }
+
+    .modalBody {
+        padding: 0 1rem 1rem;
+    }
+
+    .modalBody .modalActions {
+        margin: 1rem -1rem -1rem;
+        padding: 1rem;
+        flex-direction: column-reverse;
+    }
+
+    .modalBody .modalActions .btn {
+        width: 100%;
+    }
+}

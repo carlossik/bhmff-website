@@ -1,15 +1,21 @@
+import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 
-export async function getCurrentUser() {
+export async function getCurrentUser():
+    Promise<User | null> {
     const {
-        data: { user },
+        data,
         error,
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getSession()
 
     if (error) {
-        console.error(error)
+        console.error(
+            'Unable to read the current authentication session:',
+            error
+        )
+
         return null
     }
 
-    return user
+    return data.session?.user ?? null
 }

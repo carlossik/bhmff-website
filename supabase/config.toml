@@ -162,6 +162,7 @@ site_url = "https://www.bhmff.co.uk"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
     "https://www.bhmff.co.uk/admin/set-password",
+    "https://bhmff.co.uk/admin/set-password",
     "https://www.tournamenthq.co.uk/admin/set-password",
     "http://localhost:5173/admin/set-password"
 ]

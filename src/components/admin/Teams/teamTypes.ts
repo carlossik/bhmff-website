@@ -6,6 +6,7 @@ export type TeamParticipationStatus =
 
 export type DbTeam = {
     id: string
+    organisation_id: string
     name: string
     manager_name: string | null
     contact_email: string | null

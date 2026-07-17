@@ -3,6 +3,7 @@ import {
     useState,
 } from 'react'
 import { supabase } from '../../../lib/supabaseClient'
+import { useOrganisation } from '../../../context/OrganisationContext'
 import { Toast } from '../../common/Toast'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { TeamModal } from './TeamModal'
@@ -68,6 +69,9 @@ export function TeamsManager({
                                  teams,
                                  onTeamCreated,
                              }: TeamsManagerProps) {
+    const { currentOrganisation } =
+        useOrganisation()
+
     const [
         showTeamModal,
         setShowTeamModal,
@@ -332,6 +336,10 @@ export function TeamsManager({
                             'id',
                             editingTeam.id
                         )
+                        .eq(
+                            'organisation_id',
+                            currentOrganisation.id
+                        )
 
                 if (error) {
                     throw new Error(
@@ -355,6 +363,8 @@ export function TeamsManager({
                             ...payload,
                             festival_id:
                             festivalId,
+                            organisation_id:
+                            currentOrganisation.id,
                         })
 
                 if (error) {
@@ -403,6 +413,10 @@ export function TeamsManager({
                         nextPublished,
                     })
                     .eq('id', team.id)
+                    .eq(
+                        'organisation_id',
+                        currentOrganisation.id
+                    )
 
             if (error) {
                 throw new Error(
@@ -441,6 +455,10 @@ export function TeamsManager({
                     .from('teams')
                     .delete()
                     .eq('id', team.id)
+                    .eq(
+                        'organisation_id',
+                        currentOrganisation.id
+                    )
 
             if (error) {
                 throw new Error(
