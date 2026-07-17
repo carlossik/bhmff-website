@@ -45,8 +45,8 @@ export const venueService = {
     async createVenue(
         festivalId: string,
         values: VenueFormValues
-    ): Promise<void> {
-        const { error } = await supabase
+    ): Promise<Venue> {
+        const { data, error } = await supabase
             .from('venues')
             .insert({
                 festival_id: festivalId,
@@ -55,8 +55,18 @@ export const venueService = {
                 postcode: values.postcode.trim() || null,
                 notes: values.notes.trim() || null,
             })
+            .select('*')
+            .single()
 
         throwSupabaseError(error, 'Failed to create venue')
+
+        if (!data) {
+            throw new Error(
+                'The venue was created but could not be returned.'
+            )
+        }
+
+        return data
     },
 
     async updateVenue(

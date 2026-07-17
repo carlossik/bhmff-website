@@ -8,6 +8,8 @@ import { Toast } from '../../common/Toast'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { TeamModal } from './TeamModal'
 import { TeamsTable } from './TeamsTable'
+import { venueService } from '../Venues/venueService'
+import type { VenueFormValues } from '../Venues/venueTypes'
 import {
     deleteTeamLogo,
     replaceTeamLogo,
@@ -17,6 +19,13 @@ import type {
     TeamParticipationStatus,
     TeamVenueOption,
 } from './teamTypes'
+
+const emptyVenueForm: VenueFormValues = {
+    name: '',
+    address: '',
+    postcode: '',
+    notes: '',
+}
 
 type TeamsManagerProps = {
     teams: DbTeam[]
@@ -129,6 +138,18 @@ export function TeamsManager({
         setPrimaryHomeVenueId,
     ] = useState('')
 
+    const [
+        isAddingNewVenue,
+        setIsAddingNewVenue,
+    ] = useState(false)
+
+    const [
+        newVenueValues,
+        setNewVenueValues,
+    ] = useState<VenueFormValues>(
+        emptyVenueForm
+    )
+
     const [isSaving, setIsSaving] =
         useState(false)
 
@@ -203,6 +224,8 @@ export function TeamsManager({
         )
         setPublished(false)
         setPrimaryHomeVenueId('')
+        setIsAddingNewVenue(false)
+        setNewVenueValues(emptyVenueForm)
     }
 
     function closeTeamModal() {
@@ -292,6 +315,17 @@ export function TeamsManager({
             return
         }
 
+        if (
+            isAddingNewVenue &&
+            !newVenueValues.name.trim()
+        ) {
+            showToast(
+                'Venue name is required when adding a new home venue.',
+                'error'
+            )
+            return
+        }
+
         setIsSaving(true)
 
         try {
@@ -304,6 +338,29 @@ export function TeamsManager({
                         selectedLogo,
                         editingTeam?.logo_url
                     )
+            }
+
+            const festivalId =
+                await getActiveFestivalId()
+
+            if (!festivalId) {
+                throw new Error(
+                    'No active festival was found.'
+                )
+            }
+
+            let finalHomeVenueId =
+                primaryHomeVenueId || null
+
+            if (isAddingNewVenue) {
+                const createdVenue =
+                    await venueService.createVenue(
+                        festivalId,
+                        newVenueValues
+                    )
+
+                finalHomeVenueId =
+                    createdVenue.id
             }
 
             const payload = {
@@ -323,8 +380,7 @@ export function TeamsManager({
                 participationStatus,
                 published,
                 primary_home_venue_id:
-                    primaryHomeVenueId ||
-                    null,
+                finalHomeVenueId,
             }
 
             if (editingTeam) {
@@ -347,15 +403,6 @@ export function TeamsManager({
                     )
                 }
             } else {
-                const festivalId =
-                    await getActiveFestivalId()
-
-                if (!festivalId) {
-                    throw new Error(
-                        'No active festival was found.'
-                    )
-                }
-
                 const { error } =
                     await supabase
                         .from('teams')
@@ -377,7 +424,10 @@ export function TeamsManager({
             const wasEditing =
                 Boolean(editingTeam)
 
-            await onTeamCreated()
+            await Promise.all([
+                onTeamCreated(),
+                loadVenues(),
+            ])
             closeTeamModal()
 
             showToast(
@@ -558,6 +608,12 @@ export function TeamsManager({
                         primaryHomeVenueId
                     }
                     venues={venues}
+                    isAddingNewVenue={
+                        isAddingNewVenue
+                    }
+                    newVenueValues={
+                        newVenueValues
+                    }
                     isSaving={isSaving}
                     onTeamNameChange={
                         setTeamName
@@ -582,6 +638,12 @@ export function TeamsManager({
                     }
                     onPrimaryHomeVenueChange={
                         setPrimaryHomeVenueId
+                    }
+                    onAddingNewVenueChange={
+                        setIsAddingNewVenue
+                    }
+                    onNewVenueValuesChange={
+                        setNewVenueValues
                     }
                     onLogoSelected={
                         setSelectedLogo

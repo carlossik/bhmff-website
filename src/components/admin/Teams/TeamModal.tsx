@@ -8,6 +8,7 @@ import type {
     TeamParticipationStatus,
     TeamVenueOption,
 } from './teamTypes'
+import type { VenueFormValues } from '../Venues/venueTypes'
 
 type TeamModalProps = {
     mode: 'create' | 'edit'
@@ -21,6 +22,8 @@ type TeamModalProps = {
     published: boolean
     primaryHomeVenueId: string
     venues: TeamVenueOption[]
+    isAddingNewVenue: boolean
+    newVenueValues: VenueFormValues
     isSaving: boolean
 
     onTeamNameChange: (value: string) => void
@@ -33,6 +36,8 @@ type TeamModalProps = {
     ) => void
     onPublishedChange: (value: boolean) => void
     onPrimaryHomeVenueChange: (value: string) => void
+    onAddingNewVenueChange: (value: boolean) => void
+    onNewVenueValuesChange: (values: VenueFormValues) => void
     onLogoSelected: (file: File | null) => void
 
     onClose: () => void
@@ -51,6 +56,8 @@ export function TeamModal({
                               published,
                               primaryHomeVenueId,
                               venues,
+                              isAddingNewVenue,
+                              newVenueValues,
                               isSaving,
                               onTeamNameChange,
                               onManagerNameChange,
@@ -60,6 +67,8 @@ export function TeamModal({
                               onParticipationStatusChange,
                               onPublishedChange,
                               onPrimaryHomeVenueChange,
+                              onAddingNewVenueChange,
+                              onNewVenueValuesChange,
                               onLogoSelected,
                               onClose,
                               onSave,
@@ -84,6 +93,19 @@ export function TeamModal({
                 URL.createObjectURL(file)
             )
         }
+    }
+
+
+    function updateNewVenueField<
+        K extends keyof VenueFormValues
+    >(
+        field: K,
+        value: VenueFormValues[K]
+    ) {
+        onNewVenueValuesChange({
+            ...newVenueValues,
+            [field]: value,
+        })
     }
 
     return (
@@ -198,35 +220,115 @@ export function TeamModal({
                     </select>
                 </label>
 
-                <label>
-                    <span>
-                        Primary Home Venue
-                    </span>
+                <div className="adminFormFullWidth adminChecklist">
+                    <label>
+                        <span>
+                            Primary Home Venue
+                        </span>
 
-                    <select
-                        value={
-                            primaryHomeVenueId
-                        }
-                        onChange={(event) =>
-                            onPrimaryHomeVenueChange(
-                                event.target.value
-                            )
-                        }
-                    >
-                        <option value="">
-                            No home venue assigned
-                        </option>
+                        <select
+                            value={
+                                isAddingNewVenue
+                                    ? '__new__'
+                                    : primaryHomeVenueId
+                            }
+                            onChange={(event) => {
+                                const value =
+                                    event.target.value
 
-                        {venues.map((venue) => (
-                            <option
-                                key={venue.id}
-                                value={venue.id}
-                            >
-                                {venue.name}
+                                if (value === '__new__') {
+                                    onPrimaryHomeVenueChange('')
+                                    onAddingNewVenueChange(true)
+                                    return
+                                }
+
+                                onAddingNewVenueChange(false)
+                                onPrimaryHomeVenueChange(value)
+                            }}
+                        >
+                            <option value="">
+                                No home venue assigned
                             </option>
-                        ))}
-                    </select>
-                </label>
+
+                            {venues.map((venue) => (
+                                <option
+                                    key={venue.id}
+                                    value={venue.id}
+                                >
+                                    {venue.name}
+                                </option>
+                            ))}
+
+                            <option value="__new__">
+                                + Add a new home venue
+                            </option>
+                        </select>
+                    </label>
+
+                    {isAddingNewVenue && (
+                        <div className="adminFormGrid">
+                            <label>
+                                <span>Venue Name</span>
+
+                                <input
+                                    value={newVenueValues.name}
+                                    placeholder="Enter venue name"
+                                    onChange={(event) =>
+                                        updateNewVenueField(
+                                            'name',
+                                            event.target.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label>
+                                <span>Postcode</span>
+
+                                <input
+                                    value={newVenueValues.postcode}
+                                    placeholder="Enter postcode"
+                                    onChange={(event) =>
+                                        updateNewVenueField(
+                                            'postcode',
+                                            event.target.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className="adminFormFullWidth">
+                                <span>Address</span>
+
+                                <input
+                                    value={newVenueValues.address}
+                                    placeholder="Enter venue address"
+                                    onChange={(event) =>
+                                        updateNewVenueField(
+                                            'address',
+                                            event.target.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className="adminFormFullWidth">
+                                <span>Venue Notes</span>
+
+                                <textarea
+                                    value={newVenueValues.notes}
+                                    placeholder="Parking, pitch access, changing facilities or other notes"
+                                    onChange={(event) =>
+                                        updateNewVenueField(
+                                            'notes',
+                                            event.target.value
+                                        )
+                                    }
+                                />
+                            </label>
+                        </div>
+                    )}
+                </div>
 
                 <label className="adminCheckboxLabel">
                     <input
