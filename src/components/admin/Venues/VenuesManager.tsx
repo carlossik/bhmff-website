@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useOrganisation } from '../../../context/OrganisationContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { VenueModal } from './VenueModal'
@@ -18,6 +19,7 @@ const emptyForm: VenueFormValues = {
 }
 
 export function VenuesManager() {
+    const { currentOrganisation } = useOrganisation()
     const [festival, setFestival] = useState<Festival | null>(null)
     const [venues, setVenues] = useState<Venue[]>([])
 
@@ -61,7 +63,8 @@ export function VenuesManager() {
             }
 
             const venueRows = await venueService.getVenues(
-                activeFestival.id
+                activeFestival.id,
+                currentOrganisation.id
             )
 
             setVenues(venueRows)
@@ -78,8 +81,8 @@ export function VenuesManager() {
     }
 
     useEffect(() => {
-        loadData()
-    }, [])
+        void loadData()
+    }, [currentOrganisation.id])
 
     function openCreateModal() {
         setEditingVenue(null)
@@ -123,11 +126,13 @@ export function VenuesManager() {
             if (editingVenue) {
                 await venueService.updateVenue(
                     editingVenue.id,
+                    currentOrganisation.id,
                     formValues
                 )
             } else {
                 await venueService.createVenue(
                     festival.id,
+                    currentOrganisation.id,
                     formValues
                 )
             }
@@ -157,7 +162,10 @@ export function VenuesManager() {
         if (!venueToDelete) return
 
         try {
-            await venueService.deleteVenue(venueToDelete.id)
+            await venueService.deleteVenue(
+                venueToDelete.id,
+                currentOrganisation.id
+            )
 
             setVenueToDelete(null)
             await loadData()
@@ -184,8 +192,8 @@ export function VenuesManager() {
                 <div>
                     <h3>Venues</h3>
                     <p className="muted">
-                        Manage the grounds and facilities available for
-                        festival fixtures.
+                        Manage the grounds and facilities available to the
+                        current organisation.
                     </p>
 
                     {festival && (

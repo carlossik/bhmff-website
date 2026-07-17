@@ -3112,3 +3112,85 @@
         grid-column: auto;
     }
 }
+/* ==========================================================
+   TournamentHQ - Competition Selector
+   ========================================================== */
+
+.adminHeaderLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    flex: 1;
+}
+
+.adminHeaderRight {
+    display: flex;
+    align-items: flex-start;
+}
+
+.competitionSelector {
+    max-width: 520px;
+    margin: 0.75rem 0;
+}
+
+.competitionSelector label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--light-green);
+    font-size: .8rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.competitionSelector select {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(185,242,141,.28);
+    background:
+            linear-gradient(
+                    180deg,
+                    rgba(18,28,18,.98),
+                    rgba(10,16,10,.98)
+            );
+    color: var(--white);
+    font-size: 1rem;
+    font-weight: 700;
+    transition: all .25s ease;
+    cursor: pointer;
+}
+
+.competitionSelector select:hover {
+    border-color: var(--light-green);
+    box-shadow: 0 0 18px rgba(122,201,67,.15);
+}
+
+.competitionSelector select:focus {
+    outline: none;
+    border-color: var(--light-green);
+    box-shadow:
+            0 0 0 3px rgba(122,201,67,.18),
+            0 0 18px rgba(122,201,67,.18);
+}
+
+.competitionSelector option {
+    background: #10190f;
+    color: var(--white);
+}
+
+@media (max-width: 900px) {
+
+    .adminHeader {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .adminHeaderRight {
+        justify-content: flex-start;
+    }
+
+    .competitionSelector {
+        max-width: 100%;
+    }
+}

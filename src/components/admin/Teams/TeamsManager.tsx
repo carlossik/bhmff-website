@@ -191,6 +191,10 @@ export function TeamsManager({
                     'festival_id',
                     festivalId
                 )
+                .eq(
+                    'organisation_id',
+                    currentOrganisation.id
+                )
                 .order('name', {
                     ascending: true,
                 })
@@ -208,7 +212,7 @@ export function TeamsManager({
 
     useEffect(() => {
         void loadVenues()
-    }, [])
+    }, [currentOrganisation.id])
 
     function resetForm() {
         setEditingTeam(null)
@@ -356,6 +360,7 @@ export function TeamsManager({
                 const createdVenue =
                     await venueService.createVenue(
                         festivalId,
+                        currentOrganisation.id,
                         newVenueValues
                     )
 

@@ -7,10 +7,12 @@ import type { Session } from '@supabase/supabase-js'
 import { AdminLogin } from '../components/AdminLogin'
 import { AdminPortal } from '../components/AdminPortal'
 import { supabase } from '../lib/supabaseClient'
-import {getCurrentAdminProfile,type AdminProfile} from '../services/accessControl'
+import {
+    getCurrentAdminProfile,
+    type AdminProfile,
+} from '../services/accessControl'
 import { OrganisationProvider } from '../context/OrganisationContext'
-
-
+import { CompetitionProvider } from '../contexts/CompetitionContext'
 
 export function AdminPage() {
     const [session, setSession] =
@@ -147,7 +149,9 @@ export function AdminPage() {
         return (
             <section className="adminLoginPage">
                 <div className="adminLoginCard">
-                    <h2>Access unavailable</h2>
+                    <h2>
+                        Access unavailable
+                    </h2>
 
                     <p className="formError">
                         {accessError}
@@ -172,12 +176,14 @@ export function AdminPage() {
             <OrganisationProvider
                 profile={profile}
             >
-                <AdminPortal
-                    profile={profile}
-                    onLogout={() =>
-                        void handleLogout()
-                    }
-                />
+                <CompetitionProvider>
+                    <AdminPortal
+                        profile={profile}
+                        onLogout={() =>
+                            void handleLogout()
+                        }
+                    />
+                </CompetitionProvider>
             </OrganisationProvider>
         )
     }

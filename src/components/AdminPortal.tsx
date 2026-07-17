@@ -19,6 +19,7 @@ import { ArticlesManager } from './admin/Articles/ArticlesManager'
 import { EnquiriesManager } from './admin/Enquiries/EnquiriesManager'
 import { TournamentGenerator } from './admin/TournamentGenerator/TournamentGenerator'
 import { UserManagement } from './admin/Users/UserManagement'
+import { AdminHeader } from './admin/AdminHeader'
 import {
     canAccessModule,
     formatAdminRole,
@@ -52,7 +53,8 @@ export function AdminPortal({
                                 profile,
                                 onLogout,
                             }: AdminPortalProps) {
-    const { currentOrganisation } = useOrganisation()
+    const { currentOrganisation } =
+        useOrganisation()
 
     const visibleTabs = useMemo(
         () =>
@@ -206,10 +208,8 @@ export function AdminPortal({
             }
 
             setEnquiryCount(
-                (sponsorResponse.count ??
-                    0) +
-                (demoResponse.count ??
-                    0)
+                (sponsorResponse.count ?? 0) +
+                (demoResponse.count ?? 0)
             )
         }, [profile.role])
 
@@ -459,39 +459,10 @@ export function AdminPortal({
             className="section adminSection"
         >
             <div className="container">
-                <div className="adminHeader">
-                    <div>
-                        <span className="eyebrow">
-                            TournamentHQ
-                        </span>
-
-                        <h2>
-                            {currentOrganisation.name}
-                        </h2>
-
-                        <p className="muted">
-                            Professional Tournament
-                            Management Platform
-                        </p>
-
-                        <p className="muted">
-                            {profile.full_name ??
-                                'Administrator'}
-                            {' · '}
-                            {formatAdminRole(
-                                profile.role
-                            )}
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        className="btn secondary small"
-                        onClick={onLogout}
-                    >
-                        Logout
-                    </button>
-                </div>
+                <AdminHeader
+                    profile={profile}
+                    onLogout={onLogout}
+                />
 
                 <p className="lead">
                     Your portal access is limited to
@@ -516,9 +487,7 @@ export function AdminPortal({
                             {visibleTabs.map(
                                 (tab) => (
                                     <button
-                                        key={
-                                            tab
-                                        }
+                                        key={tab}
                                         type="button"
                                         className={
                                             activeTab ===
