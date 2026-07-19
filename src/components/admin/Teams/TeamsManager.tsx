@@ -8,70 +8,20 @@ import { Toast } from '../../common/Toast'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { TeamModal } from './TeamModal'
 import { TeamsTable } from './TeamsTable'
-import { venueService } from '../Venues/venueService'
-import type { VenueFormValues } from '../Venues/venueTypes'
 import {
     deleteTeamLogo,
     replaceTeamLogo,
 } from './teamService'
 import type {
+    ClubOption,
     DbTeam,
     TeamParticipationStatus,
     TeamVenueOption,
 } from './teamTypes'
 
-const emptyVenueForm: VenueFormValues = {
-    name: '',
-    address: '',
-    postcode: '',
-    notes: '',
-}
-
 type TeamsManagerProps = {
     teams: DbTeam[]
     onTeamCreated: () => void
-}
-
-function isValidEmailAddress(value: string) {
-    const trimmedValue = value.trim()
-
-    if (!trimmedValue) {
-        return true
-    }
-
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        trimmedValue
-    )
-}
-
-function isValidPhoneNumber(value: string) {
-    const trimmedValue = value.trim()
-
-    if (!trimmedValue) {
-        return true
-    }
-
-    if (!/^[0-9+() -]+$/.test(trimmedValue)) {
-        return false
-    }
-
-    if (
-        trimmedValue.includes('+') &&
-        !trimmedValue.startsWith('+')
-    ) {
-        return false
-    }
-
-    if (
-        (trimmedValue.match(/\+/g) ?? []).length > 1
-    ) {
-        return false
-    }
-
-    const digitCount =
-        trimmedValue.replace(/\D/g, '').length
-
-    return digitCount >= 7 && digitCount <= 15
 }
 
 export function TeamsManager({
@@ -86,30 +36,49 @@ export function TeamsManager({
         setShowTeamModal,
     ] = useState(false)
 
-    const [editingTeam, setEditingTeam] =
-        useState<DbTeam | null>(null)
+    const [
+        editingTeam,
+        setEditingTeam,
+    ] = useState<DbTeam | null>(null)
 
     const [
         teamToDelete,
         setTeamToDelete,
     ] = useState<DbTeam | null>(null)
 
+    const [clubs, setClubs] =
+        useState<ClubOption[]>([])
+
     const [venues, setVenues] =
         useState<TeamVenueOption[]>([])
+
+    const [clubId, setClubId] =
+        useState('')
 
     const [teamName, setTeamName] =
         useState('')
 
+    const [ageGroup, setAgeGroup] =
+        useState('')
+
+    const [yearGroup, setYearGroup] =
+        useState('')
+
+    const [gender, setGender] =
+        useState('Mixed')
+
+    const [division, setDivision] =
+        useState('')
+
     const [
-        managerName,
-        setManagerName,
+        homeKitColour,
+        setHomeKitColour,
     ] = useState('')
 
-    const [email, setEmail] =
-        useState('')
-
-    const [phone, setPhone] =
-        useState('')
+    const [
+        awayKitColour,
+        setAwayKitColour,
+    ] = useState('')
 
     const [notes, setNotes] =
         useState('')
@@ -138,18 +107,6 @@ export function TeamsManager({
         setPrimaryHomeVenueId,
     ] = useState('')
 
-    const [
-        isAddingNewVenue,
-        setIsAddingNewVenue,
-    ] = useState(false)
-
-    const [
-        newVenueValues,
-        setNewVenueValues,
-    ] = useState<VenueFormValues>(
-        emptyVenueForm
-    )
-
     const [isSaving, setIsSaving] =
         useState(false)
 
@@ -158,10 +115,12 @@ export function TeamsManager({
         setToastMessage,
     ] = useState('')
 
-    const [toastType, setToastType] =
-        useState<
-            'success' | 'error' | 'info'
-        >('success')
+    const [
+        toastType,
+        setToastType,
+    ] = useState<
+        'success' | 'error' | 'info'
+    >('success')
 
     function showToast(
         message: string,
@@ -174,23 +133,35 @@ export function TeamsManager({
         setToastType(type)
     }
 
-    async function loadVenues() {
-        const festivalId =
-            await getActiveFestivalId()
+    async function loadClubs() {
+        const { data, error } =
+            await supabase
+                .from('clubs')
+                .select('id, name')
+                .eq(
+                    'organisation_id',
+                    currentOrganisation.id
+                )
+                .order('name', {
+                    ascending: true,
+                })
 
-        if (!festivalId) {
-            setVenues([])
+        if (error) {
+            showToast(
+                error.message,
+                'error'
+            )
             return
         }
 
+        setClubs(data ?? [])
+    }
+
+    async function loadVenues() {
         const { data, error } =
             await supabase
                 .from('venues')
                 .select('id, name')
-                .eq(
-                    'festival_id',
-                    festivalId
-                )
                 .eq(
                     'organisation_id',
                     currentOrganisation.id
@@ -204,6 +175,7 @@ export function TeamsManager({
                 'Failed to load venues:',
                 error
             )
+            setVenues([])
             return
         }
 
@@ -211,15 +183,22 @@ export function TeamsManager({
     }
 
     useEffect(() => {
-        void loadVenues()
+        void Promise.all([
+            loadClubs(),
+            loadVenues(),
+        ])
     }, [currentOrganisation.id])
 
     function resetForm() {
         setEditingTeam(null)
+        setClubId('')
         setTeamName('')
-        setManagerName('')
-        setEmail('')
-        setPhone('')
+        setAgeGroup('')
+        setYearGroup('')
+        setGender('Mixed')
+        setDivision('')
+        setHomeKitColour('')
+        setAwayKitColour('')
         setNotes('')
         setLogoUrl('')
         setSelectedLogo(null)
@@ -228,8 +207,6 @@ export function TeamsManager({
         )
         setPublished(false)
         setPrimaryHomeVenueId('')
-        setIsAddingNewVenue(false)
-        setNewVenueValues(emptyVenueForm)
     }
 
     function closeTeamModal() {
@@ -246,15 +223,26 @@ export function TeamsManager({
         team: DbTeam
     ) {
         setEditingTeam(team)
+        setClubId(team.club_id ?? '')
         setTeamName(team.name)
-        setManagerName(
-            team.manager_name ?? ''
+        setAgeGroup(
+            team.age_group ?? ''
         )
-        setEmail(
-            team.contact_email ?? ''
+        setYearGroup(
+            team.year_group?.toString() ??
+            ''
         )
-        setPhone(
-            team.contact_phone ?? ''
+        setGender(
+            team.gender ?? 'Mixed'
+        )
+        setDivision(
+            team.division ?? ''
+        )
+        setHomeKitColour(
+            team.home_kit_colour ?? ''
+        )
+        setAwayKitColour(
+            team.away_kit_colour ?? ''
         )
         setNotes(team.notes ?? '')
         setLogoUrl(team.logo_url ?? '')
@@ -273,28 +261,15 @@ export function TeamsManager({
         setShowTeamModal(true)
     }
 
-    async function getActiveFestivalId() {
-        const { data, error } =
-            await supabase
-                .from('festivals')
-                .select('id')
-                .eq('status', 'active')
-                .order('year', {
-                    ascending: false,
-                })
-                .limit(1)
-                .maybeSingle()
-
-        if (error) {
-            throw new Error(
-                error.message
+    async function saveTeam() {
+        if (!clubId) {
+            showToast(
+                'Select a club.',
+                'error'
             )
+            return
         }
 
-        return data?.id ?? null
-    }
-
-    async function saveTeam() {
         if (!teamName.trim()) {
             showToast(
                 'Team name is required.',
@@ -303,31 +278,27 @@ export function TeamsManager({
             return
         }
 
-        if (!isValidEmailAddress(email)) {
-            showToast(
-                'Enter a valid email address.',
-                'error'
-            )
-            return
-        }
+        let parsedYearGroup:
+            | number
+            | null = null
 
-        if (!isValidPhoneNumber(phone)) {
-            showToast(
-                'Enter a valid phone number containing 7 to 15 digits.',
-                'error'
-            )
-            return
-        }
+        if (yearGroup.trim()) {
+            parsedYearGroup =
+                Number(yearGroup)
 
-        if (
-            isAddingNewVenue &&
-            !newVenueValues.name.trim()
-        ) {
-            showToast(
-                'Venue name is required when adding a new home venue.',
-                'error'
-            )
-            return
+            if (
+                !Number.isInteger(
+                    parsedYearGroup
+                ) ||
+                parsedYearGroup < 1900 ||
+                parsedYearGroup > 2200
+            ) {
+                showToast(
+                    'Enter a valid year group.',
+                    'error'
+                )
+                return
+            }
         }
 
         setIsSaving(true)
@@ -344,48 +315,40 @@ export function TeamsManager({
                     )
             }
 
-            const festivalId =
-                await getActiveFestivalId()
-
-            if (!festivalId) {
-                throw new Error(
-                    'No active festival was found.'
-                )
-            }
-
-            let finalHomeVenueId =
-                primaryHomeVenueId || null
-
-            if (isAddingNewVenue) {
-                const createdVenue =
-                    await venueService.createVenue(
-                        festivalId,
-                        currentOrganisation.id,
-                        newVenueValues
-                    )
-
-                finalHomeVenueId =
-                    createdVenue.id
-            }
-
             const payload = {
+                organisation_id:
+                currentOrganisation.id,
+                club_id: clubId,
                 name: teamName.trim(),
-                manager_name:
-                    managerName.trim() ||
+                age_group:
+                    ageGroup.trim() ||
                     null,
-                contact_email:
-                    email.trim() || null,
-                contact_phone:
-                    phone.trim() || null,
-                logo_url:
-                    finalLogoUrl || null,
+                year_group:
+                parsedYearGroup,
+                gender:
+                    gender.trim() ||
+                    null,
+                division:
+                    division.trim() ||
+                    null,
+                home_kit_colour:
+                    homeKitColour.trim() ||
+                    null,
+                away_kit_colour:
+                    awayKitColour.trim() ||
+                    null,
                 notes:
-                    notes.trim() || null,
+                    notes.trim() ||
+                    null,
+                logo_url:
+                    finalLogoUrl ||
+                    null,
                 participation_status:
                 participationStatus,
                 published,
                 primary_home_venue_id:
-                finalHomeVenueId,
+                    primaryHomeVenueId ||
+                    null,
             }
 
             if (editingTeam) {
@@ -403,43 +366,30 @@ export function TeamsManager({
                         )
 
                 if (error) {
-                    throw new Error(
-                        error.message
-                    )
+                    throw error
                 }
             } else {
                 const { error } =
                     await supabase
                         .from('teams')
-                        .insert({
-                            ...payload,
-                            festival_id:
-                            festivalId,
-                            organisation_id:
-                            currentOrganisation.id,
-                        })
+                        .insert(payload)
 
                 if (error) {
-                    throw new Error(
-                        error.message
-                    )
+                    throw error
                 }
             }
 
             const wasEditing =
                 Boolean(editingTeam)
 
-            await Promise.all([
-                onTeamCreated(),
-                loadVenues(),
-            ])
+            await onTeamCreated()
+
             closeTeamModal()
 
             showToast(
                 wasEditing
                     ? 'Team updated successfully.'
-                    : 'Team created successfully.',
-                'success'
+                    : 'Team created successfully.'
             )
         } catch (error) {
             showToast(
@@ -474,18 +424,15 @@ export function TeamsManager({
                     )
 
             if (error) {
-                throw new Error(
-                    error.message
-                )
+                throw error
             }
 
             await onTeamCreated()
 
             showToast(
                 nextPublished
-                    ? `${team.name} is now visible on the public website.`
-                    : `${team.name} has been hidden from the public website.`,
-                'success'
+                    ? `${team.name} is now published.`
+                    : `${team.name} is now unpublished.`
             )
         } catch (error) {
             showToast(
@@ -516,9 +463,7 @@ export function TeamsManager({
                     )
 
             if (error) {
-                throw new Error(
-                    error.message
-                )
+                throw error
             }
 
             if (team.logo_url) {
@@ -528,11 +473,11 @@ export function TeamsManager({
             }
 
             setTeamToDelete(null)
+
             await onTeamCreated()
 
             showToast(
-                'Team deleted successfully.',
-                'success'
+                'Team deleted successfully.'
             )
         } catch (error) {
             showToast(
@@ -559,10 +504,8 @@ export function TeamsManager({
                     <h3>Teams</h3>
 
                     <p className="muted">
-                        Manage participating clubs,
-                        their status, home venue,
-                        public visibility and official
-                        logos.
+                        Manage teams belonging to
+                        clubs in this organisation.
                     </p>
                 </div>
 
@@ -579,6 +522,7 @@ export function TeamsManager({
 
             <TeamsTable
                 teams={teams}
+                clubs={clubs}
                 onEdit={
                     openEditTeamModal
                 }
@@ -597,12 +541,18 @@ export function TeamsManager({
                             ? 'edit'
                             : 'create'
                     }
+                    clubId={clubId}
                     teamName={teamName}
-                    managerName={
-                        managerName
+                    ageGroup={ageGroup}
+                    yearGroup={yearGroup}
+                    gender={gender}
+                    division={division}
+                    homeKitColour={
+                        homeKitColour
                     }
-                    email={email}
-                    phone={phone}
+                    awayKitColour={
+                        awayKitColour
+                    }
                     notes={notes}
                     logoUrl={logoUrl}
                     participationStatus={
@@ -612,25 +562,32 @@ export function TeamsManager({
                     primaryHomeVenueId={
                         primaryHomeVenueId
                     }
+                    clubs={clubs}
                     venues={venues}
-                    isAddingNewVenue={
-                        isAddingNewVenue
-                    }
-                    newVenueValues={
-                        newVenueValues
-                    }
                     isSaving={isSaving}
+                    onClubIdChange={
+                        setClubId
+                    }
                     onTeamNameChange={
                         setTeamName
                     }
-                    onManagerNameChange={
-                        setManagerName
+                    onAgeGroupChange={
+                        setAgeGroup
                     }
-                    onEmailChange={
-                        setEmail
+                    onYearGroupChange={
+                        setYearGroup
                     }
-                    onPhoneChange={
-                        setPhone
+                    onGenderChange={
+                        setGender
+                    }
+                    onDivisionChange={
+                        setDivision
+                    }
+                    onHomeKitColourChange={
+                        setHomeKitColour
+                    }
+                    onAwayKitColourChange={
+                        setAwayKitColour
                     }
                     onNotesChange={
                         setNotes
@@ -643,12 +600,6 @@ export function TeamsManager({
                     }
                     onPrimaryHomeVenueChange={
                         setPrimaryHomeVenueId
-                    }
-                    onAddingNewVenueChange={
-                        setIsAddingNewVenue
-                    }
-                    onNewVenueValuesChange={
-                        setNewVenueValues
                     }
                     onLogoSelected={
                         setSelectedLogo

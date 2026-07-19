@@ -1,10 +1,12 @@
 import type {
+    ClubOption,
     DbTeam,
     TeamParticipationStatus,
 } from './teamTypes'
 
 type TeamsTableProps = {
     teams: DbTeam[]
+    clubs: ClubOption[]
     onEdit: (team: DbTeam) => void
     onDelete: (team: DbTeam) => void
     onTogglePublished: (team: DbTeam) => void
@@ -26,6 +28,18 @@ function formatParticipationStatus(
     return (
         status.charAt(0).toUpperCase() +
         status.slice(1)
+    )
+}
+
+function getClubName(
+    team: DbTeam,
+    clubs: ClubOption[]
+) {
+    return (
+        clubs.find(
+            (club) =>
+                club.id === team.club_id
+        )?.name ?? 'No club assigned'
     )
 }
 
@@ -66,6 +80,7 @@ function getPublicVisibility(team: DbTeam) {
 
 export function TeamsTable({
                                teams,
+                               clubs,
                                onEdit,
                                onDelete,
                                onTogglePublished,
@@ -74,7 +89,11 @@ export function TeamsTable({
         return (
             <div className="teamsEmptyState">
                 <h3>No teams added</h3>
-                <p>Add the first participating team.</p>
+
+                <p>
+                    Add the first team for one of
+                    your clubs.
+                </p>
             </div>
         )
     }
@@ -87,12 +106,11 @@ export function TeamsTable({
                 </strong>
 
                 <p>
-                    A team appears on the public website
-                    only when its participation status is
-                    <strong> Confirmed</strong> and it is
-                    <strong> Published</strong>. To appear
-                    in group standings, it must also be
-                    assigned to a published group.
+                    A team appears publicly only
+                    when its participation status is
+                    <strong> Confirmed</strong> and
+                    it is
+                    <strong> Published</strong>.
                 </p>
             </div>
 
@@ -111,7 +129,9 @@ export function TeamsTable({
                                     {team.logo_url ? (
                                         <img
                                             className="teamAdminCardLogo"
-                                            src={team.logo_url}
+                                            src={
+                                                team.logo_url
+                                            }
                                             alt={`${team.name} logo`}
                                             loading="lazy"
                                         />
@@ -124,7 +144,16 @@ export function TeamsTable({
                                     )}
 
                                     <div>
-                                        <h4>{team.name}</h4>
+                                        <h4>
+                                            {team.name}
+                                        </h4>
+
+                                        <p className="muted">
+                                            {getClubName(
+                                                team,
+                                                clubs
+                                            )}
+                                        </p>
 
                                         <div className="teamAdminBadges">
                                             <span
@@ -174,53 +203,57 @@ export function TeamsTable({
 
                                 <div>
                                     <span className="teamAdminFieldLabel">
-                                        Manager
+                                        Age Group
                                     </span>
 
                                     <strong>
-                                        {team.manager_name ??
+                                        {team.age_group ??
                                             'Not provided'}
                                     </strong>
                                 </div>
 
                                 <div>
                                     <span className="teamAdminFieldLabel">
-                                        Email
+                                        Gender
                                     </span>
 
-                                    {team.contact_email ? (
-                                        <a
-                                            href={`mailto:${team.contact_email}`}
-                                        >
-                                            {
-                                                team.contact_email
-                                            }
-                                        </a>
-                                    ) : (
-                                        <span>
-                                            Not provided
-                                        </span>
-                                    )}
+                                    <span>
+                                        {team.gender ??
+                                            'Not provided'}
+                                    </span>
                                 </div>
 
                                 <div>
                                     <span className="teamAdminFieldLabel">
-                                        Phone
+                                        Division
                                     </span>
 
-                                    {team.contact_phone ? (
-                                        <a
-                                            href={`tel:${team.contact_phone}`}
-                                        >
-                                            {
-                                                team.contact_phone
-                                            }
-                                        </a>
-                                    ) : (
-                                        <span>
-                                            Not provided
-                                        </span>
-                                    )}
+                                    <span>
+                                        {team.division ??
+                                            'Not provided'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="teamAdminFieldLabel">
+                                        Home Kit
+                                    </span>
+
+                                    <span>
+                                        {team.home_kit_colour ??
+                                            'Not provided'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="teamAdminFieldLabel">
+                                        Away Kit
+                                    </span>
+
+                                    <span>
+                                        {team.away_kit_colour ??
+                                            'Not provided'}
+                                    </span>
                                 </div>
 
                                 <div>

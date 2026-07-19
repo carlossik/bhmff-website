@@ -5,70 +5,81 @@ import {
 } from 'react'
 import { Modal } from '../../common/Modal'
 import type {
+    ClubOption,
     TeamParticipationStatus,
     TeamVenueOption,
 } from './teamTypes'
-import type { VenueFormValues } from '../Venues/venueTypes'
 
 type TeamModalProps = {
     mode: 'create' | 'edit'
+    clubId: string
     teamName: string
-    managerName: string
-    email: string
-    phone: string
+    ageGroup: string
+    yearGroup: string
+    gender: string
+    division: string
+    homeKitColour: string
+    awayKitColour: string
     notes: string
     logoUrl: string
     participationStatus: TeamParticipationStatus
     published: boolean
     primaryHomeVenueId: string
+    clubs: ClubOption[]
     venues: TeamVenueOption[]
-    isAddingNewVenue: boolean
-    newVenueValues: VenueFormValues
     isSaving: boolean
 
+    onClubIdChange: (value: string) => void
     onTeamNameChange: (value: string) => void
-    onManagerNameChange: (value: string) => void
-    onEmailChange: (value: string) => void
-    onPhoneChange: (value: string) => void
+    onAgeGroupChange: (value: string) => void
+    onYearGroupChange: (value: string) => void
+    onGenderChange: (value: string) => void
+    onDivisionChange: (value: string) => void
+    onHomeKitColourChange: (value: string) => void
+    onAwayKitColourChange: (value: string) => void
     onNotesChange: (value: string) => void
     onParticipationStatusChange: (
         value: TeamParticipationStatus
     ) => void
     onPublishedChange: (value: boolean) => void
-    onPrimaryHomeVenueChange: (value: string) => void
-    onAddingNewVenueChange: (value: boolean) => void
-    onNewVenueValuesChange: (values: VenueFormValues) => void
+    onPrimaryHomeVenueChange: (
+        value: string
+    ) => void
     onLogoSelected: (file: File | null) => void
-
     onClose: () => void
     onSave: () => void
 }
 
 export function TeamModal({
                               mode,
+                              clubId,
                               teamName,
-                              managerName,
-                              email,
-                              phone,
+                              ageGroup,
+                              yearGroup,
+                              gender,
+                              division,
+                              homeKitColour,
+                              awayKitColour,
                               notes,
                               logoUrl,
                               participationStatus,
                               published,
                               primaryHomeVenueId,
+                              clubs,
                               venues,
-                              isAddingNewVenue,
-                              newVenueValues,
                               isSaving,
+                              onClubIdChange,
                               onTeamNameChange,
-                              onManagerNameChange,
-                              onEmailChange,
-                              onPhoneChange,
+                              onAgeGroupChange,
+                              onYearGroupChange,
+                              onGenderChange,
+                              onDivisionChange,
+                              onHomeKitColourChange,
+                              onAwayKitColourChange,
                               onNotesChange,
                               onParticipationStatusChange,
                               onPublishedChange,
                               onPrimaryHomeVenueChange,
-                              onAddingNewVenueChange,
-                              onNewVenueValuesChange,
                               onLogoSelected,
                               onClose,
                               onSave,
@@ -92,20 +103,9 @@ export function TeamModal({
             setPreview(
                 URL.createObjectURL(file)
             )
+        } else {
+            setPreview(logoUrl)
         }
-    }
-
-
-    function updateNewVenueField<
-        K extends keyof VenueFormValues
-    >(
-        field: K,
-        value: VenueFormValues[K]
-    ) {
-        onNewVenueValuesChange({
-            ...newVenueValues,
-            [field]: value,
-        })
     }
 
     return (
@@ -119,10 +119,37 @@ export function TeamModal({
         >
             <div className="adminFormGrid">
                 <label>
+                    <span>Club</span>
+
+                    <select
+                        value={clubId}
+                        onChange={(event) =>
+                            onClubIdChange(
+                                event.target.value
+                            )
+                        }
+                    >
+                        <option value="">
+                            Select a club
+                        </option>
+
+                        {clubs.map((club) => (
+                            <option
+                                key={club.id}
+                                value={club.id}
+                            >
+                                {club.name}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                <label>
                     <span>Team Name</span>
 
                     <input
                         value={teamName}
+                        placeholder="e.g. U15 Reds"
                         onChange={(event) =>
                             onTeamNameChange(
                                 event.target.value
@@ -132,12 +159,13 @@ export function TeamModal({
                 </label>
 
                 <label>
-                    <span>Manager Name</span>
+                    <span>Age Group</span>
 
                     <input
-                        value={managerName}
+                        value={ageGroup}
+                        placeholder="e.g. U15"
                         onChange={(event) =>
-                            onManagerNameChange(
+                            onAgeGroupChange(
                                 event.target.value
                             )
                         }
@@ -145,15 +173,16 @@ export function TeamModal({
                 </label>
 
                 <label>
-                    <span>Email</span>
+                    <span>Year Group</span>
 
                     <input
-                        type="email"
-                        value={email}
-                        maxLength={254}
-                        autoComplete="email"
+                        type="number"
+                        min="1900"
+                        max="2200"
+                        value={yearGroup}
+                        placeholder="e.g. 2011"
                         onChange={(event) =>
-                            onEmailChange(
+                            onYearGroupChange(
                                 event.target.value
                             )
                         }
@@ -161,28 +190,77 @@ export function TeamModal({
                 </label>
 
                 <label>
-                    <span>Phone</span>
+                    <span>Gender</span>
+
+                    <select
+                        value={gender}
+                        onChange={(event) =>
+                            onGenderChange(
+                                event.target.value
+                            )
+                        }
+                    >
+                        <option value="Mixed">
+                            Mixed
+                        </option>
+
+                        <option value="Male">
+                            Male
+                        </option>
+
+                        <option value="Female">
+                            Female
+                        </option>
+
+                        <option value="Other">
+                            Other
+                        </option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Division</span>
 
                     <input
-                        type="tel"
-                        inputMode="tel"
-                        value={phone}
-                        maxLength={25}
-                        autoComplete="tel"
-                        pattern="[0-9+() -]*"
-                        placeholder="e.g. 07951 750370"
-                        onChange={(event) => {
-                            const value =
+                        value={division}
+                        placeholder="e.g. Division A"
+                        onChange={(event) =>
+                            onDivisionChange(
                                 event.target.value
+                            )
+                        }
+                    />
+                </label>
 
-                            if (
-                                /^[0-9+() -]*$/.test(
-                                    value
-                                )
-                            ) {
-                                onPhoneChange(value)
-                            }
-                        }}
+                <label>
+                    <span>
+                        Home Kit Colour
+                    </span>
+
+                    <input
+                        value={homeKitColour}
+                        placeholder="e.g. Red and white"
+                        onChange={(event) =>
+                            onHomeKitColourChange(
+                                event.target.value
+                            )
+                        }
+                    />
+                </label>
+
+                <label>
+                    <span>
+                        Away Kit Colour
+                    </span>
+
+                    <input
+                        value={awayKitColour}
+                        placeholder="e.g. Blue"
+                        onChange={(event) =>
+                            onAwayKitColourChange(
+                                event.target.value
+                            )
+                        }
                     />
                 </label>
 
@@ -220,115 +298,35 @@ export function TeamModal({
                     </select>
                 </label>
 
-                <div className="adminFormFullWidth adminChecklist">
-                    <label>
-                        <span>
-                            Primary Home Venue
-                        </span>
+                <label>
+                    <span>
+                        Primary Home Venue
+                    </span>
 
-                        <select
-                            value={
-                                isAddingNewVenue
-                                    ? '__new__'
-                                    : primaryHomeVenueId
-                            }
-                            onChange={(event) => {
-                                const value =
-                                    event.target.value
+                    <select
+                        value={
+                            primaryHomeVenueId
+                        }
+                        onChange={(event) =>
+                            onPrimaryHomeVenueChange(
+                                event.target.value
+                            )
+                        }
+                    >
+                        <option value="">
+                            No home venue assigned
+                        </option>
 
-                                if (value === '__new__') {
-                                    onPrimaryHomeVenueChange('')
-                                    onAddingNewVenueChange(true)
-                                    return
-                                }
-
-                                onAddingNewVenueChange(false)
-                                onPrimaryHomeVenueChange(value)
-                            }}
-                        >
-                            <option value="">
-                                No home venue assigned
+                        {venues.map((venue) => (
+                            <option
+                                key={venue.id}
+                                value={venue.id}
+                            >
+                                {venue.name}
                             </option>
-
-                            {venues.map((venue) => (
-                                <option
-                                    key={venue.id}
-                                    value={venue.id}
-                                >
-                                    {venue.name}
-                                </option>
-                            ))}
-
-                            <option value="__new__">
-                                + Add a new home venue
-                            </option>
-                        </select>
-                    </label>
-
-                    {isAddingNewVenue && (
-                        <div className="adminFormGrid">
-                            <label>
-                                <span>Venue Name</span>
-
-                                <input
-                                    value={newVenueValues.name}
-                                    placeholder="Enter venue name"
-                                    onChange={(event) =>
-                                        updateNewVenueField(
-                                            'name',
-                                            event.target.value
-                                        )
-                                    }
-                                />
-                            </label>
-
-                            <label>
-                                <span>Postcode</span>
-
-                                <input
-                                    value={newVenueValues.postcode}
-                                    placeholder="Enter postcode"
-                                    onChange={(event) =>
-                                        updateNewVenueField(
-                                            'postcode',
-                                            event.target.value
-                                        )
-                                    }
-                                />
-                            </label>
-
-                            <label className="adminFormFullWidth">
-                                <span>Address</span>
-
-                                <input
-                                    value={newVenueValues.address}
-                                    placeholder="Enter venue address"
-                                    onChange={(event) =>
-                                        updateNewVenueField(
-                                            'address',
-                                            event.target.value
-                                        )
-                                    }
-                                />
-                            </label>
-
-                            <label className="adminFormFullWidth">
-                                <span>Venue Notes</span>
-
-                                <textarea
-                                    value={newVenueValues.notes}
-                                    placeholder="Parking, pitch access, changing facilities or other notes"
-                                    onChange={(event) =>
-                                        updateNewVenueField(
-                                            'notes',
-                                            event.target.value
-                                        )
-                                    }
-                                />
-                            </label>
-                        </div>
-                    )}
-                </div>
+                        ))}
+                    </select>
+                </label>
 
                 <label className="adminCheckboxLabel">
                     <input
@@ -375,12 +373,12 @@ export function TeamModal({
 
                     <textarea
                         value={notes}
+                        rows={4}
                         onChange={(event) =>
                             onNotesChange(
                                 event.target.value
                             )
                         }
-                        rows={4}
                     />
                 </label>
             </div>

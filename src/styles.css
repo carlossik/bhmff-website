@@ -3194,3 +3194,82 @@
         max-width: 100%;
     }
 }
+/* ==========================================================
+   Premium Admin Header
+========================================================== */
+
+.adminHeader{
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+    margin-bottom:32px;
+}
+
+.adminHeaderRow{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:40px;
+}
+
+.adminBrand{
+    flex:1;
+}
+
+.adminBrand h1{
+    margin:8px 0 10px;
+    font-size:3rem;
+    line-height:1.1;
+}
+
+.adminAccount{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    white-space:nowrap;
+}
+
+.adminUser{
+    display:flex;
+    flex-direction:column;
+    text-align:right;
+    gap:4px;
+}
+
+.adminToolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    padding:18px 24px;
+    border:1px solid rgba(180,255,120,.15);
+    border-radius:16px;
+    background:rgba(255,255,255,.02);
+}
+
+/* Competition Selector */
+
+.competitionSelector{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    gap:24px;
+}
+
+.competitionSelector select{
+    width:420px;
+}
+
+.competitionSelector label{
+    margin:0;
+    font-size:.8rem;
+    font-weight:700;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+}
+
+.competitionSelector select{
+    min-width:340px;
+    margin:0;
+}

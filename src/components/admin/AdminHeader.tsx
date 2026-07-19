@@ -11,46 +11,62 @@ export function AdminHeader({
                                 profile,
                                 onLogout,
                             }: AdminHeaderProps) {
-    const { currentOrganisation } =
-        useOrganisation()
+
+    const { currentOrganisation } = useOrganisation()
 
     return (
-        <div className="adminHeader">
-            <div className="adminHeaderLeft">
-                <span className="eyebrow">
-                    TournamentHQ
-                </span>
+        <header className="adminHeader">
 
-                <h2>
-                    {currentOrganisation.name}
-                </h2>
+            <div className="adminHeaderRow">
 
-                <p className="muted">
-                    Professional Tournament
-                    Management Platform
-                </p>
+                <div className="adminBrand">
+
+                    <span className="eyebrow">
+                        TournamentHQ
+                    </span>
+
+                    <h1>
+                        {currentOrganisation.name}
+                    </h1>
+
+                    <p className="muted">
+                        Professional Tournament Management Platform
+                    </p>
+
+                </div>
+
+                <div className="adminAccount">
+
+                    <div className="adminUser">
+
+                        <strong>
+                            {profile.full_name ?? 'Administrator'}
+                        </strong>
+
+                        <span className="muted">
+                            {formatAdminRole(profile.role)}
+                        </span>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        className="btn secondary small"
+                        onClick={onLogout}
+                    >
+                        Logout
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div className="adminToolbar">
 
                 <CompetitionSelector />
 
-                <p className="muted">
-                    {profile.full_name ??
-                        'Administrator'}
-                    {' · '}
-                    {formatAdminRole(
-                        profile.role
-                    )}
-                </p>
             </div>
 
-            <div className="adminHeaderRight">
-                <button
-                    type="button"
-                    className="btn secondary small"
-                    onClick={onLogout}
-                >
-                    Logout
-                </button>
-            </div>
-        </div>
+        </header>
     )
 }
