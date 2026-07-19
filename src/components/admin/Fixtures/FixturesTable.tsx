@@ -23,24 +23,39 @@ export function FixturesTable({
                                   onDelete,
                               }: FixturesTableProps) {
     const teamNames = new Map(
-        teams.map((team) => [team.id, team.name])
+        teams.map((team) => [
+            team.competition_team_id,
+            team.name,
+        ])
     )
 
     const venueNames = new Map(
-        venues.map((venue) => [venue.id, venue.name])
+        venues.map((venue) => [
+            venue.id,
+            venue.name,
+        ])
     )
 
     const groupNames = new Map(
-        groups.map((group) => [group.id, group.name])
+        groups.map((group) => [
+            group.id,
+            group.name,
+        ])
     )
 
-    function formatKickoff(kickoffTime: string | null) {
-        if (!kickoffTime) return 'Date and time TBC'
+    function formatKickoff(
+        kickoffTime: string | null
+    ) {
+        if (!kickoffTime)
+            return 'Date and time TBC'
 
-        return new Intl.DateTimeFormat('en-GB', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-        }).format(new Date(kickoffTime))
+        return new Intl.DateTimeFormat(
+            'en-GB',
+            {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+            }
+        ).format(new Date(kickoffTime))
     }
 
     if (!fixtures.length) {
@@ -49,7 +64,8 @@ export function FixturesTable({
                 <h3>No fixtures created</h3>
 
                 <p>
-                    Add the first fixture when the competition schedule is
+                    Add the first fixture when
+                    the competition schedule is
                     ready.
                 </p>
             </div>
@@ -78,7 +94,9 @@ export function FixturesTable({
 
                         <td>
                             {fixture.group_id
-                                ? groupNames.get(fixture.group_id) ??
+                                ? groupNames.get(
+                                    fixture.group_id
+                                ) ??
                                 'Unknown group'
                                 : '—'}
                         </td>
@@ -86,23 +104,34 @@ export function FixturesTable({
                         <td className="fixtureAdminTeams">
                             <strong>
                                 {teamNames.get(
-                                    fixture.home_team_id ?? ''
-                                ) ?? 'Home team TBC'}
+                                        fixture.home_competition_team_id ??
+                                        ''
+                                    ) ??
+                                    'Home team TBC'}
                             </strong>
 
                             <span className="muted">
-                                    vs{' '}
+                                    {' '}
+                                vs{' '}
                                 {teamNames.get(
-                                    fixture.away_team_id ?? ''
-                                ) ?? 'Away team TBC'}
+                                        fixture.away_competition_team_id ??
+                                        ''
+                                    ) ??
+                                    'Away team TBC'}
                                 </span>
                         </td>
 
-                        <td>{formatKickoff(fixture.kickoff_time)}</td>
+                        <td>
+                            {formatKickoff(
+                                fixture.kickoff_time
+                            )}
+                        </td>
 
                         <td>
-                            {venueNames.get(fixture.venue_id ?? '') ??
-                                'Venue TBC'}
+                            {venueNames.get(
+                                fixture.venue_id ??
+                                ''
+                            ) ?? 'Venue TBC'}
                         </td>
 
                         <td>
@@ -116,7 +145,11 @@ export function FixturesTable({
                                 <button
                                     className="btn secondary small"
                                     type="button"
-                                    onClick={() => onEdit(fixture)}
+                                    onClick={() =>
+                                        onEdit(
+                                            fixture
+                                        )
+                                    }
                                 >
                                     Edit
                                 </button>
@@ -124,7 +157,11 @@ export function FixturesTable({
                                 <button
                                     className="btn secondary small"
                                     type="button"
-                                    onClick={() => onDelete(fixture)}
+                                    onClick={() =>
+                                        onDelete(
+                                            fixture
+                                        )
+                                    }
                                 >
                                     Delete
                                 </button>

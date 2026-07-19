@@ -6,9 +6,9 @@ export type FixtureStatus =
 
 export type Fixture = {
     id: string
-    festival_id: string | null
-    home_team_id: string | null
-    away_team_id: string | null
+    competition_id: string | null
+    home_competition_team_id: string | null
+    away_competition_team_id: string | null
     venue_id: string | null
     group_id: string | null
     stage: string
@@ -18,8 +18,10 @@ export type Fixture = {
 }
 
 export type FixtureTeam = {
-    id: string
+    competition_team_id: string
+    team_id: string
     name: string
+    logo_url: string | null
 }
 
 export type FixtureVenue = {
@@ -37,20 +39,20 @@ export type FixtureGroup = {
 
 export type FixtureGroupMembership = {
     group_id: string
-    team_id: string
+    competition_team_id: string
 }
 
-export type Festival = {
+export type Competition = {
     id: string
     name: string
-    year: number
+    status: string
 }
 
 export type FixtureFormValues = {
     stage: string
     group_id: string
-    home_team_id: string
-    away_team_id: string
+    home_competition_team_id: string
+    away_competition_team_id: string
     venue_id: string
     kickoff_time: string
     status: FixtureStatus

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useCompetition } from '../../../contexts/CompetitionContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { FixtureModal } from './FixtureModal'
 import { FixturesTable } from './FixturesTable'
 import { fixtureService } from './fixtureService'
 import type {
-    Festival,
     Fixture,
     FixtureFormValues,
     FixtureGroup,
@@ -17,92 +17,133 @@ import type {
 const emptyForm: FixtureFormValues = {
     stage: '',
     group_id: '',
-    home_team_id: '',
-    away_team_id: '',
+    home_competition_team_id: '',
+    away_competition_team_id: '',
     venue_id: '',
     kickoff_time: '',
     status: 'scheduled',
 }
+
+type ToastType = 'success' | 'error' | 'info'
 
 function toDateTimeLocal(value: string | null) {
     if (!value) return ''
 
     const date = new Date(value)
 
+    if (Number.isNaN(date.getTime())) {
+        return ''
+    }
+
     const localDate = new Date(
-        date.getTime() - date.getTimezoneOffset() * 60_000
+        date.getTime() -
+        date.getTimezoneOffset() * 60_000
     )
 
     return localDate.toISOString().slice(0, 16)
 }
 
 export function FixturesManager() {
-    const [festival, setFestival] = useState<Festival | null>(null)
-    const [fixtures, setFixtures] = useState<Fixture[]>([])
-    const [teams, setTeams] = useState<FixtureTeam[]>([])
-    const [venues, setVenues] = useState<FixtureVenue[]>([])
-    const [groups, setGroups] = useState<FixtureGroup[]>([])
-    const [groupMemberships, setGroupMemberships] =
-        useState<FixtureGroupMembership[]>([])
+    const {
+        currentCompetition,
+        currentCompetitionId,
+    } = useCompetition()
 
-    const [isLoading, setIsLoading] = useState(true)
-    const [isSaving, setIsSaving] = useState(false)
-    const [showModal, setShowModal] = useState(false)
+    const [fixtures, setFixtures] =
+        useState<Fixture[]>([])
 
-    const [editingFixture, setEditingFixture] =
-        useState<Fixture | null>(null)
+    const [teams, setTeams] =
+        useState<FixtureTeam[]>([])
 
-    const [fixtureToDelete, setFixtureToDelete] =
-        useState<Fixture | null>(null)
+    const [venues, setVenues] =
+        useState<FixtureVenue[]>([])
+
+    const [groups, setGroups] =
+        useState<FixtureGroup[]>([])
+
+    const [
+        groupMemberships,
+        setGroupMemberships,
+    ] = useState<FixtureGroupMembership[]>([])
+
+    const [isLoading, setIsLoading] =
+        useState(false)
+
+    const [isSaving, setIsSaving] =
+        useState(false)
+
+    const [isDeleting, setIsDeleting] =
+        useState(false)
+
+    const [showModal, setShowModal] =
+        useState(false)
+
+    const [
+        editingFixture,
+        setEditingFixture,
+    ] = useState<Fixture | null>(null)
+
+    const [
+        fixtureToDelete,
+        setFixtureToDelete,
+    ] = useState<Fixture | null>(null)
 
     const [formValues, setFormValues] =
         useState<FixtureFormValues>(emptyForm)
 
-    const [toastMessage, setToastMessage] = useState('')
+    const [toastMessage, setToastMessage] =
+        useState('')
+
     const [toastType, setToastType] =
-        useState<'success' | 'error' | 'info'>('success')
+        useState<ToastType>('success')
 
     function showToast(
         message: string,
-        type: 'success' | 'error' | 'info' = 'success'
+        type: ToastType = 'success'
     ) {
         setToastMessage(message)
         setToastType(type)
     }
 
-    async function loadData() {
+    function clearFixtureData() {
+        setFixtures([])
+        setTeams([])
+        setVenues([])
+        setGroups([])
+        setGroupMemberships([])
+    }
+
+    async function loadData(
+        competitionId: string
+    ) {
         setIsLoading(true)
 
         try {
-            const activeFestival =
-                await fixtureService.getActiveFestival()
-
-            setFestival(activeFestival)
-
-            if (!activeFestival) {
-                setFixtures([])
-                setTeams([])
-                setVenues([])
-                setGroups([])
-                setGroupMemberships([])
-                return
-            }
-
             const [
                 fixtureRows,
                 teamRows,
                 venueRows,
                 groupRows,
             ] = await Promise.all([
-                fixtureService.getFixtures(activeFestival.id),
-                fixtureService.getTeams(activeFestival.id),
-                fixtureService.getVenues(activeFestival.id),
-                fixtureService.getGroups(activeFestival.id),
+                fixtureService.getFixtures(
+                    competitionId
+                ),
+                fixtureService.getTeams(
+                    competitionId
+                ),
+                fixtureService.getVenues(
+                    competitionId
+                ),
+                fixtureService.getGroups(
+                    competitionId
+                ),
             ])
 
             const membershipRows =
                 await fixtureService.getGroupMemberships(
-                    groupRows.map((group) => group.id)
+                    groupRows.map(
+                        (group) => group.id
+                    )
                 )
 
             setFixtures(fixtureRows)
@@ -111,6 +152,8 @@ export function FixturesManager() {
             setGroups(groupRows)
             setGroupMemberships(membershipRows)
         } catch (error) {
+            clearFixtureData()
+
             showToast(
                 error instanceof Error
                     ? error.message
@@ -123,10 +166,28 @@ export function FixturesManager() {
     }
 
     useEffect(() => {
-        loadData()
-    }, [])
+        closeModal()
+        setFixtureToDelete(null)
+        setToastMessage('')
+
+        if (!currentCompetitionId) {
+            clearFixtureData()
+            setIsLoading(false)
+            return
+        }
+
+        void loadData(currentCompetitionId)
+    }, [currentCompetitionId])
 
     function openCreateModal() {
+        if (!currentCompetitionId) {
+            showToast(
+                'Select a competition before creating a fixture.',
+                'error'
+            )
+            return
+        }
+
         setEditingFixture(null)
         setFormValues(emptyForm)
         setShowModal(true)
@@ -138,10 +199,14 @@ export function FixturesManager() {
         setFormValues({
             stage: fixture.stage,
             group_id: fixture.group_id ?? '',
-            home_team_id: fixture.home_team_id ?? '',
-            away_team_id: fixture.away_team_id ?? '',
+            home_competition_team_id:
+                fixture.home_competition_team_id ?? '',
+            away_competition_team_id:
+                fixture.away_competition_team_id ?? '',
             venue_id: fixture.venue_id ?? '',
-            kickoff_time: toDateTimeLocal(fixture.kickoff_time),
+            kickoff_time: toDateTimeLocal(
+                fixture.kickoff_time
+            ),
             status: fixture.status,
         })
 
@@ -154,15 +219,21 @@ export function FixturesManager() {
         setShowModal(false)
     }
 
-    async function saveFixture() {
-        if (!festival) {
-            showToast('No active festival was found.', 'error')
-            return
+    function validateFixture() {
+        if (!currentCompetitionId) {
+            showToast(
+                'Select a competition before saving a fixture.',
+                'error'
+            )
+            return false
         }
 
         if (!formValues.stage.trim()) {
-            showToast('Fixture stage is required.', 'error')
-            return
+            showToast(
+                'Fixture stage is required.',
+                'error'
+            )
+            return false
         }
 
         if (
@@ -170,31 +241,32 @@ export function FixturesManager() {
             !formValues.group_id
         ) {
             showToast(
-                'Please select a group for this group-stage fixture.',
+                'Select a group for this group-stage fixture.',
                 'error'
             )
-            return
+            return false
         }
 
         if (
-            !formValues.home_team_id ||
-            !formValues.away_team_id
+            !formValues.home_competition_team_id ||
+            !formValues.away_competition_team_id
         ) {
             showToast(
                 'Both the home and away teams are required.',
                 'error'
             )
-            return
+            return false
         }
 
         if (
-            formValues.home_team_id === formValues.away_team_id
+            formValues.home_competition_team_id ===
+            formValues.away_competition_team_id
         ) {
             showToast(
                 'A team cannot play against itself.',
                 'error'
             )
-            return
+            return false
         }
 
         if (!formValues.kickoff_time) {
@@ -202,32 +274,73 @@ export function FixturesManager() {
                 'Kick-off date and time are required.',
                 'error'
             )
-            return
+            return false
         }
 
-        if (formValues.stage === 'Group Stage') {
-            const groupTeamIds = groupMemberships
-                .filter(
-                    (membership) =>
-                        membership.group_id === formValues.group_id
+        const kickoffDate = new Date(
+            formValues.kickoff_time
+        )
+
+        if (Number.isNaN(kickoffDate.getTime())) {
+            showToast(
+                'Enter a valid kick-off date and time.',
+                'error'
+            )
+            return false
+        }
+
+        if (
+            formValues.stage === 'Group Stage'
+        ) {
+            const groupCompetitionTeamIds =
+                groupMemberships
+                    .filter(
+                        (membership) =>
+                            membership.group_id ===
+                            formValues.group_id
+                    )
+                    .map(
+                        (membership) =>
+                            membership.competition_team_id
+                    )
+
+            const homeTeamBelongsToGroup =
+                groupCompetitionTeamIds.includes(
+                    formValues.home_competition_team_id
                 )
-                .map((membership) => membership.team_id)
+
+            const awayTeamBelongsToGroup =
+                groupCompetitionTeamIds.includes(
+                    formValues.away_competition_team_id
+                )
 
             if (
-                !groupTeamIds.includes(formValues.home_team_id) ||
-                !groupTeamIds.includes(formValues.away_team_id)
+                !homeTeamBelongsToGroup ||
+                !awayTeamBelongsToGroup
             ) {
                 showToast(
                     'Both teams must belong to the selected group.',
                     'error'
                 )
-                return
+                return false
             }
+        }
+
+        return true
+    }
+
+    async function saveFixture() {
+        if (
+            !validateFixture() ||
+            !currentCompetitionId
+        ) {
+            return
         }
 
         setIsSaving(true)
 
-        const wasEditing = Boolean(editingFixture)
+        const wasEditing =
+            editingFixture !== null
 
         try {
             if (editingFixture) {
@@ -237,13 +350,16 @@ export function FixturesManager() {
                 )
             } else {
                 await fixtureService.createFixture(
-                    festival.id,
+                    currentCompetitionId,
                     formValues
                 )
             }
 
             closeModal()
-            await loadData()
+
+            await loadData(
+                currentCompetitionId
+            )
 
             showToast(
                 wasEditing
@@ -264,15 +380,31 @@ export function FixturesManager() {
     }
 
     async function deleteFixture() {
-        if (!fixtureToDelete) return
+        if (
+            !fixtureToDelete ||
+            !currentCompetitionId ||
+            isDeleting
+        ) {
+            return
+        }
+
+        setIsDeleting(true)
 
         try {
-            await fixtureService.deleteFixture(fixtureToDelete.id)
+            await fixtureService.deleteFixture(
+                fixtureToDelete.id
+            )
 
             setFixtureToDelete(null)
-            await loadData()
 
-            showToast('Fixture deleted successfully.', 'success')
+            await loadData(
+                currentCompetitionId
+            )
+
+            showToast(
+                'Fixture deleted successfully.',
+                'success'
+            )
         } catch (error) {
             showToast(
                 error instanceof Error
@@ -280,6 +412,8 @@ export function FixturesManager() {
                     : 'Failed to delete fixture.',
                 'error'
             )
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -288,7 +422,9 @@ export function FixturesManager() {
             <Toast
                 message={toastMessage}
                 type={toastType}
-                onClose={() => setToastMessage('')}
+                onClose={() =>
+                    setToastMessage('')
+                }
             />
 
             <div className="adminWorkspaceHeader">
@@ -296,13 +432,14 @@ export function FixturesManager() {
                     <h3>Fixtures</h3>
 
                     <p className="muted">
-                        Create group-stage and knockout fixtures for the
-                        active festival.
+                        Create and manage group-stage
+                        and knockout fixtures for the
+                        selected competition.
                     </p>
 
-                    {festival && (
+                    {currentCompetition && (
                         <span className="badge">
-                            {festival.name} {festival.year}
+                            {currentCompetition.name}
                         </span>
                     )}
                 </div>
@@ -311,14 +448,31 @@ export function FixturesManager() {
                     className="btn primary"
                     type="button"
                     onClick={openCreateModal}
-                    disabled={!festival || teams.length < 2}
+                    disabled={
+                        !currentCompetitionId ||
+                        teams.length < 2 ||
+                        isLoading
+                    }
                 >
                     + Add Fixture
                 </button>
             </div>
 
-            {isLoading ? (
-                <p className="muted">Loading fixtures...</p>
+            {!currentCompetitionId ? (
+                <div className="teamsEmptyState">
+                    <h3>
+                        No competition selected
+                    </h3>
+
+                    <p>
+                        Select a competition before
+                        managing its fixtures.
+                    </p>
+                </div>
+            ) : isLoading ? (
+                <p className="muted">
+                    Loading fixtures...
+                </p>
             ) : (
                 <FixturesTable
                     fixtures={fixtures}
@@ -326,32 +480,47 @@ export function FixturesManager() {
                     venues={venues}
                     groups={groups}
                     onEdit={openEditModal}
-                    onDelete={setFixtureToDelete}
+                    onDelete={
+                        setFixtureToDelete
+                    }
                 />
             )}
 
-            {showModal && (
-                <FixtureModal
-                    mode={editingFixture ? 'edit' : 'create'}
-                    values={formValues}
-                    teams={teams}
-                    venues={venues}
-                    groups={groups}
-                    groupMemberships={groupMemberships}
-                    isSaving={isSaving}
-                    onChange={setFormValues}
-                    onClose={closeModal}
-                    onSave={saveFixture}
-                />
-            )}
+            {showModal &&
+                currentCompetitionId && (
+                    <FixtureModal
+                        mode={
+                            editingFixture
+                                ? 'edit'
+                                : 'create'
+                        }
+                        values={formValues}
+                        teams={teams}
+                        venues={venues}
+                        groups={groups}
+                        groupMemberships={
+                            groupMemberships
+                        }
+                        isSaving={isSaving}
+                        onChange={setFormValues}
+                        onClose={closeModal}
+                        onSave={saveFixture}
+                    />
+                )}
 
             {fixtureToDelete && (
                 <ConfirmDialog
                     title="Delete Fixture"
                     message={`Are you sure you want to delete this ${fixtureToDelete.stage} fixture?`}
-                    confirmText="Delete"
+                    confirmText={
+                        isDeleting
+                            ? 'Deleting...'
+                            : 'Delete'
+                    }
                     cancelText="Cancel"
-                    onCancel={() => setFixtureToDelete(null)}
+                    onCancel={() =>
+                        setFixtureToDelete(null)
+                    }
                     onConfirm={deleteFixture}
                 />
             )}

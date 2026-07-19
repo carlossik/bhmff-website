@@ -1,6 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient'
 import type {
-    Festival,
+    Competition,
     Fixture,
     FixtureFormValues,
     FixtureGroup,
@@ -20,62 +20,94 @@ function throwSupabaseError(
 }
 
 export const fixtureService = {
-    async getActiveFestival(): Promise<Festival | null> {
+    async getActiveCompetition(): Promise<Competition | null> {
         const { data, error } = await supabase
-            .from('festivals')
-            .select('id, name, year')
-            .eq('status', 'active')
-            .order('year', { ascending: false })
+            .from('competitions')
+            .select('id, name, status')
+            .eq('status', 'ACTIVE')
             .limit(1)
             .maybeSingle()
 
-        throwSupabaseError(error, 'Failed to load active festival')
+        throwSupabaseError(
+            error,
+            'Failed to load active competition'
+        )
 
         return data
     },
 
-    async getFixtures(festivalId: string): Promise<Fixture[]> {
+    async getFixtures(
+        competitionId: string
+    ): Promise<Fixture[]> {
         const { data, error } = await supabase
             .from('fixtures')
             .select('*')
-            .eq('festival_id', festivalId)
-            .order('kickoff_time', { ascending: true })
+            .eq('competition_id', competitionId)
+            .order('kickoff_time', {
+                ascending: true,
+            })
 
         throwSupabaseError(error, 'Failed to load fixtures')
 
         return data ?? []
     },
 
-    async getTeams(festivalId: string): Promise<FixtureTeam[]> {
+    async getTeams(
+        competitionId: string
+    ): Promise<FixtureTeam[]> {
         const { data, error } = await supabase
-            .from('teams')
-            .select('id, name')
-            .eq('festival_id', festivalId)
-            .order('name', { ascending: true })
+            .from('competition_teams')
+            .select(
+                `
+                id,
+                team_id,
+                teams(
+                    name,
+                    logo_url
+                )
+            `
+            )
+            .eq('competition_id', competitionId)
+            .order('team_id')
 
         throwSupabaseError(error, 'Failed to load teams')
 
-        return data ?? []
+        return (
+            data?.map((row: any) => ({
+                competition_team_id: row.id,
+                team_id: row.team_id,
+                name: row.teams?.name ?? '',
+                logo_url: row.teams?.logo_url ?? null,
+            })) ?? []
+        )
     },
 
-    async getVenues(festivalId: string): Promise<FixtureVenue[]> {
+    async getVenues(
+        competitionId: string
+    ): Promise<FixtureVenue[]> {
         const { data, error } = await supabase
             .from('venues')
-            .select('id, name, address, postcode')
-            .eq('festival_id', festivalId)
-            .order('name', { ascending: true })
+            .select(
+                'id,name,address,postcode'
+            )
+            .eq('competition_id', competitionId)
+            .order('name')
 
         throwSupabaseError(error, 'Failed to load venues')
 
         return data ?? []
     },
 
-    async getGroups(festivalId: string): Promise<FixtureGroup[]> {
+    async getGroups(
+        competitionId: string
+    ): Promise<FixtureGroup[]> {
         const { data, error } = await supabase
             .from('groups')
-            .select('id, name, sort_order')
-            .eq('festival_id', festivalId)
-            .order('sort_order', { ascending: true })
+            .select(
+                'id,name,sort_order'
+            )
+            .eq('competition_id', competitionId)
+            .order('sort_order')
 
         throwSupabaseError(error, 'Failed to load groups')
 
@@ -89,41 +121,63 @@ export const fixtureService = {
 
         const { data, error } = await supabase
             .from('group_teams')
-            .select('group_id, team_id')
+            .select(
+                'group_id,competition_team_id'
+            )
             .in('group_id', groupIds)
 
-        throwSupabaseError(error, 'Failed to load group teams')
+        throwSupabaseError(
+            error,
+            'Failed to load group memberships'
+        )
 
         return data ?? []
     },
 
     async createFixture(
-        festivalId: string,
+        competitionId: string,
         values: FixtureFormValues
     ): Promise<void> {
-        const isGroupStage = values.stage === 'Group Stage'
+        const isGroupStage =
+            values.stage === 'Group Stage'
 
-        const { error } = await supabase.from('fixtures').insert({
-            festival_id: festivalId,
-            group_id: isGroupStage ? values.group_id || null : null,
-            home_team_id: values.home_team_id || null,
-            away_team_id: values.away_team_id || null,
-            venue_id: values.venue_id || null,
-            stage: values.stage.trim(),
-            kickoff_time: values.kickoff_time
-                ? new Date(values.kickoff_time).toISOString()
-                : null,
-            status: values.status,
-        })
+        const { error } = await supabase
+            .from('fixtures')
+            .insert({
+                competition_id: competitionId,
+                group_id: isGroupStage
+                    ? values.group_id || null
+                    : null,
+                home_competition_team_id:
+                    values.home_competition_team_id ||
+                    null,
+                away_competition_team_id:
+                    values.away_competition_team_id ||
+                    null,
+                venue_id:
+                    values.venue_id || null,
+                stage: values.stage.trim(),
+                kickoff_time:
+                    values.kickoff_time
+                        ? new Date(
+                            values.kickoff_time
+                        ).toISOString()
+                        : null,
+                status: values.status,
+            })
 
-        throwSupabaseError(error, 'Failed to create fixture')
+        throwSupabaseError(
+            error,
+            'Failed to create fixture'
+        )
     },
 
     async updateFixture(
         fixtureId: string,
         values: FixtureFormValues
     ): Promise<void> {
-        const isGroupStage = values.stage === 'Group Stage'
+        const isGroupStage =
+            values.stage === 'Group Stage'
 
         const { error } = await supabase
             .from('fixtures')
@@ -131,26 +185,42 @@ export const fixtureService = {
                 group_id: isGroupStage
                     ? values.group_id || null
                     : null,
-                home_team_id: values.home_team_id || null,
-                away_team_id: values.away_team_id || null,
-                venue_id: values.venue_id || null,
+                home_competition_team_id:
+                    values.home_competition_team_id ||
+                    null,
+                away_competition_team_id:
+                    values.away_competition_team_id ||
+                    null,
+                venue_id:
+                    values.venue_id || null,
                 stage: values.stage.trim(),
-                kickoff_time: values.kickoff_time
-                    ? new Date(values.kickoff_time).toISOString()
-                    : null,
+                kickoff_time:
+                    values.kickoff_time
+                        ? new Date(
+                            values.kickoff_time
+                        ).toISOString()
+                        : null,
                 status: values.status,
             })
             .eq('id', fixtureId)
 
-        throwSupabaseError(error, 'Failed to update fixture')
+        throwSupabaseError(
+            error,
+            'Failed to update fixture'
+        )
     },
 
-    async deleteFixture(fixtureId: string): Promise<void> {
+    async deleteFixture(
+        fixtureId: string
+    ): Promise<void> {
         const { error } = await supabase
             .from('fixtures')
             .delete()
             .eq('id', fixtureId)
 
-        throwSupabaseError(error, 'Failed to delete fixture')
+        throwSupabaseError(
+            error,
+            'Failed to delete fixture'
+        )
     },
 }

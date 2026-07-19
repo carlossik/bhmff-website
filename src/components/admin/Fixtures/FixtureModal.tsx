@@ -47,20 +47,33 @@ export function FixtureModal({
                                  onClose,
                                  onSave,
                              }: FixtureModalProps) {
-    const isGroupStage = values.stage === 'Group Stage'
+    const isGroupStage =
+        values.stage === 'Group Stage'
 
-    const groupTeamIds = groupMemberships
-        .filter(
-            (membership) => membership.group_id === values.group_id
-        )
-        .map((membership) => membership.team_id)
+    const groupCompetitionTeamIds =
+        groupMemberships
+            .filter(
+                (membership) =>
+                    membership.group_id ===
+                    values.group_id
+            )
+            .map(
+                (membership) =>
+                    membership.competition_team_id
+            )
 
     const availableTeams =
         isGroupStage && values.group_id
-            ? teams.filter((team) => groupTeamIds.includes(team.id))
+            ? teams.filter((team) =>
+                groupCompetitionTeamIds.includes(
+                    team.competition_team_id
+                )
+            )
             : teams
 
-    function updateField<K extends keyof FixtureFormValues>(
+    function updateField<
+        K extends keyof FixtureFormValues
+    >(
         field: K,
         value: FixtureFormValues[K]
     ) {
@@ -74,9 +87,12 @@ export function FixtureModal({
         onChange({
             ...values,
             stage,
-            group_id: stage === 'Group Stage' ? values.group_id : '',
-            home_team_id: '',
-            away_team_id: '',
+            group_id:
+                stage === 'Group Stage'
+                    ? values.group_id
+                    : '',
+            home_competition_team_id: '',
+            away_competition_team_id: '',
         })
     }
 
@@ -84,14 +100,18 @@ export function FixtureModal({
         onChange({
             ...values,
             group_id: groupId,
-            home_team_id: '',
-            away_team_id: '',
+            home_competition_team_id: '',
+            away_competition_team_id: '',
         })
     }
 
     return (
         <Modal
-            title={mode === 'edit' ? 'Edit Fixture' : 'Add Fixture'}
+            title={
+                mode === 'edit'
+                    ? 'Edit Fixture'
+                    : 'Add Fixture'
+            }
             onClose={onClose}
         >
             <div className="adminFormGrid">
@@ -101,13 +121,20 @@ export function FixtureModal({
                     <select
                         value={values.stage}
                         onChange={(event) =>
-                            handleStageChange(event.target.value)
+                            handleStageChange(
+                                event.target.value
+                            )
                         }
                     >
-                        <option value="">Select stage</option>
+                        <option value="">
+                            Select stage
+                        </option>
 
                         {stages.map((stage) => (
-                            <option key={stage} value={stage}>
+                            <option
+                                key={stage}
+                                value={stage}
+                            >
                                 {stage}
                             </option>
                         ))}
@@ -122,13 +149,20 @@ export function FixtureModal({
                         onChange={(event) =>
                             updateField(
                                 'status',
-                                event.target.value as FixtureStatus
+                                event.target
+                                    .value as FixtureStatus
                             )
                         }
                     >
                         {statuses.map((status) => (
-                            <option key={status} value={status}>
-                                {status.replace(/_/g, ' ')}
+                            <option
+                                key={status}
+                                value={status}
+                            >
+                                {status.replace(
+                                    /_/g,
+                                    ' '
+                                )}
                             </option>
                         ))}
                     </select>
@@ -136,18 +170,27 @@ export function FixtureModal({
 
                 {isGroupStage && (
                     <label className="adminFormFullWidth">
-                        <span>Competition Group</span>
+                        <span>
+                            Competition Group
+                        </span>
 
                         <select
                             value={values.group_id}
                             onChange={(event) =>
-                                handleGroupChange(event.target.value)
+                                handleGroupChange(
+                                    event.target.value
+                                )
                             }
                         >
-                            <option value="">Select group</option>
+                            <option value="">
+                                Select group
+                            </option>
 
                             {groups.map((group) => (
-                                <option key={group.id} value={group.id}>
+                                <option
+                                    key={group.id}
+                                    value={group.id}
+                                >
                                     {group.name}
                                 </option>
                             ))}
@@ -159,22 +202,36 @@ export function FixtureModal({
                     <span>Home Team</span>
 
                     <select
-                        value={values.home_team_id}
-                        disabled={isGroupStage && !values.group_id}
+                        value={
+                            values.home_competition_team_id
+                        }
+                        disabled={
+                            isGroupStage &&
+                            !values.group_id
+                        }
                         onChange={(event) =>
                             updateField(
-                                'home_team_id',
+                                'home_competition_team_id',
                                 event.target.value
                             )
                         }
                     >
-                        <option value="">Select home team</option>
+                        <option value="">
+                            Select home team
+                        </option>
 
                         {availableTeams.map((team) => (
                             <option
-                                key={team.id}
-                                value={team.id}
-                                disabled={team.id === values.away_team_id}
+                                key={
+                                    team.competition_team_id
+                                }
+                                value={
+                                    team.competition_team_id
+                                }
+                                disabled={
+                                    team.competition_team_id ===
+                                    values.away_competition_team_id
+                                }
                             >
                                 {team.name}
                             </option>
@@ -186,22 +243,36 @@ export function FixtureModal({
                     <span>Away Team</span>
 
                     <select
-                        value={values.away_team_id}
-                        disabled={isGroupStage && !values.group_id}
+                        value={
+                            values.away_competition_team_id
+                        }
+                        disabled={
+                            isGroupStage &&
+                            !values.group_id
+                        }
                         onChange={(event) =>
                             updateField(
-                                'away_team_id',
+                                'away_competition_team_id',
                                 event.target.value
                             )
                         }
                     >
-                        <option value="">Select away team</option>
+                        <option value="">
+                            Select away team
+                        </option>
 
                         {availableTeams.map((team) => (
                             <option
-                                key={team.id}
-                                value={team.id}
-                                disabled={team.id === values.home_team_id}
+                                key={
+                                    team.competition_team_id
+                                }
+                                value={
+                                    team.competition_team_id
+                                }
+                                disabled={
+                                    team.competition_team_id ===
+                                    values.home_competition_team_id
+                                }
                             >
                                 {team.name}
                             </option>
@@ -210,11 +281,15 @@ export function FixtureModal({
                 </label>
 
                 <label>
-                    <span>Kick-off Date and Time</span>
+                    <span>
+                        Kick-off Date and Time
+                    </span>
 
                     <input
                         type="datetime-local"
-                        value={values.kickoff_time}
+                        value={
+                            values.kickoff_time
+                        }
                         onChange={(event) =>
                             updateField(
                                 'kickoff_time',
@@ -236,10 +311,15 @@ export function FixtureModal({
                             )
                         }
                     >
-                        <option value="">Venue to be confirmed</option>
+                        <option value="">
+                            Venue to be confirmed
+                        </option>
 
                         {venues.map((venue) => (
-                            <option key={venue.id} value={venue.id}>
+                            <option
+                                key={venue.id}
+                                value={venue.id}
+                            >
                                 {venue.name}
                             </option>
                         ))}
