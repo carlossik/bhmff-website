@@ -4,7 +4,7 @@ import { Toast } from '../../common/Toast'
 import { GroupModal } from './GroupModal'
 import { groupService } from './groupService'
 import type {
-    FestivalGroup,
+    CompetitionGroup,
     GroupFormValues,
     GroupMembership,
     GroupTeam,
@@ -13,21 +13,23 @@ import type {
 const emptyForm: GroupFormValues = {
     name: '',
     sort_order: '1',
-    team_ids: [],
+    competition_team_ids: [],
 }
 
 export function GroupsManager() {
-    const [festivalId, setFestivalId] = useState<string | null>(null)
-    const [groups, setGroups] = useState<FestivalGroup[]>([])
+    const [competitionId, setCompetitionId] =
+        useState<string | null>(null)
+
+    const [groups, setGroups] = useState<CompetitionGroup[]>([])
     const [teams, setTeams] = useState<GroupTeam[]>([])
     const [memberships, setMemberships] =
         useState<GroupMembership[]>([])
 
     const [editingGroup, setEditingGroup] =
-        useState<FestivalGroup | null>(null)
+        useState<CompetitionGroup | null>(null)
 
     const [groupToDelete, setGroupToDelete] =
-        useState<FestivalGroup | null>(null)
+        useState<CompetitionGroup | null>(null)
 
     const [formValues, setFormValues] =
         useState<GroupFormValues>(emptyForm)
@@ -52,12 +54,12 @@ export function GroupsManager() {
         setIsLoading(true)
 
         try {
-            const activeFestivalId =
-                await groupService.getActiveFestivalId()
+            const activeCompetitionId =
+                await groupService.getActiveCompetitionId()
 
-            setFestivalId(activeFestivalId)
+            setCompetitionId(activeCompetitionId)
 
-            if (!activeFestivalId) {
+            if (!activeCompetitionId) {
                 setGroups([])
                 setTeams([])
                 setMemberships([])
@@ -65,8 +67,8 @@ export function GroupsManager() {
             }
 
             const [groupRows, teamRows] = await Promise.all([
-                groupService.getGroups(activeFestivalId),
-                groupService.getTeams(activeFestivalId),
+                groupService.getGroups(activeCompetitionId),
+                groupService.getTeams(activeCompetitionId),
             ])
 
             const membershipRows =
@@ -90,29 +92,34 @@ export function GroupsManager() {
     }
 
     useEffect(() => {
-        loadData()
+        void loadData()
     }, [])
 
     function openCreateModal() {
         setEditingGroup(null)
+
         setFormValues({
             ...emptyForm,
             sort_order: String(groups.length + 1),
         })
+
         setShowModal(true)
     }
 
-    function openEditModal(group: FestivalGroup) {
+    function openEditModal(group: CompetitionGroup) {
         setEditingGroup(group)
 
         setFormValues({
             name: group.name,
             sort_order: String(group.sort_order),
-            team_ids: memberships
+            competition_team_ids: memberships
                 .filter(
                     (membership) => membership.group_id === group.id
                 )
-                .map((membership) => membership.team_id),
+                .map(
+                    (membership) =>
+                        membership.competition_team_id
+                ),
         })
 
         setShowModal(true)
@@ -125,8 +132,11 @@ export function GroupsManager() {
     }
 
     async function saveGroup() {
-        if (!festivalId) {
-            showToast('No active festival was found.', 'error')
+        if (!competitionId) {
+            showToast(
+                'No active competition was found.',
+                'error'
+            )
             return
         }
 
@@ -135,11 +145,17 @@ export function GroupsManager() {
             return
         }
 
+        const sortOrder = Number(formValues.sort_order)
+
         if (
             !formValues.sort_order ||
-            Number(formValues.sort_order) < 1
+            Number.isNaN(sortOrder) ||
+            sortOrder < 1
         ) {
-            showToast('Display order must be at least 1.', 'error')
+            showToast(
+                'Display order must be at least 1.',
+                'error'
+            )
             return
         }
 
@@ -155,7 +171,7 @@ export function GroupsManager() {
                 )
             } else {
                 await groupService.createGroup(
-                    festivalId,
+                    competitionId,
                     formValues
                 )
             }
@@ -190,7 +206,10 @@ export function GroupsManager() {
             setGroupToDelete(null)
             await loadData()
 
-            showToast('Group deleted successfully.', 'success')
+            showToast(
+                'Group deleted successfully.',
+                'success'
+            )
         } catch (error) {
             showToast(
                 error instanceof Error
@@ -201,14 +220,21 @@ export function GroupsManager() {
         }
     }
 
-    function getGroupTeams(groupId: string) {
-        const teamIds = memberships
+    function getGroupTeams(groupId: string): GroupTeam[] {
+        const competitionTeamIds = memberships
             .filter(
                 (membership) => membership.group_id === groupId
             )
-            .map((membership) => membership.team_id)
+            .map(
+                (membership) =>
+                    membership.competition_team_id
+            )
 
-        return teams.filter((team) => teamIds.includes(team.id))
+        return teams.filter((team) =>
+            competitionTeamIds.includes(
+                team.competition_team_id
+            )
+        )
     }
 
     if (isLoading) {
@@ -228,8 +254,8 @@ export function GroupsManager() {
                     <h3>Tournament Groups</h3>
 
                     <p className="muted">
-                        Create competition groups and allocate each team to
-                        its group.
+                        Create competition groups and allocate each
+                        registered team to its group.
                     </p>
                 </div>
 
@@ -237,19 +263,28 @@ export function GroupsManager() {
                     className="btn primary"
                     type="button"
                     onClick={openCreateModal}
-                    disabled={!festivalId}
+                    disabled={!competitionId}
                 >
                     + Add Group
                 </button>
             </div>
 
-            {!groups.length ? (
+            {!competitionId ? (
+                <div className="teamsEmptyState">
+                    <h3>No active competition</h3>
+
+                    <p>
+                        Create or activate a competition before
+                        managing tournament groups.
+                    </p>
+                </div>
+            ) : !groups.length ? (
                 <div className="teamsEmptyState">
                     <h3>No groups created</h3>
 
                     <p>
-                        Create Group A, Group B or any additional groups
-                        required by the competition.
+                        Create Group A, Group B or any additional
+                        groups required by the competition.
                     </p>
                 </div>
             ) : (
@@ -286,7 +321,9 @@ export function GroupsManager() {
                                             className="btn secondary small"
                                             type="button"
                                             onClick={() =>
-                                                setGroupToDelete(group)
+                                                setGroupToDelete(
+                                                    group
+                                                )
                                             }
                                         >
                                             Delete
@@ -299,20 +336,28 @@ export function GroupsManager() {
                                         groupTeams.map((team) => (
                                             <div
                                                 className="adminGroupTeam"
-                                                key={team.id}
+                                                key={
+                                                    team.competition_team_id
+                                                }
                                             >
                                                 {team.logo_url ? (
                                                     <img
-                                                        src={team.logo_url}
+                                                        src={
+                                                            team.logo_url
+                                                        }
                                                         alt={`${team.name} logo`}
                                                     />
                                                 ) : (
                                                     <span>
                                                         {team.name
                                                             .split(' ')
-                                                            .filter(Boolean)
+                                                            .filter(
+                                                                Boolean
+                                                            )
                                                             .map(
-                                                                (word) =>
+                                                                (
+                                                                    word
+                                                                ) =>
                                                                     word[0]
                                                             )
                                                             .join('')
@@ -321,7 +366,9 @@ export function GroupsManager() {
                                                     </span>
                                                 )}
 
-                                                <strong>{team.name}</strong>
+                                                <strong>
+                                                    {team.name}
+                                                </strong>
                                             </div>
                                         ))
                                     ) : (
@@ -342,7 +389,9 @@ export function GroupsManager() {
                     values={formValues}
                     teams={teams}
                     memberships={memberships}
-                    editingGroupId={editingGroup?.id ?? null}
+                    editingGroupId={
+                        editingGroup?.id ?? null
+                    }
                     isSaving={isSaving}
                     onChange={setFormValues}
                     onClose={closeModal}
@@ -356,7 +405,9 @@ export function GroupsManager() {
                     message={`Are you sure you want to delete ${groupToDelete.name}? Fixtures assigned to this group will remain but their group will be cleared.`}
                     confirmText="Delete"
                     cancelText="Cancel"
-                    onCancel={() => setGroupToDelete(null)}
+                    onCancel={() =>
+                        setGroupToDelete(null)
+                    }
                     onConfirm={deleteGroup}
                 />
             )}

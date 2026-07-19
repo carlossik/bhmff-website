@@ -28,26 +28,42 @@ export function GroupModal({
                                onClose,
                                onSave,
                            }: GroupModalProps) {
-    function toggleTeam(teamId: string) {
-        const isSelected = values.team_ids.includes(teamId)
+    function toggleTeam(competitionTeamId: string) {
+        const isSelected =
+            values.competition_team_ids.includes(
+                competitionTeamId
+            )
 
         onChange({
             ...values,
-            team_ids: isSelected
-                ? values.team_ids.filter((id) => id !== teamId)
-                : [...values.team_ids, teamId],
+            competition_team_ids: isSelected
+                ? values.competition_team_ids.filter(
+                    (id) => id !== competitionTeamId
+                )
+                : [
+                    ...values.competition_team_ids,
+                    competitionTeamId,
+                ],
         })
     }
 
-    function getAssignedGroupId(teamId: string) {
+    function getAssignedGroupId(
+        competitionTeamId: string
+    ) {
         return memberships.find(
-            (membership) => membership.team_id === teamId
+            (membership) =>
+                membership.competition_team_id ===
+                competitionTeamId
         )?.group_id
     }
 
     return (
         <Modal
-            title={mode === 'edit' ? 'Edit Group' : 'Add Group'}
+            title={
+                mode === 'edit'
+                    ? 'Edit Group'
+                    : 'Add Group'
+            }
             onClose={onClose}
         >
             <div className="adminFormGrid">
@@ -77,7 +93,8 @@ export function GroupModal({
                         onChange={(event) =>
                             onChange({
                                 ...values,
-                                sort_order: event.target.value,
+                                sort_order:
+                                event.target.value,
                             })
                         }
                     />
@@ -91,29 +108,38 @@ export function GroupModal({
                     <div className="groupTeamSelector">
                         {teams.map((team) => {
                             const assignedGroupId =
-                                getAssignedGroupId(team.id)
+                                getAssignedGroupId(
+                                    team.competition_team_id
+                                )
 
                             const assignedElsewhere =
                                 Boolean(assignedGroupId) &&
-                                assignedGroupId !== editingGroupId
+                                assignedGroupId !==
+                                editingGroupId
 
                             return (
                                 <label
+                                    key={
+                                        team.competition_team_id
+                                    }
                                     className={`groupTeamOption ${
                                         assignedElsewhere
                                             ? 'disabled'
                                             : ''
                                     }`}
-                                    key={team.id}
                                 >
                                     <input
                                         type="checkbox"
-                                        checked={values.team_ids.includes(
-                                            team.id
+                                        checked={values.competition_team_ids.includes(
+                                            team.competition_team_id
                                         )}
-                                        disabled={assignedElsewhere}
+                                        disabled={
+                                            assignedElsewhere
+                                        }
                                         onChange={() =>
-                                            toggleTeam(team.id)
+                                            toggleTeam(
+                                                team.competition_team_id
+                                            )
                                         }
                                     />
 
@@ -126,8 +152,15 @@ export function GroupModal({
                                         <span className="groupTeamInitials">
                                             {team.name
                                                 .split(' ')
-                                                .filter(Boolean)
-                                                .map((word) => word[0])
+                                                .filter(
+                                                    Boolean
+                                                )
+                                                .map(
+                                                    (
+                                                        word
+                                                    ) =>
+                                                        word[0]
+                                                )
                                                 .join('')
                                                 .slice(0, 3)
                                                 .toUpperCase()}
@@ -135,11 +168,15 @@ export function GroupModal({
                                     )}
 
                                     <span>
-                                        <strong>{team.name}</strong>
+                                        <strong>
+                                            {team.name}
+                                        </strong>
 
                                         {assignedElsewhere && (
                                             <small>
-                                                Already allocated to another
+                                                Already
+                                                allocated to
+                                                another
                                                 group
                                             </small>
                                         )}
