@@ -15,21 +15,35 @@ type PublicGroup = {
 
 type PublicMembership = {
     group_id: string
-    team_id: string
+    competition_team_id: string
 }
 
-type PublicTeam = {
+type PublicTeamDetails = {
     id: string
     name: string
     manager_name: string | null
     logo_url: string | null
+    published: boolean
+    participation_status: string | null
+}
+
+type RelatedPublicTeam =
+    | PublicTeamDetails
+    | PublicTeamDetails[]
+    | null
+
+type PublicCompetitionTeamRow = {
+    id: string
+    team_id: string
+    team: RelatedPublicTeam
 }
 
 type FixtureRelation = {
     id: string
+    competition_id: string | null
     group_id: string | null
-    home_team_id: string | null
-    away_team_id: string | null
+    home_competition_team_id: string | null
+    away_competition_team_id: string | null
     stage: string
 }
 
@@ -50,8 +64,26 @@ type GroupStandingBlock = {
     standings: LeagueStanding[]
 }
 
-function getFixture(relation: RelatedFixture) {
-    if (!relation) return null
+function getRelatedPublicTeam(
+    relation: RelatedPublicTeam
+): PublicTeamDetails | null {
+    if (!relation) {
+        return null
+    }
+
+    if (Array.isArray(relation)) {
+        return relation[0] ?? null
+    }
+
+    return relation
+}
+
+function getFixture(
+    relation: RelatedFixture
+): FixtureRelation | null {
+    if (!relation) {
+        return null
+    }
 
     if (Array.isArray(relation)) {
         return relation[0] ?? null
@@ -75,57 +107,81 @@ function formatGoalDifference(value: number) {
 }
 
 export function PublicGroupStandings() {
-    const [blocks, setBlocks] = useState<GroupStandingBlock[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const [blocks, setBlocks] =
+        useState<GroupStandingBlock[]>([])
+
+    const [isLoading, setIsLoading] =
+        useState(true)
 
     useEffect(() => {
         async function loadStandings() {
             setIsLoading(true)
 
             try {
-                const { data: festival, error: festivalError } =
-                    await supabase
-                        .from('festivals')
-                        .select('id')
-                        .eq('status', 'active')
-                        .order('year', { ascending: false })
-                        .limit(1)
-                        .maybeSingle()
+                const {
+                    data: competition,
+                    error: competitionError,
+                } = await supabase
+                    .from('competitions')
+                    .select('id')
+                    .eq('status', 'ACTIVE')
+                    .limit(1)
+                    .maybeSingle()
 
-                if (festivalError) throw festivalError
+                if (competitionError) {
+                    throw competitionError
+                }
 
-                if (!festival) {
+                if (!competition) {
                     setBlocks([])
                     return
                 }
 
                 const [
                     groupsResponse,
-                    teamsResponse,
+                    competitionTeamsResponse,
                     membershipsResponse,
                     resultsResponse,
                 ] = await Promise.all([
                     supabase
                         .from('groups')
-                        .select('id, name, sort_order')
-                        .eq('festival_id', festival.id)
+                        .select(
+                            'id, name, sort_order'
+                        )
+                        .eq(
+                            'competition_id',
+                            competition.id
+                        )
                         .eq('published', true)
-                        .order('sort_order', { ascending: true }),
+                        .order('sort_order', {
+                            ascending: true,
+                        }),
 
                     supabase
-                        .from('teams')
-                        .select(
-                            'id, name, manager_name, logo_url'
-                        )
-                        .eq('festival_id', festival.id)
-                        .eq('published', true)
+                        .from('competition_teams')
+                        .select(`
+                            id,
+                            team_id,
+                            team:teams!competition_teams_team_id_fkey (
+                                id,
+                                name,
+                                manager_name,
+                                logo_url,
+                                published,
+                                participation_status
+                            )
+                        `)
                         .eq(
-                            'participation_status',
-                            'confirmed'
+                            'competition_id',
+                            competition.id
                         ),
+
                     supabase
                         .from('group_teams')
-                        .select('group_id, team_id'),
+                        .select(`
+                            group_id,
+                            competition_team_id
+                        `),
 
                     supabase
                         .from('results')
@@ -134,30 +190,49 @@ export function PublicGroupStandings() {
                             away_score,
                             fixture:fixtures!results_fixture_id_fkey!inner (
                                 id,
-                                festival_id,
+                                competition_id,
                                 group_id,
-                                home_team_id,
-                                away_team_id,
+                                home_competition_team_id,
+                                away_competition_team_id,
                                 stage
                             )
                         `)
                         .eq('published', true)
-                        .eq('fixture.festival_id', festival.id)
-                        .eq('fixture.stage', 'Group Stage'),
+                        .eq(
+                            'fixture.competition_id',
+                            competition.id
+                        )
+                        .eq(
+                            'fixture.stage',
+                            'Group Stage'
+                        ),
                 ])
 
-                if (groupsResponse.error) throw groupsResponse.error
-                if (teamsResponse.error) throw teamsResponse.error
+                if (groupsResponse.error) {
+                    throw groupsResponse.error
+                }
+
+                if (
+                    competitionTeamsResponse.error
+                ) {
+                    throw competitionTeamsResponse.error
+                }
+
                 if (membershipsResponse.error) {
                     throw membershipsResponse.error
                 }
-                if (resultsResponse.error) throw resultsResponse.error
+
+                if (resultsResponse.error) {
+                    throw resultsResponse.error
+                }
 
                 const groups =
-                    (groupsResponse.data ?? []) as PublicGroup[]
+                    (groupsResponse.data ??
+                        []) as PublicGroup[]
 
-                const teams =
-                    (teamsResponse.data ?? []) as PublicTeam[]
+                const competitionTeams =
+                    (competitionTeamsResponse.data ??
+                        []) as unknown as PublicCompetitionTeamRow[]
 
                 const memberships =
                     (membershipsResponse.data ??
@@ -167,59 +242,135 @@ export function PublicGroupStandings() {
                     (resultsResponse.data ??
                         []) as unknown as PublicResultRow[]
 
-                const standingBlocks = groups.map((group) => {
-                    const teamIds = memberships
-                        .filter(
-                            (membership) =>
-                                membership.group_id === group.id
-                        )
-                        .map((membership) => membership.team_id)
+                const validCompetitionTeams =
+                    competitionTeams.filter(
+                        (competitionTeam) => {
+                            const team =
+                                getRelatedPublicTeam(
+                                    competitionTeam.team
+                                )
 
-                    const groupTeams: StandingsTeam[] = teams
-                        .filter((team) => teamIds.includes(team.id))
-                        .map((team) => ({
-                            id: team.id,
-                            name: team.name.trim(),
-                            manager: team.manager_name ?? 'TBC',
-                            logoUrl: team.logo_url ?? '',
-                        }))
+                            return (
+                                team !== null &&
+                                team.published &&
+                                team.participation_status ===
+                                'confirmed'
+                            )
+                        }
+                    )
 
-                    const groupResults: StandingsResult[] = results
-                        .map((result) => {
-                            const fixture = getFixture(result.fixture)
+                const standingBlocks =
+                    groups.map((group) => {
+                        const competitionTeamIds =
+                            memberships
+                                .filter(
+                                    (
+                                        membership
+                                    ) =>
+                                        membership.group_id ===
+                                        group.id
+                                )
+                                .map(
+                                    (
+                                        membership
+                                    ) =>
+                                        membership.competition_team_id
+                                )
 
-                            if (
-                                !fixture ||
-                                fixture.group_id !== group.id ||
-                                !fixture.home_team_id ||
-                                !fixture.away_team_id
-                            ) {
-                                return null
-                            }
+                        const groupTeams:
+                            StandingsTeam[] =
+                            validCompetitionTeams
+                                .filter(
+                                    (
+                                        competitionTeam
+                                    ) =>
+                                        competitionTeamIds.includes(
+                                            competitionTeam.id
+                                        )
+                                )
+                                .map(
+                                    (
+                                        competitionTeam
+                                    ) => {
+                                        const team =
+                                            getRelatedPublicTeam(
+                                                competitionTeam.team
+                                            )
 
-                            return {
-                                homeTeamId: fixture.home_team_id,
-                                awayTeamId: fixture.away_team_id,
-                                homeScore: result.home_score,
-                                awayScore: result.away_score,
-                            }
-                        })
-                        .filter(
-                            (
-                                result
-                            ): result is StandingsResult =>
-                                result !== null
-                        )
+                                        if (!team) {
+                                            return null
+                                        }
 
-                    return {
-                        id: group.id,
-                        name: group.name,
-                        standings: calculateStandings(
-                            groupTeams,
-                            groupResults
-                        ),
-                    }
-                })
+                                        return {
+                                            id: competitionTeam.id,
+                                            name: team.name.trim(),
+                                            manager:
+                                                team.manager_name ??
+                                                'TBC',
+                                            logoUrl:
+                                                team.logo_url ??
+                                                '',
+                                        }
+                                    }
+                                )
+                                .filter(
+                                    (
+                                        team
+                                    ): team is StandingsTeam =>
+                                        team !== null
+                                )
+
+                        const groupResults:
+                            StandingsResult[] =
+                            results
+                                .map(
+                                    (
+                                        result
+                                    ) => {
+                                        const fixture =
+                                            getFixture(
+                                                result.fixture
+                                            )
+
+                                        if (
+                                            !fixture ||
+                                            fixture.group_id !==
+                                            group.id ||
+                                            !fixture.home_competition_team_id ||
+                                            !fixture.away_competition_team_id
+                                        ) {
+                                            return null
+                                        }
+
+                                        return {
+                                            homeTeamId:
+                                            fixture.home_competition_team_id,
+                                            awayTeamId:
+                                            fixture.away_competition_team_id,
+                                            homeScore:
+                                            result.home_score,
+                                            awayScore:
+                                            result.away_score,
+                                        }
+                                    }
+                                )
+                                .filter(
+                                    (
+                                        result
+                                    ): result is StandingsResult =>
+                                        result !== null
+                                )
+
+                        return {
+                            id: group.id,
+                            name: group.name,
+                            standings:
+                                calculateStandings(
+                                    groupTeams,
+                                    groupResults
+                                ),
+                        }
+                    })
 
                 setBlocks(standingBlocks)
             } catch (error) {
@@ -227,17 +378,22 @@ export function PublicGroupStandings() {
                     'Failed to load grouped standings:',
                     error
                 )
+
                 setBlocks([])
             } finally {
                 setIsLoading(false)
             }
         }
 
-        loadStandings()
+        void loadStandings()
     }, [])
 
     if (isLoading) {
-        return <p className="muted">Loading group standings...</p>
+        return (
+            <p className="muted">
+                Loading group standings...
+            </p>
+        )
     }
 
     if (!blocks.length) {
@@ -246,14 +402,18 @@ export function PublicGroupStandings() {
                 <h3>Groups coming soon</h3>
 
                 <p>
-                    Group tables will appear once teams have been allocated.
+                    Group tables will appear once
+                    teams have been allocated.
                 </p>
             </div>
         )
     }
 
     return (
-        <div className="publicGroupStandings" style={{ marginTop: '2rem' }}>
+        <div
+            className="publicGroupStandings"
+            style={{ marginTop: '2rem' }}
+        >
             {blocks.map((block) => (
                 <article
                     className="publicGroupStandingCard"
@@ -269,7 +429,8 @@ export function PublicGroupStandings() {
 
                     {!block.standings.length ? (
                         <p className="muted">
-                            No teams allocated to this group.
+                            No teams allocated to
+                            this group.
                         </p>
                     ) : (
                         <div className="tableWrap leagueTableWrap">
@@ -290,57 +451,98 @@ export function PublicGroupStandings() {
                                 </thead>
 
                                 <tbody>
-                                {block.standings.map((team) => (
-                                    <tr key={team.id}>
-                                        <td>
-                                                <span className="leaguePosition">
-                                                    {team.position}
-                                                </span>
-                                        </td>
+                                {block.standings.map(
+                                    (team) => (
+                                        <tr
+                                            key={
+                                                team.id
+                                            }
+                                        >
+                                            <td>
+                                                    <span className="leaguePosition">
+                                                        {
+                                                            team.position
+                                                        }
+                                                    </span>
+                                            </td>
 
-                                        <td className="leagueTeamName">
-                                            <div className="leagueTeamIdentity">
-                                                <div className="leagueTeamLogo">
-                                                    {team.logoUrl ? (
-                                                        <img
-                                                            src={
-                                                                team.logoUrl
-                                                            }
-                                                            alt={`${team.name} logo`}
-                                                        />
-                                                    ) : (
-                                                        getInitials(
+                                            <td className="leagueTeamName">
+                                                <div className="leagueTeamIdentity">
+                                                    <div className="leagueTeamLogo">
+                                                        {team.logoUrl ? (
+                                                            <img
+                                                                src={
+                                                                    team.logoUrl
+                                                                }
+                                                                alt={`${team.name} logo`}
+                                                            />
+                                                        ) : (
+                                                            getInitials(
+                                                                team.name
+                                                            )
+                                                        )}
+                                                    </div>
+
+                                                    <strong>
+                                                        {
                                                             team.name
-                                                        )
-                                                    )}
+                                                        }
+                                                    </strong>
                                                 </div>
+                                            </td>
 
+                                            <td>
+                                                {
+                                                    team.played
+                                                }
+                                            </td>
+
+                                            <td>
+                                                {
+                                                    team.won
+                                                }
+                                            </td>
+
+                                            <td>
+                                                {
+                                                    team.drawn
+                                                }
+                                            </td>
+
+                                            <td>
+                                                {
+                                                    team.lost
+                                                }
+                                            </td>
+
+                                            <td>
+                                                {
+                                                    team.goalsFor
+                                                }
+                                            </td>
+
+                                            <td>
+                                                {
+                                                    team.goalsAgainst
+                                                }
+                                            </td>
+
+                                            <td>
+                                                {formatGoalDifference(
+                                                    team.goalDifference
+                                                )}
+                                            </td>
+
+                                            <td className="leaguePoints">
                                                 <strong>
-                                                    {team.name}
+                                                    {
+                                                        team.points
+                                                    }
                                                 </strong>
-                                            </div>
-                                        </td>
-
-                                        <td>{team.played}</td>
-                                        <td>{team.won}</td>
-                                        <td>{team.drawn}</td>
-                                        <td>{team.lost}</td>
-                                        <td>{team.goalsFor}</td>
-                                        <td>{team.goalsAgainst}</td>
-
-                                        <td>
-                                            {formatGoalDifference(
-                                                team.goalDifference
-                                            )}
-                                        </td>
-
-                                        <td className="leaguePoints">
-                                            <strong>
-                                                {team.points}
-                                            </strong>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                        </tr>
+                                    )
+                                )}
                                 </tbody>
                             </table>
                         </div>

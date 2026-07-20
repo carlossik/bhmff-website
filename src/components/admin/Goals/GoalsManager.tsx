@@ -1,4 +1,9 @@
-import { useEffect, useState } from 'react'
+import {
+    useCallback,
+    useEffect,
+    useState,
+} from 'react'
+import { useCompetition } from '../../../contexts/CompetitionContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { GoalModal } from './GoalModal'
@@ -20,6 +25,9 @@ const emptyForm: GoalFormValues = {
 }
 
 export function GoalsManager() {
+    const { currentCompetition } =
+        useCompetition()
+
     const [goals, setGoals] =
         useState<Goal[]>([])
 
@@ -30,7 +38,7 @@ export function GoalsManager() {
         useState<GoalTeam[]>([])
 
     const [isLoading, setIsLoading] =
-        useState(true)
+        useState(false)
 
     const [isSaving, setIsSaving] =
         useState(false)
@@ -66,58 +74,63 @@ export function GoalsManager() {
         setToastType(type)
     }
 
-    async function loadData() {
-        setIsLoading(true)
-
-        try {
-            const festivalId =
-                await goalService.getActiveFestivalId()
-
-            if (!festivalId) {
+    const loadData = useCallback(
+        async () => {
+            if (!currentCompetition?.id) {
                 setGoals([])
                 setFixtures([])
                 setTeams([])
+                setIsLoading(false)
                 return
             }
 
-            const [
-                fixtureRows,
-                teamRows,
-            ] = await Promise.all([
-                goalService.getFixtures(
-                    festivalId
-                ),
-                goalService.getTeams(
-                    festivalId
-                ),
-            ])
+            setIsLoading(true)
 
-            const goalRows =
-                await goalService.getGoals(
-                    fixtureRows.map(
-                        (fixture) =>
-                            fixture.id
+            try {
+                const [
+                    fixtureRows,
+                    teamRows,
+                ] = await Promise.all([
+                    goalService.getFixtures(
+                        currentCompetition.id
+                    ),
+                    goalService.getTeams(
+                        currentCompetition.id
+                    ),
+                ])
+
+                const goalRows =
+                    await goalService.getGoals(
+                        fixtureRows.map(
+                            (fixture) =>
+                                fixture.id
+                        )
                     )
-                )
 
-            setFixtures(fixtureRows)
-            setTeams(teamRows)
-            setGoals(goalRows)
-        } catch (error) {
-            showToast(
-                error instanceof Error
-                    ? error.message
-                    : 'Failed to load goals.',
-                'error'
-            )
-        } finally {
-            setIsLoading(false)
-        }
-    }
+                setFixtures(fixtureRows)
+                setTeams(teamRows)
+                setGoals(goalRows)
+            } catch (error) {
+                setGoals([])
+                setFixtures([])
+                setTeams([])
+
+                showToast(
+                    error instanceof Error
+                        ? error.message
+                        : 'Failed to load goals.',
+                    'error'
+                )
+            } finally {
+                setIsLoading(false)
+            }
+        },
+        [currentCompetition?.id]
+    )
 
     useEffect(() => {
-        loadData()
-    }, [])
+        void loadData()
+    }, [loadData])
 
     function openCreateModal() {
         setEditingGoal(null)
@@ -199,12 +212,19 @@ export function GoalsManager() {
                 formValues.fixture_id
         )
 
+        const selectedTeam = teams.find(
+            (team) =>
+                team.id ===
+                formValues.team_id
+        )
+
         if (
             fixture &&
-            formValues.team_id !==
-            fixture.home_team_id &&
-            formValues.team_id !==
-            fixture.away_team_id
+            selectedTeam &&
+            selectedTeam.competition_team_id !==
+            fixture.home_competition_team_id &&
+            selectedTeam.competition_team_id !==
+            fixture.away_competition_team_id
         ) {
             showToast(
                 'The selected team is not part of this fixture.',
@@ -292,21 +312,44 @@ export function GoalsManager() {
 
                     <p className="muted">
                         Record scorers, goal minutes
-                        and video timestamps.
+                        and video timestamps for the
+                        selected competition.
                     </p>
+
+                    {currentCompetition && (
+                        <span className="badge">
+                            {
+                                currentCompetition.name
+                            }
+                        </span>
+                    )}
                 </div>
 
                 <button
                     className="btn primary"
                     type="button"
                     onClick={openCreateModal}
-                    disabled={!fixtures.length}
+                    disabled={
+                        !currentCompetition ||
+                        !fixtures.length
+                    }
                 >
                     + Add Goal
                 </button>
             </div>
 
-            {isLoading ? (
+            {!currentCompetition ? (
+                <div className="teamsEmptyState">
+                    <h3>
+                        No competition selected
+                    </h3>
+
+                    <p>
+                        Select a competition before
+                        managing goals.
+                    </p>
+                </div>
+            ) : isLoading ? (
                 <p className="muted">
                     Loading goals...
                 </p>

@@ -26,9 +26,9 @@ export function GoalModal({
                               onClose,
                               onSave,
                           }: GoalModalProps) {
-    const teamNames = new Map(
+    const competitionTeamNames = new Map(
         teams.map((team) => [
-            team.id,
+            team.competition_team_id,
             team.name.trim(),
         ])
     )
@@ -41,10 +41,10 @@ export function GoalModal({
     const selectableTeams = selectedFixture
         ? teams.filter(
             (team) =>
-                team.id ===
-                selectedFixture.home_team_id ||
-                team.id ===
-                selectedFixture.away_team_id
+                team.competition_team_id ===
+                selectedFixture.home_competition_team_id ||
+                team.competition_team_id ===
+                selectedFixture.away_competition_team_id
         )
         : []
 
@@ -67,12 +67,18 @@ export function GoalModal({
             (item) => item.id === fixtureId
         )
 
+        const selectedTeam = teams.find(
+            (team) =>
+                team.id === values.team_id
+        )
+
         const teamStillValid =
             fixture &&
-            (values.team_id ===
-                fixture.home_team_id ||
-                values.team_id ===
-                fixture.away_team_id)
+            selectedTeam &&
+            (selectedTeam.competition_team_id ===
+                fixture.home_competition_team_id ||
+                selectedTeam.competition_team_id ===
+                fixture.away_competition_team_id)
 
         onChange({
             ...values,
@@ -110,15 +116,15 @@ export function GoalModal({
 
                         {fixtures.map((fixture) => {
                             const home =
-                                teamNames.get(
-                                    fixture.home_team_id ??
+                                competitionTeamNames.get(
+                                    fixture.home_competition_team_id ??
                                     ''
                                 ) ??
                                 'Home team TBC'
 
                             const away =
-                                teamNames.get(
-                                    fixture.away_team_id ??
+                                competitionTeamNames.get(
+                                    fixture.away_competition_team_id ??
                                     ''
                                 ) ??
                                 'Away team TBC'

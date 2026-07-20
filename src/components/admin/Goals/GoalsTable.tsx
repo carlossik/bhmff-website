@@ -33,6 +33,13 @@ export function GoalsTable({
         ])
     )
 
+    const competitionTeamMap = new Map(
+        teams.map((team) => [
+            team.competition_team_id,
+            team,
+        ])
+    )
+
     if (!goals.length) {
         return (
             <div className="teamsEmptyState">
@@ -73,15 +80,17 @@ export function GoalsTable({
                         )
 
                     const homeTeam =
-                        teamMap.get(
-                            fixture?.home_team_id ??
+                        competitionTeamMap.get(
+                            fixture
+                                ?.home_competition_team_id ??
                             ''
                         )?.name ??
                         'Home team TBC'
 
                     const awayTeam =
-                        teamMap.get(
-                            fixture?.away_team_id ??
+                        competitionTeamMap.get(
+                            fixture
+                                ?.away_competition_team_id ??
                             ''
                         )?.name ??
                         'Away team TBC'

@@ -44,7 +44,7 @@ type EnquiryFilter =
 type SponsorEnquiryRow = {
     id: string
     created_at: string
-    festival_id: string | null
+    competition_id: string | null
     company_name: string
     contact_name: string
     email: string
@@ -198,7 +198,7 @@ export function EnquiriesManager() {
                     .select(`
                         id,
                         created_at,
-                        festival_id,
+                        competition_id,
                         company_name,
                         contact_name,
                         email,

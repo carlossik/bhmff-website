@@ -1,13 +1,7 @@
-export type Festival = {
-    id: string
-    name: string
-    year: number
-}
-
 export type Venue = {
     id: string
     organisation_id: string
-    festival_id: string | null
+    competition_id: string
     name: string
     address: string | null
     postcode: string | null

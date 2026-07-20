@@ -4,34 +4,25 @@ import {
     useMemo,
     useState,
 } from 'react'
+import { useCompetition } from '../../../contexts/CompetitionContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
-import {
-    generateDoubleRoundRobin,
-    generateKnockoutFirstRound,
-    generateLimitedSchedule,
-    generateSingleRoundRobin,
-    type EnginePairing,
-} from './competitionEngine'
 import { tournamentGeneratorService } from './tournamentGeneratorService'
 import type {
-    CompetitionMode,
     ExistingFixture,
     GeneratedFixturePreview,
+    GeneratorCompetitionTeam,
     GeneratorConfig,
-    GeneratorFestival,
     GeneratorGroup,
     GeneratorMembership,
-    GeneratorTeam,
     GeneratorVenue,
-    VenueAssignmentMode,
 } from './tournamentGeneratorTypes'
 
 const initialConfig: GeneratorConfig = {
     mode: 'group_full',
     startDateTime: '',
     daysBetweenRounds: 7,
-    venueAssignmentMode: 'home_team',
+    venueAssignmentMode: 'selected_venue',
     venueId: '',
     publishImmediately: false,
     confirmedOnly: true,
@@ -39,13 +30,78 @@ const initialConfig: GeneratorConfig = {
     randomiseCupDraw: true,
 }
 
-const modeLabels: Record<CompetitionMode, string> = {
-    group_full: 'Full group round robin',
-    group_limited: 'Limited group schedule',
-    league_single: 'Single round-robin league',
-    league_double: 'Double round-robin league',
-    knockout: 'Knockout cup',
-    manual: 'Manual scheduling',
+type Pairing = {
+    roundNumber: number
+    homeCompetitionTeamId: string
+    awayCompetitionTeamId: string
+}
+
+function createRoundRobinPairings(
+    competitionTeamIds: string[]
+): Pairing[] {
+    if (competitionTeamIds.length < 2) {
+        return []
+    }
+
+    const rotation: Array<string | null> = [
+        ...competitionTeamIds,
+    ]
+
+    if (rotation.length % 2 !== 0) {
+        rotation.push(null)
+    }
+
+    const rounds = rotation.length - 1
+    const matchesPerRound = rotation.length / 2
+    const pairings: Pairing[] = []
+
+    for (
+        let roundIndex = 0;
+        roundIndex < rounds;
+        roundIndex += 1
+    ) {
+        for (
+            let matchIndex = 0;
+            matchIndex < matchesPerRound;
+            matchIndex += 1
+        ) {
+            const first = rotation[matchIndex]
+            const second =
+                rotation[
+                rotation.length - 1 - matchIndex
+                    ]
+
+            if (!first || !second) {
+                continue
+            }
+
+            const shouldSwap =
+                roundIndex % 2 !== 0
+
+            pairings.push({
+                roundNumber: roundIndex + 1,
+                homeCompetitionTeamId:
+                    shouldSwap ? second : first,
+                awayCompetitionTeamId:
+                    shouldSwap ? first : second,
+            })
+        }
+
+        const fixedTeam = rotation[0]
+        const movingTeams = rotation.slice(1)
+        const lastTeam =
+            movingTeams.pop() ?? null
+
+        rotation.splice(
+            0,
+            rotation.length,
+            fixedTeam,
+            lastTeam,
+            ...movingTeams
+        )
+    }
+
+    return pairings
 }
 
 function formatKickoff(value: string) {
@@ -55,31 +111,15 @@ function formatKickoff(value: string) {
     }).format(new Date(value))
 }
 
-function createRoundDate(
-    startDate: Date,
-    roundNumber: number,
-    daysBetweenRounds: number
-) {
-    return new Date(
-        startDate.getTime() +
-        (roundNumber - 1) *
-        daysBetweenRounds *
-        24 *
-        60 *
-        60 *
-        1000
-    )
-}
-
 export function TournamentGenerator() {
-    const [festival, setFestival] =
-        useState<GeneratorFestival | null>(null)
+    const { currentCompetition } =
+        useCompetition()
 
     const [groups, setGroups] =
         useState<GeneratorGroup[]>([])
 
     const [teams, setTeams] =
-        useState<GeneratorTeam[]>([])
+        useState<GeneratorCompetitionTeam[]>([])
 
     const [memberships, setMemberships] =
         useState<GeneratorMembership[]>([])
@@ -87,20 +127,28 @@ export function TournamentGenerator() {
     const [venues, setVenues] =
         useState<GeneratorVenue[]>([])
 
-    const [existingFixtures, setExistingFixtures] =
-        useState<ExistingFixture[]>([])
+    const [
+        existingFixtures,
+        setExistingFixtures,
+    ] = useState<ExistingFixture[]>([])
 
     const [config, setConfig] =
-        useState<GeneratorConfig>(initialConfig)
+        useState<GeneratorConfig>(
+            initialConfig
+        )
+
+    const [
+        intervalMinutes,
+        setIntervalMinutes,
+    ] = useState(60)
 
     const [preview, setPreview] =
-        useState<GeneratedFixturePreview[]>([])
-
-    const [byeTeamNames, setByeTeamNames] =
-        useState<string[]>([])
+        useState<
+            GeneratedFixturePreview[]
+        >([])
 
     const [isLoading, setIsLoading] =
-        useState(true)
+        useState(false)
 
     const [isSaving, setIsSaving] =
         useState(false)
@@ -110,196 +158,196 @@ export function TournamentGenerator() {
         setShowSaveConfirmation,
     ] = useState(false)
 
-    const [toastMessage, setToastMessage] =
-        useState('')
+    const [
+        toastMessage,
+        setToastMessage,
+    ] = useState('')
 
-    const [toastType, setToastType] =
-        useState<'success' | 'error' | 'info'>(
-            'success'
-        )
+    const [
+        toastType,
+        setToastType,
+    ] = useState<
+        'success' | 'error' | 'info'
+    >('success')
 
     function showToast(
         message: string,
-        type: 'success' | 'error' | 'info' =
-        'success'
+        type:
+            | 'success'
+            | 'error'
+            | 'info' = 'success'
     ) {
         setToastMessage(message)
         setToastType(type)
     }
 
-    const loadData = useCallback(async () => {
-        setIsLoading(true)
-
-        try {
-            const activeFestival =
-                await tournamentGeneratorService.getActiveFestival()
-
-            setFestival(activeFestival)
-
-            if (!activeFestival) {
+    const loadData = useCallback(
+        async () => {
+            if (!currentCompetition?.id) {
                 setGroups([])
                 setTeams([])
                 setMemberships([])
                 setVenues([])
                 setExistingFixtures([])
+                setIsLoading(false)
                 return
             }
 
-            const [
-                groupRows,
-                teamRows,
-                venueRows,
-                fixtureRows,
-            ] = await Promise.all([
-                tournamentGeneratorService.getGroups(
-                    activeFestival.id
-                ),
-                tournamentGeneratorService.getTeams(
-                    activeFestival.id
-                ),
-                tournamentGeneratorService.getVenues(
-                    activeFestival.id
-                ),
-                tournamentGeneratorService.getExistingFixtures(
-                    activeFestival.id
-                ),
-            ])
+            setIsLoading(true)
 
-            const membershipRows =
-                await tournamentGeneratorService.getMemberships(
-                    groupRows.map((group) => group.id)
+            try {
+                const [
+                    groupRows,
+                    teamRows,
+                    venueRows,
+                    existingFixtureRows,
+                ] = await Promise.all([
+                    tournamentGeneratorService.getGroups(
+                        currentCompetition.id
+                    ),
+                    tournamentGeneratorService.getTeams(
+                        currentCompetition.id
+                    ),
+                    tournamentGeneratorService.getVenues(
+                        currentCompetition.id
+                    ),
+                    tournamentGeneratorService.getExistingFixtures(
+                        currentCompetition.id
+                    ),
+                ])
+
+                const membershipRows =
+                    await tournamentGeneratorService.getMemberships(
+                        groupRows.map(
+                            (group) => group.id
+                        )
+                    )
+
+                setGroups(groupRows)
+                setTeams(teamRows)
+                setVenues(venueRows)
+                setMemberships(
+                    membershipRows
                 )
+                setExistingFixtures(
+                    existingFixtureRows
+                )
+            } catch (error) {
+                setGroups([])
+                setTeams([])
+                setMemberships([])
+                setVenues([])
+                setExistingFixtures([])
 
-            setGroups(groupRows)
-            setTeams(teamRows)
-            setVenues(venueRows)
-            setMemberships(membershipRows)
-            setExistingFixtures(fixtureRows)
-        } catch (error) {
-            showToast(
-                error instanceof Error
-                    ? error.message
-                    : 'Failed to load competition generator data.',
-                'error'
-            )
-        } finally {
-            setIsLoading(false)
-        }
-    }, [])
+                showToast(
+                    error instanceof Error
+                        ? error.message
+                        : 'Failed to load tournament generator data.',
+                    'error'
+                )
+            } finally {
+                setIsLoading(false)
+            }
+        },
+        [currentCompetition?.id]
+    )
 
     useEffect(() => {
         void loadData()
     }, [loadData])
 
-    const eligibleTeams = useMemo(
-        () =>
-            teams.filter((team) => {
-                if (!config.confirmedOnly) {
-                    return (
-                        team.participation_status !==
-                        'withdrawn'
-                    )
-                }
-
-                return (
-                    team.participation_status ===
-                    'confirmed'
-                )
-            }),
-        [teams, config.confirmedOnly]
-    )
-
-    const teamNameById = useMemo(
-        () =>
-            new Map(
-                teams.map((team) => [
-                    team.id,
-                    team.name,
-                ])
-            ),
-        [teams]
-    )
-
-    const selectedVenue =
-        venues.find(
-            (item) =>
-                item.id === config.venueId
-        ) ?? null
-
-    const venueNameById = useMemo(
-        () =>
-            new Map(
-                venues.map((venue) => [
-                    venue.id,
-                    venue.name,
-                ])
-            ),
-        [venues]
-    )
-
-    const teamById = useMemo(
-        () =>
-            new Map(
-                teams.map((team) => [
-                    team.id,
-                    team,
-                ])
-            ),
-        [teams]
-    )
-
-    function createExistingFixtureKey(
-        homeTeamId: string,
-        awayTeamId: string,
-        groupId: string | null,
-        stage: string,
-        directional: boolean
-    ) {
-        const teamsKey = directional
-            ? `${homeTeamId}:${awayTeamId}`
-            : [homeTeamId, awayTeamId]
-                .sort()
-                .join(':')
-
-        return [
-            stage,
-            groupId ?? 'none',
-            teamsKey,
-        ].join('|')
-    }
-
-    function removeExistingPairings(
-        pairings: EnginePairing[],
-        options: {
-            groupId: string | null
-            stage: string
-            directional: boolean
-        }
-    ) {
-        const existingKeys = new Set(
-            existingFixtures.map((fixture) =>
-                createExistingFixtureKey(
-                    fixture.home_team_id,
-                    fixture.away_team_id,
-                    fixture.group_id,
-                    fixture.stage,
-                    options.directional
-                )
-            )
+    const groupIdsWithFixtures =
+        useMemo(
+            () =>
+                new Set(
+                    existingFixtures
+                        .map(
+                            (fixture) =>
+                                fixture.group_id
+                        )
+                        .filter(
+                            (
+                                groupId
+                            ): groupId is string =>
+                                Boolean(groupId)
+                        )
+                ),
+            [existingFixtures]
         )
 
-        return pairings.filter((pairing) => {
-            const key = createExistingFixtureKey(
-                pairing.homeTeamId,
-                pairing.awayTeamId,
-                options.groupId,
-                options.stage,
-                options.directional
-            )
+    const availableCompetitionTeamIds =
+        useMemo(
+            () =>
+                new Set(
+                    teams
+                        .filter((team) => {
+                            if (
+                                !config.confirmedOnly
+                            ) {
+                                return (
+                                    team.participation_status !==
+                                    'withdrawn'
+                                )
+                            }
 
-            return !existingKeys.has(key)
-        })
-    }
+                            return (
+                                team.participation_status ===
+                                'confirmed'
+                            )
+                        })
+                        .map(
+                            (team) => team.id
+                        )
+                ),
+            [
+                teams,
+                config.confirmedOnly,
+            ]
+        )
+
+    const groupSummaries = useMemo(
+        () =>
+            groups.map((group) => {
+                const allocatedCompetitionTeamIds =
+                    memberships
+                        .filter(
+                            (membership) =>
+                                membership.group_id ===
+                                group.id
+                        )
+                        .map(
+                            (membership) =>
+                                membership.competition_team_id
+                        )
+
+                const eligibleTeams =
+                    teams.filter(
+                        (team) =>
+                            allocatedCompetitionTeamIds.includes(
+                                team.id
+                            ) &&
+                            availableCompetitionTeamIds.has(
+                                team.id
+                            )
+                    )
+
+                return {
+                    ...group,
+                    teams: eligibleTeams,
+                    hasExistingFixtures:
+                        groupIdsWithFixtures.has(
+                            group.id
+                        ),
+                }
+            }),
+        [
+            groups,
+            memberships,
+            teams,
+            availableCompetitionTeamIds,
+            groupIdsWithFixtures,
+        ]
+    )
 
     function updateConfig<
         Key extends keyof GeneratorConfig
@@ -313,275 +361,33 @@ export function TournamentGenerator() {
         }))
 
         setPreview([])
-        setByeTeamNames([])
-    }
-
-    function buildPreviewRows(
-        pairings: EnginePairing[],
-        options: {
-            groupId: string | null
-            groupName: string
-            stage: string
-            startDate: Date
-        }
-    ): GeneratedFixturePreview[] {
-        return pairings.map((pairing) => {
-            const kickoff = createRoundDate(
-                options.startDate,
-                pairing.roundNumber,
-                config.daysBetweenRounds
-            )
-
-            const homeTeamName =
-                teamNameById.get(
-                    pairing.homeTeamId
-                ) ?? 'Unknown team'
-
-            const awayTeamName =
-                teamNameById.get(
-                    pairing.awayTeamId
-                ) ?? 'Unknown team'
-
-            const homeTeam =
-                teamById.get(
-                    pairing.homeTeamId
-                )
-
-            let fixtureVenueId: string | null =
-                null
-
-            let fixtureVenueName =
-                'Venue TBC'
-
-            if (
-                config.venueAssignmentMode ===
-                'home_team'
-            ) {
-                fixtureVenueId =
-                    homeTeam
-                        ?.primary_home_venue_id ??
-                    null
-
-                fixtureVenueName =
-                    fixtureVenueId
-                        ? venueNameById.get(
-                        fixtureVenueId
-                    ) ?? 'Venue TBC'
-                        : 'Home venue not assigned'
-            }
-
-            if (
-                config.venueAssignmentMode ===
-                'selected_venue'
-            ) {
-                fixtureVenueId =
-                    selectedVenue?.id ??
-                    null
-
-                fixtureVenueName =
-                    selectedVenue?.name ??
-                    'Venue TBC'
-            }
-
-            return {
-                previewId: [
-                    options.stage,
-                    options.groupId ?? 'none',
-                    pairing.roundNumber,
-                    pairing.homeTeamId,
-                    pairing.awayTeamId,
-                ].join('-'),
-                groupId: options.groupId,
-                groupName: options.groupName,
-                stage: options.stage,
-                roundNumber: pairing.roundNumber,
-                homeTeamId: pairing.homeTeamId,
-                homeTeamName,
-                awayTeamId: pairing.awayTeamId,
-                awayTeamName,
-                kickoffTime: kickoff.toISOString(),
-                venueId: fixtureVenueId,
-                venueName: fixtureVenueName,
-            }
-        })
-    }
-
-    function generateGroupedPreview(
-        limited: boolean,
-        startDate: Date
-    ) {
-        const rows: GeneratedFixturePreview[] =
-            []
-
-        for (const group of groups) {
-            const groupTeamIds = memberships
-                .filter(
-                    (membership) =>
-                        membership.group_id ===
-                        group.id
-                )
-                .map(
-                    (membership) =>
-                        membership.team_id
-                )
-                .filter((teamId) =>
-                    eligibleTeams.some(
-                        (team) =>
-                            team.id === teamId
-                    )
-                )
-
-            if (groupTeamIds.length < 2) {
-                continue
-            }
-
-            const generatedPairings = limited
-                ? generateLimitedSchedule(
-                    groupTeamIds,
-                    config.matchesPerTeam
-                )
-                : generateSingleRoundRobin(
-                    groupTeamIds
-                )
-
-            const missingPairings =
-                removeExistingPairings(
-                    generatedPairings,
-                    {
-                        groupId: group.id,
-                        stage: 'Group Stage',
-                        directional: false,
-                    }
-                )
-
-            rows.push(
-                ...buildPreviewRows(
-                    missingPairings,
-                    {
-                        groupId: group.id,
-                        groupName: group.name,
-                        stage: 'Group Stage',
-                        startDate,
-                    }
-                )
-            )
-        }
-
-        return rows
-    }
-
-    function generateLeaguePreview(
-        doubleRoundRobin: boolean,
-        startDate: Date
-    ) {
-        const generatedPairings =
-            doubleRoundRobin
-                ? generateDoubleRoundRobin(
-                    eligibleTeams.map(
-                        (team) => team.id
-                    )
-                )
-                : generateSingleRoundRobin(
-                    eligibleTeams.map(
-                        (team) => team.id
-                    )
-                )
-
-        const missingPairings =
-            removeExistingPairings(
-                generatedPairings,
-                {
-                    groupId: null,
-                    stage: 'League',
-                    directional:
-                    doubleRoundRobin,
-                }
-            )
-
-        return buildPreviewRows(
-            missingPairings,
-            {
-                groupId: null,
-                groupName: 'League',
-                stage: 'League',
-                startDate,
-            }
-        )
-    }
-
-    function generateCupPreview(
-        startDate: Date
-    ) {
-        const draw =
-            generateKnockoutFirstRound(
-                eligibleTeams.map(
-                    (team) => team.id
-                ),
-                config.randomiseCupDraw
-            )
-
-        setByeTeamNames(
-            draw.byeTeamIds
-                .map((teamId) =>
-                    teamNameById.get(teamId)
-                )
-                .filter(
-                    (
-                        name
-                    ): name is string =>
-                        Boolean(name)
-                )
-        )
-
-        const missingPairings =
-            removeExistingPairings(
-                draw.fixtures,
-                {
-                    groupId: null,
-                    stage: draw.roundName,
-                    directional: false,
-                }
-            )
-
-        return buildPreviewRows(
-            missingPairings,
-            {
-                groupId: null,
-                groupName: draw.roundName,
-                stage: draw.roundName,
-                startDate,
-            }
-        )
     }
 
     function generatePreview() {
-        if (!festival) {
+        if (!currentCompetition?.id) {
             showToast(
-                'No active festival was found.',
+                'Select a competition before generating fixtures.',
                 'error'
-            )
-            return
-        }
-
-        if (config.mode === 'manual') {
-            showToast(
-                'Use Admin → Fixtures to create and manage fixtures manually.',
-                'info'
             )
             return
         }
 
         if (!config.startDateTime) {
             showToast(
-                'Select the first fixture date and time.',
+                'Select the first kick-off date and time.',
                 'error'
             )
             return
         }
 
-        if (config.daysBetweenRounds < 1) {
+        if (
+            !Number.isFinite(
+                intervalMinutes
+            ) ||
+            intervalMinutes < 15
+        ) {
             showToast(
-                'Days between rounds must be at least 1.',
+                'The fixture interval must be at least 15 minutes.',
                 'error'
             )
             return
@@ -592,89 +398,166 @@ export function TournamentGenerator() {
         )
 
         if (
-            Number.isNaN(startDate.getTime())
+            Number.isNaN(
+                startDate.getTime()
+            )
         ) {
             showToast(
-                'Enter a valid fixture date and time.',
+                'Enter a valid first kick-off date and time.',
                 'error'
             )
             return
         }
 
-        try {
-            let generated: GeneratedFixturePreview[] =
-                []
+        const teamById = new Map(
+            teams.map((team) => [
+                team.id,
+                team,
+            ])
+        )
 
-            switch (config.mode) {
-                case 'group_full':
-                    generated =
-                        generateGroupedPreview(
-                            false,
-                            startDate
-                        )
-                    break
+        const venue =
+            venues.find(
+                (item) =>
+                    item.id ===
+                    config.venueId
+            ) ?? null
 
-                case 'group_limited':
-                    generated =
-                        generateGroupedPreview(
-                            true,
-                            startDate
-                        )
-                    break
+        const generated:
+            GeneratedFixturePreview[] = []
 
-                case 'league_single':
-                    generated =
-                        generateLeaguePreview(
-                            false,
-                            startDate
-                        )
-                    break
-
-                case 'league_double':
-                    generated =
-                        generateLeaguePreview(
-                            true,
-                            startDate
-                        )
-                    break
-
-                case 'knockout':
-                    generated =
-                        generateCupPreview(
-                            startDate
-                        )
-                    break
-
-                default:
-                    generated = []
-            }
-
-            if (!generated.length) {
-                showToast(
-                    'No new fixtures are available to generate. The eligible pairings may already exist, or the selected teams and groups may be incomplete.',
-                    'info'
-                )
-                return
-            }
-
-            setPreview(generated)
-
-            showToast(
-                `${generated.length} fixtures generated for preview.`,
-                'success'
+        const eligibleGroups =
+            groupSummaries.filter(
+                (group) =>
+                    !group.hasExistingFixtures &&
+                    group.teams.length >= 2
             )
-        } catch (error) {
+
+        const pairingsByGroup =
+            eligibleGroups.map(
+                (group) => ({
+                    group,
+                    pairings:
+                        createRoundRobinPairings(
+                            group.teams.map(
+                                (team) =>
+                                    team.id
+                            )
+                        ),
+                })
+            )
+
+        const highestRoundNumber =
+            Math.max(
+                0,
+                ...pairingsByGroup.flatMap(
+                    ({ pairings }) =>
+                        pairings.map(
+                            (pairing) =>
+                                pairing.roundNumber
+                        )
+                )
+            )
+
+        let fixtureIndex = 0
+
+        for (
+            let roundNumber = 1;
+            roundNumber <=
+            highestRoundNumber;
+            roundNumber += 1
+        ) {
+            for (const {
+                group,
+                pairings,
+            } of pairingsByGroup) {
+                const roundPairings =
+                    pairings.filter(
+                        (pairing) =>
+                            pairing.roundNumber ===
+                            roundNumber
+                    )
+
+                for (const pairing of roundPairings) {
+                    const homeTeam =
+                        teamById.get(
+                            pairing.homeCompetitionTeamId
+                        )
+
+                    const awayTeam =
+                        teamById.get(
+                            pairing.awayCompetitionTeamId
+                        )
+
+                    if (
+                        !homeTeam ||
+                        !awayTeam
+                    ) {
+                        continue
+                    }
+
+                    const kickoff =
+                        new Date(
+                            startDate.getTime() +
+                            fixtureIndex *
+                            intervalMinutes *
+                            60_000
+                        )
+
+                    generated.push({
+                        previewId: `${group.id}-${pairing.roundNumber}-${pairing.homeCompetitionTeamId}-${pairing.awayCompetitionTeamId}`,
+                        groupId:
+                        group.id,
+                        groupName:
+                        group.name,
+                        stage:
+                            'Group Stage',
+                        roundNumber:
+                        pairing.roundNumber,
+                        homeCompetitionTeamId:
+                        homeTeam.id,
+                        homeTeamName:
+                        homeTeam.name,
+                        awayCompetitionTeamId:
+                        awayTeam.id,
+                        awayTeamName:
+                        awayTeam.name,
+                        kickoffTime:
+                            kickoff.toISOString(),
+                        venueId:
+                            venue?.id ??
+                            null,
+                        venueName:
+                            venue?.name ??
+                            'Venue TBC',
+                    })
+
+                    fixtureIndex += 1
+                }
+            }
+        }
+
+        if (!generated.length) {
             showToast(
-                error instanceof Error
-                    ? error.message
-                    : 'Unable to generate this schedule.',
+                'No fixtures could be generated. Check team allocations, confirmation statuses and existing fixtures.',
                 'error'
             )
+            return
         }
+
+        setPreview(generated)
+
+        showToast(
+            `${generated.length} fixtures generated for preview.`,
+            'success'
+        )
     }
 
     async function saveGeneratedFixtures() {
-        if (!festival || !preview.length) {
+        if (
+            !currentCompetition?.id ||
+            !preview.length
+        ) {
             return
         }
 
@@ -682,19 +565,20 @@ export function TournamentGenerator() {
 
         try {
             await tournamentGeneratorService.createFixtures(
-                festival.id,
+                currentCompetition.id,
                 preview,
                 config.publishImmediately
             )
 
-            setShowSaveConfirmation(false)
+            setShowSaveConfirmation(
+                false
+            )
             setPreview([])
-            setByeTeamNames([])
 
             await loadData()
 
             showToast(
-                'Generated fixtures saved successfully.',
+                'Tournament fixtures created successfully.',
                 'success'
             )
         } catch (error) {
@@ -712,7 +596,8 @@ export function TournamentGenerator() {
     if (isLoading) {
         return (
             <p className="muted">
-                Loading competition generator...
+                Loading tournament
+                generator...
             </p>
         )
     }
@@ -730,32 +615,34 @@ export function TournamentGenerator() {
             <div className="adminWorkspaceHeader">
                 <div>
                     <h3>
-                        Competition Generator
+                        Tournament Generator
                     </h3>
 
                     <p className="muted">
-                        Generate group, league or cup
-                        fixtures using configurable
-                        competition rules.
+                        Generate balanced
+                        round-robin group fixtures
+                        from the current team
+                        allocations.
                     </p>
 
-                    {festival && (
+                    {currentCompetition && (
                         <span className="badge">
-                            {festival.name}{' '}
-                            {festival.year}
+                            {
+                                currentCompetition.name
+                            }
                         </span>
                     )}
                 </div>
             </div>
 
-            {!festival ? (
+            {!currentCompetition ? (
                 <div className="teamsEmptyState">
                     <h3>
-                        No active festival
+                        No competition selected
                     </h3>
 
                     <p>
-                        Activate a festival before
+                        Select a competition before
                         generating fixtures.
                     </p>
                 </div>
@@ -763,64 +650,15 @@ export function TournamentGenerator() {
                 <>
                     <section className="tournamentGeneratorPanel">
                         <div className="adminFormGrid">
-                            <label className="adminFormFullWidth">
-                                <span>
-                                    Competition format
-                                </span>
-
-                                <select
-                                    value={
-                                        config.mode
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        updateConfig(
-                                            'mode',
-                                            event
-                                                .target
-                                                .value as CompetitionMode
-                                        )
-                                    }
-                                >
-                                    {Object.entries(
-                                        modeLabels
-                                    ).map(
-                                        ([
-                                             value,
-                                             label,
-                                         ]) => (
-                                            <option
-                                                key={
-                                                    value
-                                                }
-                                                value={
-                                                    value
-                                                }
-                                            >
-                                                {
-                                                    label
-                                                }
-                                            </option>
-                                        )
-                                    )}
-                                </select>
-                            </label>
-
                             <label>
                                 <span>
-                                    First fixture date
-                                    and time
+                                    First kick-off
                                 </span>
 
                                 <input
                                     type="datetime-local"
                                     value={
                                         config.startDateTime
-                                    }
-                                    disabled={
-                                        config.mode ===
-                                        'manual'
                                     }
                                     onChange={(
                                         event
@@ -837,160 +675,80 @@ export function TournamentGenerator() {
 
                             <label>
                                 <span>
-                                    Days between rounds
+                                    Minutes between
+                                    fixtures
                                 </span>
 
                                 <input
                                     type="number"
-                                    min="1"
+                                    min="15"
+                                    step="5"
                                     value={
-                                        config.daysBetweenRounds
-                                    }
-                                    disabled={
-                                        config.mode ===
-                                        'manual'
+                                        intervalMinutes
                                     }
                                     onChange={(
                                         event
-                                    ) =>
-                                        updateConfig(
-                                            'daysBetweenRounds',
+                                    ) => {
+                                        setIntervalMinutes(
                                             Number(
                                                 event
                                                     .target
                                                     .value
                                             )
                                         )
-                                    }
+                                        setPreview([])
+                                    }}
                                 />
                             </label>
 
-                            {config.mode ===
-                                'group_limited' && (
-                                    <label>
-                                    <span>
-                                        Matches per team
-                                    </span>
-
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={
-                                                config.matchesPerTeam
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateConfig(
-                                                    'matchesPerTeam',
-                                                    Number(
-                                                        event
-                                                            .target
-                                                            .value
-                                                    )
-                                                )
-                                            }
-                                        />
-                                    </label>
-                                )}
-
                             <label>
                                 <span>
-                                    Venue assignment
+                                    Default venue
                                 </span>
 
                                 <select
                                     value={
-                                        config.venueAssignmentMode
-                                    }
-                                    disabled={
-                                        config.mode ===
-                                        'manual'
+                                        config.venueId
                                     }
                                     onChange={(
                                         event
                                     ) =>
                                         updateConfig(
-                                            'venueAssignmentMode',
+                                            'venueId',
                                             event
                                                 .target
-                                                .value as VenueAssignmentMode
+                                                .value
                                         )
                                     }
                                 >
-                                    <option value="home_team">
-                                        Use home team venue
+                                    <option value="">
+                                        Venue TBC
                                     </option>
 
-                                    <option value="selected_venue">
-                                        Use one selected venue
-                                    </option>
-
-                                    <option value="unassigned">
-                                        Leave venues unassigned
-                                    </option>
+                                    {venues.map(
+                                        (venue) => (
+                                            <option
+                                                key={
+                                                    venue.id
+                                                }
+                                                value={
+                                                    venue.id
+                                                }
+                                            >
+                                                {
+                                                    venue.name
+                                                }
+                                            </option>
+                                        )
+                                    )}
                                 </select>
                             </label>
-
-                            {config.venueAssignmentMode ===
-                                'selected_venue' && (
-                                    <label>
-                                    <span>
-                                        Selected venue
-                                    </span>
-
-                                        <select
-                                            value={
-                                                config.venueId
-                                            }
-                                            disabled={
-                                                config.mode ===
-                                                'manual'
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateConfig(
-                                                    'venueId',
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                        >
-                                            <option value="">
-                                                Select venue
-                                            </option>
-
-                                            {venues.map(
-                                                (item) => (
-                                                    <option
-                                                        key={
-                                                            item.id
-                                                        }
-                                                        value={
-                                                            item.id
-                                                        }
-                                                    >
-                                                        {
-                                                            item.name
-                                                        }
-                                                    </option>
-                                                )
-                                            )}
-                                        </select>
-                                    </label>
-                                )}
 
                             <label className="adminCheckboxLabel">
                                 <input
                                     type="checkbox"
                                     checked={
                                         config.confirmedOnly
-                                    }
-                                    disabled={
-                                        config.mode ===
-                                        'manual'
                                     }
                                     onChange={(
                                         event
@@ -1010,42 +768,11 @@ export function TournamentGenerator() {
                                 </span>
                             </label>
 
-                            {config.mode ===
-                                'knockout' && (
-                                    <label className="adminCheckboxLabel">
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                config.randomiseCupDraw
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateConfig(
-                                                    'randomiseCupDraw',
-                                                    event
-                                                        .target
-                                                        .checked
-                                                )
-                                            }
-                                        />
-
-                                        <span>
-                                        Randomise cup
-                                        draw
-                                    </span>
-                                    </label>
-                                )}
-
                             <label className="adminCheckboxLabel">
                                 <input
                                     type="checkbox"
                                     checked={
                                         config.publishImmediately
-                                    }
-                                    disabled={
-                                        config.mode ===
-                                        'manual'
                                     }
                                     onChange={(
                                         event
@@ -1067,36 +794,26 @@ export function TournamentGenerator() {
                         </div>
 
                         <div className="adminFormActions">
-                            {config.mode ===
-                            'manual' ? (
-                                <p className="muted">
-                                    Manual scheduling is
-                                    available under Admin
-                                    → Fixtures.
-                                </p>
-                            ) : (
-                                <button
-                                    className="btn primary"
-                                    type="button"
-                                    onClick={
-                                        generatePreview
-                                    }
-                                >
-                                    Generate Preview
-                                </button>
-                            )}
+                            <button
+                                className="btn primary"
+                                type="button"
+                                onClick={
+                                    generatePreview
+                                }
+                            >
+                                Generate Preview
+                            </button>
 
                             {preview.length >
                                 0 && (
                                     <button
                                         className="btn secondary"
                                         type="button"
-                                        onClick={() => {
-                                            setPreview([])
-                                            setByeTeamNames(
+                                        onClick={() =>
+                                            setPreview(
                                                 []
                                             )
-                                        }}
+                                        }
                                     >
                                         Clear Preview
                                     </button>
@@ -1104,142 +821,181 @@ export function TournamentGenerator() {
                         </div>
                     </section>
 
-                    {byeTeamNames.length >
+                    <section className="generatorGroupReadiness">
+                        <h4>
+                            Group readiness
+                        </h4>
+
+                        <div className="generatorGroupGrid">
+                            {groupSummaries.map(
+                                (group) => (
+                                    <article
+                                        className="generatorGroupCard"
+                                        key={
+                                            group.id
+                                        }
+                                    >
+                                        <div>
+                                            <span className="badge">
+                                                {
+                                                    group
+                                                        .teams
+                                                        .length
+                                                }{' '}
+                                                eligible
+                                                teams
+                                            </span>
+
+                                            <h5>
+                                                {
+                                                    group.name
+                                                }
+                                            </h5>
+                                        </div>
+
+                                        {group.hasExistingFixtures ? (
+                                            <span className="generatorWarning">
+                                                Fixtures
+                                                already
+                                                exist
+                                            </span>
+                                        ) : group
+                                            .teams
+                                            .length <
+                                        2 ? (
+                                            <span className="generatorWarning">
+                                                At least
+                                                2 teams
+                                                required
+                                            </span>
+                                        ) : (
+                                            <span className="generatorReady">
+                                                Ready
+                                            </span>
+                                        )}
+                                    </article>
+                                )
+                            )}
+                        </div>
+                    </section>
+
+                    {preview.length >
                         0 && (
-                            <div className="adminSuccessMessage">
-                                <strong>
-                                    Cup byes:
-                                </strong>{' '}
-                                {byeTeamNames.join(
-                                    ', '
-                                )}
-                            </div>
-                        )}
+                            <section className="generatorPreviewSection">
+                                <div className="adminWorkspaceHeader">
+                                    <div>
+                                        <h4>
+                                            Fixture
+                                            Preview
+                                        </h4>
 
-                    {preview.length > 0 && (
-                        <section className="generatorPreviewSection">
-                            <div className="adminWorkspaceHeader">
-                                <div>
-                                    <h4>
-                                        Fixture Preview
-                                    </h4>
+                                        <p className="muted">
+                                            Review all{' '}
+                                            {
+                                                preview.length
+                                            }{' '}
+                                            fixtures
+                                            before saving.
+                                        </p>
+                                    </div>
 
-                                    <p className="muted">
-                                        Review all{' '}
-                                        {
-                                            preview.length
-                                        }{' '}
-                                        fixtures before
-                                        saving.
-                                    </p>
+                                    <button
+                                        className="btn primary"
+                                        type="button"
+                                        onClick={() =>
+                                            setShowSaveConfirmation(
+                                                true
+                                            )
+                                        }
+                                    >
+                                        Save Fixtures
+                                    </button>
                                 </div>
 
-                                <button
-                                    className="btn primary"
-                                    type="button"
-                                    onClick={() =>
-                                        setShowSaveConfirmation(
-                                            true
-                                        )
-                                    }
-                                >
-                                    Save Fixtures
-                                </button>
-                            </div>
+                                <div className="tableWrap adminTableWrap">
+                                    <table className="adminTable">
+                                        <thead>
+                                        <tr>
+                                            <th>
+                                                Group
+                                            </th>
+                                            <th>
+                                                Round
+                                            </th>
+                                            <th>
+                                                Fixture
+                                            </th>
+                                            <th>
+                                                Kick-off
+                                            </th>
+                                            <th>
+                                                Venue
+                                            </th>
+                                        </tr>
+                                        </thead>
 
-                            <div className="tableWrap adminTableWrap">
-                                <table className="adminTable">
-                                    <thead>
-                                    <tr>
-                                        <th>
-                                            Stage
-                                        </th>
-                                        <th>
-                                            Group
-                                        </th>
-                                        <th>
-                                            Round
-                                        </th>
-                                        <th>
-                                            Fixture
-                                        </th>
-                                        <th>
-                                            Date
-                                        </th>
-                                        <th>
-                                            Venue
-                                        </th>
-                                    </tr>
-                                    </thead>
-
-                                    <tbody>
-                                    {preview.map(
-                                        (
-                                            fixture
-                                        ) => (
-                                            <tr
-                                                key={
-                                                    fixture.previewId
-                                                }
-                                            >
-                                                <td>
-                                                    {
-                                                        fixture.stage
+                                        <tbody>
+                                        {preview.map(
+                                            (
+                                                fixture
+                                            ) => (
+                                                <tr
+                                                    key={
+                                                        fixture.previewId
                                                     }
-                                                </td>
-
-                                                <td>
-                                                    {
-                                                        fixture.groupName
-                                                    }
-                                                </td>
-
-                                                <td>
-                                                    {
-                                                        fixture.roundNumber
-                                                    }
-                                                </td>
-
-                                                <td>
-                                                    <strong>
+                                                >
+                                                    <td>
                                                         {
-                                                            fixture.homeTeamName
+                                                            fixture.groupName
                                                         }
-                                                    </strong>{' '}
-                                                    vs{' '}
-                                                    <strong>
+                                                    </td>
+
+                                                    <td>
                                                         {
-                                                            fixture.awayTeamName
+                                                            fixture.roundNumber
                                                         }
-                                                    </strong>
-                                                </td>
+                                                    </td>
 
-                                                <td>
-                                                    {formatKickoff(
-                                                        fixture.kickoffTime
-                                                    )}
-                                                </td>
+                                                    <td>
+                                                        <strong>
+                                                            {
+                                                                fixture.homeTeamName
+                                                            }
+                                                        </strong>{' '}
+                                                        vs{' '}
+                                                        <strong>
+                                                            {
+                                                                fixture.awayTeamName
+                                                            }
+                                                        </strong>
+                                                    </td>
 
-                                                <td>
-                                                    {
-                                                        fixture.venueName
-                                                    }
-                                                </td>
-                                            </tr>
-                                        )
-                                    )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    )}
+                                                    <td>
+                                                        {formatKickoff(
+                                                            fixture.kickoffTime
+                                                        )}
+                                                    </td>
+
+                                                    <td>
+                                                        {
+                                                            fixture.venueName
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            )
+                                        )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        )}
                 </>
             )}
 
             {showSaveConfirmation && (
                 <ConfirmDialog
                     title="Create Generated Fixtures"
-                    message={`Create ${preview.length} fixtures? Existing fixtures will not be changed.`}
+                    message={`Create ${preview.length} group-stage fixtures? Existing fixtures will not be changed.`}
                     confirmText={
                         isSaving
                             ? 'Saving...'

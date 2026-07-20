@@ -72,8 +72,8 @@ export function PublicSponsors() {
         useState(true)
 
     const [
-        activeFestivalId,
-        setActiveFestivalId,
+        activeCompetitionId,
+        setActiveCompetitionId,
     ] = useState<string | null>(null)
 
     const [
@@ -103,29 +103,29 @@ export function PublicSponsors() {
         async function loadSponsors() {
             try {
                 const {
-                    data: festival,
-                    error: festivalError,
+                    data: competition,
+                    error: competitionError,
                 } = await supabase
-                    .from('festivals')
+                    .from('competitions')
                     .select('id')
-                    .eq('status', 'active')
-                    .order('year', {
+                    .eq('status', 'ACTIVE')
+                    .order('created_at', {
                         ascending: false,
                     })
                     .limit(1)
                     .maybeSingle()
 
-                if (festivalError) {
-                    throw festivalError
+                if (competitionError) {
+                    throw competitionError
                 }
 
-                if (!festival) {
-                    setActiveFestivalId(null)
+                if (!competition) {
+                    setActiveCompetitionId(null)
                     setSponsors([])
                     return
                 }
 
-                setActiveFestivalId(festival.id)
+                setActiveCompetitionId(competition.id)
 
                 const { data, error } =
                     await supabase
@@ -139,8 +139,8 @@ export function PublicSponsors() {
                             description
                         `)
                         .eq(
-                            'festival_id',
-                            festival.id
+                            'competition_id',
+                            competition.id
                         )
                         .eq('active', true)
                         .order('created_at', {
@@ -225,8 +225,8 @@ export function PublicSponsors() {
             return 'Please enter a short message.'
         }
 
-        if (!activeFestivalId) {
-            return 'The active festival could not be identified.'
+        if (!activeCompetitionId) {
+            return 'The active competition could not be identified.'
         }
 
         return null
@@ -255,8 +255,8 @@ export function PublicSponsors() {
         const { error } = await supabase
             .from('sponsor_enquiries')
             .insert({
-                festival_id:
-                activeFestivalId,
+                competition_id:
+                activeCompetitionId,
                 company_name:
                     form.companyName.trim(),
                 contact_name:

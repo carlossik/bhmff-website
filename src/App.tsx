@@ -53,6 +53,37 @@ type RelatedTeamValue =
     | RelatedTeam[]
     | null
 
+type PublicTeamDetails = {
+    id: string
+    name: string
+    manager_name: string | null
+    logo_url: string | null
+    published: boolean
+    participation_status: string | null
+}
+
+type RelatedPublicTeam =
+    | PublicTeamDetails
+    | PublicTeamDetails[]
+    | null
+
+type CompetitionTeamRelation = {
+    id: string
+    team_id: string
+    team: RelatedTeamValue
+}
+
+type RelatedCompetitionTeam =
+    | CompetitionTeamRelation
+    | CompetitionTeamRelation[]
+    | null
+
+type PublicCompetitionTeamRow = {
+    id: string
+    team_id: string
+    team: RelatedPublicTeam
+}
+
 type VenueDetails = {
     name: string
     address: string | null
@@ -70,18 +101,18 @@ type PublicFixtureRelationRow = {
     stage: string
     kickoff_time: string | null
     status: string | null
-    home_team: RelatedTeamValue
-    away_team: RelatedTeamValue
+    home_competition_team: RelatedCompetitionTeam
+    away_competition_team: RelatedCompetitionTeam
     venue: RelatedVenue
 }
 
 type ResultFixtureDetails = {
     id: string
-    festival_id: string | null
+    competition_id: string | null
     stage: string
     kickoff_time: string | null
-    home_team: RelatedTeamValue
-    away_team: RelatedTeamValue
+    home_competition_team: RelatedCompetitionTeam
+    away_competition_team: RelatedCompetitionTeam
 }
 
 type RelatedResultFixture =
@@ -122,6 +153,34 @@ type PublicGoalRelationRow = {
 function getRelatedTeam(
     relation: RelatedTeamValue
 ): RelatedTeam | null {
+    if (!relation) {
+        return null
+    }
+
+    if (Array.isArray(relation)) {
+        return relation[0] ?? null
+    }
+
+    return relation
+}
+
+function getRelatedPublicTeam(
+    relation: RelatedPublicTeam
+): PublicTeamDetails | null {
+    if (!relation) {
+        return null
+    }
+
+    if (Array.isArray(relation)) {
+        return relation[0] ?? null
+    }
+
+    return relation
+}
+
+function getRelatedCompetitionTeam(
+    relation: RelatedCompetitionTeam
+): CompetitionTeamRelation | null {
     if (!relation) {
         return null
     }
@@ -297,27 +356,24 @@ function App() {
     useEffect(() => {
         async function loadPublicTournamentData() {
             const {
-                data: festival,
-                error: festivalError,
+                data: competition,
+                error: competitionError,
             } = await supabase
-                .from('festivals')
+                .from('competitions')
                 .select('id')
-                .eq('status', 'active')
-                .order('year', {
-                    ascending: false,
-                })
+                .eq('status', 'ACTIVE')
                 .limit(1)
                 .maybeSingle()
 
-            if (festivalError) {
+            if (competitionError) {
                 console.error(
-                    'Failed to load active festival:',
-                    festivalError
+                    'Failed to load active competition:',
+                    competitionError
                 )
                 return
             }
 
-            if (!festival) {
+            if (!competition) {
                 setPublicTeams([])
                 setPublicFixtures([])
                 setPublicResults([])
@@ -331,20 +387,21 @@ function App() {
                 resultsResponse,
             ] = await Promise.all([
                 supabase
-                    .from('teams')
-                    .select(
-                        'id, name, manager_name, logo_url'
-                    )
-                    .eq(
-                        'festival_id',
-                        festival.id
-                    )
-                    .eq('published', true)
-                    .eq(
-                        'participation_status',
-                        'confirmed'
-                    )
-                    .order('name', {
+                    .from('competition_teams')
+                    .select(`
+                        id,
+                        team_id,
+                        team:teams!competition_teams_team_id_fkey (
+                            id,
+                            name,
+                            manager_name,
+                            logo_url,
+                            published,
+                            participation_status
+                        )
+                    `)
+                    .eq('competition_id', competition.id)
+                    .order('team_id', {
                         ascending: true,
                     }),
 
@@ -355,13 +412,21 @@ function App() {
                         stage,
                         kickoff_time,
                         status,
-                        home_team:teams!fixtures_home_team_id_fkey (
+                        home_competition_team:competition_teams!fixtures_home_competition_team_fkey (
                             id,
-                            name
+                            team_id,
+                            team:teams!competition_teams_team_id_fkey (
+                                id,
+                                name
+                            )
                         ),
-                        away_team:teams!fixtures_away_team_id_fkey (
+                        away_competition_team:competition_teams!fixtures_away_competition_team_fkey (
                             id,
-                            name
+                            team_id,
+                            team:teams!competition_teams_team_id_fkey (
+                                id,
+                                name
+                            )
                         ),
                         venue:venues!fixtures_venue_id_fkey (
                             name,
@@ -370,21 +435,12 @@ function App() {
                             notes
                         )
                     `)
-                    .eq(
-                        'festival_id',
-                        festival.id
-                    )
-                    .neq(
-                        'status',
-                        'cancelled'
-                    )
-                    .order(
-                        'kickoff_time',
-                        {
-                            ascending: true,
-                            nullsFirst: false,
-                        }
-                    ),
+                    .eq('competition_id', competition.id)
+                    .neq('status', 'cancelled')
+                    .order('kickoff_time', {
+                        ascending: true,
+                        nullsFirst: false,
+                    }),
 
                 supabase
                     .from('results')
@@ -397,23 +453,31 @@ function App() {
                         match_report,
                         fixture:fixtures!results_fixture_id_fkey!inner (
                             id,
-                            festival_id,
+                            competition_id,
                             stage,
                             kickoff_time,
-                            home_team:teams!fixtures_home_team_id_fkey (
+                            home_competition_team:competition_teams!fixtures_home_competition_team_fkey (
                                 id,
-                                name
+                                team_id,
+                                team:teams!competition_teams_team_id_fkey (
+                                    id,
+                                    name
+                                )
                             ),
-                            away_team:teams!fixtures_away_team_id_fkey (
+                            away_competition_team:competition_teams!fixtures_away_competition_team_fkey (
                                 id,
-                                name
+                                team_id,
+                                team:teams!competition_teams_team_id_fkey (
+                                    id,
+                                    name
+                                )
                             )
                         )
                     `)
                     .eq('published', true)
                     .eq(
-                        'fixture.festival_id',
-                        festival.id
+                        'fixture.competition_id',
+                        competition.id
                     ),
             ])
 
@@ -424,10 +488,48 @@ function App() {
                 )
                 setPublicTeams([])
             } else {
-                setPublicTeams(
+                const competitionTeamRows =
                     (teamsResponse.data ??
-                        []) as PublicTeam[]
-                )
+                        []) as unknown as PublicCompetitionTeamRow[]
+
+                const mappedTeams = competitionTeamRows
+                    .map((row) => {
+                        const team =
+                            getRelatedPublicTeam(
+                                row.team
+                            )
+
+                        if (
+                            !team ||
+                            !team.published ||
+                            team.participation_status !==
+                            'confirmed'
+                        ) {
+                            return null
+                        }
+
+                        return {
+                            id: team.id,
+                            name: team.name,
+                            manager_name:
+                            team.manager_name,
+                            logo_url:
+                            team.logo_url,
+                        }
+                    })
+                    .filter(
+                        (
+                            team
+                        ): team is PublicTeam =>
+                            team !== null
+                    )
+                    .sort((first, second) =>
+                        first.name.localeCompare(
+                            second.name
+                        )
+                    )
+
+                setPublicTeams(mappedTeams)
             }
 
             if (fixturesResponse.error) {
@@ -442,53 +544,63 @@ function App() {
                         []) as unknown as PublicFixtureRelationRow[]
 
                 setPublicFixtures(
-                    fixtureRows.map(
-                        (fixture) => {
-                            const homeTeam =
-                                getRelatedTeam(
-                                    fixture.home_team
-                                )
+                    fixtureRows.map((fixture) => {
+                        const homeCompetitionTeam =
+                            getRelatedCompetitionTeam(
+                                fixture.home_competition_team
+                            )
 
-                            const awayTeam =
-                                getRelatedTeam(
-                                    fixture.away_team
-                                )
+                        const awayCompetitionTeam =
+                            getRelatedCompetitionTeam(
+                                fixture.away_competition_team
+                            )
 
-                            const venue =
-                                getRelatedVenue(
-                                    fixture.venue
-                                )
+                        const homeTeam =
+                            getRelatedTeam(
+                                homeCompetitionTeam?.team ??
+                                null
+                            )
 
-                            return {
-                                id: fixture.id,
-                                stage:
-                                fixture.stage,
-                                kickoffTime:
-                                fixture.kickoff_time,
-                                status:
-                                    fixture.status ??
-                                    'scheduled',
-                                homeTeam:
-                                    homeTeam?.name.trim() ??
-                                    'Home team TBC',
-                                awayTeam:
-                                    awayTeam?.name.trim() ??
-                                    'Away team TBC',
-                                venueName:
-                                    venue?.name ??
-                                    'Venue to be confirmed',
-                                venueAddress:
-                                    venue?.address ??
-                                    '',
-                                venuePostcode:
-                                    venue?.postcode ??
-                                    '',
-                                venueNotes:
-                                    venue?.notes ??
-                                    '',
-                            }
+                        const awayTeam =
+                            getRelatedTeam(
+                                awayCompetitionTeam?.team ??
+                                null
+                            )
+
+                        const venue =
+                            getRelatedVenue(
+                                fixture.venue
+                            )
+
+                        return {
+                            id: fixture.id,
+                            stage:
+                            fixture.stage,
+                            kickoffTime:
+                            fixture.kickoff_time,
+                            status:
+                                fixture.status ??
+                                'scheduled',
+                            homeTeam:
+                                homeTeam?.name.trim() ??
+                                'Home team TBC',
+                            awayTeam:
+                                awayTeam?.name.trim() ??
+                                'Away team TBC',
+                            venueName:
+                                venue?.name ??
+                                'Venue to be confirmed',
+                            venueAddress:
+                                venue?.address ??
+                                '',
+                            venuePostcode:
+                                venue?.postcode ??
+                                '',
+                            venueNotes:
+                                venue?.notes ??
+                                '',
                         }
-                    )
+                    })
                 )
             }
 
@@ -516,14 +628,26 @@ function App() {
                             return null
                         }
 
+                        const homeCompetitionTeam =
+                            getRelatedCompetitionTeam(
+                                fixture.home_competition_team
+                            )
+
+                        const awayCompetitionTeam =
+                            getRelatedCompetitionTeam(
+                                fixture.away_competition_team
+                            )
+
                         const homeTeam =
                             getRelatedTeam(
-                                fixture.home_team
+                                homeCompetitionTeam?.team ??
+                                null
                             )
 
                         const awayTeam =
                             getRelatedTeam(
-                                fixture.away_team
+                                awayCompetitionTeam?.team ??
+                                null
                             )
 
                         if (
@@ -691,7 +815,7 @@ function App() {
             setPublicGoals(mappedGoals)
         }
 
-        loadPublicTournamentData()
+        void loadPublicTournamentData()
     }, [])
 
     const activeArticle = useMemo(

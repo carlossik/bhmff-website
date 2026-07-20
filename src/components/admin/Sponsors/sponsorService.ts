@@ -36,32 +36,29 @@ function getStoragePath(publicUrl: string | null) {
 }
 
 export const sponsorService = {
-    async getActiveFestivalId(): Promise<string | null> {
+    async getActiveCompetitionId(): Promise<string | null> {
         const { data, error } = await supabase
-            .from('festivals')
+            .from('competitions')
             .select('id')
-            .eq('status', 'active')
-            .order('year', {
-                ascending: false,
-            })
+            .eq('status', 'ACTIVE')
             .limit(1)
             .maybeSingle()
 
         throwSupabaseError(
             error,
-            'Failed to load active festival'
+            'Failed to load active competition'
         )
 
         return data?.id ?? null
     },
 
     async getSponsors(
-        festivalId: string
+        competitionId: string
     ): Promise<Sponsor[]> {
         const { data, error } = await supabase
             .from('sponsors')
             .select('*')
-            .eq('festival_id', festivalId)
+            .eq('competition_id', competitionId)
             .order('created_at', {
                 ascending: false,
             })
@@ -133,14 +130,14 @@ export const sponsorService = {
     },
 
     async createSponsor(
-        festivalId: string,
+        competitionId: string,
         values: SponsorFormValues,
         logoUrl: string | null
     ): Promise<void> {
         const { error } = await supabase
             .from('sponsors')
             .insert({
-                festival_id: festivalId,
+                competition_id: competitionId,
                 name: values.name.trim(),
                 tier:
                     values.tier.trim() || null,

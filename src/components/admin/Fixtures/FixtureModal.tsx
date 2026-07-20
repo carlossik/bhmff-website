@@ -23,6 +23,8 @@ type FixtureModalProps = {
 
 const stages = [
     'Group Stage',
+    'Round of 16',
+    'Quarter Final',
     'Semi Final',
     'Third Place Playoff',
     'Grand Final',
@@ -34,6 +36,31 @@ const statuses: FixtureStatus[] = [
     'completed',
     'cancelled',
 ]
+
+const defaultKickoffTime = '12:00'
+
+function getKickoffDate(kickoffTime: string) {
+    if (!kickoffTime) return ''
+
+    return kickoffTime.slice(0, 10)
+}
+
+function getKickoffClockTime(kickoffTime: string) {
+    if (!kickoffTime) return defaultKickoffTime
+
+    const time = kickoffTime.slice(11, 16)
+
+    return time || defaultKickoffTime
+}
+
+function combineKickoffDateAndTime(
+    date: string,
+    time: string
+) {
+    if (!date) return ''
+
+    return `${date}T${time || defaultKickoffTime}`
+}
 
 export function FixtureModal({
                                  mode,
@@ -49,6 +76,15 @@ export function FixtureModal({
                              }: FixtureModalProps) {
     const isGroupStage =
         values.stage === 'Group Stage'
+
+    const kickoffDate = getKickoffDate(
+        values.kickoff_time
+    )
+
+    const kickoffClockTime =
+        getKickoffClockTime(
+            values.kickoff_time
+        )
 
     const groupCompetitionTeamIds =
         groupMemberships
@@ -70,6 +106,31 @@ export function FixtureModal({
                 )
             )
             : teams
+
+    const availableHomeTeams =
+        availableTeams.filter(
+            (team) =>
+                team.competition_team_id !==
+                values.away_competition_team_id
+        )
+
+    const availableAwayTeams =
+        availableTeams.filter(
+            (team) =>
+                team.competition_team_id !==
+                values.home_competition_team_id
+        )
+
+    const sortedVenues = [...venues].sort(
+        (firstVenue, secondVenue) =>
+            firstVenue.name.localeCompare(
+                secondVenue.name,
+                'en-GB',
+                {
+                    sensitivity: 'base',
+                }
+            )
+    )
 
     function updateField<
         K extends keyof FixtureFormValues
@@ -103,6 +164,34 @@ export function FixtureModal({
             home_competition_team_id: '',
             away_competition_team_id: '',
         })
+    }
+
+    function handleKickoffDateChange(
+        date: string
+    ) {
+        updateField(
+            'kickoff_time',
+            combineKickoffDateAndTime(
+                date,
+                kickoffClockTime
+            )
+        )
+    }
+
+    function handleKickoffTimeChange(
+        time: string
+    ) {
+        if (!kickoffDate) {
+            return
+        }
+
+        updateField(
+            'kickoff_time',
+            combineKickoffDateAndTime(
+                kickoffDate,
+                time
+            )
+        )
     }
 
     return (
@@ -220,22 +309,20 @@ export function FixtureModal({
                             Select home team
                         </option>
 
-                        {availableTeams.map((team) => (
-                            <option
-                                key={
-                                    team.competition_team_id
-                                }
-                                value={
-                                    team.competition_team_id
-                                }
-                                disabled={
-                                    team.competition_team_id ===
-                                    values.away_competition_team_id
-                                }
-                            >
-                                {team.name}
-                            </option>
-                        ))}
+                        {availableHomeTeams.map(
+                            (team) => (
+                                <option
+                                    key={
+                                        team.competition_team_id
+                                    }
+                                    value={
+                                        team.competition_team_id
+                                    }
+                                >
+                                    {team.name}
+                                </option>
+                            )
+                        )}
                     </select>
                 </label>
 
@@ -261,38 +348,35 @@ export function FixtureModal({
                             Select away team
                         </option>
 
-                        {availableTeams.map((team) => (
-                            <option
-                                key={
-                                    team.competition_team_id
-                                }
-                                value={
-                                    team.competition_team_id
-                                }
-                                disabled={
-                                    team.competition_team_id ===
-                                    values.home_competition_team_id
-                                }
-                            >
-                                {team.name}
-                            </option>
-                        ))}
+                        {availableAwayTeams.map(
+                            (team) => (
+                                <option
+                                    key={
+                                        team.competition_team_id
+                                    }
+                                    value={
+                                        team.competition_team_id
+                                    }
+                                >
+                                    {team.name}
+                                </option>
+                            )
+                        )}
                     </select>
                 </label>
 
+                <div className="adminFormFullWidth">
+                    <span>Kick-off</span>
+                </div>
+
                 <label>
-                    <span>
-                        Kick-off Date and Time
-                    </span>
+                    <span>Date</span>
 
                     <input
-                        type="datetime-local"
-                        value={
-                            values.kickoff_time
-                        }
+                        type="date"
+                        value={kickoffDate}
                         onChange={(event) =>
-                            updateField(
-                                'kickoff_time',
+                            handleKickoffDateChange(
                                 event.target.value
                             )
                         }
@@ -300,6 +384,20 @@ export function FixtureModal({
                 </label>
 
                 <label>
+                    <span>Time</span>
+
+                    <input
+                        type="time"
+                        value={kickoffClockTime}
+                        onChange={(event) =>
+                            handleKickoffTimeChange(
+                                event.target.value
+                            )
+                        }
+                    />
+                </label>
+
+                <label className="adminFormFullWidth">
                     <span>Venue</span>
 
                     <select
@@ -312,17 +410,19 @@ export function FixtureModal({
                         }
                     >
                         <option value="">
-                            Venue to be confirmed
+                            To be confirmed
                         </option>
 
-                        {venues.map((venue) => (
-                            <option
-                                key={venue.id}
-                                value={venue.id}
-                            >
-                                {venue.name}
-                            </option>
-                        ))}
+                        {sortedVenues.map(
+                            (venue) => (
+                                <option
+                                    key={venue.id}
+                                    value={venue.id}
+                                >
+                                    {venue.name}
+                                </option>
+                            )
+                        )}
                     </select>
                 </label>
             </div>

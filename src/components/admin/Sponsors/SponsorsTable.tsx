@@ -19,8 +19,10 @@ export function SponsorsTable({
                 <h3>No sponsors added</h3>
 
                 <p>
-                    Add confirmed festival partners
-                    when agreements are in place.
+                    <p>
+                        Add confirmed sponsors and partners
+                        when agreements are in place.
+                    </p>
                 </p>
             </div>
         )

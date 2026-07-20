@@ -17,25 +17,8 @@ function throwSupabaseError(
 }
 
 export const goalService = {
-    async getActiveFestivalId(): Promise<string | null> {
-        const { data, error } = await supabase
-            .from('festivals')
-            .select('id')
-            .eq('status', 'active')
-            .order('year', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-
-        throwSupabaseError(
-            error,
-            'Failed to load active festival'
-        )
-
-        return data?.id ?? null
-    },
-
     async getFixtures(
-        festivalId: string
+        competitionId: string
     ): Promise<GoalFixture[]> {
         const { data, error } = await supabase
             .from('fixtures')
@@ -43,10 +26,10 @@ export const goalService = {
                 id,
                 stage,
                 kickoff_time,
-                home_team_id,
-                away_team_id
+                home_competition_team_id,
+                away_competition_team_id
             `)
-            .eq('festival_id', festivalId)
+            .eq('competition_id', competitionId)
             .order('kickoff_time', {
                 ascending: true,
                 nullsFirst: false,
@@ -57,24 +40,41 @@ export const goalService = {
             'Failed to load fixtures'
         )
 
-        return data ?? []
+        return (data ?? []) as GoalFixture[]
     },
 
     async getTeams(
-        festivalId: string
+        competitionId: string
     ): Promise<GoalTeam[]> {
         const { data, error } = await supabase
-            .from('teams')
-            .select('id, name, logo_url')
-            .eq('festival_id', festivalId)
-            .order('name', { ascending: true })
+            .from('competition_teams')
+            .select(`
+                id,
+                team_id,
+                teams (
+                    name,
+                    logo_url
+                )
+            `)
+            .eq('competition_id', competitionId)
+            .order('team_id', {
+                ascending: true,
+            })
 
         throwSupabaseError(
             error,
-            'Failed to load teams'
+            'Failed to load competition teams'
         )
 
-        return data ?? []
+        return (
+            data?.map((row: any) => ({
+                id: row.team_id,
+                competition_team_id: row.id,
+                name: row.teams?.name ?? '',
+                logo_url:
+                    row.teams?.logo_url ?? null,
+            })) ?? []
+        )
     },
 
     async getGoals(
@@ -95,7 +95,7 @@ export const goalService = {
             'Failed to load goals'
         )
 
-        return data ?? []
+        return (data ?? []) as Goal[]
     },
 
     async createGoal(

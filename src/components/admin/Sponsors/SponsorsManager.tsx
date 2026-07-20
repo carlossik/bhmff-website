@@ -31,7 +31,7 @@ const ALLOWED_TYPES = [
 ]
 
 export function SponsorsManager() {
-    const [festivalId, setFestivalId] =
+    const [competitionId, setCompetitionId] =
         useState<string | null>(null)
 
     const [sponsors, setSponsors] =
@@ -89,15 +89,15 @@ export function SponsorsManager() {
         setIsLoading(true)
 
         try {
-            const activeFestivalId =
+            const activeCompetitionId =
                 await sponsorService
-                    .getActiveFestivalId()
+                    .getActiveCompetitionId()
 
-            setFestivalId(
-                activeFestivalId
+            setCompetitionId(
+                activeCompetitionId
             )
 
-            if (!activeFestivalId) {
+            if (!activeCompetitionId) {
                 setSponsors([])
                 return
             }
@@ -105,7 +105,7 @@ export function SponsorsManager() {
             const rows =
                 await sponsorService
                     .getSponsors(
-                        activeFestivalId
+                        activeCompetitionId
                     )
 
             setSponsors(rows)
@@ -198,9 +198,9 @@ export function SponsorsManager() {
     }
 
     async function saveSponsor() {
-        if (!festivalId) {
+        if (!competitionId) {
             showToast(
-                'No active festival was found.',
+                'No active competition was found.',
                 'error'
             )
             return
@@ -251,7 +251,7 @@ export function SponsorsManager() {
             } else {
                 await sponsorService
                     .createSponsor(
-                        festivalId,
+                        competitionId,
                         formValues,
                         nextLogoUrl
                     )
@@ -359,7 +359,7 @@ export function SponsorsManager() {
                     className="btn primary"
                     type="button"
                     onClick={openCreateModal}
-                    disabled={!festivalId}
+                    disabled={!competitionId}
                 >
                     + Add Sponsor
                 </button>

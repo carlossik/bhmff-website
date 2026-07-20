@@ -38,6 +38,9 @@ export function GroupsManager() {
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
 
+    const [publishingGroupId, setPublishingGroupId] =
+        useState<string | null>(null)
+
     const [toastMessage, setToastMessage] = useState('')
     const [toastType, setToastType] =
         useState<'success' | 'error' | 'info'>('success')
@@ -114,7 +117,8 @@ export function GroupsManager() {
             sort_order: String(group.sort_order),
             competition_team_ids: memberships
                 .filter(
-                    (membership) => membership.group_id === group.id
+                    (membership) =>
+                        membership.group_id === group.id
                 )
                 .map(
                     (membership) =>
@@ -197,6 +201,48 @@ export function GroupsManager() {
         }
     }
 
+    async function togglePublished(
+        group: CompetitionGroup
+    ) {
+        setPublishingGroupId(group.id)
+
+        try {
+            const newPublishedStatus = !group.published
+
+            await groupService.setPublished(
+                group.id,
+                newPublishedStatus
+            )
+
+            setGroups((currentGroups) =>
+                currentGroups.map((currentGroup) =>
+                    currentGroup.id === group.id
+                        ? {
+                            ...currentGroup,
+                            published: newPublishedStatus,
+                        }
+                        : currentGroup
+                )
+            )
+
+            showToast(
+                newPublishedStatus
+                    ? `${group.name} is now visible on the public site.`
+                    : `${group.name} has been removed from the public site.`,
+                'success'
+            )
+        } catch (error) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to update group visibility.',
+                'error'
+            )
+        } finally {
+            setPublishingGroupId(null)
+        }
+    }
+
     async function deleteGroup() {
         if (!groupToDelete) return
 
@@ -223,7 +269,8 @@ export function GroupsManager() {
     function getGroupTeams(groupId: string): GroupTeam[] {
         const competitionTeamIds = memberships
             .filter(
-                (membership) => membership.group_id === groupId
+                (membership) =>
+                    membership.group_id === groupId
             )
             .map(
                 (membership) =>
@@ -254,8 +301,8 @@ export function GroupsManager() {
                     <h3>Tournament Groups</h3>
 
                     <p className="muted">
-                        Create competition groups and allocate each
-                        registered team to its group.
+                        Create competition groups, allocate teams, then publish each group when
+                        you're ready for it to appear on the public website.
                     </p>
                 </div>
 
@@ -291,6 +338,8 @@ export function GroupsManager() {
                 <div className="adminGroupsGrid">
                     {groups.map((group) => {
                         const groupTeams = getGroupTeams(group.id)
+                        const isPublishing =
+                            publishingGroupId === group.id
 
                         return (
                             <article
@@ -299,14 +348,53 @@ export function GroupsManager() {
                             >
                                 <div className="adminGroupHeader">
                                     <div>
-                                        <span className="badge">
-                                            Order {group.sort_order}
-                                        </span>
+                                        <div className="adminGroupMeta">
+
+                                            <span className="badge">
+                                                Order{' '}
+                                                {group.sort_order}
+                                            </span>
+
+                                            <span
+                                                className="badge"
+                                                style={{
+                                                    opacity:
+                                                        group.published
+                                                            ? 1
+                                                            : 0.65,
+                                                }}
+                                            >
+                                                {group.published
+                                                    ? 'Published'
+                                                    : 'Draft'}
+                                            </span>
+                                        </div>
 
                                         <h4>{group.name}</h4>
                                     </div>
 
-                                    <div className="tableActions">
+                                    <div className="adminGroupActions">
+                                        <button
+                                            className={
+                                                group.published
+                                                    ? 'btn secondary small'
+                                                    : 'btn primary small'
+                                            }
+                                            type="button"
+                                            disabled={isPublishing}
+                                            onClick={() =>
+                                                void togglePublished(
+                                                    group
+                                                )
+                                            }
+                                        >
+                                            {isPublishing
+                                                ? 'Updating...'
+                                                : group.published
+                                                    ? 'Unpublish'
+                                                    : 'Publish'}
+                                        </button>
+
                                         <button
                                             className="btn secondary small"
                                             type="button"
@@ -382,7 +470,18 @@ export function GroupsManager() {
                     })}
                 </div>
             )}
+            <div className="adminInfoBox">
+                <div className="adminInfoIcon">ℹ</div>
 
+                <div>
+
+
+                    <p>
+                        Groups marked as <span className="text-success">Published</span> will
+                        be visible on the public website.
+                    </p>
+                </div>
+            </div>
             {showModal && (
                 <GroupModal
                     mode={editingGroup ? 'edit' : 'create'}

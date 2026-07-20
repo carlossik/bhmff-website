@@ -1,6 +1,6 @@
 export type Sponsor = {
     id: string
-    festival_id: string | null
+    competition_id: string | null
     name: string
     tier: string | null
     logo_url: string | null

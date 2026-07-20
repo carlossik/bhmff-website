@@ -1,4 +1,9 @@
-import { useEffect, useState } from 'react'
+import {
+    useCallback,
+    useEffect,
+    useState,
+} from 'react'
+import { useCompetition } from '../../../contexts/CompetitionContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { ResultModal } from './ResultModal'
@@ -21,13 +26,25 @@ const emptyForm: ResultFormValues = {
 }
 
 export function ResultsManager() {
-    const [fixtures, setFixtures] = useState<ResultFixture[]>([])
-    const [teams, setTeams] = useState<ResultTeam[]>([])
-    const [results, setResults] = useState<Result[]>([])
+    const { currentCompetition } = useCompetition()
 
-    const [isLoading, setIsLoading] = useState(true)
-    const [isSaving, setIsSaving] = useState(false)
-    const [showModal, setShowModal] = useState(false)
+    const [fixtures, setFixtures] =
+        useState<ResultFixture[]>([])
+
+    const [teams, setTeams] =
+        useState<ResultTeam[]>([])
+
+    const [results, setResults] =
+        useState<Result[]>([])
+
+    const [isLoading, setIsLoading] =
+        useState(false)
+
+    const [isSaving, setIsSaving] =
+        useState(false)
+
+    const [showModal, setShowModal] =
+        useState(false)
 
     const [editingResult, setEditingResult] =
         useState<Result | null>(null)
@@ -38,7 +55,9 @@ export function ResultsManager() {
     const [formValues, setFormValues] =
         useState<ResultFormValues>(emptyForm)
 
-    const [toastMessage, setToastMessage] = useState('')
+    const [toastMessage, setToastMessage] =
+        useState('')
+
     const [toastType, setToastType] =
         useState<'success' | 'error' | 'info'>('success')
 
@@ -50,49 +69,60 @@ export function ResultsManager() {
         setToastType(type)
     }
 
-    async function loadData() {
-        setIsLoading(true)
-
-        try {
-            const festivalId =
-                await resultService.getActiveFestivalId()
-
-            if (!festivalId) {
+    const loadData = useCallback(
+        async () => {
+            if (!currentCompetition?.id) {
                 setFixtures([])
                 setTeams([])
                 setResults([])
+                setIsLoading(false)
                 return
             }
 
-            const [fixtureRows, teamRows] =
-                await Promise.all([
-                    resultService.getFixtures(festivalId),
-                    resultService.getTeams(festivalId),
-                ])
+            setIsLoading(true)
 
-            const resultRows =
-                await resultService.getResults(
-                    fixtureRows.map((fixture) => fixture.id)
+            try {
+                const [fixtureRows, teamRows] =
+                    await Promise.all([
+                        resultService.getFixtures(
+                            currentCompetition.id
+                        ),
+                        resultService.getTeams(
+                            currentCompetition.id
+                        ),
+                    ])
+
+                const resultRows =
+                    await resultService.getResults(
+                        fixtureRows.map(
+                            (fixture) => fixture.id
+                        )
+                    )
+
+                setFixtures(fixtureRows)
+                setTeams(teamRows)
+                setResults(resultRows)
+            } catch (error) {
+                setFixtures([])
+                setTeams([])
+                setResults([])
+
+                showToast(
+                    error instanceof Error
+                        ? error.message
+                        : 'Failed to load results.',
+                    'error'
                 )
-
-            setFixtures(fixtureRows)
-            setTeams(teamRows)
-            setResults(resultRows)
-        } catch (error) {
-            showToast(
-                error instanceof Error
-                    ? error.message
-                    : 'Failed to load results.',
-                'error'
-            )
-        } finally {
-            setIsLoading(false)
-        }
-    }
+            } finally {
+                setIsLoading(false)
+            }
+        },
+        [currentCompetition?.id]
+    )
 
     useEffect(() => {
-        loadData()
-    }, [])
+        void loadData()
+    }, [loadData])
 
     function openCreateModal() {
         setEditingResult(null)
@@ -109,7 +139,8 @@ export function ResultsManager() {
             away_score: String(result.away_score),
             player_of_match:
                 result.player_of_match ?? '',
-            match_report: result.match_report ?? '',
+            match_report:
+                result.match_report ?? '',
             published: result.published,
         })
 
@@ -124,7 +155,10 @@ export function ResultsManager() {
 
     async function saveResult() {
         if (!formValues.fixture_id) {
-            showToast('Please select a fixture.', 'error')
+            showToast(
+                'Please select a fixture.',
+                'error'
+            )
             return
         }
 
@@ -132,15 +166,56 @@ export function ResultsManager() {
             formValues.home_score === '' ||
             formValues.away_score === ''
         ) {
-            showToast('Both scores are required.', 'error')
+            showToast(
+                'Both scores are required.',
+                'error'
+            )
+            return
+        }
+
+        const homeScore = Number(
+            formValues.home_score
+        )
+
+        const awayScore = Number(
+            formValues.away_score
+        )
+
+        if (
+            !Number.isInteger(homeScore) ||
+            !Number.isInteger(awayScore)
+        ) {
+            showToast(
+                'Scores must be whole numbers.',
+                'error'
+            )
             return
         }
 
         if (
-            Number(formValues.home_score) < 0 ||
-            Number(formValues.away_score) < 0
+            homeScore < 0 ||
+            awayScore < 0
         ) {
-            showToast('Scores cannot be negative.', 'error')
+            showToast(
+                'Scores cannot be negative.',
+                'error'
+            )
+            return
+        }
+
+        const fixtureAlreadyHasResult =
+            results.some(
+                (result) =>
+                    result.fixture_id ===
+                    formValues.fixture_id &&
+                    result.id !== editingResult?.id
+            )
+
+        if (fixtureAlreadyHasResult) {
+            showToast(
+                'A result already exists for this fixture.',
+                'error'
+            )
             return
         }
 
@@ -155,7 +230,9 @@ export function ResultsManager() {
                     formValues
                 )
             } else {
-                await resultService.createResult(formValues)
+                await resultService.createResult(
+                    formValues
+                )
             }
 
             closeModal()
@@ -183,11 +260,17 @@ export function ResultsManager() {
         if (!resultToDelete) return
 
         try {
-            await resultService.deleteResult(resultToDelete.id)
+            await resultService.deleteResult(
+                resultToDelete.id
+            )
 
             setResultToDelete(null)
             await loadData()
-            showToast('Result deleted successfully.', 'success')
+
+            showToast(
+                'Result deleted successfully.',
+                'success'
+            )
         } catch (error) {
             showToast(
                 error instanceof Error
@@ -209,24 +292,46 @@ export function ResultsManager() {
             <div className="adminWorkspaceHeader">
                 <div>
                     <h3>Results</h3>
+
                     <p className="muted">
                         Record match scores, player-of-the-match
-                        details and match reports.
+                        details and match reports for the selected
+                        competition.
                     </p>
+
+                    {currentCompetition && (
+                        <span className="badge">
+                            {currentCompetition.name}
+                        </span>
+                    )}
                 </div>
 
                 <button
                     className="btn primary"
                     type="button"
                     onClick={openCreateModal}
-                    disabled={!fixtures.length}
+                    disabled={
+                        !currentCompetition ||
+                        !fixtures.length ||
+                        isLoading
+                    }
                 >
                     + Add Result
                 </button>
             </div>
 
-            {isLoading ? (
-                <p className="muted">Loading results...</p>
+            {!currentCompetition ? (
+                <div className="teamsEmptyState">
+                    <h3>No competition selected</h3>
+
+                    <p>
+                        Select a competition before managing results.
+                    </p>
+                </div>
+            ) : isLoading ? (
+                <p className="muted">
+                    Loading results...
+                </p>
             ) : (
                 <ResultsTable
                     results={results}
@@ -239,7 +344,11 @@ export function ResultsManager() {
 
             {showModal && (
                 <ResultModal
-                    mode={editingResult ? 'edit' : 'create'}
+                    mode={
+                        editingResult
+                            ? 'edit'
+                            : 'create'
+                    }
                     values={formValues}
                     fixtures={fixtures}
                     teams={teams}
@@ -259,7 +368,9 @@ export function ResultsManager() {
                     message="Are you sure you want to delete this result?"
                     confirmText="Delete"
                     cancelText="Cancel"
-                    onCancel={() => setResultToDelete(null)}
+                    onCancel={() =>
+                        setResultToDelete(null)
+                    }
                     onConfirm={deleteResult}
                 />
             )}

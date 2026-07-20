@@ -1,6 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient'
 import type {
-    Festival,
     Venue,
     VenueFormValues,
 } from './venueTypes'
@@ -16,55 +15,63 @@ function throwSupabaseError(
 }
 
 export const venueService = {
-    async getActiveFestival(): Promise<Festival | null> {
-        const { data, error } = await supabase
-            .from('festivals')
-            .select('id, name, year')
-            .eq('status', 'active')
-            .order('year', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-
-        throwSupabaseError(error, 'Failed to load active festival')
-
-        return data
-    },
-
     async getVenues(
-        festivalId: string,
+        competitionId: string,
         organisationId: string
     ): Promise<Venue[]> {
         const { data, error } = await supabase
             .from('venues')
             .select('*')
-            .eq('festival_id', festivalId)
-            .eq('organisation_id', organisationId)
-            .order('name', { ascending: true })
+            .eq(
+                'competition_id',
+                competitionId
+            )
+            .eq(
+                'organisation_id',
+                organisationId
+            )
+            .order('name', {
+                ascending: true,
+            })
 
-        throwSupabaseError(error, 'Failed to load venues')
+        throwSupabaseError(
+            error,
+            'Failed to load venues'
+        )
 
-        return data ?? []
+        return (data ?? []) as Venue[]
     },
 
     async createVenue(
-        festivalId: string,
+        competitionId: string,
         organisationId: string,
         values: VenueFormValues
     ): Promise<Venue> {
         const { data, error } = await supabase
             .from('venues')
             .insert({
-                festival_id: festivalId,
-                organisation_id: organisationId,
+                competition_id:
+                competitionId,
+                organisation_id:
+                organisationId,
                 name: values.name.trim(),
-                address: values.address.trim() || null,
-                postcode: values.postcode.trim() || null,
-                notes: values.notes.trim() || null,
+                address:
+                    values.address.trim() ||
+                    null,
+                postcode:
+                    values.postcode.trim() ||
+                    null,
+                notes:
+                    values.notes.trim() ||
+                    null,
             })
             .select('*')
             .single()
 
-        throwSupabaseError(error, 'Failed to create venue')
+        throwSupabaseError(
+            error,
+            'Failed to create venue'
+        )
 
         if (!data) {
             throw new Error(
@@ -72,11 +79,12 @@ export const venueService = {
             )
         }
 
-        return data
+        return data as Venue
     },
 
     async updateVenue(
         venueId: string,
+        competitionId: string,
         organisationId: string,
         values: VenueFormValues
     ): Promise<void> {
@@ -84,26 +92,53 @@ export const venueService = {
             .from('venues')
             .update({
                 name: values.name.trim(),
-                address: values.address.trim() || null,
-                postcode: values.postcode.trim() || null,
-                notes: values.notes.trim() || null,
+                address:
+                    values.address.trim() ||
+                    null,
+                postcode:
+                    values.postcode.trim() ||
+                    null,
+                notes:
+                    values.notes.trim() ||
+                    null,
             })
             .eq('id', venueId)
-            .eq('organisation_id', organisationId)
+            .eq(
+                'competition_id',
+                competitionId
+            )
+            .eq(
+                'organisation_id',
+                organisationId
+            )
 
-        throwSupabaseError(error, 'Failed to update venue')
+        throwSupabaseError(
+            error,
+            'Failed to update venue'
+        )
     },
 
     async deleteVenue(
         venueId: string,
+        competitionId: string,
         organisationId: string
     ): Promise<void> {
         const { error } = await supabase
             .from('venues')
             .delete()
             .eq('id', venueId)
-            .eq('organisation_id', organisationId)
+            .eq(
+                'competition_id',
+                competitionId
+            )
+            .eq(
+                'organisation_id',
+                organisationId
+            )
 
-        throwSupabaseError(error, 'Failed to delete venue')
+        throwSupabaseError(
+            error,
+            'Failed to delete venue'
+        )
     },
 }

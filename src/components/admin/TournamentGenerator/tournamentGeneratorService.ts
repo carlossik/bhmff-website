@@ -2,10 +2,9 @@ import { supabase } from '../../../lib/supabaseClient'
 import type {
     ExistingFixture,
     GeneratedFixturePreview,
-    GeneratorFestival,
+    GeneratorCompetitionTeam,
     GeneratorGroup,
     GeneratorMembership,
-    GeneratorTeam,
     GeneratorVenue,
 } from './tournamentGeneratorTypes'
 
@@ -19,68 +18,140 @@ function throwSupabaseError(
     throw new Error(error.message)
 }
 
+type CompetitionTeamRow = {
+    id: string
+    team_id: string
+    teams:
+        | {
+        name: string
+        published: boolean
+        participation_status:
+            | 'interested'
+            | 'invited'
+            | 'confirmed'
+            | 'withdrawn'
+        primary_home_venue_id: string | null
+    }
+        | {
+        name: string
+        published: boolean
+        participation_status:
+            | 'interested'
+            | 'invited'
+            | 'confirmed'
+            | 'withdrawn'
+        primary_home_venue_id: string | null
+    }[]
+        | null
+}
+
+function getRelatedTeam(
+    relation: CompetitionTeamRow['teams']
+) {
+    if (!relation) {
+        return null
+    }
+
+    if (Array.isArray(relation)) {
+        return relation[0] ?? null
+    }
+
+    return relation
+}
+
 export const tournamentGeneratorService = {
-    async getActiveFestival(): Promise<GeneratorFestival | null> {
-        const { data, error } = await supabase
-            .from('festivals')
-            .select('id, name, year')
-            .eq('status', 'active')
-            .order('year', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-
-        throwSupabaseError(
-            error,
-            'Failed to load the active festival'
-        )
-
-        return data
-    },
-
     async getGroups(
-        festivalId: string
+        competitionId: string
     ): Promise<GeneratorGroup[]> {
         const { data, error } = await supabase
             .from('groups')
             .select('id, name, sort_order')
-            .eq('festival_id', festivalId)
-            .order('sort_order', { ascending: true })
+            .eq('competition_id', competitionId)
+            .order('sort_order', {
+                ascending: true,
+            })
+            .order('name', {
+                ascending: true,
+            })
 
         throwSupabaseError(
             error,
-            'Failed to load tournament groups'
+            'Failed to load competition groups'
         )
 
-        return data ?? []
+        return (data ?? []) as GeneratorGroup[]
     },
 
     async getTeams(
-        festivalId: string
-    ): Promise<GeneratorTeam[]> {
+        competitionId: string
+    ): Promise<GeneratorCompetitionTeam[]> {
         const { data, error } = await supabase
-            .from('teams')
-            .select(
-                'id, name, published, participation_status, primary_home_venue_id'
-            )
-            .eq('festival_id', festivalId)
-            .order('name', { ascending: true })
+            .from('competition_teams')
+            .select(`
+                id,
+                team_id,
+                teams(
+                    name,
+                    published,
+                    participation_status,
+                    primary_home_venue_id
+                )
+            `)
+            .eq('competition_id', competitionId)
 
         throwSupabaseError(
             error,
-            'Failed to load tournament teams'
+            'Failed to load competition teams'
         )
 
-        return (data ?? []) as GeneratorTeam[]
+        const teams = (
+            (data ?? []) as CompetitionTeamRow[]
+        ).map((row) => {
+            const team = getRelatedTeam(
+                row.teams
+            )
+
+            return {
+                id: row.id,
+                team_id: row.team_id,
+                name:
+                    team?.name ??
+                    'Unknown team',
+                published:
+                    team?.published ??
+                    false,
+                participation_status:
+                    team?.participation_status ??
+                    'interested',
+                primary_home_venue_id:
+                    team?.primary_home_venue_id ??
+                    null,
+            }
+        })
+
+        return teams.sort((left, right) =>
+            left.name.localeCompare(
+                right.name,
+                undefined,
+                {
+                    sensitivity: 'base',
+                }
+            )
+        )
     },
 
     async getMemberships(
         groupIds: string[]
     ): Promise<GeneratorMembership[]> {
-        if (!groupIds.length) return []
+        if (!groupIds.length) {
+            return []
+        }
 
         const { data, error } = await supabase
             .from('group_teams')
-            .select('group_id, team_id')
+            .select(
+                'group_id, competition_team_id'
+            )
             .in('group_id', groupIds)
 
         throwSupabaseError(
@@ -88,28 +159,32 @@ export const tournamentGeneratorService = {
             'Failed to load group allocations'
         )
 
-        return data ?? []
+        return (
+            data ?? []
+        ) as GeneratorMembership[]
     },
 
     async getVenues(
-        festivalId: string
+        competitionId: string
     ): Promise<GeneratorVenue[]> {
         const { data, error } = await supabase
             .from('venues')
             .select('id, name')
-            .eq('festival_id', festivalId)
-            .order('name', { ascending: true })
+            .eq('competition_id', competitionId)
+            .order('name', {
+                ascending: true,
+            })
 
         throwSupabaseError(
             error,
-            'Failed to load tournament venues'
+            'Failed to load competition venues'
         )
 
-        return data ?? []
+        return (data ?? []) as GeneratorVenue[]
     },
 
     async getExistingFixtures(
-        festivalId: string
+        competitionId: string
     ): Promise<ExistingFixture[]> {
         const { data, error } = await supabase
             .from('fixtures')
@@ -117,10 +192,10 @@ export const tournamentGeneratorService = {
                 id,
                 group_id,
                 stage,
-                home_team_id,
-                away_team_id
+                home_competition_team_id,
+                away_competition_team_id
             `)
-            .eq('festival_id', festivalId)
+            .eq('competition_id', competitionId)
 
         throwSupabaseError(
             error,
@@ -131,7 +206,7 @@ export const tournamentGeneratorService = {
     },
 
     async createFixtures(
-        festivalId: string,
+        competitionId: string,
         fixtures: GeneratedFixturePreview[],
         publishImmediately: boolean
     ): Promise<void> {
@@ -141,17 +216,27 @@ export const tournamentGeneratorService = {
             )
         }
 
-        const payload = fixtures.map((fixture) => ({
-            festival_id: festivalId,
-            group_id: fixture.groupId,
-            home_team_id: fixture.homeTeamId,
-            away_team_id: fixture.awayTeamId,
-            venue_id: fixture.venueId,
-            stage: fixture.stage,
-            kickoff_time: fixture.kickoffTime,
-            status: 'scheduled',
-            published: publishImmediately,
-        }))
+        const payload = fixtures.map(
+            (fixture) => ({
+                competition_id:
+                competitionId,
+                group_id:
+                fixture.groupId,
+                home_competition_team_id:
+                fixture.homeCompetitionTeamId,
+                away_competition_team_id:
+                fixture.awayCompetitionTeamId,
+                venue_id:
+                fixture.venueId,
+                stage:
+                fixture.stage,
+                kickoff_time:
+                fixture.kickoffTime,
+                status: 'scheduled',
+                published:
+                publishImmediately,
+            })
+        )
 
         const { error } = await supabase
             .from('fixtures')

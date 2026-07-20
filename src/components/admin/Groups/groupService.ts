@@ -6,10 +6,20 @@ import type {
     GroupTeam,
 } from './groupTypes'
 
+function throwSupabaseError(
+    error: { message: string } | null,
+    context: string
+) {
+    if (!error) return
+
+    console.error(`${context}:`, error)
+    throw new Error(error.message)
+}
+
 type CompetitionTeamRow = {
     id: string
     team_id: string
-    teams:
+    team:
         | {
         name: string
         logo_url: string | null
@@ -21,25 +31,17 @@ type CompetitionTeamRow = {
         | null
 }
 
-function throwSupabaseError(
-    error: { message: string } | null,
-    context: string
-): void {
-    if (!error) return
-
-    console.error(`${context}:`, error)
-    throw new Error(error.message)
-}
-
 function getRelatedTeam(
-    relation: CompetitionTeamRow['teams']
+    row: CompetitionTeamRow
 ): {
     name: string
     logo_url: string | null
 } | null {
-    if (!relation) return null
+    if (!row.team) return null
 
-    return Array.isArray(relation) ? relation[0] ?? null : relation
+    return Array.isArray(row.team)
+        ? row.team[0] ?? null
+        : row.team
 }
 
 export const groupService = {
@@ -48,11 +50,13 @@ export const groupService = {
             .from('competitions')
             .select('id')
             .eq('status', 'ACTIVE')
-            .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle()
 
-        throwSupabaseError(error, 'Failed to load active competition')
+        throwSupabaseError(
+            error,
+            'Failed to load active competition'
+        )
 
         return data?.id ?? null
     },
@@ -63,7 +67,7 @@ export const groupService = {
         const { data, error } = await supabase
             .from('groups')
             .select(
-                'id, competition_id, name, sort_order, created_at'
+                'id, competition_id, name, sort_order, published, created_at'
             )
             .eq('competition_id', competitionId)
             .order('sort_order', { ascending: true })
@@ -74,13 +78,15 @@ export const groupService = {
         return (data ?? []) as CompetitionGroup[]
     },
 
-    async getTeams(competitionId: string): Promise<GroupTeam[]> {
+    async getTeams(
+        competitionId: string
+    ): Promise<GroupTeam[]> {
         const { data, error } = await supabase
             .from('competition_teams')
             .select(`
                 id,
                 team_id,
-                teams (
+                team:teams!competition_teams_team_id_fkey (
                     name,
                     logo_url
                 )
@@ -93,21 +99,24 @@ export const groupService = {
         )
 
         return ((data ?? []) as CompetitionTeamRow[])
-            .map((competitionTeam) => {
-                const team = getRelatedTeam(competitionTeam.teams)
+            .map((row) => {
+                const team = getRelatedTeam(row)
 
                 if (!team) return null
 
                 return {
-                    id: competitionTeam.id,
-                    competition_team_id: competitionTeam.id,
-                    team_id: competitionTeam.team_id,
+                    competition_team_id: row.id,
+                    team_id: row.team_id,
                     name: team.name,
                     logo_url: team.logo_url,
                 }
             })
-            .filter((team): team is GroupTeam => team !== null)
-            .sort((a, b) => a.name.localeCompare(b.name))
+            .filter(
+                (team): team is GroupTeam => team !== null
+            )
+            .sort((a, b) =>
+                a.name.localeCompare(b.name)
+            )
     },
 
     async getMemberships(
@@ -117,7 +126,9 @@ export const groupService = {
 
         const { data, error } = await supabase
             .from('group_teams')
-            .select('id, group_id, competition_team_id')
+            .select(
+                'id, group_id, competition_team_id'
+            )
             .in('group_id', groupIds)
 
         throwSupabaseError(
@@ -138,6 +149,7 @@ export const groupService = {
                 competition_id: competitionId,
                 name: values.name.trim(),
                 sort_order: Number(values.sort_order),
+                published: false,
             })
             .select('id')
             .single()
@@ -158,29 +170,16 @@ export const groupService = {
                 values.competition_team_ids.map(
                     (competitionTeamId) => ({
                         group_id: data.id,
-                        competition_team_id: competitionTeamId,
+                        competition_team_id:
+                        competitionTeamId,
                     })
                 )
             )
 
-        if (membershipError) {
-            const { error: rollbackError } = await supabase
-                .from('groups')
-                .delete()
-                .eq('id', data.id)
-
-            if (rollbackError) {
-                console.error(
-                    'Failed to remove group after allocation failure:',
-                    rollbackError
-                )
-            }
-
-            throwSupabaseError(
-                membershipError,
-                'Failed to allocate teams to the new group'
-            )
-        }
+        throwSupabaseError(
+            membershipError,
+            'Group created, but team allocation failed'
+        )
     },
 
     async updateGroup(
@@ -215,7 +214,8 @@ export const groupService = {
                 values.competition_team_ids.map(
                     (competitionTeamId) => ({
                         group_id: groupId,
-                        competition_team_id: competitionTeamId,
+                        competition_team_id:
+                        competitionTeamId,
                     })
                 )
             )
@@ -223,6 +223,23 @@ export const groupService = {
         throwSupabaseError(
             insertError,
             'Failed to save group team allocations'
+        )
+    },
+
+    async setPublished(
+        groupId: string,
+        published: boolean
+    ): Promise<void> {
+        const { error } = await supabase
+            .from('groups')
+            .update({ published })
+            .eq('id', groupId)
+
+        throwSupabaseError(
+            error,
+            published
+                ? 'Failed to publish group'
+                : 'Failed to unpublish group'
         )
     },
 

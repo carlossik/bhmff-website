@@ -1876,10 +1876,44 @@
 
 .adminGroupHeader {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 18px;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
 }
+
+.adminGroupHeader > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.adminGroupHeader h4 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+/* ===== ACTION BUTTONS ===== */
+
+.adminGroupActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.adminGroupActions .btn {
+    min-width: 110px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+/* ===== ORDER / STATUS BADGES ===== */
+
+.adminGroupMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
 
 .adminGroupHeader h4 {
     margin: 10px 0 0;
@@ -3272,4 +3306,56 @@
 .competitionSelector select{
     min-width:340px;
     margin:0;
+}
+/* ===== INFO BOX ===== */
+
+.adminInfoBox {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    margin-top: 30px;
+    padding: 18px 22px;
+
+    border: 1px solid rgba(143, 255, 96, 0.15);
+    border-radius: 14px;
+
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.adminInfoIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+
+    border-radius: 50%;
+
+    background: #3b82f6;
+    color: white;
+
+    font-size: 22px;
+    font-weight: bold;
+
+    flex-shrink: 0;
+}
+
+.adminInfoBox strong {
+    display: block;
+    color: #ffffff;
+    margin-bottom: 4px;
+    font-size: 15px;
+}
+
+.adminInfoBox p {
+    margin: 0;
+    color: #b9c0b5;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.adminInfoBox strong + p::first-letter {
+    color: inherit;
 }

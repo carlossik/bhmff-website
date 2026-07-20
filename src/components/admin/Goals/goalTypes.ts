@@ -12,12 +12,13 @@ export type GoalFixture = {
     id: string
     stage: string
     kickoff_time: string | null
-    home_team_id: string | null
-    away_team_id: string | null
+    home_competition_team_id: string | null
+    away_competition_team_id: string | null
 }
 
 export type GoalTeam = {
     id: string
+    competition_team_id: string
     name: string
     logo_url: string | null
 }

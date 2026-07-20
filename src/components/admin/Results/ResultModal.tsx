@@ -28,8 +28,11 @@ export function ResultModal({
                                 onClose,
                                 onSave,
                             }: ResultModalProps) {
-    const teamNames = new Map(
-        teams.map((team) => [team.id, team.name])
+    const competitionTeamNames = new Map(
+        teams.map((team) => [
+            team.competition_team_id,
+            team.name.trim(),
+        ])
     )
 
     function updateField<K extends keyof ResultFormValues>(
@@ -54,20 +57,23 @@ export function ResultModal({
                     <select
                         value={values.fixture_id}
                         onChange={(event) =>
-                            updateField('fixture_id', event.target.value)
+                            updateField(
+                                'fixture_id',
+                                event.target.value
+                            )
                         }
                     >
                         <option value="">Select fixture</option>
 
                         {fixtures.map((fixture) => {
                             const home =
-                                teamNames.get(
-                                    fixture.home_team_id ?? ''
+                                competitionTeamNames.get(
+                                    fixture.home_competition_team_id ?? ''
                                 ) ?? 'Home team TBC'
 
                             const away =
-                                teamNames.get(
-                                    fixture.away_team_id ?? ''
+                                competitionTeamNames.get(
+                                    fixture.away_competition_team_id ?? ''
                                 ) ?? 'Away team TBC'
 
                             const alreadyHasResult =

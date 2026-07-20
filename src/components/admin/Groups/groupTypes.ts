@@ -3,11 +3,11 @@ export type CompetitionGroup = {
     competition_id: string
     name: string
     sort_order: number
+    published: boolean
     created_at: string | null
 }
 
 export type GroupTeam = {
-    id: string
     competition_team_id: string
     team_id: string
     name: string

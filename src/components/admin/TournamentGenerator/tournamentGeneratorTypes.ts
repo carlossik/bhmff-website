@@ -11,10 +11,9 @@ export type VenueAssignmentMode =
     | 'selected_venue'
     | 'unassigned'
 
-export type GeneratorFestival = {
+export type GeneratorCompetition = {
     id: string
     name: string
-    year: number
 }
 
 export type GeneratorGroup = {
@@ -23,8 +22,9 @@ export type GeneratorGroup = {
     sort_order: number
 }
 
-export type GeneratorTeam = {
+export type GeneratorCompetitionTeam = {
     id: string
+    team_id: string
     name: string
     published: boolean
     participation_status:
@@ -37,7 +37,7 @@ export type GeneratorTeam = {
 
 export type GeneratorMembership = {
     group_id: string
-    team_id: string
+    competition_team_id: string
 }
 
 export type GeneratorVenue = {
@@ -49,33 +49,47 @@ export type ExistingFixture = {
     id: string
     group_id: string | null
     stage: string
-    home_team_id: string
-    away_team_id: string
+    home_competition_team_id: string
+    away_competition_team_id: string
 }
 
 export type GeneratedFixturePreview = {
     previewId: string
+
     groupId: string | null
     groupName: string
+
     stage: string
     roundNumber: number
-    homeTeamId: string
+
+    homeCompetitionTeamId: string
+    awayCompetitionTeamId: string
+
     homeTeamName: string
-    awayTeamId: string
     awayTeamName: string
+
     kickoffTime: string
+
     venueId: string | null
     venueName: string
 }
 
 export type GeneratorConfig = {
     mode: CompetitionMode
+
     startDateTime: string
+
     daysBetweenRounds: number
+
     venueAssignmentMode: VenueAssignmentMode
+
     venueId: string
+
     publishImmediately: boolean
+
     confirmedOnly: boolean
+
     matchesPerTeam: number
+
     randomiseCupDraw: boolean
 }

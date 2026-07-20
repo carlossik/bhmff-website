@@ -19,8 +19,11 @@ export function ResultsTable({
                                  onEdit,
                                  onDelete,
                              }: ResultsTableProps) {
-    const teamNames = new Map(
-        teams.map((team) => [team.id, team.name.trim()])
+    const competitionTeamNames = new Map(
+        teams.map((team) => [
+            team.competition_team_id,
+            team.name.trim(),
+        ])
     )
 
     const fixtureMap = new Map(
@@ -53,16 +56,18 @@ export function ResultsTable({
 
                 <tbody>
                 {results.map((result) => {
-                    const fixture = fixtureMap.get(result.fixture_id)
+                    const fixture = fixtureMap.get(
+                        result.fixture_id
+                    )
 
                     const home =
-                        teamNames.get(
-                            fixture?.home_team_id ?? ''
+                        competitionTeamNames.get(
+                            fixture?.home_competition_team_id ?? ''
                         ) ?? 'Home team TBC'
 
                     const away =
-                        teamNames.get(
-                            fixture?.away_team_id ?? ''
+                        competitionTeamNames.get(
+                            fixture?.away_competition_team_id ?? ''
                         ) ?? 'Away team TBC'
 
                     return (
@@ -79,7 +84,8 @@ export function ResultsTable({
 
                             <td className="resultsScoreCell">
                                 <strong>
-                                    {result.home_score} - {result.away_score}
+                                    {result.home_score} -{' '}
+                                    {result.away_score}
                                 </strong>
                             </td>
 
