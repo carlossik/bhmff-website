@@ -1,0 +1,135 @@
+.clubsTableWrapper {
+    width: 100%;
+    overflow: hidden;
+}
+
+.clubsTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.clubsTable th,
+.clubsTable td {
+    padding: 14px 12px;
+    vertical-align: middle;
+    text-align: left;
+    border-bottom: 1px solid rgba(167, 255, 112, 0.18);
+}
+
+.clubsTable th {
+    background: rgba(140, 210, 90, 0.08);
+    color: #b9ff8a;
+    font-weight: 700;
+}
+
+.clubsTable th:nth-child(1),
+.clubsTable td:nth-child(1) {
+    width: 40%;
+}
+
+.clubsTable th:nth-child(2),
+.clubsTable td:nth-child(2) {
+    width: 10%;
+}
+
+.clubsTable th:nth-child(3),
+.clubsTable td:nth-child(3) {
+    width: 10%;
+}
+
+.clubsTable th:nth-child(4),
+.clubsTable td:nth-child(4) {
+    width: 10%;
+}
+
+.clubsTable th:nth-child(5),
+.clubsTable td:nth-child(5) {
+    width: 10%;
+}
+
+.clubsTable th:nth-child(6),
+.clubsTable td:nth-child(6) {
+    width: 20%;
+}
+
+.clubTableIdentity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.clubTableIdentity strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clubTableBadge,
+.clubTableBadgePlaceholder {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 8px;
+}
+
+.clubTableBadge {
+    object-fit: contain;
+    background: #ffffff;
+    border: 2px solid #ffffff;
+}
+
+.clubTableBadgePlaceholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #69ca46;
+    color: #071006;
+    font-weight: 700;
+}
+
+.clubsTableActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.clubsTableActions button {
+    min-width: 58px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.clubsTableActions .secondaryButton {
+    background: #263a25;
+    color: #caff9f;
+}
+
+.clubsTableActions .secondaryButton:hover {
+    background: #344f32;
+}
+
+.clubsTableActions .dangerButton {
+    background: #9f2528;
+    color: #ffffff;
+}
+
+.clubsTableActions .dangerButton:hover {
+    background: #bd3034;
+}
+
+@media (max-width: 900px) {
+    .clubsTableWrapper {
+        overflow-x: auto;
+    }
+
+    .clubsTable {
+        min-width: 820px;
+    }
+}

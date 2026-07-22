@@ -3359,3 +3359,146 @@
 .adminInfoBox strong + p::first-letter {
     color: inherit;
 }
+/* ==========================================
+   TournamentHQ Admin Forms
+========================================== */
+
+.adminFormGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+    margin-top: 20px;
+}
+
+.adminFormGrid label {
+    display: flex;
+    flex-direction: column;
+}
+
+.adminFormGrid label span {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.adminFormGrid input,
+.adminFormGrid textarea,
+.adminFormGrid select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.adminFormFullWidth {
+    grid-column: 1 / -1;
+}
+
+/* ---------- Image Upload ---------- */
+
+.imageUploadField {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.imageUploadField .btn {
+    width: fit-content;
+    min-width: 190px;
+}
+
+.imageUploadField small {
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+.imageUploadPreview {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.imageUploadPreview img {
+    width: 140px;
+    height: 140px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid #3d5a2f;
+    background: #ffffff;
+    padding: 8px;
+}
+
+.imageUploadActions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ---------- Modal ---------- */
+
+.modalContent {
+    max-height: 72vh;
+    overflow-y: auto;
+    padding-right: 12px;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,.08);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+
+    .adminFormGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .imageUploadPreview {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+}
+.clubTableIdentity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.clubTableBadge {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid rgba(255,255,255,.1);
+    padding: 3px;
+}
+
+.clubTableBadgePlaceholder {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #6cc04a;
+    color: #000;
+    font-weight: bold;
+}
+
+.adminTable {
+    width: 100%;
+    table-layout: auto;
+}
+
+.adminTable td,
+.adminTable th {
+    vertical-align: middle;
+}

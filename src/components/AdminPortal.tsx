@@ -7,6 +7,7 @@ import {
 import { MediaManager } from './admin/Media/MediaManager'
 import { fixtures } from '../data/festivalData'
 import { supabase } from '../lib/supabaseClient'
+import { ClubsManager } from './admin/Clubs/ClubsManager'
 import { TeamsManager } from './admin/Teams/TeamsManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
 import { VenuesManager } from './admin/Venues/VenuesManager'
@@ -30,6 +31,7 @@ import { useOrganisation } from '../context/OrganisationContext'
 
 const adminTabs: readonly AdminModule[] = [
     'Dashboard',
+    'Clubs',
     'Teams',
     'Groups',
     'Auto Fixture Generator',
@@ -55,6 +57,17 @@ export function AdminPortal({
                             }: AdminPortalProps) {
     const { currentOrganisation } =
         useOrganisation()
+    if (!currentOrganisation) {
+        return (
+            <section className="section adminSection">
+                <div className="container">
+                    <p className="muted">
+                        Loading organisation...
+                    </p>
+                </div>
+            </section>
+        )
+    }
 
     const visibleTabs = useMemo(
         () =>
@@ -124,7 +137,7 @@ export function AdminPortal({
             setDbTeams(data ?? [])
         },
         [
-            currentOrganisation.id,
+            currentOrganisation?.id,
             profile.role,
         ]
     )
@@ -391,6 +404,9 @@ export function AdminPortal({
                         </div>
                     </div>
                 )
+
+            case 'Clubs':
+                return <ClubsManager />
 
             case 'Teams':
                 return (

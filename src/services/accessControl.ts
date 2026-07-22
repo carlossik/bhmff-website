@@ -5,14 +5,21 @@ export type AdminRole =
     | 'competition_manager'
     | 'super_admin'
 
+export type OrganisationStatus =
+    | 'active'
+    | 'inactive'
+    | 'suspended'
+
 export type Organisation = {
     id: string
     name: string
     slug: string
-    status: 'active' | 'inactive' | 'suspended'
+    status: OrganisationStatus
     logo_url: string | null
     primary_colour: string | null
     secondary_colour: string | null
+    created_at: string
+    updated_at: string
 }
 
 export type OrganisationMembership = {
@@ -21,21 +28,23 @@ export type OrganisationMembership = {
     user_id: string
     role: AdminRole
     active: boolean
-    organisation: Organisation
+    created_at: string
+    updated_at: string
 }
 
 export type AdminProfile = {
     id: string
     full_name: string | null
-    email: string | null
     role: AdminRole
     active: boolean
+    email: string | null
     currentOrganisation: Organisation
     currentMembership: OrganisationMembership
 }
 
 export type AdminModule =
     | 'Dashboard'
+    | 'Clubs'
     | 'Teams'
     | 'Groups'
     | 'Auto Fixture Generator'
@@ -59,8 +68,10 @@ const roleModules: Record<
         'Goals',
         'Media',
     ],
+
     competition_manager: [
         'Dashboard',
+        'Clubs',
         'Teams',
         'Groups',
         'Auto Fixture Generator',
@@ -69,8 +80,10 @@ const roleModules: Record<
         'Results',
         'Goals',
     ],
+
     super_admin: [
         'Dashboard',
+        'Clubs',
         'Teams',
         'Groups',
         'Auto Fixture Generator',
@@ -106,6 +119,14 @@ export function formatAdminRole(
         .join(' ')
 }
 
+type ProfileRow = {
+    id: string
+    full_name: string | null
+    email: string | null
+    role: AdminRole
+    active: boolean
+}
+
 export async function getCurrentAdminProfile():
     Promise<AdminProfile> {
     const {
@@ -124,13 +145,9 @@ export async function getCurrentAdminProfile():
         error: profileError,
     } = await supabase
         .from('profiles')
-        .select(`
-            id,
-            full_name,
-            email,
-            active,
-            deleted_at
-        `)
+        .select(
+            'id, full_name, email, role, active'
+        )
         .eq('id', user.id)
         .maybeSingle()
 
@@ -144,13 +161,10 @@ export async function getCurrentAdminProfile():
         )
     }
 
-    if (profileData.deleted_at) {
-        throw new Error(
-            'Your administrator account has been removed.'
-        )
-    }
+    const profile =
+        profileData as ProfileRow
 
-    if (!profileData.active) {
+    if (!profile.active) {
         throw new Error(
             'Your administrator account is inactive.'
         )
@@ -161,24 +175,22 @@ export async function getCurrentAdminProfile():
         error: membershipError,
     } = await supabase
         .from('organisation_memberships')
-        .select(`
-            id,
-            organisation_id,
-            user_id,
-            role,
-            active,
-            organisation:organisations (
+        .select(
+            `
                 id,
-                name,
-                slug,
-                status,
-                logo_url,
-                primary_colour,
-                secondary_colour
-            )
-        `)
+                organisation_id,
+                user_id,
+                role,
+                active,
+                created_at,
+                updated_at
+            `
+        )
         .eq('user_id', user.id)
         .eq('active', true)
+        .order('created_at', {
+            ascending: true,
+        })
         .limit(1)
         .maybeSingle()
 
@@ -190,16 +202,54 @@ export async function getCurrentAdminProfile():
 
     if (!membershipData) {
         throw new Error(
-            'Your account does not belong to an active organisation.'
+            'Your account is not assigned to an active organisation.'
         )
     }
 
-    const membership =
-        membershipData as unknown as OrganisationMembership
+    const currentMembership =
+        membershipData as OrganisationMembership
+
+    const {
+        data: organisationData,
+        error: organisationError,
+    } = await supabase
+        .from('organisations')
+        .select(
+            `
+                id,
+                name,
+                slug,
+                status,
+                logo_url,
+                primary_colour,
+                secondary_colour,
+                created_at,
+                updated_at
+            `
+        )
+        .eq(
+            'id',
+            currentMembership.organisation_id
+        )
+        .maybeSingle()
+
+    if (organisationError) {
+        throw new Error(
+            organisationError.message
+        )
+    }
+
+    if (!organisationData) {
+        throw new Error(
+            'The organisation assigned to your account could not be found.'
+        )
+    }
+
+    const currentOrganisation =
+        organisationData as Organisation
 
     if (
-        !membership.organisation ||
-        membership.organisation.status !==
+        currentOrganisation.status !==
         'active'
     ) {
         throw new Error(
@@ -208,13 +258,15 @@ export async function getCurrentAdminProfile():
     }
 
     return {
-        id: profileData.id,
-        full_name: profileData.full_name,
-        email: profileData.email,
-        role: membership.role,
-        active: profileData.active,
-        currentOrganisation:
-        membership.organisation,
-        currentMembership: membership,
+        id: profile.id,
+        full_name: profile.full_name,
+        email:
+            profile.email ??
+            user.email ??
+            null,
+        role: currentMembership.role,
+        active: profile.active,
+        currentOrganisation,
+        currentMembership,
     }
 }
