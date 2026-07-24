@@ -54,6 +54,7 @@ export type AdminModule =
     | 'Competitions'
     | 'Clubs'
     | 'Teams'
+    | 'Competition Teams'
     | 'Groups'
     | 'Auto Fixture Generator'
     | 'Venues'
@@ -83,6 +84,7 @@ const roleModules: Record<
         'Competitions',
         'Clubs',
         'Teams',
+        'Competition Teams',
         'Groups',
         'Auto Fixture Generator',
         'Venues',
@@ -97,6 +99,7 @@ const roleModules: Record<
         'Competitions',
         'Clubs',
         'Teams',
+        'Competition Teams',
         'Groups',
         'Auto Fixture Generator',
         'Venues',

@@ -22,6 +22,7 @@ import { TournamentGenerator } from './admin/TournamentGenerator/TournamentGener
 import { UserManagement } from './admin/Users/UserManagement'
 import OrganisationManager from './admin/Organisations/OrganisationManager'
 import { AdminHeader } from './admin/AdminHeader'
+import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTeamsManager'
 
 import {
     canAccessModule,
@@ -38,6 +39,7 @@ const adminTabs: readonly AdminModule[] = [
     'Competitions',
     'Clubs',
     'Teams',
+    'Competition Teams',
     'Groups',
     'Auto Fixture Generator',
     'Venues',
@@ -681,6 +683,8 @@ export function AdminPortal({
                         }
                     />
                 )
+            case 'Competition Teams':
+                return <CompetitionTeamsManager />
 
             case 'Groups':
                 return <GroupsManager />

@@ -45,21 +45,21 @@ function getRelatedTeam(
 }
 
 export const groupService = {
-    async getActiveCompetitionId(): Promise<string | null> {
-        const { data, error } = await supabase
-            .from('competitions')
-            .select('id')
-            .eq('status', 'ACTIVE')
-            .limit(1)
-            .maybeSingle()
-
-        throwSupabaseError(
-            error,
-            'Failed to load active competition'
-        )
-
-        return data?.id ?? null
-    },
+    // async getActiveCompetitionId(): Promise<string | null> {
+    //     const { data, error } = await supabase
+    //         .from('competitions')
+    //         .select('id')
+    //         .eq('status', 'ACTIVE')
+    //         .limit(1)
+    //         .maybeSingle()
+    //
+    //     throwSupabaseError(
+    //         error,
+    //         'Failed to load active competition'
+    //     )
+    //
+    //     return data?.id ?? null
+    // },
 
     async getGroups(
         competitionId: string

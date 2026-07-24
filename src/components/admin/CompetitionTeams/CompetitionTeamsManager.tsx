@@ -1,149 +1,281 @@
 import {
     useEffect,
+    useMemo,
     useState,
 } from 'react'
+
 import { useOrganisation } from '../../../context/OrganisationContext'
 import { useCompetition } from '../../../contexts/CompetitionContext'
 import { Toast } from '../../common/Toast'
-import { ConfirmDialog } from '../../common/ConfirmDialog'
-import { CompetitionTeamsTable } from './CompetitionTeamsTable'
-import { CompetitionTeamModal } from './CompetitionTeamModal'
+
 import { competitionTeamService } from './competitionTeamService'
+
 import type {
     CompetitionTeam,
-    CompetitionTeamForm,
-    GroupOption,
-    TeamOption,
+    OrganisationTeamOption,
 } from './competitionTeamTypes'
-
-const emptyForm: CompetitionTeamForm = {
-    team_id: '',
-    group_id: '',
-    squad_number: '',
-    seed: '',
-    status: 'invited',
-    published: false,
-}
 
 export function CompetitionTeamsManager() {
     const { currentOrganisation } =
         useOrganisation()
 
     const {
+        currentCompetition,
         currentCompetitionId,
     } = useCompetition()
+
+    const [
+        organisationTeams,
+        setOrganisationTeams,
+    ] = useState<OrganisationTeamOption[]>([])
 
     const [
         competitionTeams,
         setCompetitionTeams,
     ] = useState<CompetitionTeam[]>([])
 
-    const [teams, setTeams] =
-        useState<TeamOption[]>([])
+    const [
+        selectedTeamIds,
+        setSelectedTeamIds,
+    ] = useState<string[]>([])
 
-    const [groups, setGroups] =
-        useState<GroupOption[]>([])
+    const [searchTerm, setSearchTerm] =
+        useState('')
 
-    const [form, setForm] =
-        useState(emptyForm)
-
-    const [editing, setEditing] =
-        useState<CompetitionTeam | null>(null)
-
-    const [showModal, setShowModal] =
+    const [isLoading, setIsLoading] =
         useState(false)
-
-    const [deleteItem, setDeleteItem] =
-        useState<CompetitionTeam | null>(null)
 
     const [isSaving, setIsSaving] =
         useState(false)
 
-    const [toast, setToast] =
-        useState('')
+    const [
+        toastMessage,
+        setToastMessage,
+    ] = useState('')
 
-    async function loadData() {
-        if (!currentCompetitionId) return
+    const [
+        toastType,
+        setToastType,
+    ] = useState<
+        'success' | 'error' | 'info'
+    >('success')
 
-        const [
-            loadedTeams,
-            loadedGroups,
-            loadedCompetitionTeams,
-        ] = await Promise.all([
-            competitionTeamService.getAvailableTeams(
-                currentOrganisation.id
-            ),
-            competitionTeamService.getGroups(
-                currentCompetitionId
-            ),
-            competitionTeamService.getCompetitionTeams(
-                currentCompetitionId
-            ),
-        ])
+    function showToast(
+        message: string,
+        type:
+            | 'success'
+            | 'error'
+            | 'info' = 'success'
+    ) {
+        setToastMessage(message)
+        setToastType(type)
+    }
 
-        setTeams(loadedTeams)
-        setGroups(loadedGroups)
-        setCompetitionTeams(
-            loadedCompetitionTeams
-        )
+    function clearData() {
+        setOrganisationTeams([])
+        setCompetitionTeams([])
+        setSelectedTeamIds([])
+        setSearchTerm('')
+    }
+
+    async function loadData(
+        organisationId: string,
+        competitionId: string
+    ) {
+        setIsLoading(true)
+
+        try {
+            const [
+                organisationTeamRows,
+                competitionTeamRows,
+            ] = await Promise.all([
+                competitionTeamService
+                    .getOrganisationTeams(
+                        organisationId
+                    ),
+
+                competitionTeamService
+                    .getCompetitionTeams(
+                        competitionId
+                    ),
+            ])
+
+            setOrganisationTeams(
+                organisationTeamRows
+            )
+
+            setCompetitionTeams(
+                competitionTeamRows
+            )
+
+            setSelectedTeamIds(
+                competitionTeamRows.map(
+                    (competitionTeam) =>
+                        competitionTeam.team_id
+                )
+            )
+        } catch (error) {
+            clearData()
+
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to load competition teams.',
+                'error'
+            )
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     useEffect(() => {
-        void loadData()
-    }, [currentCompetitionId])
+        setToastMessage('')
+        clearData()
 
-    function openCreate() {
-        setEditing(null)
-        setForm(emptyForm)
-        setShowModal(true)
-    }
-
-    function openEdit(
-        item: CompetitionTeam
-    ) {
-        setEditing(item)
-
-        setForm({
-            team_id: item.team_id,
-            group_id:
-                item.group_id ?? '',
-            squad_number:
-                item.squad_number?.toString() ??
-                '',
-            seed:
-                item.seed?.toString() ??
-                '',
-            status: item.status,
-            published: item.published,
-        })
-
-        setShowModal(true)
-    }
-
-    function closeModal() {
-        setEditing(null)
-        setForm(emptyForm)
-        setShowModal(false)
-    }
-
-    function updateField(
-        field: keyof CompetitionTeamForm,
-        value: string | boolean
-    ) {
-        setForm((previous) => ({
-            ...previous,
-            [field]: value,
-        }))
-    }
-
-    async function save() {
-        if (!currentCompetitionId) {
+        if (
+            !currentOrganisation?.id ||
+            !currentCompetitionId
+        ) {
+            setIsLoading(false)
             return
         }
 
-        if (!form.team_id) {
-            setToast(
-                'Please select a team.'
+        void loadData(
+            currentOrganisation.id,
+            currentCompetitionId
+        )
+    }, [
+        currentOrganisation?.id,
+        currentCompetitionId,
+    ])
+
+    const existingTeamIds = useMemo(
+        () =>
+            competitionTeams.map(
+                (competitionTeam) =>
+                    competitionTeam.team_id
+            ),
+        [competitionTeams]
+    )
+
+    const hasUnsavedChanges = useMemo(() => {
+        if (
+            selectedTeamIds.length !==
+            existingTeamIds.length
+        ) {
+            return true
+        }
+
+        const existingIds =
+            new Set(existingTeamIds)
+
+        return selectedTeamIds.some(
+            (teamId) =>
+                !existingIds.has(teamId)
+        )
+    }, [
+        existingTeamIds,
+        selectedTeamIds,
+    ])
+
+    const filteredTeams = useMemo(() => {
+        const normalisedSearch =
+            searchTerm.trim().toLowerCase()
+
+        if (!normalisedSearch) {
+            return organisationTeams
+        }
+
+        return organisationTeams.filter(
+            (team) => {
+                const values = [
+                    team.name,
+                    team.club_name,
+                    team.age_group,
+                    team.division,
+                    team.participation_status,
+                ]
+
+                return values.some(
+                    (value) =>
+                        value
+                            ?.toLowerCase()
+                            .includes(
+                                normalisedSearch
+                            )
+                )
+            }
+        )
+    }, [
+        organisationTeams,
+        searchTerm,
+    ])
+
+    function toggleTeam(teamId: string) {
+        setSelectedTeamIds(
+            (currentSelectedTeamIds) =>
+                currentSelectedTeamIds.includes(
+                    teamId
+                )
+                    ? currentSelectedTeamIds.filter(
+                        (selectedTeamId) =>
+                            selectedTeamId !==
+                            teamId
+                    )
+                    : [
+                        ...currentSelectedTeamIds,
+                        teamId,
+                    ]
+        )
+    }
+
+    function selectAllVisibleTeams() {
+        const visibleTeamIds =
+            filteredTeams.map(
+                (team) => team.id
+            )
+
+        setSelectedTeamIds(
+            (currentSelectedTeamIds) =>
+                Array.from(
+                    new Set([
+                        ...currentSelectedTeamIds,
+                        ...visibleTeamIds,
+                    ])
+                )
+        )
+    }
+
+    function clearVisibleTeams() {
+        const visibleTeamIds =
+            new Set(
+                filteredTeams.map(
+                    (team) => team.id
+                )
+            )
+
+        setSelectedTeamIds(
+            (currentSelectedTeamIds) =>
+                currentSelectedTeamIds.filter(
+                    (teamId) =>
+                        !visibleTeamIds.has(
+                            teamId
+                        )
+                )
+        )
+    }
+
+    function resetSelection() {
+        setSelectedTeamIds(
+            existingTeamIds
+        )
+    }
+
+    async function saveSelection() {
+        if (!currentCompetitionId) {
+            showToast(
+                'Select a competition before assigning teams.',
+                'error'
             )
             return
         }
@@ -151,71 +283,62 @@ export function CompetitionTeamsManager() {
         setIsSaving(true)
 
         try {
-            if (editing) {
-                await competitionTeamService.update(
-                    editing.id,
-                    form
-                )
-            } else {
-                await competitionTeamService.create(
-                    currentOrganisation.id,
+            await competitionTeamService
+                .saveSelection(
                     currentCompetitionId,
-                    form
+                    selectedTeamIds,
+                    existingTeamIds
+                )
+
+            if (currentOrganisation?.id) {
+                await loadData(
+                    currentOrganisation.id,
+                    currentCompetitionId
                 )
             }
 
-            await loadData()
-
-            closeModal()
-
-            setToast(
-                editing
-                    ? 'Competition Team updated.'
-                    : 'Competition Team added.'
+            showToast(
+                'Competition teams updated successfully.'
+            )
+        } catch (error) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to update competition teams.',
+                'error'
             )
         } finally {
             setIsSaving(false)
         }
     }
 
-    async function remove() {
-        if (!deleteItem) return
-
-        await competitionTeamService.remove(
-            deleteItem.id
-        )
-
-        setDeleteItem(null)
-
-        await loadData()
-
-        setToast(
-            'Competition Team removed.'
-        )
+    function getInitials(
+        teamName: string
+    ) {
+        return teamName
+            .split(' ')
+            .filter(Boolean)
+            .map((word) => word[0])
+            .join('')
+            .slice(0, 3)
+            .toUpperCase()
     }
 
-    if (!currentCompetitionId) {
+    if (isLoading) {
         return (
-            <div className="teamsEmptyState">
-                <h3>
-                    No Competition Selected
-                </h3>
-
-                <p>
-                    Select a competition
-                    first.
-                </p>
-            </div>
+            <p className="muted">
+                Loading competition teams...
+            </p>
         )
     }
 
     return (
-        <>
+        <div>
             <Toast
-                message={toast}
-                type="success"
+                message={toastMessage}
+                type={toastType}
                 onClose={() =>
-                    setToast('')
+                    setToastMessage('')
                 }
             />
 
@@ -226,65 +349,274 @@ export function CompetitionTeamsManager() {
                     </h3>
 
                     <p className="muted">
-                        Select which teams
-                        participate in this
-                        competition.
+                        Select which organisation
+                        teams are participating in
+                        the selected competition.
                     </p>
+
+                    {currentCompetition && (
+                        <p className="muted">
+                            Managing participants for{' '}
+                            <strong>
+                                {
+                                    currentCompetition
+                                        .name
+                                }
+                            </strong>
+                        </p>
+                    )}
                 </div>
 
                 <button
                     className="btn primary"
-                    onClick={openCreate}
+                    type="button"
+                    disabled={
+                        !currentCompetitionId ||
+                        !hasUnsavedChanges ||
+                        isSaving
+                    }
+                    onClick={() =>
+                        void saveSelection()
+                    }
                 >
-                    + Add Team
+                    {isSaving
+                        ? 'Saving...'
+                        : 'Save Teams'}
                 </button>
             </div>
 
-            <CompetitionTeamsTable
-                competitionTeams={
-                    competitionTeams
-                }
-                onEdit={openEdit}
-                onDelete={
-                    setDeleteItem
-                }
-            />
+            {!currentCompetitionId ? (
+                <div className="teamsEmptyState">
+                    <h3>
+                        No competition selected
+                    </h3>
 
-            {showModal && (
-                <CompetitionTeamModal
-                    mode={
-                        editing
-                            ? 'edit'
-                            : 'create'
-                    }
-                    form={form}
-                    teams={teams}
-                    groups={groups}
-                    isSaving={isSaving}
-                    onChange={
-                        updateField
-                    }
-                    onClose={
-                        closeModal
-                    }
-                    onSave={save}
-                />
-            )}
+                    <p>
+                        Select a competition from
+                        the competition selector
+                        before assigning teams.
+                    </p>
+                </div>
+            ) : !organisationTeams.length ? (
+                <div className="teamsEmptyState">
+                    <h3>
+                        No teams available
+                    </h3>
 
-            {deleteItem && (
-                <ConfirmDialog
-                    title="Remove Team"
-                    message={`Remove ${deleteItem.team?.name} from this competition?`}
-                    confirmText="Remove"
-                    cancelText="Cancel"
-                    onCancel={() =>
-                        setDeleteItem(
-                            null
-                        )
-                    }
-                    onConfirm={remove}
-                />
+                    <p>
+                        Create organisation teams
+                        first, then return here to
+                        add them to this competition.
+                    </p>
+                </div>
+            ) : (
+                <>
+                    <div className="adminWorkspaceToolbar">
+                        <input
+                            type="search"
+                            value={searchTerm}
+                            placeholder="Search teams, clubs, age groups or divisions..."
+                            onChange={(event) =>
+                                setSearchTerm(
+                                    event.target.value
+                                )
+                            }
+                        />
+
+                        <div className="adminGroupActions">
+                            <button
+                                className="btn secondary small"
+                                type="button"
+                                onClick={
+                                    selectAllVisibleTeams
+                                }
+                            >
+                                Select Visible
+                            </button>
+
+                            <button
+                                className="btn secondary small"
+                                type="button"
+                                onClick={
+                                    clearVisibleTeams
+                                }
+                            >
+                                Clear Visible
+                            </button>
+
+                            <button
+                                className="btn secondary small"
+                                type="button"
+                                disabled={
+                                    !hasUnsavedChanges
+                                }
+                                onClick={
+                                    resetSelection
+                                }
+                            >
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="adminInfoBox">
+                        <div className="adminInfoIcon">
+                            ℹ
+                        </div>
+
+                        <div>
+                            <p>
+                                <strong>
+                                    {
+                                        selectedTeamIds
+                                            .length
+                                    }
+                                </strong>{' '}
+                                of{' '}
+                                <strong>
+                                    {
+                                        organisationTeams
+                                            .length
+                                    }
+                                </strong>{' '}
+                                teams selected for
+                                this competition.
+                            </p>
+                        </div>
+                    </div>
+
+                    {!filteredTeams.length ? (
+                        <div className="teamsEmptyState">
+                            <h3>
+                                No matching teams
+                            </h3>
+
+                            <p>
+                                Try changing your
+                                search term.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="adminGroupsGrid">
+                            {filteredTeams.map(
+                                (team) => {
+                                    const isSelected =
+                                        selectedTeamIds.includes(
+                                            team.id
+                                        )
+
+                                    return (
+                                        <label
+                                            className="adminGroupCard"
+                                            key={
+                                                team.id
+                                            }
+                                            style={{
+                                                cursor:
+                                                    'pointer',
+                                            }}
+                                        >
+                                            <div className="adminGroupHeader">
+                                                <div className="adminGroupTeam">
+                                                    {team.logo_url ? (
+                                                        <img
+                                                            src={
+                                                                team.logo_url
+                                                            }
+                                                            alt={`${team.name} logo`}
+                                                        />
+                                                    ) : (
+                                                        <span>
+                                                            {getInitials(
+                                                                team.name
+                                                            )}
+                                                        </span>
+                                                    )}
+
+                                                    <div>
+                                                        <h4>
+                                                            {
+                                                                team.name
+                                                            }
+                                                        </h4>
+
+                                                        <p className="muted">
+                                                            {team.club_name ??
+                                                                'Independent team'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        isSelected
+                                                    }
+                                                    onChange={() =>
+                                                        toggleTeam(
+                                                            team.id
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div className="adminGroupMeta">
+                                                {team.age_group && (
+                                                    <span className="badge">
+                                                        {
+                                                            team.age_group
+                                                        }
+                                                    </span>
+                                                )}
+
+                                                {team.division && (
+                                                    <span className="badge">
+                                                        {
+                                                            team.division
+                                                        }
+                                                    </span>
+                                                )}
+
+                                                {team.participation_status && (
+                                                    <span className="badge">
+                                                        {
+                                                            team.participation_status
+                                                        }
+                                                    </span>
+                                                )}
+
+                                                <span className="badge">
+                                                    {team.published
+                                                        ? 'Published'
+                                                        : 'Draft'}
+                                                </span>
+                                            </div>
+                                        </label>
+                                    )
+                                }
+                            )}
+                        </div>
+                    )}
+
+                    <div className="adminWorkspaceFooter">
+                        <button
+                            className="btn primary"
+                            type="button"
+                            disabled={
+                                !hasUnsavedChanges ||
+                                isSaving
+                            }
+                            onClick={() =>
+                                void saveSelection()
+                            }
+                        >
+                            {isSaving
+                                ? 'Saving...'
+                                : 'Save Competition Teams'}
+                        </button>
+                    </div>
+                </>
             )}
-        </>
+        </div>
     )
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useCompetition } from '../../../contexts/CompetitionContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { GroupModal } from './GroupModal'
@@ -17,8 +18,10 @@ const emptyForm: GroupFormValues = {
 }
 
 export function GroupsManager() {
-    const [competitionId, setCompetitionId] =
-        useState<string | null>(null)
+    const {
+        currentCompetition,
+        currentCompetitionId,
+    } = useCompetition()
 
     const [groups, setGroups] = useState<CompetitionGroup[]>([])
     const [teams, setTeams] = useState<GroupTeam[]>([])
@@ -35,7 +38,7 @@ export function GroupsManager() {
         useState<GroupFormValues>(emptyForm)
 
     const [showModal, setShowModal] = useState(false)
-    const [isLoading, setIsLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
 
     const [publishingGroupId, setPublishingGroupId] =
@@ -53,25 +56,24 @@ export function GroupsManager() {
         setToastType(type)
     }
 
-    async function loadData() {
+    function clearCompetitionData() {
+        setGroups([])
+        setTeams([])
+        setMemberships([])
+        setEditingGroup(null)
+        setGroupToDelete(null)
+        setFormValues(emptyForm)
+        setShowModal(false)
+        setPublishingGroupId(null)
+    }
+
+    async function loadData(competitionId: string) {
         setIsLoading(true)
 
         try {
-            const activeCompetitionId =
-                await groupService.getActiveCompetitionId()
-
-            setCompetitionId(activeCompetitionId)
-
-            if (!activeCompetitionId) {
-                setGroups([])
-                setTeams([])
-                setMemberships([])
-                return
-            }
-
             const [groupRows, teamRows] = await Promise.all([
-                groupService.getGroups(activeCompetitionId),
-                groupService.getTeams(activeCompetitionId),
+                groupService.getGroups(competitionId),
+                groupService.getTeams(competitionId),
             ])
 
             const membershipRows =
@@ -83,6 +85,8 @@ export function GroupsManager() {
             setTeams(teamRows)
             setMemberships(membershipRows)
         } catch (error) {
+            clearCompetitionData()
+
             showToast(
                 error instanceof Error
                     ? error.message
@@ -95,8 +99,16 @@ export function GroupsManager() {
     }
 
     useEffect(() => {
-        void loadData()
-    }, [])
+        setToastMessage('')
+        clearCompetitionData()
+
+        if (!currentCompetitionId) {
+            setIsLoading(false)
+            return
+        }
+
+        void loadData(currentCompetitionId)
+    }, [currentCompetitionId])
 
     function openCreateModal() {
         setEditingGroup(null)
@@ -130,15 +142,17 @@ export function GroupsManager() {
     }
 
     function closeModal() {
+        if (isSaving) return
+
         setEditingGroup(null)
         setFormValues(emptyForm)
         setShowModal(false)
     }
 
     async function saveGroup() {
-        if (!competitionId) {
+        if (!currentCompetitionId) {
             showToast(
-                'No active competition was found.',
+                'Select a competition before creating groups.',
                 'error'
             )
             return
@@ -175,13 +189,16 @@ export function GroupsManager() {
                 )
             } else {
                 await groupService.createGroup(
-                    competitionId,
+                    currentCompetitionId,
                     formValues
                 )
             }
 
-            closeModal()
-            await loadData()
+            setEditingGroup(null)
+            setFormValues(emptyForm)
+            setShowModal(false)
+
+            await loadData(currentCompetitionId)
 
             showToast(
                 wasEditing
@@ -204,6 +221,8 @@ export function GroupsManager() {
     async function togglePublished(
         group: CompetitionGroup
     ) {
+        if (!currentCompetitionId) return
+
         setPublishingGroupId(group.id)
 
         try {
@@ -244,13 +263,13 @@ export function GroupsManager() {
     }
 
     async function deleteGroup() {
-        if (!groupToDelete) return
+        if (!groupToDelete || !currentCompetitionId) return
 
         try {
             await groupService.deleteGroup(groupToDelete.id)
 
             setGroupToDelete(null)
-            await loadData()
+            await loadData(currentCompetitionId)
 
             showToast(
                 'Group deleted successfully.',
@@ -301,28 +320,38 @@ export function GroupsManager() {
                     <h3>Tournament Groups</h3>
 
                     <p className="muted">
-                        Create competition groups, allocate teams, then publish each group when
-                        you're ready for it to appear on the public website.
+                        Create competition groups, allocate teams,
+                        then publish each group when you are ready
+                        for it to appear on the public website.
                     </p>
+
+                    {currentCompetition && (
+                        <p className="muted">
+                            Managing groups for{' '}
+                            <strong>
+                                {currentCompetition.name}
+                            </strong>
+                        </p>
+                    )}
                 </div>
 
                 <button
                     className="btn primary"
                     type="button"
                     onClick={openCreateModal}
-                    disabled={!competitionId}
+                    disabled={!currentCompetitionId}
                 >
                     + Add Group
                 </button>
             </div>
 
-            {!competitionId ? (
+            {!currentCompetitionId ? (
                 <div className="teamsEmptyState">
-                    <h3>No active competition</h3>
+                    <h3>No competition selected</h3>
 
                     <p>
-                        Create or activate a competition before
-                        managing tournament groups.
+                        Select a competition from the competition
+                        selector before managing tournament groups.
                     </p>
                 </div>
             ) : !groups.length ? (
@@ -331,7 +360,7 @@ export function GroupsManager() {
 
                     <p>
                         Create Group A, Group B or any additional
-                        groups required by the competition.
+                        groups required by this competition.
                     </p>
                 </div>
             ) : (
@@ -349,10 +378,8 @@ export function GroupsManager() {
                                 <div className="adminGroupHeader">
                                     <div>
                                         <div className="adminGroupMeta">
-
                                             <span className="badge">
-                                                Order{' '}
-                                                {group.sort_order}
+                                                Order {group.sort_order}
                                             </span>
 
                                             <span
@@ -409,9 +436,7 @@ export function GroupsManager() {
                                             className="btn secondary small"
                                             type="button"
                                             onClick={() =>
-                                                setGroupToDelete(
-                                                    group
-                                                )
+                                                setGroupToDelete(group)
                                             }
                                         >
                                             Delete
@@ -430,22 +455,16 @@ export function GroupsManager() {
                                             >
                                                 {team.logo_url ? (
                                                     <img
-                                                        src={
-                                                            team.logo_url
-                                                        }
+                                                        src={team.logo_url}
                                                         alt={`${team.name} logo`}
                                                     />
                                                 ) : (
                                                     <span>
                                                         {team.name
                                                             .split(' ')
-                                                            .filter(
-                                                                Boolean
-                                                            )
+                                                            .filter(Boolean)
                                                             .map(
-                                                                (
-                                                                    word
-                                                                ) =>
+                                                                (word) =>
                                                                     word[0]
                                                             )
                                                             .join('')
@@ -470,18 +489,21 @@ export function GroupsManager() {
                     })}
                 </div>
             )}
+
             <div className="adminInfoBox">
                 <div className="adminInfoIcon">ℹ</div>
 
                 <div>
-
-
                     <p>
-                        Groups marked as <span className="text-success">Published</span> will
-                        be visible on the public website.
+                        Groups marked as{' '}
+                        <span className="text-success">
+                            Published
+                        </span>{' '}
+                        will be visible on the public website.
                     </p>
                 </div>
             </div>
+
             {showModal && (
                 <GroupModal
                     mode={editingGroup ? 'edit' : 'create'}
