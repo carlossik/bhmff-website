@@ -318,3 +318,16 @@
     }
 
 }
+.formFieldError {
+    display: block;
+    margin-top: 2px;
+    color: #ff9b9e;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.formField input[aria-invalid='true'],
+.formField select[aria-invalid='true'] {
+    border-color: #ff6f73;
+    box-shadow: 0 0 0 3px rgba(255, 111, 115, 0.14);
+}

@@ -12,7 +12,14 @@ export function AdminHeader({
                                 onLogout,
                             }: AdminHeaderProps) {
 
-    const { currentOrganisation } = useOrganisation()
+    const {
+        currentOrganisation,
+        organisationAccess,
+        switchOrganisation,
+    } = useOrganisation()
+    const canSwitchOrganisation =
+        organisationAccess.length > 1
+
 
     return (
         <header className="adminHeader">
@@ -62,6 +69,38 @@ export function AdminHeader({
             </div>
 
             <div className="adminToolbar">
+                {canSwitchOrganisation && (
+                    <div className="competitionSelector">
+
+                        <label htmlFor="organisation-switch">
+                            Organisation
+                        </label>
+
+                        <select
+                            id="organisation-switch"
+                            value={currentOrganisation.id}
+                            onChange={(event) =>
+                                switchOrganisation(
+                                    event.target.value
+                                )
+                            }
+                        >
+                            {organisationAccess.map((access) => (
+                                <option
+                                    key={access.organisation.id}
+                                    value={access.organisation.id}
+                                >
+                                    {access.organisation.name} (
+                                    {formatAdminRole(
+                                        access.membership.role
+                                    )}
+                                    )
+                                </option>
+                            ))}
+                        </select>
+
+                    </div>
+                )}
 
                 <CompetitionSelector />
 

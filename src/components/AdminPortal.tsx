@@ -4,9 +4,8 @@ import {
     useMemo,
     useState,
 } from 'react'
-
+import CompetitionManager from './admin/Competitions/CompetitionManager'
 import { MediaManager } from './admin/Media/MediaManager'
-import { fixtures } from '../data/festivalData'
 import { supabase } from '../lib/supabaseClient'
 import { ClubsManager } from './admin/Clubs/ClubsManager'
 import { TeamsManager } from './admin/Teams/TeamsManager'
@@ -21,20 +20,22 @@ import { ArticlesManager } from './admin/Articles/ArticlesManager'
 import { EnquiriesManager } from './admin/Enquiries/EnquiriesManager'
 import { TournamentGenerator } from './admin/TournamentGenerator/TournamentGenerator'
 import { UserManagement } from './admin/Users/UserManagement'
-
 import OrganisationManager from './admin/Organisations/OrganisationManager'
 import { AdminHeader } from './admin/AdminHeader'
+
 import {
     canAccessModule,
     formatAdminRole,
     type AdminModule,
     type AdminProfile,
 } from '../services/accessControl'
+
 import { useOrganisation } from '../context/OrganisationContext'
 
 const adminTabs: readonly AdminModule[] = [
     'Dashboard',
     'Organisations',
+    'Competitions',
     'Clubs',
     'Teams',
     'Groups',
@@ -55,34 +56,32 @@ type AdminPortalProps = {
     onLogout: () => void
 }
 
+type DashboardStats = {
+    clubs: number
+    teams: number
+    groups: number
+    venues: number
+    fixtures: number
+    sponsors: number
+}
+
+const emptyDashboardStats: DashboardStats = {
+    clubs: 0,
+    teams: 0,
+    groups: 0,
+    venues: 0,
+    fixtures: 0,
+    sponsors: 0,
+}
+
 export function AdminPortal({
                                 profile,
                                 onLogout,
                             }: AdminPortalProps) {
-    const { currentOrganisation } =
-        useOrganisation()
-    if (!currentOrganisation) {
-        return (
-            <section className="section adminSection">
-                <div className="container">
-                    <p className="muted">
-                        Loading organisation...
-                    </p>
-                </div>
-            </section>
-        )
-    }
-
-    const visibleTabs = useMemo(
-        () =>
-            adminTabs.filter((tab) =>
-                canAccessModule(
-                    profile.role,
-                    tab
-                )
-            ),
-        [profile.role]
-    )
+    const {
+        currentOrganisation,
+        currentRole,
+    } = useOrganisation()
 
     const [activeTab, setActiveTab] =
         useState<AdminModule>('Dashboard')
@@ -90,11 +89,44 @@ export function AdminPortal({
     const [dbTeams, setDbTeams] =
         useState<DbTeam[]>([])
 
-    const [articleCount, setArticleCount] =
-        useState(0)
+    const [dashboardStats, setDashboardStats] =
+        useState<DashboardStats>(
+            emptyDashboardStats
+        )
 
     const [enquiryCount, setEnquiryCount] =
         useState(0)
+
+    const [dashboardLoading, setDashboardLoading] =
+        useState(false)
+
+    const effectiveProfile =
+        useMemo<AdminProfile>(
+            () => ({
+                ...profile,
+                role:
+                    currentRole ??
+                    profile.role,
+            }),
+            [
+                currentRole,
+                profile,
+            ]
+        )
+
+    const activeRole =
+        effectiveProfile.role
+
+    const visibleTabs = useMemo(
+        () =>
+            adminTabs.filter((tab) =>
+                canAccessModule(
+                    activeRole,
+                    tab
+                )
+            ),
+        [activeRole]
+    )
 
     useEffect(() => {
         if (
@@ -104,13 +136,26 @@ export function AdminPortal({
         ) {
             setActiveTab('Dashboard')
         }
-    }, [activeTab, visibleTabs])
+    }, [
+        activeTab,
+        visibleTabs,
+    ])
 
-    const loadTeams = useCallback(
-        async () => {
+    useEffect(() => {
+        setActiveTab('Dashboard')
+        setDbTeams([])
+        setDashboardStats(
+            emptyDashboardStats
+        )
+        setEnquiryCount(0)
+    }, [currentOrganisation?.id])
+
+    const loadTeams =
+        useCallback(async () => {
             if (
+                !currentOrganisation ||
                 !canAccessModule(
-                    profile.role,
+                    activeRole,
                     'Teams'
                 )
             ) {
@@ -135,53 +180,195 @@ export function AdminPortal({
                     'Failed to load teams:',
                     error
                 )
+
+                setDbTeams([])
                 return
             }
 
             setDbTeams(data ?? [])
-        },
-        [
-            currentOrganisation?.id,
-            profile.role,
-        ]
-    )
+        }, [
+            activeRole,
+            currentOrganisation,
+        ])
 
-    const loadArticleCount =
+    const loadDashboardStats =
         useCallback(async () => {
-            if (
-                !canAccessModule(
-                    profile.role,
-                    'Articles'
-                )
-            ) {
-                setArticleCount(0)
-                return
-            }
-
-            const { count, error } =
-                await supabase
-                    .from('articles')
-                    .select('id', {
-                        count: 'exact',
-                        head: true,
-                    })
-
-            if (error) {
-                console.error(
-                    'Failed to load article count:',
-                    error
+            if (!currentOrganisation) {
+                setDashboardStats(
+                    emptyDashboardStats
                 )
                 return
             }
 
-            setArticleCount(count ?? 0)
-        }, [profile.role])
+            setDashboardLoading(true)
+
+            const organisationId =
+                currentOrganisation.id
+
+            try {
+                const [
+                    clubsResponse,
+                    teamsResponse,
+                    groupsResponse,
+                    venuesResponse,
+                    fixturesResponse,
+                    sponsorsResponse,
+                ] = await Promise.all([
+                    supabase
+                        .from('clubs')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'organisation_id',
+                            organisationId
+                        ),
+
+                    supabase
+                        .from('teams')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'organisation_id',
+                            organisationId
+                        ),
+
+                    supabase
+                        .from('groups')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'organisation_id',
+                            organisationId
+                        ),
+
+                    supabase
+                        .from('venues')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'organisation_id',
+                            organisationId
+                        ),
+
+                    supabase
+                        .from('fixtures')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'organisation_id',
+                            organisationId
+                        ),
+
+                    supabase
+                        .from('sponsors')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'organisation_id',
+                            organisationId
+                        ),
+                ])
+
+                const responses = [
+                    {
+                        name: 'clubs',
+                        response: clubsResponse,
+                    },
+                    {
+                        name: 'teams',
+                        response: teamsResponse,
+                    },
+                    {
+                        name: 'groups',
+                        response: groupsResponse,
+                    },
+                    {
+                        name: 'venues',
+                        response: venuesResponse,
+                    },
+                    {
+                        name: 'fixtures',
+                        response: fixturesResponse,
+                    },
+                    {
+                        name: 'sponsors',
+                        response: sponsorsResponse,
+                    },
+                ]
+
+                responses.forEach(
+                    ({
+                         name,
+                         response,
+                     }) => {
+                        if (response.error) {
+                            console.error(
+                                `Failed to load ${name} count:`,
+                                response.error
+                            )
+                        }
+                    }
+                )
+
+                setDashboardStats({
+                    clubs:
+                        clubsResponse.error
+                            ? 0
+                            : clubsResponse.count ??
+                            0,
+
+                    teams:
+                        teamsResponse.error
+                            ? 0
+                            : teamsResponse.count ??
+                            0,
+
+                    groups:
+                        groupsResponse.error
+                            ? 0
+                            : groupsResponse.count ??
+                            0,
+
+                    venues:
+                        venuesResponse.error
+                            ? 0
+                            : venuesResponse.count ??
+                            0,
+
+                    fixtures:
+                        fixturesResponse.error
+                            ? 0
+                            : fixturesResponse.count ??
+                            0,
+
+                    sponsors:
+                        sponsorsResponse.error
+                            ? 0
+                            : sponsorsResponse.count ??
+                            0,
+                })
+            } finally {
+                setDashboardLoading(false)
+            }
+        }, [currentOrganisation])
 
     const loadEnquiryCount =
         useCallback(async () => {
             if (
                 !canAccessModule(
-                    profile.role,
+                    activeRole,
                     'Enquiries'
                 )
             ) {
@@ -221,6 +408,8 @@ export function AdminPortal({
                     sponsorResponse.error ??
                     demoResponse.error
                 )
+
+                setEnquiryCount(0)
                 return
             }
 
@@ -228,17 +417,22 @@ export function AdminPortal({
                 (sponsorResponse.count ?? 0) +
                 (demoResponse.count ?? 0)
             )
-        }, [profile.role])
+        }, [activeRole])
 
     useEffect(() => {
+        if (!currentOrganisation) {
+            return
+        }
+
         void Promise.all([
             loadTeams(),
-            loadArticleCount(),
+            loadDashboardStats(),
             loadEnquiryCount(),
         ])
     }, [
+        currentOrganisation,
         loadTeams,
-        loadArticleCount,
+        loadDashboardStats,
         loadEnquiryCount,
     ])
 
@@ -250,43 +444,85 @@ export function AdminPortal({
 
         if (
             canAccessModule(
-                profile.role,
+                activeRole,
+                'Clubs'
+            )
+        ) {
+            items.push({
+                label: 'Clubs',
+                value:
+                dashboardStats.clubs,
+            })
+        }
+
+        if (
+            canAccessModule(
+                activeRole,
                 'Teams'
             )
         ) {
             items.push({
                 label: 'Teams',
-                value: dbTeams.length,
+                value:
+                dashboardStats.teams,
             })
         }
 
         if (
             canAccessModule(
-                profile.role,
+                activeRole,
+                'Groups'
+            )
+        ) {
+            items.push({
+                label: 'Groups',
+                value:
+                dashboardStats.groups,
+            })
+        }
+
+        if (
+            canAccessModule(
+                activeRole,
+                'Venues'
+            )
+        ) {
+            items.push({
+                label: 'Venues',
+                value:
+                dashboardStats.venues,
+            })
+        }
+
+        if (
+            canAccessModule(
+                activeRole,
                 'Fixtures'
             )
         ) {
             items.push({
                 label: 'Fixtures',
-                value: fixtures.length,
+                value:
+                dashboardStats.fixtures,
             })
         }
 
         if (
             canAccessModule(
-                profile.role,
-                'Articles'
+                activeRole,
+                'Sponsors'
             )
         ) {
             items.push({
-                label: 'Articles',
-                value: articleCount,
+                label: 'Sponsors',
+                value:
+                dashboardStats.sponsors,
             })
         }
 
         if (
             canAccessModule(
-                profile.role,
+                activeRole,
                 'Enquiries'
             )
         ) {
@@ -311,16 +547,15 @@ export function AdminPortal({
 
         return items
     }, [
-        articleCount,
-        dbTeams.length,
+        activeRole,
+        dashboardStats,
         enquiryCount,
-        profile.role,
     ])
 
     function renderActiveModule() {
         if (
             !canAccessModule(
-                profile.role,
+                activeRole,
                 activeTab
             )
         ) {
@@ -331,7 +566,8 @@ export function AdminPortal({
                     <p>
                         Your account does not have
                         permission to access this
-                        module.
+                        module for the selected
+                        organisation.
                     </p>
                 </div>
             )
@@ -344,6 +580,13 @@ export function AdminPortal({
                         <h3>
                             Dashboard Overview
                         </h3>
+
+                        {dashboardLoading && (
+                            <p className="muted">
+                                Loading dashboard
+                                statistics...
+                            </p>
+                        )}
 
                         <div className="statGrid adminStats">
                             {stats.map(
@@ -378,8 +621,15 @@ export function AdminPortal({
                                 Signed in as{' '}
                                 <strong>
                                     {formatAdminRole(
-                                        profile.role
+                                        activeRole
                                     )}
+                                </strong>{' '}
+                                for{' '}
+                                <strong>
+                                    {
+                                        currentOrganisation
+                                            .name
+                                    }
                                 </strong>
                                 .
                             </p>
@@ -408,8 +658,13 @@ export function AdminPortal({
                         </div>
                     </div>
                 )
+
             case 'Organisations':
-                return <OrganisationManager />
+                return (
+                    <OrganisationManager />
+                )
+            case 'Competitions':
+                return <CompetitionManager />
 
             case 'Clubs':
                 return <ClubsManager />
@@ -419,7 +674,10 @@ export function AdminPortal({
                     <TeamsManager
                         teams={dbTeams}
                         onTeamCreated={
-                            loadTeams
+                            async () => {
+                                await loadTeams()
+                                await loadDashboardStats()
+                            }
                         }
                     />
                 )
@@ -451,7 +709,7 @@ export function AdminPortal({
                 return (
                     <ArticlesManager
                         onArticlesChanged={
-                            loadArticleCount
+                            loadDashboardStats
                         }
                     />
                 )
@@ -468,11 +726,23 @@ export function AdminPortal({
                 return (
                     <UserManagement
                         currentProfile={
-                            profile
+                            effectiveProfile
                         }
                     />
                 )
         }
+    }
+
+    if (!currentOrganisation) {
+        return (
+            <section className="section adminSection">
+                <div className="container">
+                    <p className="muted">
+                        Loading organisation...
+                    </p>
+                </div>
+            </section>
+        )
     }
 
     return (
@@ -482,7 +752,9 @@ export function AdminPortal({
         >
             <div className="container">
                 <AdminHeader
-                    profile={profile}
+                    profile={
+                        effectiveProfile
+                    }
                     onLogout={onLogout}
                 />
 
@@ -501,7 +773,7 @@ export function AdminPortal({
 
                         <span className="muted">
                             {formatAdminRole(
-                                profile.role
+                                activeRole
                             )}
                         </span>
 

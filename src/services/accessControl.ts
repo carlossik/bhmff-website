@@ -50,6 +50,8 @@ export type AdminProfile = {
 
 export type AdminModule =
     | 'Dashboard'
+    | 'Organisations'
+    | 'Competitions'
     | 'Clubs'
     | 'Teams'
     | 'Groups'
@@ -63,7 +65,7 @@ export type AdminModule =
     | 'Media'
     | 'Enquiries'
     | 'User Access'
-    | 'Organisations'
+
 
 const roleModules: Record<
     AdminRole,
@@ -78,6 +80,7 @@ const roleModules: Record<
 
     competition_manager: [
         'Dashboard',
+        'Competitions',
         'Clubs',
         'Teams',
         'Groups',
@@ -91,6 +94,7 @@ const roleModules: Record<
     super_admin: [
         'Dashboard',
         'Organisations',
+        'Competitions',
         'Clubs',
         'Teams',
         'Groups',
@@ -133,36 +137,6 @@ type ProfileRow = {
     email: string | null
     role: AdminRole
     active: boolean
-}
-
-type MembershipOrganisationRelation =
-    | Organisation
-    | Organisation[]
-    | null
-
-type MembershipWithOrganisationRow = {
-    id: string
-    organisation_id: string
-    user_id: string
-    role: AdminRole
-    active: boolean
-    created_at: string
-    updated_at: string
-    organisation: MembershipOrganisationRelation
-}
-
-function getRelatedOrganisation(
-    relation: MembershipOrganisationRelation
-): Organisation | null {
-    if (!relation) {
-        return null
-    }
-
-    if (Array.isArray(relation)) {
-        return relation[0] ?? null
-    }
-
-    return relation
 }
 
 function getStoredOrganisationId() {
@@ -233,18 +207,7 @@ export async function getCurrentAdminProfile():
                 role,
                 active,
                 created_at,
-                updated_at,
-                organisation:organisations!organisation_memberships_organisation_id_fkey (
-                    id,
-                    name,
-                    slug,
-                    status,
-                    logo_url,
-                    primary_colour,
-                    secondary_colour,
-                    created_at,
-                    updated_at
-                )
+                updated_at
             `
         )
         .eq('user_id', user.id)
@@ -259,51 +222,92 @@ export async function getCurrentAdminProfile():
         )
     }
 
-    const membershipRows =
+    const memberships =
         (membershipData ??
-            []) as unknown as MembershipWithOrganisationRow[]
+            []) as OrganisationMembership[]
 
-    const organisationAccess =
-        membershipRows
-            .map((row) => {
-                const organisation =
-                    getRelatedOrganisation(
-                        row.organisation
-                    )
+    if (!memberships.length) {
+        throw new Error(
+            'Your account is not assigned to an active organisation.'
+        )
+    }
 
-                if (
-                    !organisation ||
-                    organisation.status !==
-                    'active'
-                ) {
-                    return null
-                }
-
-                const membership:
-                    OrganisationMembership = {
-                    id: row.id,
-                    organisation_id:
-                    row.organisation_id,
-                    user_id: row.user_id,
-                    role: row.role,
-                    active: row.active,
-                    created_at:
-                    row.created_at,
-                    updated_at:
-                    row.updated_at,
-                }
-
-                return {
-                    organisation,
-                    membership,
-                }
-            })
-            .filter(
-                (
-                    access
-                ): access is OrganisationAccess =>
-                    access !== null
+    const organisationIds = [
+        ...new Set(
+            memberships.map(
+                (membership) =>
+                    membership.organisation_id
             )
+        ),
+    ]
+
+    const {
+        data: organisationData,
+        error: organisationError,
+    } = await supabase
+        .from('organisations')
+        .select(
+            `
+                id,
+                name,
+                slug,
+                status,
+                logo_url,
+                primary_colour,
+                secondary_colour,
+                created_at,
+                updated_at
+            `
+        )
+        .in('id', organisationIds)
+
+    if (organisationError) {
+        throw new Error(
+            organisationError.message
+        )
+    }
+
+    const organisations =
+        (organisationData ??
+            []) as Organisation[]
+
+    const organisationsById =
+        new Map(
+            organisations.map(
+                (organisation) => [
+                    organisation.id,
+                    organisation,
+                ]
+            )
+        )
+
+    const organisationAccess:
+        OrganisationAccess[] = memberships
+        .map((membership) => {
+            const organisation =
+                organisationsById.get(
+                    membership.organisation_id
+                )
+
+            if (
+                !organisation ||
+                organisation.status !==
+                'active'
+            ) {
+                return null
+            }
+
+            return {
+                organisation,
+                membership,
+            }
+        })
+        .filter(
+            (
+                access
+            ): access is OrganisationAccess =>
+                access !== null
+        )
 
     if (!organisationAccess.length) {
         throw new Error(
@@ -323,20 +327,27 @@ export async function getCurrentAdminProfile():
 
     return {
         id: profile.id,
+
         full_name:
         profile.full_name,
+
         email:
             profile.email ??
             user.email ??
             null,
+
         role:
         selectedAccess.membership.role,
+
         active:
         profile.active,
+
         currentOrganisation:
         selectedAccess.organisation,
+
         currentMembership:
         selectedAccess.membership,
+
         organisationAccess,
     }
 }
