@@ -4,6 +4,7 @@ import {
     useMemo,
     useState,
 } from 'react'
+
 import { MediaManager } from './admin/Media/MediaManager'
 import { fixtures } from '../data/festivalData'
 import { supabase } from '../lib/supabaseClient'
@@ -20,6 +21,8 @@ import { ArticlesManager } from './admin/Articles/ArticlesManager'
 import { EnquiriesManager } from './admin/Enquiries/EnquiriesManager'
 import { TournamentGenerator } from './admin/TournamentGenerator/TournamentGenerator'
 import { UserManagement } from './admin/Users/UserManagement'
+
+import OrganisationManager from './admin/Organisations/OrganisationManager'
 import { AdminHeader } from './admin/AdminHeader'
 import {
     canAccessModule,
@@ -31,6 +34,7 @@ import { useOrganisation } from '../context/OrganisationContext'
 
 const adminTabs: readonly AdminModule[] = [
     'Dashboard',
+    'Organisations',
     'Clubs',
     'Teams',
     'Groups',
@@ -404,6 +408,8 @@ export function AdminPortal({
                         </div>
                     </div>
                 )
+            case 'Organisations':
+                return <OrganisationManager />
 
             case 'Clubs':
                 return <ClubsManager />

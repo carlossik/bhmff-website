@@ -1,0 +1,320 @@
+.organisation-manager {
+    width: 100%;
+}
+
+.organisation-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.organisation-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px;
+    color: #b9ff8a;
+}
+
+.organisation-header p {
+    margin: 0;
+}
+
+.organisation-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.organisation-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    padding: 10px 14px;
+    border: 1px solid rgba(167, 255, 112, 0.2);
+    border-radius: 10px;
+    background: rgba(7, 16, 6, 0.6);
+}
+
+.organisation-search input {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #ffffff;
+    font: inherit;
+}
+
+.organisation-search input::placeholder {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.primary-button,
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.primary-button {
+    padding: 11px 16px;
+    background: #9ee96e;
+    color: #071006;
+}
+
+.primary-button:hover {
+    background: #b9ff8a;
+}
+
+.icon-button {
+    min-width: 42px;
+    min-height: 40px;
+    padding: 9px 11px;
+    background: #263a25;
+    color: #caff9f;
+}
+
+.icon-button:hover {
+    background: #344f32;
+}
+
+.icon-button.danger {
+    background: #9f2528;
+    color: #ffffff;
+}
+
+.icon-button.danger:hover {
+    background: #bd3034;
+}
+
+.organisation-table-container {
+    width: 100%;
+    overflow: hidden;
+}
+
+.organisation-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.organisation-table th,
+.organisation-table td {
+    padding: 14px 12px;
+    vertical-align: middle;
+    text-align: left;
+    border-bottom: 1px solid rgba(167, 255, 112, 0.18);
+}
+
+.organisation-table th {
+    background: rgba(140, 210, 90, 0.08);
+    color: #b9ff8a;
+    font-weight: 700;
+}
+
+.organisation-table th:nth-child(1),
+.organisation-table td:nth-child(1) {
+    width: 42%;
+}
+
+.organisation-table th:nth-child(2),
+.organisation-table td:nth-child(2) {
+    width: 16%;
+}
+
+.organisation-table th:nth-child(3),
+.organisation-table td:nth-child(3) {
+    width: 14%;
+}
+
+.organisation-table th:nth-child(4),
+.organisation-table td:nth-child(4) {
+    width: 16%;
+}
+
+.organisation-table th:nth-child(5),
+.organisation-table td:nth-child(5) {
+    width: 12%;
+}
+
+.organisation-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.organisation-name span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.organisation-table code {
+    color: #d7ffc1;
+    background: transparent;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.status-badge.active {
+    background: rgba(105, 202, 70, 0.18);
+    color: #b9ff8a;
+}
+
+.status-badge.inactive {
+    background: rgba(255, 255, 255, 0.1);
+    color: #d7d7d7;
+}
+
+.status-badge.suspended {
+    background: rgba(189, 48, 52, 0.18);
+    color: #ff9b9e;
+}
+
+.table-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.loading-cell {
+    padding: 28px 12px !important;
+    text-align: center !important;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 900px) {
+    .organisation-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .organisation-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .organisation-search {
+        flex-basis: 100%;
+    }
+
+    .organisation-table-container {
+        overflow-x: auto;
+    }
+
+    .organisation-table {
+        min-width: 760px;
+    }
+}
+/* ------------------------------------------------ */
+/* Organisation Form */
+/* ------------------------------------------------ */
+
+.organisationForm {
+    margin-top: 24px;
+    padding: 28px;
+    border-radius: 16px;
+    background: rgba(16, 26, 16, 0.95);
+    border: 1px solid rgba(167,255,112,.15);
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 20px;
+}
+
+.formField {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.formFieldFull {
+    grid-column: 1 / -1;
+}
+
+.formField label {
+    font-size: .9rem;
+    font-weight: 600;
+    color: #d8ffd1;
+}
+
+.formField input,
+.formField select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    font-size: 0.95rem;
+}
+
+.formField select {
+    color-scheme: dark;
+}
+
+.formField select option {
+    background: #162116;
+    color: #ffffff;
+}
+
+.formField input:focus,
+.formField select:focus {
+    outline: none;
+    border-color: #9ee96e;
+    box-shadow: 0 0 0 3px rgba(158,233,110,.2);
+}
+
+.formField input[type="color"] {
+    height: 48px;
+    padding: 4px;
+    cursor: pointer;
+}
+
+.organisationFormActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 28px;
+}
+
+@media (max-width:768px){
+
+    .formGrid{
+        grid-template-columns:1fr;
+    }
+
+    .organisationFormActions{
+        flex-direction:column;
+    }
+
+    .organisationFormActions button{
+        width:100%;
+    }
+
+}
