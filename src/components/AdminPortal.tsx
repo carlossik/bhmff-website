@@ -100,6 +100,7 @@ export function AdminPortal({
                             }: AdminPortalProps) {
     const {
         currentOrganisation,
+        currentMembership,
         currentRole,
     } = useOrganisation()
 
@@ -140,16 +141,26 @@ export function AdminPortal({
         competitionStatsLoading,
         setCompetitionStatsLoading,
     ] = useState(false)
-
     const effectiveProfile =
         useMemo<AdminProfile>(
             () => ({
                 ...profile,
+
                 role:
                     currentRole ??
                     profile.role,
+
+                currentOrganisation:
+                    currentOrganisation ??
+                    profile.currentOrganisation,
+
+                currentMembership:
+                    currentMembership ??
+                    profile.currentMembership,
             }),
             [
+                currentOrganisation,
+                currentMembership,
                 currentRole,
                 profile,
             ]
@@ -1082,6 +1093,9 @@ export function AdminPortal({
             case 'User Access':
                 return (
                     <UserManagement
+                        key={
+                            currentOrganisation.id
+                        }
                         currentProfile={
                             effectiveProfile
                         }

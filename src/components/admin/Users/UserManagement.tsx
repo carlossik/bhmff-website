@@ -1,247 +1,461 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Modal } from "../../common/Modal";
-import { Toast } from "../../common/Toast";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
+
+import { Modal } from '../../common/Modal'
+import { Toast } from '../../common/Toast'
+
 import {
     formatAdminRole,
     type AdminProfile,
     type AdminRole,
-} from "../../../services/accessControl";
-import { userService } from "./userService";
-import "../../../styles/userManagement.css";
+} from '../../../services/accessControl'
+
+import { userService } from './userService'
+
+import '../../../styles/userManagement.css'
+
 import type {
     AdminUser,
     InviteUserFormValues,
     UserAccessFormValues,
-} from "./userTypes";
+} from './userTypes'
 
 const roleOptions: Array<{
-    value: AdminRole;
-    label: string;
-    description: string;
+    value: AdminRole
+    label: string
+    description: string
 }> = [
     {
-        value: "match_official",
-        label: "Match Official",
-        description: "Can manage match results and goals.",
+        value: 'match_official',
+        label: 'Match Official',
+        description:
+            'Can manage match results and goals.',
     },
     {
-        value: "competition_manager",
-        label: "Competition Manager",
-        description: "Can manage competitions, fixtures and media.",
+        value: 'competition_manager',
+        label: 'Competition Manager',
+        description:
+            'Can manage competitions, fixtures and media.',
     },
     {
-        value: "super_admin",
-        label: "Super Admin",
-        description: "Full platform, commercial and user-access control.",
+        value: 'super_admin',
+        label: 'Super Admin',
+        description:
+            'Full organisation administration and user-access control.',
     },
-];
+]
 
 const initialInviteForm: InviteUserFormValues = {
-    fullName: "",
-    email: "",
-    role: "match_official",
-};
+    fullName: '',
+    email: '',
+    role: 'match_official',
+}
 
 type UserManagementProps = {
-    currentProfile: AdminProfile;
-};
+    currentProfile: AdminProfile
+}
 
 function formatDate(value: string) {
-    return new Date(value).toLocaleString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return new Date(value).toLocaleString(
+        'en-GB',
+        {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        },
+    )
 }
 
 function isValidEmail(value: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        value.trim(),
+    )
 }
 
-export function UserManagement({ currentProfile }: UserManagementProps) {
-    const [users, setUsers] = useState<AdminUser[]>([]);
+export function UserManagement({
+                                   currentProfile,
+                               }: UserManagementProps) {
+    const organisationId =
+        currentProfile.currentOrganisation.id
 
-    const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+    const organisationName =
+        currentProfile.currentOrganisation.name
 
-    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [users, setUsers] = useState<
+        AdminUser[]
+    >([])
 
-    const [formValues, setFormValues] = useState<UserAccessFormValues>({
-        fullName: "",
-        role: "match_official",
+    const [
+        editingUser,
+        setEditingUser,
+    ] = useState<AdminUser | null>(null)
+
+    const [
+        showInviteModal,
+        setShowInviteModal,
+    ] = useState(false)
+
+    const [
+        formValues,
+        setFormValues,
+    ] = useState<UserAccessFormValues>({
+        fullName: '',
+        role: 'match_official',
         active: false,
-    });
+    })
 
-    const [inviteValues, setInviteValues] =
-        useState<InviteUserFormValues>(initialInviteForm);
+    const [
+        inviteValues,
+        setInviteValues,
+    ] =
+        useState<InviteUserFormValues>(
+            initialInviteForm,
+        )
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] =
+        useState(true)
 
-    const [saving, setSaving] = useState(false);
+    const [saving, setSaving] =
+        useState(false)
 
-    const [toastMessage, setToastMessage] = useState("");
+    const [
+        toastMessage,
+        setToastMessage,
+    ] = useState('')
 
-    const [toastType, setToastType] = useState<"success" | "error" | "info">(
-        "success",
-    );
+    const [
+        toastType,
+        setToastType,
+    ] = useState<
+        'success' | 'error' | 'info'
+    >('success')
 
-    const loadUsers = useCallback(async () => {
-        setLoading(true);
+    const loadUsers =
+        useCallback(async () => {
+            setLoading(true)
 
-        try {
-            setUsers(await userService.getUsers());
-        } catch (error) {
-            setToastType("error");
-            setToastMessage(
-                error instanceof Error ? error.message : "Failed to load users.",
-            );
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+            try {
+                const data =
+                    await userService.getUsers(
+                        organisationId,
+                    )
+
+                setUsers(data)
+            } catch (error) {
+                setUsers([])
+
+                setToastType('error')
+
+                setToastMessage(
+                    error instanceof Error
+                        ? error.message
+                        : 'Failed to load users.',
+                )
+            } finally {
+                setLoading(false)
+            }
+        }, [organisationId])
 
     useEffect(() => {
-        void loadUsers();
-    }, [loadUsers]);
+        setEditingUser(null)
+        setShowInviteModal(false)
+        setInviteValues(
+            initialInviteForm,
+        )
+
+        void loadUsers()
+    }, [loadUsers])
 
     const stats = useMemo(
         () => [
             {
-                label: "Administrators",
+                label: 'Administrators',
                 value: users.length,
             },
             {
-                label: "Active",
-                value: users.filter((user) => user.active).length,
+                label: 'Active',
+                value: users.filter(
+                    (user) => user.active,
+                ).length,
             },
             {
-                label: "Competition Managers",
-                value: users.filter((user) => user.role === "competition_manager")
-                    .length,
+                label:
+                    'Competition Managers',
+                value: users.filter(
+                    (user) =>
+                        user.role ===
+                        'competition_manager',
+                ).length,
             },
             {
-                label: "Match Officials",
-                value: users.filter((user) => user.role === "match_official").length,
+                label: 'Match Officials',
+                value: users.filter(
+                    (user) =>
+                        user.role ===
+                        'match_official',
+                ).length,
             },
         ],
         [users],
-    );
+    )
 
-    function openEditUser(user: AdminUser) {
-        setEditingUser(user);
+    function openEditUser(
+        user: AdminUser,
+    ) {
+        setEditingUser(user)
 
         setFormValues({
-            fullName: user.full_name ?? "",
+            fullName:
+                user.full_name ?? '',
             role: user.role,
             active: user.active,
-        });
+        })
     }
 
     function closeEditModal() {
         if (saving) {
-            return;
+            return
         }
 
-        setEditingUser(null);
+        setEditingUser(null)
     }
 
     function openInviteModal() {
-        setInviteValues(initialInviteForm);
-        setShowInviteModal(true);
+        setInviteValues(
+            initialInviteForm,
+        )
+
+        setShowInviteModal(true)
     }
 
     function closeInviteModal() {
         if (saving) {
-            return;
+            return
         }
 
-        setShowInviteModal(false);
-        setInviteValues(initialInviteForm);
+        setShowInviteModal(false)
+
+        setInviteValues(
+            initialInviteForm,
+        )
     }
 
     async function inviteUser() {
-        const fullName = inviteValues.fullName.trim();
+        const fullName =
+            inviteValues.fullName.trim()
 
-        const email = inviteValues.email.trim().toLowerCase();
+        const email =
+            inviteValues.email
+                .trim()
+                .toLowerCase()
 
         if (!fullName) {
-            setToastType("error");
-            setToastMessage("Full name is required.");
-            return;
+            setToastType('error')
+            setToastMessage(
+                'Full name is required.',
+            )
+            return
         }
 
         if (!isValidEmail(email)) {
-            setToastType("error");
-            setToastMessage("Enter a valid email address.");
-            return;
-        }
-
-        if (users.some((user) => user.email?.trim().toLowerCase() === email)) {
-            setToastType("error");
+            setToastType('error')
             setToastMessage(
-                "An administrator profile already exists for this email address.",
-            );
-            return;
+                'Enter a valid email address.',
+            )
+            return
         }
 
-        setSaving(true);
+        if (
+            users.some(
+                (user) =>
+                    user.email
+                        ?.trim()
+                        .toLowerCase() ===
+                    email,
+            )
+        ) {
+            setToastType('error')
+            setToastMessage(
+                `This user already has access to ${organisationName}.`,
+            )
+            return
+        }
+
+        setSaving(true)
 
         try {
             await userService.inviteUser({
+                organisationId,
                 fullName,
                 email,
                 role: inviteValues.role,
                 redirectUrl: `${window.location.origin}/admin/set-password`,
-            });
+            })
 
-            closeInviteModal();
-            await loadUsers();
+            setShowInviteModal(false)
 
-            setToastType("success");
-            setToastMessage(`Invitation sent to ${email}.`);
-        } catch (error) {
-            setToastType("error");
+            setInviteValues(
+                initialInviteForm,
+            )
+
+            await loadUsers()
+
+            setToastType('success')
+
             setToastMessage(
-                error instanceof Error ? error.message : "Failed to invite the user.",
-            );
+                `Invitation sent to ${email} for ${organisationName}.`,
+            )
+        } catch (error) {
+            setToastType('error')
+
+            setToastMessage(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to invite the user.',
+            )
         } finally {
-            setSaving(false);
+            setSaving(false)
         }
     }
 
     async function saveUser() {
         if (!editingUser) {
-            return;
+            return
         }
 
-        if (editingUser.id === currentProfile.id) {
-            setToastType("error");
+        if (
+            editingUser.user_id ===
+            currentProfile.id
+        ) {
+            setToastType('error')
+
             setToastMessage(
-                "You cannot change your own role or account status from this screen.",
-            );
-            return;
+                'You cannot change your own role or access status from this screen.',
+            )
+
+            return
         }
 
-        setSaving(true);
+        setSaving(true)
 
         try {
-            await userService.updateUser(editingUser.id, formValues);
+            await userService.updateUser(
+                editingUser.membership_id,
+                editingUser.user_id,
+                organisationId,
+                formValues,
+            )
 
-            setEditingUser(null);
-            await loadUsers();
+            setEditingUser(null)
 
-            setToastType("success");
-            setToastMessage("User access updated successfully.");
+            await loadUsers()
+
+            setToastType('success')
+
+            setToastMessage(
+                'Organisation access updated successfully.',
+            )
         } catch (error) {
-            setToastType("error");
+            setToastType('error')
+
             setToastMessage(
                 error instanceof Error
                     ? error.message
-                    : "Failed to update user access.",
-            );
+                    : 'Failed to update user access.',
+            )
         } finally {
-            setSaving(false);
+            setSaving(false)
+        }
+    }
+
+    async function toggleUserAccess(
+        user: AdminUser,
+    ) {
+        if (
+            user.user_id ===
+            currentProfile.id
+        ) {
+            setToastType('error')
+
+            setToastMessage(
+                'You cannot deactivate your own organisation access.',
+            )
+
+            return
+        }
+
+        try {
+            await userService.updateUser(
+                user.membership_id,
+                user.user_id,
+                organisationId,
+                {
+                    fullName:
+                        user.full_name ?? '',
+                    role: user.role,
+                    active: !user.active,
+                },
+            )
+
+            await loadUsers()
+
+            setToastType('success')
+
+            setToastMessage(
+                user.active
+                    ? 'User access deactivated successfully.'
+                    : 'User access activated successfully.',
+            )
+        } catch (error) {
+            setToastType('error')
+
+            setToastMessage(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to update the user.',
+            )
+        }
+    }
+
+    async function resendSetupEmail(
+        user: AdminUser,
+    ) {
+        if (!user.email) {
+            return
+        }
+
+        try {
+            await userService.inviteUser(
+                {
+                    organisationId,
+                    fullName:
+                        user.full_name ?? '',
+                    email: user.email,
+                    role: user.role,
+                    redirectUrl: `${window.location.origin}/admin/set-password`,
+                },
+                'resend_setup',
+            )
+
+            setToastType('success')
+
+            setToastMessage(
+                `Password reset email sent to ${user.email}.`,
+            )
+        } catch (error) {
+            setToastType('error')
+
+            setToastMessage(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to send the password reset email.',
+            )
         }
     }
 
@@ -250,112 +464,187 @@ export function UserManagement({ currentProfile }: UserManagementProps) {
             <Toast
                 message={toastMessage}
                 type={toastType}
-                onClose={() => setToastMessage("")}
+                onClose={() =>
+                    setToastMessage('')
+                }
             />
 
             <div className="userManagementHeader">
                 <div>
-                    <span className="eyebrow">Administration</span>
+                    <span className="eyebrow">
+                        Administration
+                    </span>
 
-                    <h2>User Management</h2>
+                    <h2>User Access</h2>
 
                     <p>
-                        Invite administrators, assign operational roles, reset passwords and
-                        control platform access.
+                        Manage users and
+                        organisation-specific
+                        permissions for{' '}
+                        <strong>
+                            {organisationName}
+                        </strong>
+                        .
                     </p>
                 </div>
 
-                <button className="btn primary" type="button" onClick={openInviteModal}>
+                <button
+                    className="btn primary"
+                    type="button"
+                    onClick={
+                        openInviteModal
+                    }
+                >
                     + Invite User
                 </button>
             </div>
 
             <div className="userStatsGrid">
                 {stats.map((stat) => (
-                    <div className="userStatCard" key={stat.label}>
-                        <span className="userStatLabel">{stat.label}</span>
+                    <div
+                        className="userStatCard"
+                        key={stat.label}
+                    >
+                        <span className="userStatLabel">
+                            {stat.label}
+                        </span>
 
-                        <strong className="userStatValue">{stat.value}</strong>
+                        <strong className="userStatValue">
+                            {stat.value}
+                        </strong>
                     </div>
                 ))}
             </div>
 
             {loading ? (
-                <p className="muted">Loading administrator users...</p>
+                <p className="muted">
+                    Loading users for{' '}
+                    {organisationName}...
+                </p>
             ) : users.length ? (
                 <div className="userCardGrid">
                     {users.map((user) => {
-                        const isCurrentUser = user.id === currentProfile.id;
+                        const isCurrentUser =
+                            user.user_id ===
+                            currentProfile.id
 
                         const roleClass =
-                            user.role === "super_admin"
-                                ? "role-super"
-                                : user.role === "competition_manager"
-                                    ? "role-manager"
-                                    : "role-official";
+                            user.role ===
+                            'super_admin'
+                                ? 'role-super'
+                                : user.role ===
+                                'competition_manager'
+                                    ? 'role-manager'
+                                    : 'role-official'
 
                         return (
-                            <article className="userCard" key={user.id}>
+                            <article
+                                className="userCard"
+                                key={
+                                    user.membership_id
+                                }
+                            >
                                 <div className="userCardTop">
                                     <div>
                                         <div className="teamAdminBadges">
-                      <span className={`roleBadge ${roleClass}`}>
-                        {formatAdminRole(user.role)}
-                      </span>
+                                            <span
+                                                className={`roleBadge ${roleClass}`}
+                                            >
+                                                {formatAdminRole(
+                                                    user.role,
+                                                )}
+                                            </span>
 
                                             <span
                                                 className={`statusBadge ${
-                                                    user.active ? "status-active" : "status-inactive"
+                                                    user.active
+                                                        ? 'status-active'
+                                                        : 'status-inactive'
                                                 }`}
                                             >
-                        {user.active ? "Active" : "Inactive"}
-                      </span>
+                                                {user.active
+                                                    ? 'Active'
+                                                    : 'Inactive'}
+                                            </span>
 
-                                            {isCurrentUser && <span className="badge">You</span>}
+                                            {!user.profile_active && (
+                                                <span className="statusBadge status-inactive">
+                                                    Platform
+                                                    Disabled
+                                                </span>
+                                            )}
+
+                                            {isCurrentUser && (
+                                                <span className="badge">
+                                                    You
+                                                </span>
+                                            )}
                                         </div>
 
                                         <div className="userName">
-                                            {user.full_name ?? "Unnamed administrator"}
+                                            {user.full_name ??
+                                                'Unnamed administrator'}
                                         </div>
 
                                         <div className="userEmail">
-                                            {user.email ?? "Email not available"}
+                                            {user.email ??
+                                                'Email not available'}
                                         </div>
                                     </div>
 
                                     <div className="userAccessDetails">
                                         <div>
-                                            <span className="teamAdminFieldLabel">Created</span>
+                                            <span className="teamAdminFieldLabel">
+                                                Access
+                                                Created
+                                            </span>
 
-                                            <span>{formatDate(user.created_at)}</span>
+                                            <span>
+                                                {formatDate(
+                                                    user.created_at,
+                                                )}
+                                            </span>
                                         </div>
 
                                         <div>
-                                            <span className="teamAdminFieldLabel">Last Updated</span>
+                                            <span className="teamAdminFieldLabel">
+                                                Access
+                                                Updated
+                                            </span>
 
-                                            <span>{formatDate(user.updated_at)}</span>
+                                            <span>
+                                                {formatDate(
+                                                    user.updated_at,
+                                                )}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="userCardFooter">
-                  <span className="muted">
-                    {user.active
-                        ? "Access is currently enabled."
-                        : "Access is currently disabled."}
-                  </span>
+                                    <span className="muted">
+                                        {user.active
+                                            ? `Access to ${organisationName} is enabled.`
+                                            : `Access to ${organisationName} is disabled.`}
+                                    </span>
 
                                     <div className="userActions">
                                         <button
                                             className="btn secondary small"
                                             type="button"
-                                            disabled={isCurrentUser}
+                                            disabled={
+                                                isCurrentUser
+                                            }
                                             title={
                                                 isCurrentUser
-                                                    ? "Your own access cannot be changed here."
+                                                    ? 'Your own organisation access cannot be changed here.'
                                                     : undefined
                                             }
-                                            onClick={() => openEditUser(user)}
+                                            onClick={() =>
+                                                openEditUser(
+                                                    user,
+                                                )
+                                            }
                                         >
                                             Edit Access
                                         </button>
@@ -363,156 +652,210 @@ export function UserManagement({ currentProfile }: UserManagementProps) {
                                         <button
                                             className="btn secondary small"
                                             type="button"
-                                            disabled={!user.email}
-                                            onClick={async () => {
-                                                try {
-                                                    await userService.inviteUser(
-                                                        {
-                                                            fullName: user.full_name ?? "",
-                                                            email: user.email ?? "",
-                                                            role: user.role,
-                                                            redirectUrl: `${window.location.origin}/admin/set-password`,
-                                                        },
-                                                        "resend_setup",
-                                                    );
-
-                                                    setToastType("success");
-                                                    setToastMessage(
-                                                        `Password reset email sent to ${user.email}.`,
-                                                    );
-                                                } catch (error) {
-                                                    setToastType("error");
-                                                    setToastMessage(
-                                                        error instanceof Error
-                                                            ? error.message
-                                                            : "Unable to send the password reset email.",
-                                                    );
-                                                }
-                                            }}
+                                            disabled={
+                                                !user.email
+                                            }
+                                            onClick={() =>
+                                                void resendSetupEmail(
+                                                    user,
+                                                )
+                                            }
                                         >
                                             Reset Password
                                         </button>
 
                                         <button
                                             className={`btn small ${
-                                                user.active ? "danger" : "secondary"
+                                                user.active
+                                                    ? 'danger'
+                                                    : 'secondary'
                                             }`}
                                             type="button"
-                                            disabled={isCurrentUser}
+                                            disabled={
+                                                isCurrentUser
+                                            }
                                             title={
                                                 isCurrentUser
-                                                    ? "You cannot deactivate your own account."
+                                                    ? 'You cannot deactivate your own organisation access.'
                                                     : undefined
                                             }
-                                            onClick={async () => {
-                                                try {
-                                                    await userService.updateUser(user.id, {
-                                                        fullName: user.full_name ?? "",
-                                                        role: user.role,
-                                                        active: !user.active,
-                                                    });
-
-                                                    await loadUsers();
-
-                                                    setToastType("success");
-                                                    setToastMessage(
-                                                        user.active
-                                                            ? "User deactivated successfully."
-                                                            : "User activated successfully.",
-                                                    );
-                                                } catch (error) {
-                                                    setToastType("error");
-                                                    setToastMessage(
-                                                        error instanceof Error
-                                                            ? error.message
-                                                            : "Unable to update the user.",
-                                                    );
-                                                }
-                                            }}
+                                            onClick={() =>
+                                                void toggleUserAccess(
+                                                    user,
+                                                )
+                                            }
                                         >
-                                            {user.active ? "Deactivate" : "Activate"}
+                                            {user.active
+                                                ? 'Deactivate'
+                                                : 'Activate'}
                                         </button>
                                     </div>
                                 </div>
                             </article>
-                        );
+                        )
                     })}
                 </div>
             ) : (
                 <div className="teamsEmptyState">
-                    <h3>No administrator users</h3>
+                    <h3>
+                        No users assigned
+                    </h3>
 
-                    <p>Invite the first administrator from this screen.</p>
+                    <p>
+                        Invite the first user
+                        to {organisationName}.
+                    </p>
                 </div>
             )}
 
             {showInviteModal && (
-                <Modal title="Invite User" onClose={closeInviteModal}>
+                <Modal
+                    title={`Invite User to ${organisationName}`}
+                    onClose={
+                        closeInviteModal
+                    }
+                >
                     <p className="muted">
-                        The user will receive a secure invitation and create their own
-                        password.
+                        The user will receive
+                        access specifically to{' '}
+                        {organisationName}.
                     </p>
 
                     <div className="adminFormGrid">
                         <label>
-                            <span>Full Name *</span>
+                            <span>
+                                Full Name *
+                            </span>
 
                             <input
-                                value={inviteValues.fullName}
-                                maxLength={150}
+                                value={
+                                    inviteValues.fullName
+                                }
+                                maxLength={
+                                    150
+                                }
                                 autoComplete="name"
-                                onChange={(event) =>
-                                    setInviteValues((current) => ({
-                                        ...current,
-                                        fullName: event.target.value,
-                                    }))
+                                onChange={(
+                                    event,
+                                ) =>
+                                    setInviteValues(
+                                        (
+                                            current,
+                                        ) => ({
+                                            ...current,
+                                            fullName:
+                                            event
+                                                .target
+                                                .value,
+                                        }),
+                                    )
                                 }
                             />
                         </label>
 
                         <label>
-                            <span>Email *</span>
+                            <span>
+                                Email *
+                            </span>
 
                             <input
                                 type="email"
-                                value={inviteValues.email}
-                                maxLength={254}
+                                value={
+                                    inviteValues.email
+                                }
+                                maxLength={
+                                    254
+                                }
                                 autoComplete="email"
-                                onChange={(event) =>
-                                    setInviteValues((current) => ({
-                                        ...current,
-                                        email: event.target.value,
-                                    }))
+                                onChange={(
+                                    event,
+                                ) =>
+                                    setInviteValues(
+                                        (
+                                            current,
+                                        ) => ({
+                                            ...current,
+                                            email:
+                                            event
+                                                .target
+                                                .value,
+                                        }),
+                                    )
                                 }
                             />
                         </label>
 
                         <label className="adminFormFullWidth">
-                            <span>Role *</span>
+                            <span>
+                                Organisation
+                            </span>
+
+                            <input
+                                value={
+                                    organisationName
+                                }
+                                disabled
+                            />
+                        </label>
+
+                        <label className="adminFormFullWidth">
+                            <span>
+                                Role *
+                            </span>
 
                             <select
-                                value={inviteValues.role}
-                                onChange={(event) =>
-                                    setInviteValues((current) => ({
-                                        ...current,
-                                        role: event.target.value as AdminRole,
-                                    }))
+                                value={
+                                    inviteValues.role
+                                }
+                                onChange={(
+                                    event,
+                                ) =>
+                                    setInviteValues(
+                                        (
+                                            current,
+                                        ) => ({
+                                            ...current,
+                                            role: event
+                                                .target
+                                                .value as AdminRole,
+                                        }),
+                                    )
                                 }
                             >
-                                {roleOptions.map((role) => (
-                                    <option key={role.value} value={role.value}>
-                                        {role.label}
-                                    </option>
-                                ))}
+                                {roleOptions.map(
+                                    (role) => (
+                                        <option
+                                            key={
+                                                role.value
+                                            }
+                                            value={
+                                                role.value
+                                            }
+                                        >
+                                            {
+                                                role.label
+                                            }
+                                        </option>
+                                    ),
+                                )}
                             </select>
                         </label>
 
                         <div className="adminFormFullWidth">
-                            <span className="teamAdminFieldLabel">Role Description</span>
+                            <span className="teamAdminFieldLabel">
+                                Role
+                                Description
+                            </span>
 
                             <p className="muted">
                                 {
-                                    roleOptions.find((role) => role.value === inviteValues.role)
+                                    roleOptions.find(
+                                        (
+                                            role,
+                                        ) =>
+                                            role.value ===
+                                            inviteValues.role,
+                                    )
                                         ?.description
                                 }
                             </p>
@@ -523,8 +866,12 @@ export function UserManagement({ currentProfile }: UserManagementProps) {
                         <button
                             className="btn secondary"
                             type="button"
-                            disabled={saving}
-                            onClick={closeInviteModal}
+                            disabled={
+                                saving
+                            }
+                            onClick={
+                                closeInviteModal
+                            }
                         >
                             Cancel
                         </button>
@@ -532,80 +879,173 @@ export function UserManagement({ currentProfile }: UserManagementProps) {
                         <button
                             className="btn primary"
                             type="button"
-                            disabled={saving}
-                            onClick={() => void inviteUser()}
+                            disabled={
+                                saving
+                            }
+                            onClick={() =>
+                                void inviteUser()
+                            }
                         >
-                            {saving ? "Sending..." : "Send Invitation"}
+                            {saving
+                                ? 'Sending...'
+                                : 'Send Invitation'}
                         </button>
                     </div>
                 </Modal>
             )}
 
             {editingUser && (
-                <Modal title="Edit User Access" onClose={closeEditModal}>
+                <Modal
+                    title={`Edit Access for ${organisationName}`}
+                    onClose={
+                        closeEditModal
+                    }
+                >
                     <div className="adminFormGrid">
                         <label>
-                            <span>Full Name</span>
+                            <span>
+                                Full Name
+                            </span>
 
                             <input
-                                value={formValues.fullName}
-                                maxLength={150}
-                                onChange={(event) =>
-                                    setFormValues((current) => ({
-                                        ...current,
-                                        fullName: event.target.value,
-                                    }))
+                                value={
+                                    formValues.fullName
+                                }
+                                maxLength={
+                                    150
+                                }
+                                onChange={(
+                                    event,
+                                ) =>
+                                    setFormValues(
+                                        (
+                                            current,
+                                        ) => ({
+                                            ...current,
+                                            fullName:
+                                            event
+                                                .target
+                                                .value,
+                                        }),
+                                    )
                                 }
                             />
                         </label>
 
                         <label>
-                            <span>Email</span>
+                            <span>
+                                Email
+                            </span>
 
-                            <input value={editingUser.email ?? ""} disabled />
+                            <input
+                                value={
+                                    editingUser.email ??
+                                    ''
+                                }
+                                disabled
+                            />
                         </label>
 
                         <label>
-                            <span>Role</span>
+                            <span>
+                                Organisation
+                            </span>
+
+                            <input
+                                value={
+                                    organisationName
+                                }
+                                disabled
+                            />
+                        </label>
+
+                        <label>
+                            <span>
+                                Role
+                            </span>
 
                             <select
-                                value={formValues.role}
-                                onChange={(event) =>
-                                    setFormValues((current) => ({
-                                        ...current,
-                                        role: event.target.value as AdminRole,
-                                    }))
+                                value={
+                                    formValues.role
+                                }
+                                onChange={(
+                                    event,
+                                ) =>
+                                    setFormValues(
+                                        (
+                                            current,
+                                        ) => ({
+                                            ...current,
+                                            role: event
+                                                .target
+                                                .value as AdminRole,
+                                        }),
+                                    )
                                 }
                             >
-                                {roleOptions.map((role) => (
-                                    <option key={role.value} value={role.value}>
-                                        {role.label}
-                                    </option>
-                                ))}
+                                {roleOptions.map(
+                                    (role) => (
+                                        <option
+                                            key={
+                                                role.value
+                                            }
+                                            value={
+                                                role.value
+                                            }
+                                        >
+                                            {
+                                                role.label
+                                            }
+                                        </option>
+                                    ),
+                                )}
                             </select>
                         </label>
 
                         <label className="adminCheckboxLabel">
                             <input
                                 type="checkbox"
-                                checked={formValues.active}
-                                onChange={(event) =>
-                                    setFormValues((current) => ({
-                                        ...current,
-                                        active: event.target.checked,
-                                    }))
+                                checked={
+                                    formValues.active
+                                }
+                                onChange={(
+                                    event,
+                                ) =>
+                                    setFormValues(
+                                        (
+                                            current,
+                                        ) => ({
+                                            ...current,
+                                            active:
+                                            event
+                                                .target
+                                                .checked,
+                                        }),
+                                    )
                                 }
                             />
 
-                            <span>Account is active</span>
+                            <span>
+                                Organisation
+                                access is active
+                            </span>
                         </label>
 
                         <div className="adminFormFullWidth">
-                            <span className="teamAdminFieldLabel">Role Description</span>
+                            <span className="teamAdminFieldLabel">
+                                Role
+                                Description
+                            </span>
 
                             <p className="muted">
                                 {
-                                    roleOptions.find((role) => role.value === formValues.role)
+                                    roleOptions.find(
+                                        (
+                                            role,
+                                        ) =>
+                                            role.value ===
+                                            formValues.role,
+                                    )
                                         ?.description
                                 }
                             </p>
@@ -616,8 +1056,12 @@ export function UserManagement({ currentProfile }: UserManagementProps) {
                         <button
                             className="btn secondary"
                             type="button"
-                            disabled={saving}
-                            onClick={closeEditModal}
+                            disabled={
+                                saving
+                            }
+                            onClick={
+                                closeEditModal
+                            }
                         >
                             Cancel
                         </button>
@@ -625,14 +1069,20 @@ export function UserManagement({ currentProfile }: UserManagementProps) {
                         <button
                             className="btn primary"
                             type="button"
-                            disabled={saving}
-                            onClick={() => void saveUser()}
+                            disabled={
+                                saving
+                            }
+                            onClick={() =>
+                                void saveUser()
+                            }
                         >
-                            {saving ? "Saving..." : "Save Access"}
+                            {saving
+                                ? 'Saving...'
+                                : 'Save Access'}
                         </button>
                     </div>
                 </Modal>
             )}
         </div>
-    );
+    )
 }

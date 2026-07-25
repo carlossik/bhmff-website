@@ -1,8 +1,6 @@
 import {
     createContext,
     useContext,
-    useMemo,
-    useState,
     type ReactNode,
 } from 'react'
 
@@ -16,107 +14,86 @@ import type {
 
 type OrganisationContextValue = {
     profile: AdminProfile
+
     currentOrganisation: Organisation
-    currentMembership: OrganisationMembership
+
+    currentMembership:
+        OrganisationMembership
+
     currentRole: AdminRole
-    organisationAccess: OrganisationAccess[]
+
+    organisationAccess:
+        OrganisationAccess[]
+
     switchOrganisation: (
-        organisationId: string
+        organisationId: string,
     ) => void
 }
 
 const OrganisationContext =
-    createContext<OrganisationContextValue | null>(
-        null
-    )
+    createContext<
+        OrganisationContextValue | null
+    >(null)
 
 type OrganisationProviderProps = {
     profile: AdminProfile
     children: ReactNode
 }
 
-const STORAGE_KEY =
-    'tournamenthq-current-organisation'
-
 export function OrganisationProvider({
                                          profile,
                                          children,
                                      }: OrganisationProviderProps) {
-    const [selectedOrganisationId, setSelectedOrganisationId] =
-        useState(profile.currentOrganisation.id)
-
-    const selectedAccess = useMemo(() => {
-        return (
+    function switchOrganisation(
+        organisationId: string,
+    ) {
+        const selectedAccess =
             profile.organisationAccess.find(
                 (access) =>
                     access.organisation.id ===
-                    selectedOrganisationId
-            ) ?? profile.organisationAccess[0]
-        )
-    }, [
-        profile.organisationAccess,
-        selectedOrganisationId,
-    ])
-
-    function switchOrganisation(
-        organisationId: string
-    ) {
-        const access =
-            profile.organisationAccess.find(
-                (item) =>
-                    item.organisation.id ===
-                    organisationId
+                    organisationId,
             )
 
-        if (!access) {
-            throw new Error(
-                'You do not have access to this organisation.'
+        if (!selectedAccess) {
+            console.error(
+                'The selected organisation is not available to this user.',
             )
+
+            return
         }
 
-        setSelectedOrganisationId(
-            organisationId
+        if (
+            selectedAccess.organisation.id ===
+            profile.currentOrganisation.id
+        ) {
+            return
+        }
+
+        window.localStorage.setItem(
+            'tournamenthq-current-organisation',
+            selectedAccess.organisation.id,
         )
 
-        try {
-            window.localStorage.setItem(
-                STORAGE_KEY,
-                organisationId
-            )
-        } catch {
-            // Local storage may be unavailable.
-        }
+        window.location.reload()
     }
 
-    const value = useMemo<
-        OrganisationContextValue
-    >(
-        () => ({
-            profile: {
-                ...profile,
-                role:
-                selectedAccess.membership
-                    .role,
-                currentOrganisation:
-                selectedAccess.organisation,
-                currentMembership:
-                selectedAccess.membership,
-            },
-            currentOrganisation:
-            selectedAccess.organisation,
-            currentMembership:
-            selectedAccess.membership,
-            currentRole:
-            selectedAccess.membership.role,
-            organisationAccess:
-            profile.organisationAccess,
-            switchOrganisation,
-        }),
-        [
-            profile,
-            selectedAccess,
-        ]
-    )
+    const value: OrganisationContextValue = {
+        profile,
+
+        currentOrganisation:
+        profile.currentOrganisation,
+
+        currentMembership:
+        profile.currentMembership,
+
+        currentRole:
+        profile.currentMembership.role,
+
+        organisationAccess:
+        profile.organisationAccess,
+
+        switchOrganisation,
+    }
 
     return (
         <OrganisationContext.Provider
@@ -129,12 +106,12 @@ export function OrganisationProvider({
 
 export function useOrganisation() {
     const context = useContext(
-        OrganisationContext
+        OrganisationContext,
     )
 
     if (!context) {
         throw new Error(
-            'useOrganisation must be used within an OrganisationProvider.'
+            'useOrganisation must be used within an OrganisationProvider.',
         )
     }
 
