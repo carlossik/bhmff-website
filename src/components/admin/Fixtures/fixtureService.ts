@@ -1,6 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient'
 import type {
-    Competition,
+    //Competition,
     Fixture,
     FixtureFormValues,
     FixtureGroup,
@@ -20,21 +20,21 @@ function throwSupabaseError(
 }
 
 export const fixtureService = {
-    async getActiveCompetition(): Promise<Competition | null> {
-        const { data, error } = await supabase
-            .from('competitions')
-            .select('id, name, status')
-            .eq('status', 'ACTIVE')
-            .limit(1)
-            .maybeSingle()
-
-        throwSupabaseError(
-            error,
-            'Failed to load active competition'
-        )
-
-        return data
-    },
+    // async getActiveCompetition(): Promise<Competition | null> {
+    //     const { data, error } = await supabase
+    //         .from('competitions')
+    //         .select('id, name, status')
+    //         .eq('status', 'ACTIVE')
+    //         .limit(1)
+    //         .maybeSingle()
+    //
+    //     throwSupabaseError(
+    //         error,
+    //         'Failed to load active competition'
+    //     )
+    //
+    //     return data
+    // },
 
     async getFixtures(
         competitionId: string

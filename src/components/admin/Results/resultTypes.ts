@@ -1,5 +1,6 @@
 export type Result = {
     id: string
+    competition_id: string
     fixture_id: string
     home_score: number
     away_score: number

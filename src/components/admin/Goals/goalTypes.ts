@@ -1,5 +1,6 @@
 export type Goal = {
     id: string
+    competition_id: string
     fixture_id: string | null
     team_id: string | null
     player_name: string

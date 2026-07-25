@@ -4,6 +4,7 @@ import {
     useMemo,
     useState,
 } from 'react'
+
 import CompetitionManager from './admin/Competitions/CompetitionManager'
 import { MediaManager } from './admin/Media/MediaManager'
 import { supabase } from '../lib/supabaseClient'
@@ -32,6 +33,7 @@ import {
 } from '../services/accessControl'
 
 import { useOrganisation } from '../context/OrganisationContext'
+import { useCompetition } from '../contexts/CompetitionContext'
 
 const adminTabs: readonly AdminModule[] = [
     'Dashboard',
@@ -58,22 +60,38 @@ type AdminPortalProps = {
     onLogout: () => void
 }
 
-type DashboardStats = {
+type OrganisationDashboardStats = {
     clubs: number
     teams: number
-    groups: number
     venues: number
-    fixtures: number
     sponsors: number
+    articles: number
+    media: number
 }
 
-const emptyDashboardStats: DashboardStats = {
+type CompetitionDashboardStats = {
+    competitionTeams: number
+    groups: number
+    fixtures: number
+    results: number
+    goals: number
+}
+
+const emptyOrganisationStats: OrganisationDashboardStats = {
     clubs: 0,
     teams: 0,
-    groups: 0,
     venues: 0,
-    fixtures: 0,
     sponsors: 0,
+    articles: 0,
+    media: 0,
+}
+
+const emptyCompetitionStats: CompetitionDashboardStats = {
+    competitionTeams: 0,
+    groups: 0,
+    fixtures: 0,
+    results: 0,
+    goals: 0,
 }
 
 export function AdminPortal({
@@ -85,22 +103,43 @@ export function AdminPortal({
         currentRole,
     } = useOrganisation()
 
+    const {
+        currentCompetition,
+        currentCompetitionId,
+    } = useCompetition()
+
     const [activeTab, setActiveTab] =
         useState<AdminModule>('Dashboard')
 
     const [dbTeams, setDbTeams] =
         useState<DbTeam[]>([])
 
-    const [dashboardStats, setDashboardStats] =
-        useState<DashboardStats>(
-            emptyDashboardStats
-        )
+    const [
+        organisationStats,
+        setOrganisationStats,
+    ] = useState<OrganisationDashboardStats>(
+        emptyOrganisationStats
+    )
+
+    const [
+        competitionStats,
+        setCompetitionStats,
+    ] = useState<CompetitionDashboardStats>(
+        emptyCompetitionStats
+    )
 
     const [enquiryCount, setEnquiryCount] =
         useState(0)
 
-    const [dashboardLoading, setDashboardLoading] =
-        useState(false)
+    const [
+        organisationStatsLoading,
+        setOrganisationStatsLoading,
+    ] = useState(false)
+
+    const [
+        competitionStatsLoading,
+        setCompetitionStatsLoading,
+    ] = useState(false)
 
     const effectiveProfile =
         useMemo<AdminProfile>(
@@ -146,11 +185,20 @@ export function AdminPortal({
     useEffect(() => {
         setActiveTab('Dashboard')
         setDbTeams([])
-        setDashboardStats(
-            emptyDashboardStats
+        setOrganisationStats(
+            emptyOrganisationStats
+        )
+        setCompetitionStats(
+            emptyCompetitionStats
         )
         setEnquiryCount(0)
     }, [currentOrganisation?.id])
+
+    useEffect(() => {
+        setCompetitionStats(
+            emptyCompetitionStats
+        )
+    }, [currentCompetitionId])
 
     const loadTeams =
         useCallback(async () => {
@@ -187,22 +235,24 @@ export function AdminPortal({
                 return
             }
 
-            setDbTeams(data ?? [])
+            setDbTeams(
+                (data ?? []) as DbTeam[]
+            )
         }, [
             activeRole,
             currentOrganisation,
         ])
 
-    const loadDashboardStats =
+    const loadOrganisationStats =
         useCallback(async () => {
-            if (!currentOrganisation) {
-                setDashboardStats(
-                    emptyDashboardStats
+            if (!currentOrganisation?.id) {
+                setOrganisationStats(
+                    emptyOrganisationStats
                 )
                 return
             }
 
-            setDashboardLoading(true)
+            setOrganisationStatsLoading(true)
 
             const organisationId =
                 currentOrganisation.id
@@ -211,10 +261,10 @@ export function AdminPortal({
                 const [
                     clubsResponse,
                     teamsResponse,
-                    groupsResponse,
                     venuesResponse,
-                    fixturesResponse,
                     sponsorsResponse,
+                    articlesResponse,
+                    mediaResponse,
                 ] = await Promise.all([
                     supabase
                         .from('clubs')
@@ -239,17 +289,6 @@ export function AdminPortal({
                         ),
 
                     supabase
-                        .from('groups')
-                        .select('id', {
-                            count: 'exact',
-                            head: true,
-                        })
-                        .eq(
-                            'organisation_id',
-                            organisationId
-                        ),
-
-                    supabase
                         .from('venues')
                         .select('id', {
                             count: 'exact',
@@ -261,7 +300,7 @@ export function AdminPortal({
                         ),
 
                     supabase
-                        .from('fixtures')
+                        .from('sponsors')
                         .select('id', {
                             count: 'exact',
                             head: true,
@@ -272,7 +311,18 @@ export function AdminPortal({
                         ),
 
                     supabase
-                        .from('sponsors')
+                        .from('articles')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'organisation_id',
+                            organisationId
+                        ),
+
+                    supabase
+                        .from('media_items')
                         .select('id', {
                             count: 'exact',
                             head: true,
@@ -293,20 +343,20 @@ export function AdminPortal({
                         response: teamsResponse,
                     },
                     {
-                        name: 'groups',
-                        response: groupsResponse,
-                    },
-                    {
                         name: 'venues',
                         response: venuesResponse,
                     },
                     {
-                        name: 'fixtures',
-                        response: fixturesResponse,
-                    },
-                    {
                         name: 'sponsors',
                         response: sponsorsResponse,
+                    },
+                    {
+                        name: 'articles',
+                        response: articlesResponse,
+                    },
+                    {
+                        name: 'media',
+                        response: mediaResponse,
                     },
                 ]
 
@@ -324,7 +374,7 @@ export function AdminPortal({
                     }
                 )
 
-                setDashboardStats({
+                setOrganisationStats({
                     clubs:
                         clubsResponse.error
                             ? 0
@@ -337,16 +387,186 @@ export function AdminPortal({
                             : teamsResponse.count ??
                             0,
 
-                    groups:
-                        groupsResponse.error
-                            ? 0
-                            : groupsResponse.count ??
-                            0,
-
                     venues:
                         venuesResponse.error
                             ? 0
                             : venuesResponse.count ??
+                            0,
+
+                    sponsors:
+                        sponsorsResponse.error
+                            ? 0
+                            : sponsorsResponse.count ??
+                            0,
+
+                    articles:
+                        articlesResponse.error
+                            ? 0
+                            : articlesResponse.count ??
+                            0,
+
+                    media:
+                        mediaResponse.error
+                            ? 0
+                            : mediaResponse.count ??
+                            0,
+                })
+            } finally {
+                setOrganisationStatsLoading(false)
+            }
+        }, [currentOrganisation?.id])
+
+    const loadCompetitionStats =
+        useCallback(async () => {
+            if (!currentCompetitionId) {
+                setCompetitionStats(
+                    emptyCompetitionStats
+                )
+                return
+            }
+
+            setCompetitionStatsLoading(true)
+
+            try {
+                const [
+                    competitionTeamsResponse,
+                    groupsResponse,
+                    fixturesResponse,
+                ] = await Promise.all([
+                    supabase
+                        .from('competition_teams')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'competition_id',
+                            currentCompetitionId
+                        ),
+
+                    supabase
+                        .from('groups')
+                        .select('id', {
+                            count: 'exact',
+                            head: true,
+                        })
+                        .eq(
+                            'competition_id',
+                            currentCompetitionId
+                        ),
+
+                    supabase
+                        .from('fixtures')
+                        .select('id', {
+                            count: 'exact',
+                        })
+                        .eq(
+                            'competition_id',
+                            currentCompetitionId
+                        ),
+                ])
+
+                if (
+                    competitionTeamsResponse.error
+                ) {
+                    console.error(
+                        'Failed to load competition teams count:',
+                        competitionTeamsResponse.error
+                    )
+                }
+
+                if (groupsResponse.error) {
+                    console.error(
+                        'Failed to load groups count:',
+                        groupsResponse.error
+                    )
+                }
+
+                if (fixturesResponse.error) {
+                    console.error(
+                        'Failed to load fixtures count:',
+                        fixturesResponse.error
+                    )
+                }
+
+                const fixtureIds =
+                    fixturesResponse.error
+                        ? []
+                        : (
+                            fixturesResponse.data ??
+                            []
+                        ).map(
+                            (fixture) =>
+                                fixture.id
+                        )
+
+                let resultsCount = 0
+                let goalsCount = 0
+
+                if (fixtureIds.length > 0) {
+                    const [
+                        resultsResponse,
+                        goalsResponse,
+                    ] = await Promise.all([
+                        supabase
+                            .from('results')
+                            .select('id', {
+                                count: 'exact',
+                                head: true,
+                            })
+                            .in(
+                                'fixture_id',
+                                fixtureIds
+                            ),
+
+                        supabase
+                            .from('goals')
+                            .select('id', {
+                                count: 'exact',
+                                head: true,
+                            })
+                            .in(
+                                'fixture_id',
+                                fixtureIds
+                            ),
+                    ])
+
+                    if (
+                        resultsResponse.error
+                    ) {
+                        console.error(
+                            'Failed to load results count:',
+                            resultsResponse.error
+                        )
+                    } else {
+                        resultsCount =
+                            resultsResponse.count ??
+                            0
+                    }
+
+                    if (goalsResponse.error) {
+                        console.error(
+                            'Failed to load goals count:',
+                            goalsResponse.error
+                        )
+                    } else {
+                        goalsCount =
+                            goalsResponse.count ??
+                            0
+                    }
+                }
+
+                setCompetitionStats({
+                    competitionTeams:
+                        competitionTeamsResponse.error
+                            ? 0
+                            : competitionTeamsResponse.count ??
+                            0,
+
+                    groups:
+                        groupsResponse.error
+                            ? 0
+                            : groupsResponse.count ??
                             0,
 
                     fixtures:
@@ -355,20 +575,18 @@ export function AdminPortal({
                             : fixturesResponse.count ??
                             0,
 
-                    sponsors:
-                        sponsorsResponse.error
-                            ? 0
-                            : sponsorsResponse.count ??
-                            0,
+                    results: resultsCount,
+                    goals: goalsCount,
                 })
             } finally {
-                setDashboardLoading(false)
+                setCompetitionStatsLoading(false)
             }
-        }, [currentOrganisation])
+        }, [currentCompetitionId])
 
     const loadEnquiryCount =
         useCallback(async () => {
             if (
+                !currentOrganisation?.id ||
                 !canAccessModule(
                     activeRole,
                     'Enquiries'
@@ -378,181 +596,272 @@ export function AdminPortal({
                 return
             }
 
-            const [
-                sponsorResponse,
-                demoResponse,
-            ] = await Promise.all([
-                supabase
-                    .from(
-                        'sponsor_enquiries'
-                    )
-                    .select('id', {
-                        count: 'exact',
-                        head: true,
-                    })
-                    .eq('status', 'new'),
+            const {
+                count,
+                error,
+            } = await supabase
+                .from('sponsor_enquiries')
+                .select('id', {
+                    count: 'exact',
+                    head: true,
+                })
+                .eq(
+                    'organisation_id',
+                    currentOrganisation.id
+                )
+                .eq('status', 'new')
 
-                supabase
-                    .from('demo_requests')
-                    .select('id', {
-                        count: 'exact',
-                        head: true,
-                    })
-                    .eq('status', 'new'),
-            ])
-
-            if (
-                sponsorResponse.error ||
-                demoResponse.error
-            ) {
+            if (error) {
                 console.error(
                     'Failed to load enquiry count:',
-                    sponsorResponse.error ??
-                    demoResponse.error
+                    error
                 )
 
                 setEnquiryCount(0)
                 return
             }
 
-            setEnquiryCount(
-                (sponsorResponse.count ?? 0) +
-                (demoResponse.count ?? 0)
-            )
-        }, [activeRole])
+            setEnquiryCount(count ?? 0)
+        }, [
+            activeRole,
+            currentOrganisation?.id,
+        ])
 
     useEffect(() => {
-        if (!currentOrganisation) {
+        if (!currentOrganisation?.id) {
             return
         }
 
         void Promise.all([
             loadTeams(),
-            loadDashboardStats(),
+            loadOrganisationStats(),
             loadEnquiryCount(),
         ])
     }, [
-        currentOrganisation,
+        currentOrganisation?.id,
         loadTeams,
-        loadDashboardStats,
+        loadOrganisationStats,
         loadEnquiryCount,
     ])
 
-    const stats = useMemo(() => {
-        const items: Array<{
-            label: string
-            value: string | number
-        }> = []
+    useEffect(() => {
+        void loadCompetitionStats()
+    }, [loadCompetitionStats])
 
-        if (
-            canAccessModule(
-                activeRole,
-                'Clubs'
-            )
-        ) {
-            items.push({
-                label: 'Clubs',
-                value:
-                dashboardStats.clubs,
-            })
-        }
+    const organisationStatItems =
+        useMemo(() => {
+            const items: Array<{
+                label: string
+                value: number
+            }> = []
 
-        if (
-            canAccessModule(
-                activeRole,
-                'Teams'
-            )
-        ) {
-            items.push({
-                label: 'Teams',
-                value:
-                dashboardStats.teams,
-            })
-        }
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Clubs'
+                )
+            ) {
+                items.push({
+                    label: 'Clubs',
+                    value:
+                    organisationStats.clubs,
+                })
+            }
 
-        if (
-            canAccessModule(
-                activeRole,
-                'Groups'
-            )
-        ) {
-            items.push({
-                label: 'Groups',
-                value:
-                dashboardStats.groups,
-            })
-        }
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Teams'
+                )
+            ) {
+                items.push({
+                    label: 'Teams',
+                    value:
+                    organisationStats.teams,
+                })
+            }
 
-        if (
-            canAccessModule(
-                activeRole,
-                'Venues'
-            )
-        ) {
-            items.push({
-                label: 'Venues',
-                value:
-                dashboardStats.venues,
-            })
-        }
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Venues'
+                )
+            ) {
+                items.push({
+                    label: 'Venues',
+                    value:
+                    organisationStats.venues,
+                })
+            }
 
-        if (
-            canAccessModule(
-                activeRole,
-                'Fixtures'
-            )
-        ) {
-            items.push({
-                label: 'Fixtures',
-                value:
-                dashboardStats.fixtures,
-            })
-        }
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Sponsors'
+                )
+            ) {
+                items.push({
+                    label: 'Sponsors',
+                    value:
+                    organisationStats.sponsors,
+                })
+            }
 
-        if (
-            canAccessModule(
-                activeRole,
-                'Sponsors'
-            )
-        ) {
-            items.push({
-                label: 'Sponsors',
-                value:
-                dashboardStats.sponsors,
-            })
-        }
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Articles'
+                )
+            ) {
+                items.push({
+                    label: 'Articles',
+                    value:
+                    organisationStats.articles,
+                })
+            }
 
-        if (
-            canAccessModule(
-                activeRole,
-                'Enquiries'
-            )
-        ) {
-            items.push({
-                label: 'New Enquiries',
-                value: enquiryCount,
-            })
-        }
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Media'
+                )
+            ) {
+                items.push({
+                    label: 'Media',
+                    value:
+                    organisationStats.media,
+                })
+            }
 
-        if (!items.length) {
-            items.push(
-                {
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Enquiries'
+                )
+            ) {
+                items.push({
+                    label: 'New Enquiries',
+                    value: enquiryCount,
+                })
+            }
+
+            return items
+        }, [
+            activeRole,
+            organisationStats,
+            enquiryCount,
+        ])
+
+    const competitionStatItems =
+        useMemo(() => {
+            const items: Array<{
+                label: string
+                value: number
+            }> = []
+
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Competition Teams'
+                )
+            ) {
+                items.push({
+                    label:
+                        'Competition Teams',
+                    value:
+                    competitionStats.competitionTeams,
+                })
+            }
+
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Groups'
+                )
+            ) {
+                items.push({
+                    label: 'Groups',
+                    value:
+                    competitionStats.groups,
+                })
+            }
+
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Fixtures'
+                )
+            ) {
+                items.push({
+                    label: 'Fixtures',
+                    value:
+                    competitionStats.fixtures,
+                })
+            }
+
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Results'
+                )
+            ) {
+                items.push({
                     label: 'Results',
-                    value: 'Manage',
-                },
-                {
+                    value:
+                    competitionStats.results,
+                })
+            }
+
+            if (
+                canAccessModule(
+                    activeRole,
+                    'Goals'
+                )
+            ) {
+                items.push({
                     label: 'Goals',
-                    value: 'Manage',
-                }
+                    value:
+                    competitionStats.goals,
+                })
+            }
+
+            return items
+        }, [
+            activeRole,
+            competitionStats,
+        ])
+
+    function renderStatGrid(
+        items: Array<{
+            label: string
+            value: number
+        }>
+    ) {
+        if (!items.length) {
+            return (
+                <p className="muted">
+                    No statistics are available
+                    for your current access level.
+                </p>
             )
         }
 
-        return items
-    }, [
-        activeRole,
-        dashboardStats,
-        enquiryCount,
-    ])
+        return (
+            <div className="statGrid adminStats">
+                {items.map((stat) => (
+                    <div key={stat.label}>
+                        <strong>
+                            {stat.value}
+                        </strong>
+
+                        <span>
+                            {stat.label}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        )
+    }
 
     function renderActiveModule() {
         if (
@@ -579,45 +888,87 @@ export function AdminPortal({
             case 'Dashboard':
                 return (
                     <div>
-                        <h3>
-                            Dashboard Overview
-                        </h3>
+                        <div className="adminWorkspaceHeader">
+                            <div>
+                                <h3>
+                                    Dashboard Overview
+                                </h3>
 
-                        {dashboardLoading && (
-                            <p className="muted">
-                                Loading dashboard
-                                statistics...
-                            </p>
-                        )}
-
-                        <div className="statGrid adminStats">
-                            {stats.map(
-                                (stat) => (
-                                    <div
-                                        key={
-                                            stat.label
+                                <p className="muted">
+                                    Overview for{' '}
+                                    <strong>
+                                        {
+                                            currentOrganisation
+                                                .name
                                         }
-                                    >
-                                        <strong>
-                                            {
-                                                stat.value
-                                            }
-                                        </strong>
-
-                                        <span>
-                                            {
-                                                stat.label
-                                            }
-                                        </span>
-                                    </div>
-                                )
-                            )}
+                                    </strong>
+                                    .
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="adminChecklist">
+                        <section>
                             <h4>
-                                Your Access
+                                Organisation Statistics
                             </h4>
+
+                            {organisationStatsLoading && (
+                                <p className="muted">
+                                    Loading organisation
+                                    statistics...
+                                </p>
+                            )}
+
+                            {renderStatGrid(
+                                organisationStatItems
+                            )}
+                        </section>
+
+                        <section className="adminChecklist">
+                            <h4>
+                                Competition Statistics
+                            </h4>
+
+                            {currentCompetition ? (
+                                <>
+                                    <p>
+                                        Selected competition:{' '}
+                                        <strong>
+                                            {
+                                                currentCompetition.name
+                                            }
+                                        </strong>
+                                    </p>
+
+                                    {competitionStatsLoading && (
+                                        <p className="muted">
+                                            Loading competition
+                                            statistics...
+                                        </p>
+                                    )}
+
+                                    {renderStatGrid(
+                                        competitionStatItems
+                                    )}
+                                </>
+                            ) : (
+                                <div className="teamsEmptyState">
+                                    <h3>
+                                        No competition selected
+                                    </h3>
+
+                                    <p>
+                                        Select or create a
+                                        competition to view
+                                        competition-specific
+                                        statistics.
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+
+                        <div className="adminChecklist">
+                            <h4>Your Access</h4>
 
                             <p>
                                 Signed in as{' '}
@@ -650,9 +1001,7 @@ export function AdminPortal({
                                                     tab
                                                 }
                                             >
-                                                {
-                                                    tab
-                                                }
+                                                {tab}
                                             </li>
                                         )
                                     )}
@@ -665,8 +1014,11 @@ export function AdminPortal({
                 return (
                     <OrganisationManager />
                 )
+
             case 'Competitions':
-                return <CompetitionManager />
+                return (
+                    <CompetitionManager />
+                )
 
             case 'Clubs':
                 return <ClubsManager />
@@ -678,13 +1030,16 @@ export function AdminPortal({
                         onTeamCreated={
                             async () => {
                                 await loadTeams()
-                                await loadDashboardStats()
+                                await loadOrganisationStats()
                             }
                         }
                     />
                 )
+
             case 'Competition Teams':
-                return <CompetitionTeamsManager />
+                return (
+                    <CompetitionTeamsManager />
+                )
 
             case 'Groups':
                 return <GroupsManager />
@@ -713,7 +1068,7 @@ export function AdminPortal({
                 return (
                     <ArticlesManager
                         onArticlesChanged={
-                            loadDashboardStats
+                            loadOrganisationStats
                         }
                     />
                 )
@@ -722,9 +1077,7 @@ export function AdminPortal({
                 return <MediaManager />
 
             case 'Enquiries':
-                return (
-                    <EnquiriesManager />
-                )
+                return <EnquiriesManager />
 
             case 'User Access':
                 return (
@@ -763,9 +1116,9 @@ export function AdminPortal({
                 />
 
                 <p className="lead">
-                    Your portal access is limited to
-                    the modules required for your
-                    assigned operational role.
+                    Your portal access is limited
+                    to the modules required for
+                    your assigned operational role.
                 </p>
 
                 <div className="adminPortalShell">

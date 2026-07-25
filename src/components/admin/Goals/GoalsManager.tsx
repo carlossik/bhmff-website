@@ -24,9 +24,16 @@ const emptyForm: GoalFormValues = {
     video_timestamp: '',
 }
 
+type ToastType =
+    | 'success'
+    | 'error'
+    | 'info'
+
 export function GoalsManager() {
-    const { currentCompetition } =
-        useCompetition()
+    const {
+        currentCompetition,
+        currentCompetitionId,
+    } = useCompetition()
 
     const [goals, setGoals] =
         useState<Goal[]>([])
@@ -41,6 +48,9 @@ export function GoalsManager() {
         useState(false)
 
     const [isSaving, setIsSaving] =
+        useState(false)
+
+    const [isDeleting, setIsDeleting] =
         useState(false)
 
     const [showModal, setShowModal] =
@@ -59,61 +69,54 @@ export function GoalsManager() {
         useState('')
 
     const [toastType, setToastType] =
-        useState<
-            'success' | 'error' | 'info'
-        >('success')
+        useState<ToastType>('success')
 
     function showToast(
         message: string,
-        type:
-            | 'success'
-            | 'error'
-            | 'info' = 'success'
+        type: ToastType = 'success'
     ) {
         setToastMessage(message)
         setToastType(type)
     }
 
-    const loadData = useCallback(
-        async () => {
-            if (!currentCompetition?.id) {
-                setGoals([])
-                setFixtures([])
-                setTeams([])
-                setIsLoading(false)
-                return
-            }
+    function clearGoalData() {
+        setGoals([])
+        setFixtures([])
+        setTeams([])
+    }
 
+    function closeModal() {
+        setEditingGoal(null)
+        setFormValues(emptyForm)
+        setShowModal(false)
+    }
+
+    const loadData = useCallback(
+        async (competitionId: string) => {
             setIsLoading(true)
 
             try {
                 const [
                     fixtureRows,
                     teamRows,
+                    goalRows,
                 ] = await Promise.all([
                     goalService.getFixtures(
-                        currentCompetition.id
+                        competitionId
                     ),
                     goalService.getTeams(
-                        currentCompetition.id
+                        competitionId
+                    ),
+                    goalService.getGoals(
+                        competitionId
                     ),
                 ])
-
-                const goalRows =
-                    await goalService.getGoals(
-                        fixtureRows.map(
-                            (fixture) =>
-                                fixture.id
-                        )
-                    )
 
                 setFixtures(fixtureRows)
                 setTeams(teamRows)
                 setGoals(goalRows)
             } catch (error) {
-                setGoals([])
-                setFixtures([])
-                setTeams([])
+                clearGoalData()
 
                 showToast(
                     error instanceof Error
@@ -125,14 +128,32 @@ export function GoalsManager() {
                 setIsLoading(false)
             }
         },
-        [currentCompetition?.id]
+        []
     )
 
     useEffect(() => {
-        void loadData()
-    }, [loadData])
+        closeModal()
+        setGoalToDelete(null)
+        setToastMessage('')
+
+        if (!currentCompetitionId) {
+            clearGoalData()
+            setIsLoading(false)
+            return
+        }
+
+        void loadData(currentCompetitionId)
+    }, [currentCompetitionId, loadData])
 
     function openCreateModal() {
+        if (!currentCompetitionId) {
+            showToast(
+                'Select a competition before adding a goal.',
+                'error'
+            )
+            return
+        }
+
         setEditingGoal(null)
         setFormValues(emptyForm)
         setShowModal(true)
@@ -141,12 +162,25 @@ export function GoalsManager() {
     function openEditModal(
         goal: Goal
     ) {
+        if (
+            !currentCompetitionId ||
+            goal.competition_id !==
+            currentCompetitionId
+        ) {
+            showToast(
+                'This goal does not belong to the selected competition.',
+                'error'
+            )
+            return
+        }
+
         setEditingGoal(goal)
 
         setFormValues({
             fixture_id:
                 goal.fixture_id ?? '',
-            team_id: goal.team_id ?? '',
+            team_id:
+                goal.team_id ?? '',
             player_name:
             goal.player_name,
             minute:
@@ -160,19 +194,21 @@ export function GoalsManager() {
         setShowModal(true)
     }
 
-    function closeModal() {
-        setEditingGoal(null)
-        setFormValues(emptyForm)
-        setShowModal(false)
-    }
+    function validateGoal() {
+        if (!currentCompetitionId) {
+            showToast(
+                'Select a competition before saving a goal.',
+                'error'
+            )
+            return false
+        }
 
-    async function saveGoal() {
         if (!formValues.fixture_id) {
             showToast(
                 'Please select a fixture.',
                 'error'
             )
-            return
+            return false
         }
 
         if (!formValues.team_id) {
@@ -180,7 +216,7 @@ export function GoalsManager() {
                 'Please select the scoring team.',
                 'error'
             )
-            return
+            return false
         }
 
         if (
@@ -190,20 +226,7 @@ export function GoalsManager() {
                 'Player name is required.',
                 'error'
             )
-            return
-        }
-
-        if (
-            formValues.minute &&
-            (Number(formValues.minute) < 1 ||
-                Number(formValues.minute) >
-                130)
-        ) {
-            showToast(
-                'Goal minute must be between 1 and 130.',
-                'error'
-            )
-            return
+            return false
         }
 
         const fixture = fixtures.find(
@@ -212,15 +235,29 @@ export function GoalsManager() {
                 formValues.fixture_id
         )
 
+        if (!fixture) {
+            showToast(
+                'The selected fixture does not belong to this competition.',
+                'error'
+            )
+            return false
+        }
+
         const selectedTeam = teams.find(
             (team) =>
                 team.id ===
                 formValues.team_id
         )
 
+        if (!selectedTeam) {
+            showToast(
+                'The selected team does not belong to this competition.',
+                'error'
+            )
+            return false
+        }
+
         if (
-            fixture &&
-            selectedTeam &&
             selectedTeam.competition_team_id !==
             fixture.home_competition_team_id &&
             selectedTeam.competition_team_id !==
@@ -230,28 +267,62 @@ export function GoalsManager() {
                 'The selected team is not part of this fixture.',
                 'error'
             )
+            return false
+        }
+
+        if (formValues.minute) {
+            const minute = Number(
+                formValues.minute
+            )
+
+            if (
+                !Number.isInteger(minute) ||
+                minute < 1 ||
+                minute > 130
+            ) {
+                showToast(
+                    'Goal minute must be a whole number between 1 and 130.',
+                    'error'
+                )
+                return false
+            }
+        }
+
+        return true
+    }
+
+    async function saveGoal() {
+        if (
+            !validateGoal() ||
+            !currentCompetitionId
+        ) {
             return
         }
 
         setIsSaving(true)
 
         const wasEditing =
-            Boolean(editingGoal)
+            editingGoal !== null
 
         try {
             if (editingGoal) {
                 await goalService.updateGoal(
                     editingGoal.id,
+                    currentCompetitionId,
                     formValues
                 )
             } else {
                 await goalService.createGoal(
+                    currentCompetitionId,
                     formValues
                 )
             }
 
             closeModal()
-            await loadData()
+
+            await loadData(
+                currentCompetitionId
+            )
 
             showToast(
                 wasEditing
@@ -272,15 +343,27 @@ export function GoalsManager() {
     }
 
     async function deleteGoal() {
-        if (!goalToDelete) return
+        if (
+            !goalToDelete ||
+            !currentCompetitionId ||
+            isDeleting
+        ) {
+            return
+        }
+
+        setIsDeleting(true)
 
         try {
             await goalService.deleteGoal(
-                goalToDelete.id
+                goalToDelete.id,
+                currentCompetitionId
             )
 
             setGoalToDelete(null)
-            await loadData()
+
+            await loadData(
+                currentCompetitionId
+            )
 
             showToast(
                 'Goal deleted successfully.',
@@ -293,6 +376,8 @@ export function GoalsManager() {
                     : 'Failed to delete goal.',
                 'error'
             )
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -330,15 +415,16 @@ export function GoalsManager() {
                     type="button"
                     onClick={openCreateModal}
                     disabled={
-                        !currentCompetition ||
-                        !fixtures.length
+                        !currentCompetitionId ||
+                        !fixtures.length ||
+                        isLoading
                     }
                 >
                     + Add Goal
                 </button>
             </div>
 
-            {!currentCompetition ? (
+            {!currentCompetitionId ? (
                 <div className="teamsEmptyState">
                     <h3>
                         No competition selected
@@ -365,28 +451,33 @@ export function GoalsManager() {
                 />
             )}
 
-            {showModal && (
-                <GoalModal
-                    mode={
-                        editingGoal
-                            ? 'edit'
-                            : 'create'
-                    }
-                    values={formValues}
-                    fixtures={fixtures}
-                    teams={teams}
-                    isSaving={isSaving}
-                    onChange={setFormValues}
-                    onClose={closeModal}
-                    onSave={saveGoal}
-                />
-            )}
+            {showModal &&
+                currentCompetitionId && (
+                    <GoalModal
+                        mode={
+                            editingGoal
+                                ? 'edit'
+                                : 'create'
+                        }
+                        values={formValues}
+                        fixtures={fixtures}
+                        teams={teams}
+                        isSaving={isSaving}
+                        onChange={setFormValues}
+                        onClose={closeModal}
+                        onSave={saveGoal}
+                    />
+                )}
 
             {goalToDelete && (
                 <ConfirmDialog
                     title="Delete Goal"
                     message={`Are you sure you want to delete the goal recorded for ${goalToDelete.player_name}?`}
-                    confirmText="Delete"
+                    confirmText={
+                        isDeleting
+                            ? 'Deleting...'
+                            : 'Delete'
+                    }
                     cancelText="Cancel"
                     onCancel={() =>
                         setGoalToDelete(null)

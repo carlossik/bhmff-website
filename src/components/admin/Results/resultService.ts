@@ -75,14 +75,12 @@ export const resultService = {
     },
 
     async getResults(
-        fixtureIds: string[]
+        competitionId: string
     ): Promise<Result[]> {
-        if (!fixtureIds.length) return []
-
         const { data, error } = await supabase
             .from('results')
             .select('*')
-            .in('fixture_id', fixtureIds)
+            .eq('competition_id', competitionId)
             .order('created_at', {
                 ascending: false,
             })
@@ -96,11 +94,13 @@ export const resultService = {
     },
 
     async createResult(
+        competitionId: string,
         values: ResultFormValues
     ): Promise<void> {
         const { error } = await supabase
             .from('results')
             .insert({
+                competition_id: competitionId,
                 fixture_id: values.fixture_id,
                 home_score: Number(values.home_score),
                 away_score: Number(values.away_score),
@@ -119,11 +119,13 @@ export const resultService = {
 
     async updateResult(
         resultId: string,
+        competitionId: string,
         values: ResultFormValues
     ): Promise<void> {
         const { error } = await supabase
             .from('results')
             .update({
+                competition_id: competitionId,
                 fixture_id: values.fixture_id,
                 home_score: Number(values.home_score),
                 away_score: Number(values.away_score),
@@ -134,6 +136,7 @@ export const resultService = {
                 published: values.published,
             })
             .eq('id', resultId)
+            .eq('competition_id', competitionId)
 
         throwSupabaseError(
             error,
@@ -142,12 +145,14 @@ export const resultService = {
     },
 
     async deleteResult(
-        resultId: string
+        resultId: string,
+        competitionId: string
     ): Promise<void> {
         const { error } = await supabase
             .from('results')
             .delete()
             .eq('id', resultId)
+            .eq('competition_id', competitionId)
 
         throwSupabaseError(
             error,

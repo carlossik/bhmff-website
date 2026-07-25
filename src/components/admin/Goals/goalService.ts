@@ -78,14 +78,12 @@ export const goalService = {
     },
 
     async getGoals(
-        fixtureIds: string[]
+        competitionId: string
     ): Promise<Goal[]> {
-        if (!fixtureIds.length) return []
-
         const { data, error } = await supabase
             .from('goals')
             .select('*')
-            .in('fixture_id', fixtureIds)
+            .eq('competition_id', competitionId)
             .order('created_at', {
                 ascending: false,
             })
@@ -99,11 +97,13 @@ export const goalService = {
     },
 
     async createGoal(
+        competitionId: string,
         values: GoalFormValues
     ): Promise<void> {
         const { error } = await supabase
             .from('goals')
             .insert({
+                competition_id: competitionId,
                 fixture_id: values.fixture_id,
                 team_id: values.team_id,
                 player_name:
@@ -124,11 +124,13 @@ export const goalService = {
 
     async updateGoal(
         goalId: string,
+        competitionId: string,
         values: GoalFormValues
     ): Promise<void> {
         const { error } = await supabase
             .from('goals')
             .update({
+                competition_id: competitionId,
                 fixture_id: values.fixture_id,
                 team_id: values.team_id,
                 player_name:
@@ -141,6 +143,7 @@ export const goalService = {
                     null,
             })
             .eq('id', goalId)
+            .eq('competition_id', competitionId)
 
         throwSupabaseError(
             error,
@@ -149,12 +152,14 @@ export const goalService = {
     },
 
     async deleteGoal(
-        goalId: string
+        goalId: string,
+        competitionId: string
     ): Promise<void> {
         const { error } = await supabase
             .from('goals')
             .delete()
             .eq('id', goalId)
+            .eq('competition_id', competitionId)
 
         throwSupabaseError(
             error,
