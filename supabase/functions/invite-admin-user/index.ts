@@ -17,13 +17,23 @@ type InviteAction =
 
 type InviteRequest = {
     action?: InviteAction
+    organisationId: string
     fullName: string
     email: string
     role: AdminRole
     redirectUrl: string
 }
 
-function isValidRole(value: string): value is AdminRole {
+type ProfileRow = {
+    id: string
+    full_name: string | null
+    email: string | null
+    active: boolean
+}
+
+function isValidRole(
+    value: string,
+): value is AdminRole {
     return [
         'match_official',
         'competition_manager',
@@ -32,7 +42,7 @@ function isValidRole(value: string): value is AdminRole {
 }
 
 function isValidAction(
-    value: string
+    value: string,
 ): value is InviteAction {
     return [
         'invite',
@@ -42,7 +52,7 @@ function isValidAction(
 
 function jsonResponse(
     body: Record<string, unknown>,
-    status: number
+    status: number,
 ) {
     return new Response(
         JSON.stringify(body),
@@ -53,7 +63,7 @@ function jsonResponse(
                 'Content-Type':
                     'application/json',
             },
-        }
+        },
     )
 }
 
@@ -70,12 +80,12 @@ Deno.serve(async (request) => {
 
         const serviceRoleKey =
             Deno.env.get(
-                'SUPABASE_SERVICE_ROLE_KEY'
+                'SUPABASE_SERVICE_ROLE_KEY',
             )
 
         const anonKey =
             Deno.env.get(
-                'SUPABASE_ANON_KEY'
+                'SUPABASE_ANON_KEY',
             )
 
         if (
@@ -84,12 +94,14 @@ Deno.serve(async (request) => {
             !anonKey
         ) {
             throw new Error(
-                'Supabase function environment is not configured.'
+                'Supabase function environment is not configured.',
             )
         }
 
         const authorization =
-            request.headers.get('Authorization')
+            request.headers.get(
+                'Authorization',
+            )
 
         if (!authorization) {
             return jsonResponse(
@@ -97,7 +109,7 @@ Deno.serve(async (request) => {
                     error:
                         'Authentication is required.',
                 },
-                401
+                401,
             )
         }
 
@@ -109,7 +121,7 @@ Deno.serve(async (request) => {
                     autoRefreshToken: false,
                     persistSession: false,
                 },
-            }
+            },
         )
 
         const publicClient = createClient(
@@ -120,63 +132,32 @@ Deno.serve(async (request) => {
                     autoRefreshToken: false,
                     persistSession: false,
                 },
-            }
+            },
         )
 
         const token =
             authorization.replace(
                 'Bearer ',
-                ''
+                '',
             )
 
         const {
-            data: userData,
-            error: userError,
+            data: authenticatedUserData,
+            error: authenticatedUserError,
         } = await adminClient.auth.getUser(
-            token
+            token,
         )
 
         if (
-            userError ||
-            !userData.user
+            authenticatedUserError ||
+            !authenticatedUserData.user
         ) {
             return jsonResponse(
                 {
                     error:
                         'Your session could not be verified.',
                 },
-                401
-            )
-        }
-
-        const {
-            data: profile,
-            error: profileLookupError,
-        } = await adminClient
-            .from('profiles')
-            .select('role, active')
-            .eq(
-                'id',
-                userData.user.id
-            )
-            .maybeSingle()
-
-        if (profileLookupError) {
-            throw profileLookupError
-        }
-
-        if (
-            !profile ||
-            profile.role !==
-            'super_admin' ||
-            !profile.active
-        ) {
-            return jsonResponse(
-                {
-                    error:
-                        'Only an active Super Admin can manage user invitations.',
-                },
-                403
+                401,
             )
         }
 
@@ -186,6 +167,9 @@ Deno.serve(async (request) => {
 
         const action =
             body.action ?? 'invite'
+
+        const organisationId =
+            body.organisationId?.trim()
 
         const fullName =
             body.fullName?.trim()
@@ -200,28 +184,32 @@ Deno.serve(async (request) => {
         const redirectUrl =
             body.redirectUrl?.trim()
 
-        if (
-            !isValidAction(action)
-        ) {
+        if (!isValidAction(action)) {
             throw new Error(
-                'A valid invitation action is required.'
+                'A valid invitation action is required.',
+            )
+        }
+
+        if (!organisationId) {
+            throw new Error(
+                'An organisation is required.',
             )
         }
 
         if (!fullName) {
             throw new Error(
-                'Full name is required.'
+                'Full name is required.',
             )
         }
 
         if (
             !email ||
             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                email
+                email,
             )
         ) {
             throw new Error(
-                'A valid email address is required.'
+                'A valid email address is required.',
             )
         }
 
@@ -230,38 +218,170 @@ Deno.serve(async (request) => {
             !isValidRole(role)
         ) {
             throw new Error(
-                'A valid administrator role is required.'
+                'A valid administrator role is required.',
             )
         }
 
         if (!redirectUrl) {
             throw new Error(
-                'A redirect URL is required.'
+                'A redirect URL is required.',
             )
         }
+
+        const {
+            data: organisation,
+            error: organisationError,
+        } = await adminClient
+            .from('organisations')
+            .select('id, name, status')
+            .eq('id', organisationId)
+            .maybeSingle()
+
+        if (organisationError) {
+            throw organisationError
+        }
+
+        if (!organisation) {
+            throw new Error(
+                'The selected organisation does not exist.',
+            )
+        }
+
+        if (
+            organisation.status !==
+            'active'
+        ) {
+            throw new Error(
+                'Users cannot be invited to an inactive organisation.',
+            )
+        }
+
+        const {
+            data: inviterProfile,
+            error: inviterProfileError,
+        } = await adminClient
+            .from('profiles')
+            .select('id, active')
+            .eq(
+                'id',
+                authenticatedUserData.user.id,
+            )
+            .maybeSingle()
+
+        if (inviterProfileError) {
+            throw inviterProfileError
+        }
+
+        if (
+            !inviterProfile ||
+            !inviterProfile.active
+        ) {
+            return jsonResponse(
+                {
+                    error:
+                        'Your TournamentHQ account is inactive.',
+                },
+                403,
+            )
+        }
+
+        const {
+            data: inviterMembership,
+            error: inviterMembershipError,
+        } = await adminClient
+            .from(
+                'organisation_memberships',
+            )
+            .select(
+                'id, role, active',
+            )
+            .eq(
+                'organisation_id',
+                organisationId,
+            )
+            .eq(
+                'user_id',
+                authenticatedUserData.user.id,
+            )
+            .maybeSingle()
+
+        if (inviterMembershipError) {
+            throw inviterMembershipError
+        }
+
+        if (
+            !inviterMembership ||
+            !inviterMembership.active ||
+            inviterMembership.role !==
+            'super_admin'
+        ) {
+            return jsonResponse(
+                {
+                    error:
+                        'Only an active Organisation Admin can manage users for this organisation.',
+                },
+                403,
+            )
+        }
+
+        const {
+            data: existingProfileData,
+            error: existingProfileError,
+        } = await adminClient
+            .from('profiles')
+            .select(
+                'id, full_name, email, active',
+            )
+            .eq('email', email)
+            .maybeSingle()
+
+        if (existingProfileError) {
+            throw existingProfileError
+        }
+
+        const existingProfile =
+            existingProfileData as
+                | ProfileRow
+                | null
 
         if (
             action ===
             'resend_setup'
         ) {
-            const {
-                data: existingProfile,
-                error: existingProfileError,
-            } = await adminClient
-                .from('profiles')
-                .select(
-                    'id, full_name, email, role'
-                )
-                .eq('email', email)
-                .maybeSingle()
-
-            if (existingProfileError) {
-                throw existingProfileError
-            }
-
             if (!existingProfile) {
                 throw new Error(
-                    'No administrator account exists for this email address.'
+                    'No TournamentHQ account exists for this email address.',
+                )
+            }
+
+            const {
+                data: existingMembership,
+                error:
+                    existingMembershipError,
+            } = await adminClient
+                .from(
+                    'organisation_memberships',
+                )
+                .select('id')
+                .eq(
+                    'organisation_id',
+                    organisationId,
+                )
+                .eq(
+                    'user_id',
+                    existingProfile.id,
+                )
+                .maybeSingle()
+
+            if (
+                existingMembershipError
+            ) {
+                throw existingMembershipError
+            }
+
+            if (!existingMembership) {
+                throw new Error(
+                    `This user does not have access to ${organisation.name}.`,
                 )
             }
 
@@ -274,7 +394,7 @@ Deno.serve(async (request) => {
                         {
                             redirectTo:
                             redirectUrl,
-                        }
+                        },
                     )
 
             if (resetError) {
@@ -288,69 +408,132 @@ Deno.serve(async (request) => {
                     userId:
                     existingProfile.id,
                     email,
+                    organisationId,
                 },
-                200
+                200,
             )
         }
 
-        const {
-            data: existingProfile,
-            error: existingProfileError,
-        } = await adminClient
-            .from('profiles')
-            .select('id')
-            .eq('email', email)
-            .maybeSingle()
-
-        if (existingProfileError) {
-            throw existingProfileError
-        }
+        let userId: string
 
         if (existingProfile) {
-            throw new Error(
-                'An administrator account already exists for this email address.'
-            )
-        }
+            userId =
+                existingProfile.id
 
-        const {
-            data: inviteData,
-            error: inviteError,
-        } =
-            await adminClient.auth.admin
-                .inviteUserByEmail(
-                    email,
-                    {
-                        redirectTo:
-                        redirectUrl,
-                        data: {
-                            full_name:
-                            fullName,
-                            requested_role:
-                            role,
+            const {
+                data: duplicateMembership,
+                error:
+                    duplicateMembershipError,
+            } = await adminClient
+                .from(
+                    'organisation_memberships',
+                )
+                .select('id')
+                .eq(
+                    'organisation_id',
+                    organisationId,
+                )
+                .eq(
+                    'user_id',
+                    userId,
+                )
+                .maybeSingle()
+
+            if (
+                duplicateMembershipError
+            ) {
+                throw duplicateMembershipError
+            }
+
+            if (duplicateMembership) {
+                throw new Error(
+                    `This user already has access to ${organisation.name}.`,
+                )
+            }
+
+            const {
+                error: profileUpdateError,
+            } = await adminClient
+                .from('profiles')
+                .update({
+                    full_name:
+                    fullName,
+                    updated_at:
+                        new Date()
+                            .toISOString(),
+                })
+                .eq('id', userId)
+
+            if (profileUpdateError) {
+                throw profileUpdateError
+            }
+        } else {
+            const {
+                data: inviteData,
+                error: inviteError,
+            } =
+                await adminClient.auth.admin
+                    .inviteUserByEmail(
+                        email,
+                        {
+                            redirectTo:
+                            redirectUrl,
+                            data: {
+                                full_name:
+                                fullName,
+                            },
                         },
-                    }
+                    )
+
+            if (inviteError) {
+                throw inviteError
+            }
+
+            if (!inviteData.user) {
+                throw new Error(
+                    'The invitation was created without a user account.',
+                )
+            }
+
+            userId =
+                inviteData.user.id
+
+            const {
+                error: profileError,
+            } = await adminClient
+                .from('profiles')
+                .upsert(
+                    {
+                        id: userId,
+                        full_name:
+                        fullName,
+                        email,
+                        active: true,
+                        updated_at:
+                            new Date()
+                                .toISOString(),
+                    },
+                    {
+                        onConflict: 'id',
+                    },
                 )
 
-        if (inviteError) {
-            throw inviteError
-        }
-
-        if (!inviteData.user) {
-            throw new Error(
-                'The invitation was created without a user account.'
-            )
+            if (profileError) {
+                throw profileError
+            }
         }
 
         const {
-            error: profileError,
+            error: membershipInsertError,
         } = await adminClient
-            .from('profiles')
-            .upsert({
-                id:
-                inviteData.user.id,
-                full_name:
-                fullName,
-                email,
+            .from(
+                'organisation_memberships',
+            )
+            .insert({
+                organisation_id:
+                organisationId,
+                user_id:
+                userId,
                 role,
                 active: true,
                 updated_at:
@@ -358,24 +541,30 @@ Deno.serve(async (request) => {
                         .toISOString(),
             })
 
-        if (profileError) {
-            throw profileError
+        if (membershipInsertError) {
+            throw membershipInsertError
         }
 
         return jsonResponse(
             {
                 success: true,
                 action,
-                userId:
-                inviteData.user.id,
+                userId,
                 email,
+                organisationId,
+                organisationName:
+                organisation.name,
+                existingUser:
+                    Boolean(
+                        existingProfile,
+                    ),
             },
-            200
+            200,
         )
     } catch (error) {
         console.error(
             'User invitation action failed:',
-            error
+            error,
         )
 
         return jsonResponse(
@@ -385,7 +574,7 @@ Deno.serve(async (request) => {
                         ? error.message
                         : 'Unable to complete the user invitation action.',
             },
-            400
+            400,
         )
     }
 })

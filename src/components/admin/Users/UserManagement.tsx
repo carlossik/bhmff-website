@@ -295,7 +295,8 @@ export function UserManagement({
                 fullName,
                 email,
                 role: inviteValues.role,
-                redirectUrl: `${window.location.origin}/admin/set-password`,
+                redirectUrl:
+                    'https://tournamenthq.co.uk/admin/set-password',
             })
 
             setShowInviteModal(false)
@@ -438,7 +439,8 @@ export function UserManagement({
                         user.full_name ?? '',
                     email: user.email,
                     role: user.role,
-                    redirectUrl: `${window.location.origin}/admin/set-password`,
+                    redirectUrl:
+                        'https://tournamenthq.co.uk/admin/set-password',
                 },
                 'resend_setup',
             )
