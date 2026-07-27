@@ -2,6 +2,10 @@ import {
     useEffect,
     useState,
 } from 'react'
+import {
+    Plus,
+    Users,
+} from 'lucide-react'
 import { supabase } from '../../../lib/supabaseClient'
 import { useOrganisation } from '../../../context/OrganisationContext'
 import { Toast } from '../../common/Toast'
@@ -15,6 +19,7 @@ import {
 import type {
     ClubOption,
     DbTeam,
+    NewTeamVenueDraft,
     TeamParticipationStatus,
     TeamVenueOption,
 } from './teamTypes'
@@ -22,6 +27,25 @@ import type {
 type TeamsManagerProps = {
     teams: DbTeam[]
     onTeamCreated: () => void
+}
+
+const emptyVenueDraft: NewTeamVenueDraft = {
+    groundName: '',
+    pitchName: '',
+}
+
+function buildVenueName(
+    venueDraft: NewTeamVenueDraft
+) {
+    const groundName =
+        venueDraft.groundName.trim()
+
+    const pitchName =
+        venueDraft.pitchName.trim()
+
+    return pitchName
+        ? `${groundName} — ${pitchName}`
+        : groundName
 }
 
 export function TeamsManager({
@@ -106,6 +130,18 @@ export function TeamsManager({
         primaryHomeVenueId,
         setPrimaryHomeVenueId,
     ] = useState('')
+
+    const [
+        createNewVenue,
+        setCreateNewVenue,
+    ] = useState(false)
+
+    const [
+        newVenueDraft,
+        setNewVenueDraft,
+    ] = useState<NewTeamVenueDraft>(
+        emptyVenueDraft
+    )
 
     const [isSaving, setIsSaving] =
         useState(false)
@@ -207,6 +243,10 @@ export function TeamsManager({
         )
         setPublished(false)
         setPrimaryHomeVenueId('')
+        setCreateNewVenue(false)
+        setNewVenueDraft(
+            emptyVenueDraft
+        )
     }
 
     function closeTeamModal() {
@@ -258,7 +298,90 @@ export function TeamsManager({
             team.primary_home_venue_id ??
             ''
         )
+        setCreateNewVenue(false)
+        setNewVenueDraft(
+            emptyVenueDraft
+        )
         setShowTeamModal(true)
+    }
+
+    async function resolveHomeVenueId() {
+        if (!createNewVenue) {
+            if (!primaryHomeVenueId) {
+                throw new Error(
+                    'A primary home venue is required.'
+                )
+            }
+
+            return primaryHomeVenueId
+        }
+
+        if (
+            !newVenueDraft
+                .groundName
+                .trim()
+        ) {
+            throw new Error(
+                'Enter the ground or venue name.'
+            )
+        }
+
+        const venueName =
+            buildVenueName(
+                newVenueDraft
+            )
+
+        const existingVenue =
+            venues.find(
+                (venue) =>
+                    venue.name
+                        .localeCompare(
+                            venueName,
+                            undefined,
+                            {
+                                sensitivity:
+                                    'base',
+                            }
+                        ) === 0
+            )
+
+        if (existingVenue) {
+            return existingVenue.id
+        }
+
+        const { data, error } =
+            await supabase
+                .from('venues')
+                .insert({
+                    organisation_id:
+                    currentOrganisation.id,
+                    name: venueName,
+                })
+                .select('id, name')
+                .single()
+
+        if (error) {
+            throw error
+        }
+
+        const createdVenue =
+            data as TeamVenueOption
+
+        setVenues((current) =>
+            [...current, createdVenue]
+                .sort((left, right) =>
+                    left.name.localeCompare(
+                        right.name,
+                        undefined,
+                        {
+                            sensitivity:
+                                'base',
+                        }
+                    )
+                )
+        )
+
+        return createdVenue.id
     }
 
     async function saveTeam() {
@@ -273,6 +396,30 @@ export function TeamsManager({
         if (!teamName.trim()) {
             showToast(
                 'Team name is required.',
+                'error'
+            )
+            return
+        }
+
+        if (
+            !createNewVenue &&
+            !primaryHomeVenueId
+        ) {
+            showToast(
+                'A primary home venue is required.',
+                'error'
+            )
+            return
+        }
+
+        if (
+            createNewVenue &&
+            !newVenueDraft
+                .groundName
+                .trim()
+        ) {
+            showToast(
+                'Enter the ground or venue name.',
                 'error'
             )
             return
@@ -304,6 +451,9 @@ export function TeamsManager({
         setIsSaving(true)
 
         try {
+            const finalHomeVenueId =
+                await resolveHomeVenueId()
+
             let finalLogoUrl =
                 logoUrl
 
@@ -347,8 +497,7 @@ export function TeamsManager({
                 participationStatus,
                 published,
                 primary_home_venue_id:
-                    primaryHomeVenueId ||
-                    null,
+                finalHomeVenueId,
             }
 
             if (editingTeam) {
@@ -383,13 +532,14 @@ export function TeamsManager({
                 Boolean(editingTeam)
 
             await onTeamCreated()
+            await loadVenues()
 
             closeTeamModal()
 
             showToast(
                 wasEditing
-                    ? 'Team updated successfully.'
-                    : 'Team created successfully.'
+                    ? 'Team and home venue updated successfully.'
+                    : 'Team and home venue created successfully.'
             )
         } catch (error) {
             showToast(
@@ -490,7 +640,7 @@ export function TeamsManager({
     }
 
     return (
-        <div>
+        <div className="space-y-6 font-sans">
             <Toast
                 message={toastMessage}
                 type={toastType}
@@ -499,26 +649,32 @@ export function TeamsManager({
                 }
             />
 
-            <div className="adminWorkspaceHeader">
-                <div>
-                    <h3>Teams</h3>
+            <section className="flex flex-col gap-5 rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-4">
+                    <div className="rounded-2xl bg-lime-400/10 p-3">
+                        <Users className="h-7 w-7 text-lime-400" />
+                    </div>
 
-                    <p className="muted">
-                        Manage teams belonging to
-                        clubs in this organisation.
-                    </p>
+                    <div>
+                        <h3 className="text-2xl font-bold text-white">
+                            Teams
+                        </h3>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-400">
+                            Manage teams and their mandatory primary home pitches.
+                        </p>
+                    </div>
                 </div>
 
                 <button
-                    className="btn primary"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 font-bold text-black transition hover:bg-lime-300"
                     type="button"
-                    onClick={
-                        openAddTeamModal
-                    }
+                    onClick={openAddTeamModal}
                 >
-                    + Add Team
+                    <Plus className="h-5 w-5" />
+                    Add Team
                 </button>
-            </div>
+            </section>
 
             <TeamsTable
                 teams={teams}
@@ -562,6 +718,12 @@ export function TeamsManager({
                     primaryHomeVenueId={
                         primaryHomeVenueId
                     }
+                    createNewVenue={
+                        createNewVenue
+                    }
+                    newVenueDraft={
+                        newVenueDraft
+                    }
                     clubs={clubs}
                     venues={venues}
                     isSaving={isSaving}
@@ -600,6 +762,26 @@ export function TeamsManager({
                     }
                     onPrimaryHomeVenueChange={
                         setPrimaryHomeVenueId
+                    }
+                    onCreateNewVenueChange={(
+                        value
+                    ) => {
+                        setCreateNewVenue(
+                            value
+                        )
+
+                        if (value) {
+                            setPrimaryHomeVenueId(
+                                ''
+                            )
+                        } else {
+                            setNewVenueDraft(
+                                emptyVenueDraft
+                            )
+                        }
+                    }}
+                    onNewVenueDraftChange={
+                        setNewVenueDraft
                     }
                     onLogoSelected={
                         setSelectedLogo

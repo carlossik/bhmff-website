@@ -1,4 +1,15 @@
-import { Modal } from '../../common/Modal'
+import {
+    useEffect,
+} from 'react'
+import {
+    CalendarDays,
+    MapPin,
+    Save,
+    Shield,
+    Trophy,
+    Users,
+    X,
+} from 'lucide-react'
 import type {
     FixtureFormValues,
     FixtureGroup,
@@ -39,16 +50,29 @@ const statuses: FixtureStatus[] = [
 
 const defaultKickoffTime = '12:00'
 
-function getKickoffDate(kickoffTime: string) {
+const fieldClassName =
+    'mt-2 w-full rounded-xl border border-lime-900/60 bg-[#0c160b] px-4 py-3 text-sm font-medium text-white outline-none transition placeholder:font-normal placeholder:text-slate-600 focus:border-lime-400 focus:ring-2 focus:ring-lime-400/15 disabled:cursor-not-allowed disabled:opacity-50'
+
+const labelClassName =
+    'block text-sm font-semibold text-slate-300'
+
+function getKickoffDate(
+    kickoffTime: string
+) {
     if (!kickoffTime) return ''
 
     return kickoffTime.slice(0, 10)
 }
 
-function getKickoffClockTime(kickoffTime: string) {
-    if (!kickoffTime) return defaultKickoffTime
+function getKickoffClockTime(
+    kickoffTime: string
+) {
+    if (!kickoffTime) {
+        return defaultKickoffTime
+    }
 
-    const time = kickoffTime.slice(11, 16)
+    const time =
+        kickoffTime.slice(11, 16)
 
     return time || defaultKickoffTime
 }
@@ -60,6 +84,36 @@ function combineKickoffDateAndTime(
     if (!date) return ''
 
     return `${date}T${time || defaultKickoffTime}`
+}
+function getTodayLocalDate() {
+    const today = new Date()
+
+    const year = today.getFullYear()
+    const month = String(
+        today.getMonth() + 1
+    ).padStart(2, '0')
+    const day = String(
+        today.getDate()
+    ).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+}
+
+function formatTeamDisplayName(
+    team: FixtureTeam
+) {
+    return team.club_name
+        ? `${team.club_name} — ${team.team_name}`
+        : team.team_name
+}
+
+function formatStatus(
+    status: FixtureStatus
+) {
+    return (
+        status.charAt(0).toUpperCase() +
+        status.slice(1).replace(/_/g, ' ')
+    )
 }
 
 export function FixtureModal({
@@ -77,14 +131,19 @@ export function FixtureModal({
     const isGroupStage =
         values.stage === 'Group Stage'
 
-    const kickoffDate = getKickoffDate(
-        values.kickoff_time
-    )
+    const kickoffDate =
+        getKickoffDate(
+            values.kickoff_time
+        )
 
     const kickoffClockTime =
         getKickoffClockTime(
             values.kickoff_time
         )
+    const minimumFixtureDate =
+        mode === 'create'
+            ? getTodayLocalDate()
+            : undefined
 
     const groupCompetitionTeamIds =
         groupMemberships
@@ -99,7 +158,8 @@ export function FixtureModal({
             )
 
     const availableTeams =
-        isGroupStage && values.group_id
+        isGroupStage &&
+        values.group_id
             ? teams.filter((team) =>
                 groupCompetitionTeamIds.includes(
                     team.competition_team_id
@@ -121,22 +181,64 @@ export function FixtureModal({
                 values.home_competition_team_id
         )
 
-    const sortedVenues = [...venues].sort(
-        (firstVenue, secondVenue) =>
-            firstVenue.name.localeCompare(
-                secondVenue.name,
-                'en-GB',
-                {
-                    sensitivity: 'base',
-                }
+    const sortedVenues =
+        [...venues].sort(
+            (
+                firstVenue,
+                secondVenue
+            ) =>
+                firstVenue.name.localeCompare(
+                    secondVenue.name,
+                    'en-GB',
+                    {
+                        sensitivity:
+                            'base',
+                    }
+                )
+        )
+
+    useEffect(() => {
+        const previousOverflow =
+            document.body.style.overflow
+
+        document.body.style.overflow =
+            'hidden'
+
+        function handleKeyDown(
+            event: KeyboardEvent
+        ) {
+            if (
+                event.key === 'Escape' &&
+                !isSaving
+            ) {
+                onClose()
+            }
+        }
+
+        window.addEventListener(
+            'keydown',
+            handleKeyDown
+        )
+
+        return () => {
+            document.body.style.overflow =
+                previousOverflow
+
+            window.removeEventListener(
+                'keydown',
+                handleKeyDown
             )
-    )
+        }
+    }, [
+        isSaving,
+        onClose,
+    ])
 
     function updateField<
-        K extends keyof FixtureFormValues
+        Key extends keyof FixtureFormValues
     >(
-        field: K,
-        value: FixtureFormValues[K]
+        field: Key,
+        value: FixtureFormValues[Key]
     ) {
         onChange({
             ...values,
@@ -144,7 +246,9 @@ export function FixtureModal({
         })
     }
 
-    function handleStageChange(stage: string) {
+    function handleStageChange(
+        stage: string
+    ) {
         onChange({
             ...values,
             stage,
@@ -152,17 +256,23 @@ export function FixtureModal({
                 stage === 'Group Stage'
                     ? values.group_id
                     : '',
-            home_competition_team_id: '',
-            away_competition_team_id: '',
+            home_competition_team_id:
+                '',
+            away_competition_team_id:
+                '',
         })
     }
 
-    function handleGroupChange(groupId: string) {
+    function handleGroupChange(
+        groupId: string
+    ) {
         onChange({
             ...values,
             group_id: groupId,
-            home_competition_team_id: '',
-            away_competition_team_id: '',
+            home_competition_team_id:
+                '',
+            away_competition_team_id:
+                '',
         })
     }
 
@@ -195,261 +305,430 @@ export function FixtureModal({
     }
 
     return (
-        <Modal
-            title={
-                mode === 'edit'
-                    ? 'Edit Fixture'
-                    : 'Add Fixture'
-            }
-            onClose={onClose}
+        <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/75 p-4 font-sans backdrop-blur-sm"
+            role="presentation"
+            onMouseDown={(event) => {
+                if (
+                    event.target ===
+                    event.currentTarget &&
+                    !isSaving
+                ) {
+                    onClose()
+                }
+            }}
         >
-            <div className="adminFormGrid">
-                <label>
-                    <span>Stage</span>
+            <section
+                aria-labelledby="fixture-modal-title"
+                aria-modal="true"
+                className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-lime-900/60 bg-[#0d170c] shadow-2xl shadow-black/70"
+                role="dialog"
+            >
+                <header className="flex shrink-0 items-center justify-between border-b border-lime-900/50 px-6 py-5 sm:px-8">
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-400">
+                            Fixture administration
+                        </p>
 
-                    <select
-                        value={values.stage}
-                        onChange={(event) =>
-                            handleStageChange(
-                                event.target.value
-                            )
-                        }
-                    >
-                        <option value="">
-                            Select stage
-                        </option>
-
-                        {stages.map((stage) => (
-                            <option
-                                key={stage}
-                                value={stage}
-                            >
-                                {stage}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-
-                <label>
-                    <span>Status</span>
-
-                    <select
-                        value={values.status}
-                        onChange={(event) =>
-                            updateField(
-                                'status',
-                                event.target
-                                    .value as FixtureStatus
-                            )
-                        }
-                    >
-                        {statuses.map((status) => (
-                            <option
-                                key={status}
-                                value={status}
-                            >
-                                {status.replace(
-                                    /_/g,
-                                    ' '
-                                )}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-
-                {isGroupStage && (
-                    <label className="adminFormFullWidth">
-                        <span>
-                            Competition Group
-                        </span>
-
-                        <select
-                            value={values.group_id}
-                            onChange={(event) =>
-                                handleGroupChange(
-                                    event.target.value
-                                )
-                            }
+                        <h2
+                            id="fixture-modal-title"
+                            className="mt-1 text-2xl font-bold tracking-tight text-lime-300 sm:text-3xl"
                         >
-                            <option value="">
-                                Select group
-                            </option>
+                            {mode === 'edit'
+                                ? 'Edit Fixture'
+                                : 'Add Fixture'}
+                        </h2>
+                    </div>
 
-                            {groups.map((group) => (
-                                <option
-                                    key={group.id}
-                                    value={group.id}
-                                >
-                                    {group.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                )}
-
-                <label>
-                    <span>Home Team</span>
-
-                    <select
-                        value={
-                            values.home_competition_team_id
-                        }
-                        disabled={
-                            isGroupStage &&
-                            !values.group_id
-                        }
-                        onChange={(event) =>
-                            updateField(
-                                'home_competition_team_id',
-                                event.target.value
-                            )
-                        }
+                    <button
+                        aria-label="Close fixture form"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-lime-800/60 bg-black/20 text-slate-300 transition hover:border-lime-500 hover:bg-lime-400/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        type="button"
+                        disabled={isSaving}
+                        onClick={onClose}
                     >
-                        <option value="">
-                            Select home team
-                        </option>
+                        <X className="h-5 w-5" />
+                    </button>
+                </header>
 
-                        {availableHomeTeams.map(
-                            (team) => (
-                                <option
-                                    key={
-                                        team.competition_team_id
-                                    }
-                                    value={
-                                        team.competition_team_id
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+                    <div className="space-y-6">
+                        <section className="rounded-2xl border border-lime-900/50 bg-black/20 p-5 sm:p-6">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-xl bg-lime-400/10 p-3">
+                                    <Trophy className="h-5 w-5 text-lime-400" />
+                                </div>
+
+                                <div>
+                                    <h3 className="text-base font-bold text-white">
+                                        Competition stage
+                                    </h3>
+
+                                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                                        Choose the stage and, where applicable, the competition group.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                <label className={labelClassName}>
+                                    Stage
+                                    <span className="ml-1 text-red-400">
+                                        *
+                                    </span>
+
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.stage}
+                                        onChange={(event) =>
+                                            handleStageChange(
+                                                event.target.value
+                                            )
+                                        }
+                                    >
+                                        <option value="">
+                                            Select stage
+                                        </option>
+
+                                        {stages.map(
+                                            (stage) => (
+                                                <option
+                                                    key={stage}
+                                                    value={stage}
+                                                >
+                                                    {stage}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </label>
+
+                                <label className={labelClassName}>
+                                    Status
+
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.status}
+                                        onChange={(event) =>
+                                            updateField(
+                                                'status',
+                                                event.target.value as FixtureStatus
+                                            )
+                                        }
+                                    >
+                                        {statuses.map(
+                                            (status) => (
+                                                <option
+                                                    key={status}
+                                                    value={status}
+                                                >
+                                                    {formatStatus(
+                                                        status
+                                                    )}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </label>
+
+                                {isGroupStage && (
+                                    <label className={`${labelClassName} md:col-span-2`}>
+                                        Competition group
+                                        <span className="ml-1 text-red-400">
+                                            *
+                                        </span>
+
+                                        <select
+                                            className={fieldClassName}
+                                            value={values.group_id}
+                                            onChange={(event) =>
+                                                handleGroupChange(
+                                                    event.target.value
+                                                )
+                                            }
+                                        >
+                                            <option value="">
+                                                Select group
+                                            </option>
+
+                                            {groups.map(
+                                                (group) => (
+                                                    <option
+                                                        key={group.id}
+                                                        value={group.id}
+                                                    >
+                                                        {group.name}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                    </label>
+                                )}
+                            </div>
+                        </section>
+
+                        <section className="rounded-2xl border border-lime-900/50 bg-black/20 p-5 sm:p-6">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-xl bg-lime-400/10 p-3">
+                                    <Users className="h-5 w-5 text-lime-400" />
+                                </div>
+
+                                <div>
+                                    <h3 className="text-base font-bold text-white">
+                                        Teams
+                                    </h3>
+
+                                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                                        Select the home and away teams. Club names are included for clarity.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                <label className={labelClassName}>
+                                    Home team
+                                    <span className="ml-1 text-red-400">
+                                        *
+                                    </span>
+
+                                    <select
+                                        className={fieldClassName}
+                                        value={
+                                            values.home_competition_team_id
+                                        }
+                                        disabled={
+                                            isGroupStage &&
+                                            !values.group_id
+                                        }
+                                        onChange={(event) =>
+                                            updateField(
+                                                'home_competition_team_id',
+                                                event.target.value
+                                            )
+                                        }
+                                    >
+                                        <option value="">
+                                            Select home team
+                                        </option>
+
+                                        {availableHomeTeams.map(
+                                            (team) => (
+                                                <option
+                                                    key={
+                                                        team.competition_team_id
+                                                    }
+                                                    value={
+                                                        team.competition_team_id
+                                                    }
+                                                >
+                                                    {formatTeamDisplayName(
+                                                        team
+                                                    )}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </label>
+
+                                <label className={labelClassName}>
+                                    Away team
+                                    <span className="ml-1 text-red-400">
+                                        *
+                                    </span>
+
+                                    <select
+                                        className={fieldClassName}
+                                        value={
+                                            values.away_competition_team_id
+                                        }
+                                        disabled={
+                                            isGroupStage &&
+                                            !values.group_id
+                                        }
+                                        onChange={(event) =>
+                                            updateField(
+                                                'away_competition_team_id',
+                                                event.target.value
+                                            )
+                                        }
+                                    >
+                                        <option value="">
+                                            Select away team
+                                        </option>
+
+                                        {availableAwayTeams.map(
+                                            (team) => (
+                                                <option
+                                                    key={
+                                                        team.competition_team_id
+                                                    }
+                                                    value={
+                                                        team.competition_team_id
+                                                    }
+                                                >
+                                                    {formatTeamDisplayName(
+                                                        team
+                                                    )}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section className="rounded-2xl border border-lime-900/50 bg-black/20 p-5 sm:p-6">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-xl bg-lime-400/10 p-3">
+                                    <CalendarDays className="h-5 w-5 text-lime-400" />
+                                </div>
+
+                                <div>
+                                    <h3 className="text-base font-bold text-white">
+                                        Kick-off
+                                    </h3>
+
+                                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                                        Set the fixture date and kick-off time.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                <label className={labelClassName}>
+                                    Date
+                                    <span className="ml-1 text-red-400">
+                                        *
+                                    </span>
+
+                                    <input
+                                        className={fieldClassName}
+                                        type="date"
+                                        min={minimumFixtureDate}
+                                        value={kickoffDate}
+                                        required
+                                        onChange={(event) => {
+                                            const selectedDate =
+                                                event.target.value
+
+                                            if (
+                                                mode === 'create' &&
+                                                selectedDate &&
+                                                selectedDate <
+                                                getTodayLocalDate()
+                                            ) {
+                                                onChange({
+                                                    ...values,
+                                                    kickoff_time: '',
+                                                })
+
+                                                return
+                                            }
+
+                                            handleKickoffDateChange(
+                                                selectedDate
+                                            )
+                                        }}
+                                    />
+                                </label>
+
+                                <label className={labelClassName}>
+                                    Time
+                                    <span className="ml-1 text-red-400">
+                                        *
+                                    </span>
+
+                                    <input
+                                        className={fieldClassName}
+                                        type="time"
+                                        value={kickoffClockTime}
+                                        onChange={(event) =>
+                                            handleKickoffTimeChange(
+                                                event.target.value
+                                            )
+                                        }
+                                    />
+                                </label>
+                            </div>
+                        </section>
+
+                        <section className="rounded-2xl border border-lime-900/50 bg-black/20 p-5 sm:p-6">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-xl bg-lime-400/10 p-3">
+                                    <MapPin className="h-5 w-5 text-lime-400" />
+                                </div>
+
+                                <div>
+                                    <h3 className="text-base font-bold text-white">
+                                        Venue
+                                    </h3>
+
+                                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                                        Select the pitch or venue for this fixture.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <label className={`${labelClassName} mt-5`}>
+                                Fixture venue
+
+                                <select
+                                    className={fieldClassName}
+                                    value={values.venue_id}
+                                    onChange={(event) =>
+                                        updateField(
+                                            'venue_id',
+                                            event.target.value
+                                        )
                                     }
                                 >
-                                    {team.name}
-                                </option>
-                            )
-                        )}
-                    </select>
-                </label>
+                                    <option value="">
+                                        To be confirmed
+                                    </option>
 
-                <label>
-                    <span>Away Team</span>
-
-                    <select
-                        value={
-                            values.away_competition_team_id
-                        }
-                        disabled={
-                            isGroupStage &&
-                            !values.group_id
-                        }
-                        onChange={(event) =>
-                            updateField(
-                                'away_competition_team_id',
-                                event.target.value
-                            )
-                        }
-                    >
-                        <option value="">
-                            Select away team
-                        </option>
-
-                        {availableAwayTeams.map(
-                            (team) => (
-                                <option
-                                    key={
-                                        team.competition_team_id
-                                    }
-                                    value={
-                                        team.competition_team_id
-                                    }
-                                >
-                                    {team.name}
-                                </option>
-                            )
-                        )}
-                    </select>
-                </label>
-
-                <div className="adminFormFullWidth">
-                    <span>Kick-off</span>
+                                    {sortedVenues.map(
+                                        (venue) => (
+                                            <option
+                                                key={venue.id}
+                                                value={venue.id}
+                                            >
+                                                {venue.name}
+                                            </option>
+                                        )
+                                    )}
+                                </select>
+                            </label>
+                        </section>
+                    </div>
                 </div>
 
-                <label>
-                    <span>Date</span>
-
-                    <input
-                        type="date"
-                        value={kickoffDate}
-                        onChange={(event) =>
-                            handleKickoffDateChange(
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Time</span>
-
-                    <input
-                        type="time"
-                        value={kickoffClockTime}
-                        onChange={(event) =>
-                            handleKickoffTimeChange(
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label className="adminFormFullWidth">
-                    <span>Venue</span>
-
-                    <select
-                        value={values.venue_id}
-                        onChange={(event) =>
-                            updateField(
-                                'venue_id',
-                                event.target.value
-                            )
-                        }
+                <footer className="flex shrink-0 flex-col-reverse gap-3 border-t border-lime-900/50 bg-[#0b140a] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
+                    <button
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/60 bg-black/20 px-5 py-3 text-sm font-bold text-white transition hover:border-lime-500/70 hover:bg-lime-400/5 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="button"
+                        onClick={onClose}
+                        disabled={isSaving}
                     >
-                        <option value="">
-                            To be confirmed
-                        </option>
+                        <X className="h-4 w-4" />
+                        Cancel
+                    </button>
 
-                        {sortedVenues.map(
-                            (venue) => (
-                                <option
-                                    key={venue.id}
-                                    value={venue.id}
-                                >
-                                    {venue.name}
-                                </option>
-                            )
-                        )}
-                    </select>
-                </label>
-            </div>
+                    <button
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        type="button"
+                        onClick={onSave}
+                        disabled={isSaving}
+                    >
+                        <Save className="h-4 w-4" />
 
-            <div className="modalActions">
-                <button
-                    className="btn secondary"
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSaving}
-                >
-                    Cancel
-                </button>
-
-                <button
-                    className="btn primary"
-                    type="button"
-                    onClick={onSave}
-                    disabled={isSaving}
-                >
-                    {isSaving
-                        ? 'Saving...'
-                        : mode === 'edit'
-                            ? 'Update'
-                            : 'Save'}
-                </button>
-            </div>
-        </Modal>
+                        {isSaving
+                            ? 'Saving...'
+                            : mode === 'edit'
+                                ? 'Update Fixture'
+                                : 'Save Fixture'}
+                    </button>
+                </footer>
+            </section>
+        </div>
     )
 }

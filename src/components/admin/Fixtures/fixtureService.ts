@@ -1,6 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient'
 import type {
-    //Competition,
     Fixture,
     FixtureFormValues,
     FixtureGroup,
@@ -20,22 +19,6 @@ function throwSupabaseError(
 }
 
 export const fixtureService = {
-    // async getActiveCompetition(): Promise<Competition | null> {
-    //     const { data, error } = await supabase
-    //         .from('competitions')
-    //         .select('id, name, status')
-    //         .eq('status', 'ACTIVE')
-    //         .limit(1)
-    //         .maybeSingle()
-    //
-    //     throwSupabaseError(
-    //         error,
-    //         'Failed to load active competition'
-    //     )
-    //
-    //     return data
-    // },
-
     async getFixtures(
         competitionId: string
     ): Promise<Fixture[]> {
@@ -47,7 +30,10 @@ export const fixtureService = {
                 ascending: true,
             })
 
-        throwSupabaseError(error, 'Failed to load fixtures')
+        throwSupabaseError(
+            error,
+            'Failed to load fixtures'
+        )
 
         return data ?? []
     },
@@ -63,22 +49,44 @@ export const fixtureService = {
                 team_id,
                 teams(
                     name,
-                    logo_url
+                    logo_url,
+                    clubs(
+                        name
+                    )
                 )
             `
             )
             .eq('competition_id', competitionId)
             .order('team_id')
 
-        throwSupabaseError(error, 'Failed to load teams')
+        throwSupabaseError(
+            error,
+            'Failed to load teams'
+        )
 
         return (
-            data?.map((row: any) => ({
-                competition_team_id: row.id,
-                team_id: row.team_id,
-                name: row.teams?.name ?? '',
-                logo_url: row.teams?.logo_url ?? null,
-            })) ?? []
+            data?.map((row: any) => {
+                const teamRow =
+                    Array.isArray(row.teams)
+                        ? row.teams[0]
+                        : row.teams
+
+                const clubRow =
+                    Array.isArray(teamRow?.clubs)
+                        ? teamRow.clubs[0]
+                        : teamRow?.clubs
+
+                return {
+                    competition_team_id: row.id,
+                    team_id: row.team_id,
+                    team_name:
+                        teamRow?.name ?? '',
+                    club_name:
+                        clubRow?.name ?? null,
+                    logo_url:
+                        teamRow?.logo_url ?? null,
+                }
+            }) ?? []
         )
     },
 
@@ -93,7 +101,10 @@ export const fixtureService = {
             .eq('competition_id', competitionId)
             .order('name')
 
-        throwSupabaseError(error, 'Failed to load venues')
+        throwSupabaseError(
+            error,
+            'Failed to load venues'
+        )
 
         return data ?? []
     },
@@ -109,7 +120,10 @@ export const fixtureService = {
             .eq('competition_id', competitionId)
             .order('sort_order')
 
-        throwSupabaseError(error, 'Failed to load groups')
+        throwSupabaseError(
+            error,
+            'Failed to load groups'
+        )
 
         return data ?? []
     },

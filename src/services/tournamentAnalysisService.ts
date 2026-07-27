@@ -23,6 +23,37 @@ type LoadTournamentSnapshotParams = {
     competitionId: string | null
 }
 
+export type RecommendedGeneratorConfig = {
+    competitionMode:
+        | 'group-stage'
+        | 'round-robin'
+    venueAssignmentMode:
+        | 'automatic'
+        | 'manual'
+    confirmedTeamsOnly: boolean
+    daysBetweenRounds: number
+    minutesBetweenFixtures: number
+    minimumSafeFixtureIntervalMinutes: number
+    publishImmediately: boolean
+    preferredSchedulingStrategy:
+        | 'balanced'
+        | 'compact'
+        | 'venue-efficient'
+    recommendationStatus:
+        | 'validated'
+        | 'blocked'
+    validationMessages: string[]
+    rulesProfileId:
+        | 'adult-league'
+        | 'adult-knockout'
+}
+
+export type TournamentAnalysisReportWithGeneratorConfig =
+    TournamentAnalysisReport & {
+    recommendedGeneratorConfig:
+        RecommendedGeneratorConfig
+}
+
 export class TournamentAnalysisService {
     static async loadTournamentSnapshot({
                                             organisationId,
@@ -120,7 +151,7 @@ export class TournamentAnalysisService {
 
     static async analyseTournament(
         params: LoadTournamentSnapshotParams
-    ): Promise<TournamentAnalysisReport> {
+    ): Promise<TournamentAnalysisReportWithGeneratorConfig> {
         const snapshot =
             await TournamentAnalysisService
                 .loadTournamentSnapshot(params)
@@ -132,7 +163,7 @@ export class TournamentAnalysisService {
 
     static analyse(
         snapshot: TournamentAnalysisSnapshot
-    ): TournamentAnalysisReport {
+    ): TournamentAnalysisReportWithGeneratorConfig {
         const checks: TournamentAnalysisCheck[] = []
         const warnings: TournamentAnalysisWarning[] = []
         const recommendations:
@@ -469,6 +500,13 @@ export class TournamentAnalysisService {
             snapshot.competitionTeamCount >= 2 &&
             !blocked
 
+        const recommendedGeneratorConfig =
+            TournamentAnalysisService
+                .buildRecommendedGeneratorConfig(
+                    snapshot,
+                    readyToGenerateFixtures
+                )
+
         return {
             generatedAt:
                 new Date().toISOString(),
@@ -507,6 +545,89 @@ export class TournamentAnalysisService {
             checks,
             warnings,
             recommendations,
+            recommendedGeneratorConfig,
+        }
+    }
+
+    private static buildRecommendedGeneratorConfig(
+        snapshot: TournamentAnalysisSnapshot,
+        readyToGenerateFixtures: boolean
+    ): RecommendedGeneratorConfig {
+        const hasGroups =
+            snapshot.groupCount > 0
+
+        const hasMultipleVenues =
+            snapshot.venueCount > 1
+
+        const isLargeTournament =
+            snapshot.competitionTeamCount >= 12
+
+        const isCompactTournament =
+            snapshot.competitionTeamCount > 0 &&
+            snapshot.competitionTeamCount <= 8
+
+        const competitionMode:
+            RecommendedGeneratorConfig['competitionMode'] =
+            hasGroups
+                ? 'group-stage'
+                : 'round-robin'
+
+        const venueAssignmentMode:
+            RecommendedGeneratorConfig['venueAssignmentMode'] =
+            snapshot.venueCount > 0
+                ? 'automatic'
+                : 'manual'
+
+        const preferredSchedulingStrategy:
+            RecommendedGeneratorConfig['preferredSchedulingStrategy'] =
+            hasMultipleVenues
+                ? 'venue-efficient'
+                : isCompactTournament
+                    ? 'compact'
+                    : 'balanced'
+
+        const daysBetweenRounds =
+            isLargeTournament
+                ? 7
+                : hasGroups
+                    ? 3
+                    : 7
+
+        const minutesBetweenFixtures =
+            hasMultipleVenues
+                ? 15
+                : isCompactTournament
+                    ? 10
+                    : 15
+
+        const minimumSafeFixtureIntervalMinutes = 90
+
+        const validationMessages =
+            readyToGenerateFixtures
+                ? []
+                : [
+                    'Resolve the blocking tournament setup issues before applying the AI fixture recommendation.',
+                ]
+
+        return {
+            competitionMode,
+            venueAssignmentMode,
+            confirmedTeamsOnly: true,
+            daysBetweenRounds,
+            minutesBetweenFixtures,
+            minimumSafeFixtureIntervalMinutes,
+            publishImmediately:
+                readyToGenerateFixtures &&
+                snapshot.venueCount > 0 &&
+                snapshot.fixtureCount === 0,
+            preferredSchedulingStrategy,
+            recommendationStatus:
+                readyToGenerateFixtures
+                    ? 'validated'
+                    : 'blocked',
+            validationMessages,
+            rulesProfileId:
+                'adult-league',
         }
     }
 }

@@ -18,36 +18,37 @@ function throwSupabaseError(
     throw new Error(error.message)
 }
 
+type ClubRelation = {
+    name: string
+}
+
+type TeamRelation = {
+    name: string
+    published: boolean
+    participation_status:
+        | 'interested'
+        | 'invited'
+        | 'confirmed'
+        | 'withdrawn'
+    primary_home_venue_id: string | null
+    club:
+        | ClubRelation
+        | ClubRelation[]
+        | null
+}
+
 type CompetitionTeamRow = {
     id: string
     team_id: string
     teams:
-        | {
-        name: string
-        published: boolean
-        participation_status:
-            | 'interested'
-            | 'invited'
-            | 'confirmed'
-            | 'withdrawn'
-        primary_home_venue_id: string | null
-    }
-        | {
-        name: string
-        published: boolean
-        participation_status:
-            | 'interested'
-            | 'invited'
-            | 'confirmed'
-            | 'withdrawn'
-        primary_home_venue_id: string | null
-    }[]
+        | TeamRelation
+        | TeamRelation[]
         | null
 }
 
-function getRelatedTeam(
-    relation: CompetitionTeamRow['teams']
-) {
+function getSingleRelation<T>(
+    relation: T | T[] | null
+): T | null {
     if (!relation) {
         return null
     }
@@ -94,7 +95,10 @@ export const tournamentGeneratorService = {
                     name,
                     published,
                     participation_status,
-                    primary_home_venue_id
+                    primary_home_venue_id,
+                    club:clubs(
+                        name
+                    )
                 )
             `)
             .eq('competition_id', competitionId)
@@ -107,9 +111,15 @@ export const tournamentGeneratorService = {
         const teams = (
             (data ?? []) as CompetitionTeamRow[]
         ).map((row) => {
-            const team = getRelatedTeam(
-                row.teams
-            )
+            const team =
+                getSingleRelation(
+                    row.teams
+                )
+
+            const club =
+                getSingleRelation(
+                    team?.club ?? null
+                )
 
             return {
                 id: row.id,
@@ -117,6 +127,8 @@ export const tournamentGeneratorService = {
                 name:
                     team?.name ??
                     'Unknown team',
+                club_name:
+                    club?.name ?? null,
                 published:
                     team?.published ??
                     false,
@@ -129,15 +141,21 @@ export const tournamentGeneratorService = {
             }
         })
 
-        return teams.sort((left, right) =>
-            left.name.localeCompare(
-                right.name,
+        return teams.sort((left, right) => {
+            const leftName =
+                `${left.club_name ?? ''} ${left.name}`
+
+            const rightName =
+                `${right.club_name ?? ''} ${right.name}`
+
+            return leftName.localeCompare(
+                rightName,
                 undefined,
                 {
                     sensitivity: 'base',
                 }
             )
-        )
+        })
     },
 
     async getMemberships(

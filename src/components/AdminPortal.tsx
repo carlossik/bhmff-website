@@ -4,23 +4,30 @@ import {
     useMemo,
     useState,
 } from 'react'
-import MetriCard from './ui/MetricCard/MetricCard'
 import type { LucideIcon } from 'lucide-react'
-
 import {
+    BarChart3,
+    Bot,
+    Building2,
     CalendarDays,
+    ChevronDown,
+    CircleUserRound,
+    Flag,
     Handshake,
     Image,
     Layers3,
+    LayoutDashboard,
     Mail,
     MapPin,
     Newspaper,
     Shield,
+    Sparkles,
     Target,
     Trophy,
     Users,
 } from 'lucide-react'
 
+import MetricCard from './ui/MetricCard/MetricCard'
 import { AITournamentDirector } from './admin/AITournamentDirector/AITournamentDirector'
 import CompetitionManager from './admin/Competitions/CompetitionManager'
 import { MediaManager } from './admin/Media/MediaManager'
@@ -51,28 +58,162 @@ import {
 
 import { useOrganisation } from '../context/OrganisationContext'
 import { useCompetition } from '../contexts/CompetitionContext'
-import MetricCard from "./ui/MetricCard/MetricCard";
 
-const adminTabs: readonly AdminModule[] = [
-    'Dashboard',
-    'Organisations',
-    'Competitions',
-    'Clubs',
-    'Teams',
-    'Competition Teams',
-    'Groups',
-    'AI Tournament Director',
-    'Auto Fixture Generator',
-    'Venues',
-    'Fixtures',
-    'Results',
-    'Goals',
-    'Sponsors',
-    'Articles',
-    'Media',
-    'Enquiries',
-    'User Access',
+type NavigationSectionId =
+    | 'overview'
+    | 'competition'
+    | 'tools'
+    | 'operations'
+    | 'content'
+    | 'administration'
+
+type NavigationItem = {
+    module: AdminModule
+    icon: LucideIcon
+    featured?: boolean
+}
+
+type NavigationSection = {
+    id: NavigationSectionId
+    title: string
+    icon: LucideIcon
+    items: readonly NavigationItem[]
+}
+
+const navigationSections: readonly NavigationSection[] = [
+    {
+        id: 'overview',
+        title: 'Overview',
+        icon: LayoutDashboard,
+        items: [
+            {
+                module: 'Dashboard',
+                icon: LayoutDashboard,
+            },
+        ],
+    },
+    {
+        id: 'competition',
+        title: 'Competition Setup',
+        icon: Trophy,
+        items: [
+            {
+                module: 'Organisations',
+                icon: Building2,
+            },
+            {
+                module: 'Competitions',
+                icon: Trophy,
+            },
+            {
+                module: 'Clubs',
+                icon: Shield,
+            },
+            {
+                module: 'Teams',
+                icon: Users,
+            },
+            {
+                module: 'Competition Teams',
+                icon: Flag,
+            },
+            {
+                module: 'Groups',
+                icon: Layers3,
+            },
+            {
+                module: 'Venues',
+                icon: MapPin,
+            },
+        ],
+    },
+    {
+        id: 'tools',
+        title: 'Tournament Tools',
+        icon: Sparkles,
+        items: [
+            {
+                module: 'AI Tournament Director',
+                icon: Bot,
+                featured: true,
+            },
+            {
+                module: 'Auto Fixture Generator',
+                icon: CalendarDays,
+            },
+        ],
+    },
+    {
+        id: 'operations',
+        title: 'Match Operations',
+        icon: CalendarDays,
+        items: [
+            {
+                module: 'Fixtures',
+                icon: CalendarDays,
+            },
+            {
+                module: 'Results',
+                icon: BarChart3,
+            },
+            {
+                module: 'Goals',
+                icon: Target,
+            },
+        ],
+    },
+    {
+        id: 'content',
+        title: 'Content & Commercial',
+        icon: Newspaper,
+        items: [
+            {
+                module: 'Sponsors',
+                icon: Handshake,
+            },
+            {
+                module: 'Articles',
+                icon: Newspaper,
+            },
+            {
+                module: 'Media',
+                icon: Image,
+            },
+            {
+                module: 'Enquiries',
+                icon: Mail,
+            },
+        ],
+    },
+    {
+        id: 'administration',
+        title: 'Administration',
+        icon: CircleUserRound,
+        items: [
+            {
+                module: 'User Access',
+                icon: CircleUserRound,
+            },
+        ],
+    },
 ]
+
+const adminTabs: readonly AdminModule[] =
+    navigationSections.flatMap((section) =>
+        section.items.map((item) => item.module)
+    )
+
+const defaultExpandedSections: Record<
+    NavigationSectionId,
+    boolean
+> = {
+    overview: true,
+    competition: true,
+    tools: true,
+    operations: true,
+    content: false,
+    administration: false,
+}
 
 type AdminPortalProps = {
     profile: AdminProfile
@@ -131,6 +272,11 @@ export function AdminPortal({
     const [activeTab, setActiveTab] =
         useState<AdminModule>('Dashboard')
 
+    const [
+        expandedSections,
+        setExpandedSections,
+    ] = useState(defaultExpandedSections)
+
     const [dbTeams, setDbTeams] =
         useState<DbTeam[]>([])
 
@@ -160,19 +306,17 @@ export function AdminPortal({
         competitionStatsLoading,
         setCompetitionStatsLoading,
     ] = useState(false)
+
     const effectiveProfile =
         useMemo<AdminProfile>(
             () => ({
                 ...profile,
-
                 role:
                     currentRole ??
                     profile.role,
-
                 currentOrganisation:
                     currentOrganisation ??
                     profile.currentOrganisation,
-
                 currentMembership:
                     currentMembership ??
                     profile.currentMembership,
@@ -199,6 +343,26 @@ export function AdminPortal({
         [activeRole]
     )
 
+    const visibleNavigationSections =
+        useMemo(
+            () =>
+                navigationSections
+                    .map((section) => ({
+                        ...section,
+                        items: section.items.filter(
+                            (item) =>
+                                visibleTabs.includes(
+                                    item.module
+                                )
+                        ),
+                    }))
+                    .filter(
+                        (section) =>
+                            section.items.length > 0
+                    ),
+            [visibleTabs]
+        )
+
     useEffect(() => {
         if (
             !visibleTabs.includes(
@@ -211,6 +375,29 @@ export function AdminPortal({
         activeTab,
         visibleTabs,
     ])
+
+    useEffect(() => {
+        const activeSection =
+            navigationSections.find(
+                (section) =>
+                    section.items.some(
+                        (item) =>
+                            item.module ===
+                            activeTab
+                    )
+            )
+
+        if (!activeSection) {
+            return
+        }
+
+        setExpandedSections(
+            (current) => ({
+                ...current,
+                [activeSection.id]: true,
+            })
+        )
+    }, [activeTab])
 
     useEffect(() => {
         setActiveTab('Dashboard')
@@ -260,7 +447,6 @@ export function AdminPortal({
                     'Failed to load teams:',
                     error
                 )
-
                 setDbTeams([])
                 return
             }
@@ -306,7 +492,6 @@ export function AdminPortal({
                             'organisation_id',
                             organisationId
                         ),
-
                     supabase
                         .from('teams')
                         .select('id', {
@@ -317,7 +502,6 @@ export function AdminPortal({
                             'organisation_id',
                             organisationId
                         ),
-
                     supabase
                         .from('venues')
                         .select('id', {
@@ -328,7 +512,6 @@ export function AdminPortal({
                             'organisation_id',
                             organisationId
                         ),
-
                     supabase
                         .from('sponsors')
                         .select('id', {
@@ -339,7 +522,6 @@ export function AdminPortal({
                             'organisation_id',
                             organisationId
                         ),
-
                     supabase
                         .from('articles')
                         .select('id', {
@@ -350,7 +532,6 @@ export function AdminPortal({
                             'organisation_id',
                             organisationId
                         ),
-
                     supabase
                         .from('media_items')
                         .select('id', {
@@ -410,31 +591,26 @@ export function AdminPortal({
                             ? 0
                             : clubsResponse.count ??
                             0,
-
                     teams:
                         teamsResponse.error
                             ? 0
                             : teamsResponse.count ??
                             0,
-
                     venues:
                         venuesResponse.error
                             ? 0
                             : venuesResponse.count ??
                             0,
-
                     sponsors:
                         sponsorsResponse.error
                             ? 0
                             : sponsorsResponse.count ??
                             0,
-
                     articles:
                         articlesResponse.error
                             ? 0
                             : articlesResponse.count ??
                             0,
-
                     media:
                         mediaResponse.error
                             ? 0
@@ -473,7 +649,6 @@ export function AdminPortal({
                             'competition_id',
                             currentCompetitionId
                         ),
-
                     supabase
                         .from('groups')
                         .select('id', {
@@ -484,7 +659,6 @@ export function AdminPortal({
                             'competition_id',
                             currentCompetitionId
                         ),
-
                     supabase
                         .from('fixtures')
                         .select('id', {
@@ -548,7 +722,6 @@ export function AdminPortal({
                                 'fixture_id',
                                 fixtureIds
                             ),
-
                         supabase
                             .from('goals')
                             .select('id', {
@@ -592,19 +765,16 @@ export function AdminPortal({
                             ? 0
                             : competitionTeamsResponse.count ??
                             0,
-
                     groups:
                         groupsResponse.error
                             ? 0
                             : groupsResponse.count ??
                             0,
-
                     fixtures:
                         fixturesResponse.error
                             ? 0
                             : fixturesResponse.count ??
                             0,
-
                     results: resultsCount,
                     goals: goalsCount,
                 })
@@ -646,7 +816,6 @@ export function AdminPortal({
                     'Failed to load enquiry count:',
                     error
                 )
-
                 setEnquiryCount(0)
                 return
             }
@@ -860,61 +1029,111 @@ export function AdminPortal({
             activeRole,
             competitionStats,
         ])
-    function getStatisticIcon(label: string): LucideIcon {
-        const normalisedLabel = label.toLowerCase()
 
-        if (normalisedLabel.includes('club')) {
+    function getStatisticIcon(
+        label: string
+    ): LucideIcon {
+        const normalisedLabel =
+            label.toLowerCase()
+
+        if (
+            normalisedLabel.includes(
+                'club'
+            )
+        ) {
             return Shield
         }
 
         if (
-            normalisedLabel.includes('team') ||
-            normalisedLabel.includes('participant')
+            normalisedLabel.includes(
+                'team'
+            ) ||
+            normalisedLabel.includes(
+                'participant'
+            )
         ) {
             return Users
         }
 
-        if (normalisedLabel.includes('venue')) {
+        if (
+            normalisedLabel.includes(
+                'venue'
+            )
+        ) {
             return MapPin
         }
 
-        if (normalisedLabel.includes('sponsor')) {
+        if (
+            normalisedLabel.includes(
+                'sponsor'
+            )
+        ) {
             return Handshake
         }
 
-        if (normalisedLabel.includes('article')) {
+        if (
+            normalisedLabel.includes(
+                'article'
+            )
+        ) {
             return Newspaper
         }
 
-        if (normalisedLabel.includes('media')) {
+        if (
+            normalisedLabel.includes(
+                'media'
+            )
+        ) {
             return Image
         }
 
-        if (normalisedLabel.includes('enquir')) {
+        if (
+            normalisedLabel.includes(
+                'enquir'
+            )
+        ) {
             return Mail
         }
 
-        if (normalisedLabel.includes('group')) {
+        if (
+            normalisedLabel.includes(
+                'group'
+            )
+        ) {
             return Layers3
         }
 
-        if (normalisedLabel.includes('fixture')) {
+        if (
+            normalisedLabel.includes(
+                'fixture'
+            )
+        ) {
             return CalendarDays
         }
 
         if (
-            normalisedLabel.includes('result') ||
-            normalisedLabel.includes('competition')
+            normalisedLabel.includes(
+                'result'
+            ) ||
+            normalisedLabel.includes(
+                'competition'
+            )
         ) {
             return Trophy
         }
 
-        if (normalisedLabel.includes('goal')) {
+        if (
+            normalisedLabel.includes(
+                'goal'
+            )
+        ) {
             return Target
         }
 
         return Trophy
-    }function renderStatGrid(
+    }
+
+    function renderStatGrid(
         items: Array<{
             label: string
             value: number
@@ -944,10 +1163,24 @@ export function AdminPortal({
                         key={stat.label}
                         title={stat.label}
                         value={stat.value}
-                        icon={getStatisticIcon(stat.label)}
+                        icon={getStatisticIcon(
+                            stat.label
+                        )}
                     />
                 ))}
             </div>
+        )
+    }
+
+    function toggleSection(
+        sectionId: NavigationSectionId
+    ) {
+        setExpandedSections(
+            (current) => ({
+                ...current,
+                [sectionId]:
+                    !current[sectionId],
+            })
         )
     }
 
@@ -985,7 +1218,9 @@ export function AdminPortal({
                                 <p className="muted">
                                     Overview for{' '}
                                     <strong>
-                                        {currentOrganisation.name}
+                                        {
+                                            currentOrganisation.name
+                                        }
                                     </strong>
                                     .
                                 </p>
@@ -1026,8 +1261,7 @@ export function AdminPortal({
 
                                     {competitionStatsLoading && (
                                         <p className="muted">
-                                            Loading competition
-                                            statistics...
+                                            Loading competition statistics...
                                         </p>
                                     )}
 
@@ -1064,8 +1298,7 @@ export function AdminPortal({
                                 for{' '}
                                 <strong>
                                     {
-                                        currentOrganisation
-                                            .name
+                                        currentOrganisation.name
                                     }
                                 </strong>
                                 .
@@ -1129,7 +1362,9 @@ export function AdminPortal({
                 return <GroupsManager />
 
             case 'AI Tournament Director':
-                return <AITournamentDirector />
+                return (
+                    <AITournamentDirector />
+                )
 
             case 'Auto Fixture Generator':
                 return (
@@ -1164,7 +1399,9 @@ export function AdminPortal({
                 return <MediaManager />
 
             case 'Enquiries':
-                return <EnquiriesManager />
+                return (
+                    <EnquiriesManager />
+                )
 
             case 'User Access':
                 return (
@@ -1182,11 +1419,15 @@ export function AdminPortal({
 
     if (!currentOrganisation) {
         return (
-            <section className="section adminSection">
-                <div className="container">
-                    <p className="muted">
-                        Loading organisation...
-                    </p>
+            <section className="min-h-screen bg-[#071006] px-4 py-10 font-sans text-white sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-[1600px]">
+                    <div className="rounded-3xl border border-lime-900/50 bg-[#10190f] px-6 py-12 text-center">
+                        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-lime-900 border-t-lime-400" />
+
+                        <p className="mt-4 text-sm font-semibold text-slate-300">
+                            Loading organisation...
+                        </p>
+                    </div>
                 </div>
             </section>
         )
@@ -1195,9 +1436,9 @@ export function AdminPortal({
     return (
         <section
             id="admin"
-            className="section adminSection"
+            className="min-h-screen bg-[#071006] px-4 py-8 font-sans text-white sm:px-6 lg:px-8"
         >
-            <div className="container">
+            <div className="mx-auto w-full max-w-[1600px]">
                 <AdminHeader
                     profile={
                         effectiveProfile
@@ -1205,62 +1446,163 @@ export function AdminPortal({
                     onLogout={onLogout}
                 />
 
-                <p className="lead">
+                <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400 sm:text-base">
                     Your portal access is limited
                     to the modules required for
                     your assigned operational role.
                 </p>
 
-                <div className="adminPortalShell">
-                    <aside className="adminNavPanel">
-                        <strong>
-                            Competition
-                            Administration
-                        </strong>
+                <div className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+                    <aside className="w-full overflow-hidden rounded-3xl border border-lime-900/50 bg-[#0b140a] shadow-2xl shadow-black/20">
+                        <div className="border-b border-lime-900/50 px-5 py-5">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                                TournamentHQ
+                            </p>
 
-                        <span className="muted">
-                            {formatAdminRole(
-                                activeRole
-                            )}
-                        </span>
+                            <strong className="mt-1 block text-lg leading-6 text-white">
+                                Competition Administration
+                            </strong>
 
-                        <div className="adminTabList">
-                            {visibleTabs.map(
-                                (tab) => (
-                                    <button
-                                        key={tab}
-                                        type="button"
-                                        className={
-                                            activeTab ===
-                                            tab
-                                                ? 'active'
-                                                : ''
-                                        }
-                                        onClick={() =>
-                                            setActiveTab(
-                                                tab
-                                            )
-                                        }
-                                    >
-                                        {tab}
-
-                                        {tab ===
-                                            'Enquiries' &&
-                                            enquiryCount >
-                                            0 && (
-                                                <span className="adminTabCount">
-                                                    {
-                                                        enquiryCount
-                                                    }
-                                                </span>
-                                            )}
-                                    </button>
-                                )
-                            )}
+                            <span className="mt-2 block text-sm text-slate-400">
+                                {formatAdminRole(
+                                    activeRole
+                                )}
+                            </span>
                         </div>
+
+                        <nav
+                            aria-label="Administration modules"
+                            className="space-y-2 px-3 py-4"
+                        >
+                            {visibleNavigationSections.map(
+                                (section) => {
+                                    const SectionIcon =
+                                        section.icon
+
+                                    const isExpanded =
+                                        expandedSections[
+                                            section.id
+                                            ]
+
+                                    return (
+                                        <section
+                                            key={
+                                                section.id
+                                            }
+                                            className="overflow-hidden rounded-2xl border border-lime-900/40 bg-black/10"
+                                        >
+                                            <button
+                                                type="button"
+                                                className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-xs font-bold uppercase tracking-[0.12em] text-slate-400 transition hover:bg-lime-400/5 hover:text-lime-300"
+                                                aria-expanded={
+                                                    isExpanded
+                                                }
+                                                onClick={() =>
+                                                    toggleSection(
+                                                        section.id
+                                                    )
+                                                }
+                                            >
+                                                <span className="flex min-w-0 items-center gap-2.5">
+                                                    <SectionIcon className="h-4 w-4 shrink-0 text-lime-400" />
+
+                                                    <span className="truncate">
+                                                        {
+                                                            section.title
+                                                        }
+                                                    </span>
+                                                </span>
+
+                                                <ChevronDown
+                                                    className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
+                                                        isExpanded
+                                                            ? 'rotate-180'
+                                                            : ''
+                                                    }`}
+                                                />
+                                            </button>
+
+                                            {isExpanded && (
+                                                <div className="space-y-1 border-t border-lime-900/30 p-2">
+                                                    {section.items.map(
+                                                        (
+                                                            item
+                                                        ) => {
+                                                            const ItemIcon =
+                                                                item.icon
+
+                                                            const isActive =
+                                                                activeTab ===
+                                                                item.module
+
+                                                            const isFeatured =
+                                                                item.featured
+
+                                                            return (
+                                                                <button
+                                                                    key={
+                                                                        item.module
+                                                                    }
+                                                                    type="button"
+                                                                    className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+                                                                        isActive
+                                                                            ? 'bg-lime-400 text-black shadow-lg shadow-lime-950/30'
+                                                                            : isFeatured
+                                                                                ? 'border border-lime-700/60 bg-lime-400/10 text-lime-200 hover:border-lime-500 hover:bg-lime-400/15'
+                                                                                : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                                                                    }`}
+                                                                    onClick={() =>
+                                                                        setActiveTab(
+                                                                            item.module
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <ItemIcon
+                                                                        className={`h-4.5 w-4.5 shrink-0 ${
+                                                                            isActive
+                                                                                ? 'text-black'
+                                                                                : isFeatured
+                                                                                    ? 'text-lime-400'
+                                                                                    : 'text-slate-500'
+                                                                        }`}
+                                                                    />
+
+                                                                    <span className="min-w-0 flex-1">
+                                                                        {
+                                                                            item.module
+                                                                        }
+                                                                    </span>
+
+                                                                    {item.module ===
+                                                                        'Enquiries' &&
+                                                                        enquiryCount >
+                                                                        0 && (
+                                                                            <span
+                                                                                className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold ${
+                                                                                    isActive
+                                                                                        ? 'bg-black/15 text-black'
+                                                                                        : 'bg-lime-400 text-black'
+                                                                                }`}
+                                                                            >
+                                                                                {
+                                                                                    enquiryCount
+                                                                                }
+                                                                            </span>
+                                                                        )}
+                                                                </button>
+                                                            )
+                                                        }
+                                                    )}
+                                                </div>
+                                            )}
+                                        </section>
+                                    )
+                                }
+                            )}
+                        </nav>
                     </aside>
 
-                    <main className="adminWorkspace">
+                    <main className="min-w-0">
                         {renderActiveModule()}
                     </main>
                 </div>

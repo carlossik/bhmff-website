@@ -2,6 +2,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react'
 
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react'
 
 import { useCompetition } from '../../../contexts/CompetitionContext'
+import { useOrganisation } from '../../../context/OrganisationContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 
@@ -36,6 +38,13 @@ import {
 } from './competitionEngine'
 
 import { tournamentGeneratorService } from './tournamentGeneratorService'
+import {
+    TournamentAnalysisService,
+} from '../../../services/tournamentAnalysisService'
+
+import type {
+    RecommendedGeneratorConfig,
+} from '../../../services/tournamentAnalysisService'
 
 import type {
     CompetitionMode,
@@ -46,14 +55,34 @@ import type {
     GeneratorGroup,
     GeneratorMembership,
     GeneratorVenue,
-    VenueAssignmentMode,
 } from './tournamentGeneratorTypes'
+
+function formatDateTimeLocal(
+    date: Date
+) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function createDefaultStartDateTime() {
+    const tomorrow = new Date()
+
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(10, 0, 0, 0)
+
+    return formatDateTimeLocal(tomorrow)
+}
 
 const initialConfig: GeneratorConfig = {
     mode: 'group_full',
-    startDateTime: '',
+    startDateTime: createDefaultStartDateTime(),
     daysBetweenRounds: 7,
-    venueAssignmentMode: 'selected_venue',
+    venueAssignmentMode: 'home_team',
     venueId: '',
     publishImmediately: false,
     confirmedOnly: true,
@@ -68,7 +97,7 @@ const competitionModeOptions: Array<{
 }> = [
     {
         value: 'group_full',
-        label: 'Group Full Round Robin',
+        label: 'Group stage – every team plays each other once',
         description:
             'Every eligible team plays every other team in its group once.',
     },
@@ -86,13 +115,13 @@ const competitionModeOptions: Array<{
     },
     {
         value: 'league_double',
-        label: 'League Double Round Robin',
+        label: 'League – teams play home and away',
         description:
             'Every eligible competition team plays every other team home and away.',
     },
     {
         value: 'knockout',
-        label: 'Knockout Draw',
+        label: 'Knockout competition Draw',
         description:
             'Generate the opening knockout round, including automatic byes.',
     },
@@ -101,24 +130,6 @@ const competitionModeOptions: Array<{
         label: 'Manual',
         description:
             'Do not automatically generate pairings.',
-    },
-]
-
-const venueAssignmentOptions: Array<{
-    value: VenueAssignmentMode
-    label: string
-}> = [
-    {
-        value: 'selected_venue',
-        label: 'Use selected venue',
-    },
-    {
-        value: 'home_team',
-        label: 'Use home team venue',
-    },
-    {
-        value: 'unassigned',
-        label: 'Leave venue unassigned',
     },
 ]
 
@@ -211,6 +222,9 @@ function ReadinessCard({
 }
 
 export function TournamentGenerator() {
+    const { currentOrganisation } =
+        useOrganisation()
+
     const { currentCompetition } =
         useCompetition()
 
@@ -237,9 +251,29 @@ export function TournamentGenerator() {
         )
 
     const [
-        intervalMinutes,
-        setIntervalMinutes,
-    ] = useState(60)
+        aiRecommendation,
+        setAiRecommendation,
+    ] = useState<RecommendedGeneratorConfig | null>(
+        null
+    )
+
+    const [
+        isLoadingAiRecommendation,
+        setIsLoadingAiRecommendation,
+    ] = useState(false)
+
+    const [
+        aiRecommendationError,
+        setAiRecommendationError,
+    ] = useState<string | null>(null)
+
+    const [
+        aiRecommendationApplied,
+        setAiRecommendationApplied,
+    ] = useState(false)
+
+    const appliedRecommendationCompetitionId =
+        useRef<string | null>(null)
 
     const [
         preview,
@@ -282,6 +316,64 @@ export function TournamentGenerator() {
         setToastType(type)
     }
 
+    const mapAiRecommendationToGeneratorConfig =
+        useCallback(
+            (
+                recommendation: RecommendedGeneratorConfig,
+                _availableVenues: GeneratorVenue[]
+            ): Partial<GeneratorConfig> => {
+                const recommendedMode: CompetitionMode =
+                    recommendation.competitionMode ===
+                    'group-stage'
+                        ? 'group_full'
+                        : 'league_single'
+
+
+                return {
+                    mode: recommendedMode,
+                    daysBetweenRounds: 7,
+                    venueAssignmentMode: 'home_team',
+                    venueId: '',
+                    publishImmediately:
+                    recommendation.publishImmediately,
+                    confirmedOnly:
+                    recommendation.confirmedTeamsOnly,
+                }
+            },
+            []
+        )
+
+    const applyAiRecommendation =
+        useCallback(
+            (
+                recommendation: RecommendedGeneratorConfig,
+                availableVenues: GeneratorVenue[],
+                notify = true
+            ) => {
+                const mappedConfig =
+                    mapAiRecommendationToGeneratorConfig(
+                        recommendation,
+                        availableVenues
+                    )
+
+                setConfig((current) => ({
+                    ...current,
+                    ...mappedConfig,
+                }))
+
+                setPreview([])
+                setAiRecommendationApplied(true)
+
+                if (notify) {
+                    showToast(
+                        'AI scheduling recommendations applied. Fixtures use home-team venues and rounds default to seven days apart.',
+                        'success'
+                    )
+                }
+            },
+            [mapAiRecommendationToGeneratorConfig]
+        )
+
     const loadData = useCallback(
         async () => {
             if (!currentCompetition?.id) {
@@ -291,6 +383,10 @@ export function TournamentGenerator() {
                 setVenues([])
                 setExistingFixtures([])
                 setPreview([])
+                setAiRecommendation(null)
+                setAiRecommendationError(null)
+                setAiRecommendationApplied(false)
+                appliedRecommendationCompetitionId.current = null
                 setIsLoading(false)
                 return
             }
@@ -298,11 +394,17 @@ export function TournamentGenerator() {
             setIsLoading(true)
 
             try {
+                setIsLoadingAiRecommendation(
+                    Boolean(currentOrganisation?.id)
+                )
+                setAiRecommendationError(null)
+
                 const [
                     groupRows,
                     teamRows,
                     venueRows,
                     existingFixtureRows,
+                    analysisReport,
                 ] = await Promise.all([
                     tournamentGeneratorService.getGroups(
                         currentCompetition.id
@@ -316,6 +418,25 @@ export function TournamentGenerator() {
                     tournamentGeneratorService.getExistingFixtures(
                         currentCompetition.id
                     ),
+                    currentOrganisation?.id
+                        ? TournamentAnalysisService.analyseTournament(
+                            {
+                                organisationId:
+                                currentOrganisation.id,
+                                organisationName:
+                                currentOrganisation.name,
+                                competitionId:
+                                currentCompetition.id,
+                            }
+                        ).catch((error: unknown) => {
+                            setAiRecommendationError(
+                                error instanceof Error
+                                    ? error.message
+                                    : 'Unable to load AI scheduling recommendations.'
+                            )
+                            return null
+                        })
+                        : Promise.resolve(null),
                 ])
 
                 const membershipRows =
@@ -335,6 +456,29 @@ export function TournamentGenerator() {
                     existingFixtureRows
                 )
                 setPreview([])
+
+                const recommendation =
+                    analysisReport?.recommendedGeneratorConfig ??
+                    null
+
+                setAiRecommendation(
+                    recommendation
+                )
+
+                if (
+                    recommendation &&
+                    appliedRecommendationCompetitionId.current !==
+                    currentCompetition.id
+                ) {
+                    applyAiRecommendation(
+                        recommendation,
+                        venueRows,
+                        false
+                    )
+
+                    appliedRecommendationCompetitionId.current =
+                        currentCompetition.id
+                }
             } catch (error) {
                 setGroups([])
                 setTeams([])
@@ -351,9 +495,15 @@ export function TournamentGenerator() {
                 )
             } finally {
                 setIsLoading(false)
+                setIsLoadingAiRecommendation(false)
             }
         },
-        [currentCompetition?.id]
+        [
+            currentCompetition?.id,
+            currentOrganisation?.id,
+            currentOrganisation?.name,
+            applyAiRecommendation,
+        ]
     )
 
     useEffect(() => {
@@ -610,12 +760,7 @@ export function TournamentGenerator() {
             )
 
         const kickoff =
-            new Date(
-                roundStart.getTime() +
-                params.roundFixtureIndex *
-                intervalMinutes *
-                60_000
-            )
+            new Date(roundStart)
 
         const venue =
             resolveVenue(homeTeam)
@@ -928,14 +1073,6 @@ export function TournamentGenerator() {
             return 'Select the first kick-off date and time.'
         }
 
-        if (
-            !Number.isFinite(
-                intervalMinutes
-            ) ||
-            intervalMinutes < 15
-        ) {
-            return 'The fixture interval must be at least 15 minutes.'
-        }
 
         if (
             !Number.isFinite(
@@ -946,18 +1083,23 @@ export function TournamentGenerator() {
             return 'Days between rounds cannot be negative.'
         }
 
-        if (
-            config.venueAssignmentMode ===
-            'selected_venue' &&
-            !config.venueId
-        ) {
-            return 'Select a venue or choose another venue assignment mode.'
-        }
 
         if (
             eligibleTeams.length < 2
         ) {
             return 'At least two eligible teams are required.'
+        }
+
+        const teamsWithoutHomeVenues =
+            eligibleTeams.filter(
+                (team) =>
+                    !team.primary_home_venue_id
+            )
+
+        if (teamsWithoutHomeVenues.length > 0) {
+            return `Every eligible team must have a primary home venue. Missing: ${teamsWithoutHomeVenues
+                .map((team) => team.name)
+                .join(', ')}.`
         }
 
         if (
@@ -1343,33 +1485,146 @@ export function TournamentGenerator() {
                 </section>
             ) : (
                 <>
+                    <section className="rounded-3xl border border-lime-900/40 bg-gradient-to-br from-lime-500/10 via-[#121d0f] to-[#121d0f] p-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-xl border border-lime-400/20 bg-lime-400/10 p-3">
+                                    <Sparkles className="h-6 w-6 text-lime-300" />
+                                </div>
+
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-300">
+                                        AI-assisted configuration
+                                    </p>
+
+                                    <h3 className="mt-2 text-xl font-semibold text-white">
+                                        Tournament Director recommendations
+                                    </h3>
+
+                                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                                        Recommendations pre-populate the existing generator settings only. The scheduling engine and fixture-generation rules remain unchanged.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {aiRecommendation && (
+                                <button
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-400/30 bg-lime-400/10 px-5 py-3 font-semibold text-lime-200 transition hover:border-lime-300/50 hover:bg-lime-400/15"
+                                    type="button"
+                                    onClick={() => {
+                                        applyAiRecommendation(
+                                            aiRecommendation,
+                                            venues
+                                        )
+
+                                        appliedRecommendationCompetitionId.current =
+                                            currentCompetition.id
+                                    }}
+                                >
+                                    <Sparkles className="h-5 w-5" />
+                                    Apply AI Recommendations
+                                </button>
+                            )}
+                        </div>
+
+                        {isLoadingAiRecommendation ? (
+                            <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-slate-300">
+                                <RefreshCw className="h-5 w-5 animate-spin text-lime-400" />
+                                Analysing the current tournament configuration...
+                            </div>
+                        ) : aiRecommendationError ? (
+                            <div className="mt-6 rounded-2xl border border-amber-700/40 bg-amber-500/10 p-5">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-300" />
+
+                                    <div>
+                                        <p className="font-semibold text-amber-200">
+                                            AI recommendations unavailable
+                                        </p>
+
+                                        <p className="mt-1 text-sm leading-6 text-amber-100/70">
+                                            {aiRecommendationError}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : aiRecommendation ? (
+                            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                    <p className="text-xs uppercase tracking-wider text-slate-500">
+                                        Competition mode
+                                    </p>
+                                    <p className="mt-2 font-semibold text-white">
+                                        {aiRecommendation.competitionMode === 'group-stage'
+                                            ? 'Group stage'
+                                            : 'Round robin'}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                    <p className="text-xs uppercase tracking-wider text-slate-500">
+                                        Scheduling strategy
+                                    </p>
+                                    <p className="mt-2 font-semibold capitalize text-white">
+                                        {aiRecommendation.preferredSchedulingStrategy.replace('-', ' ')}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                    <p className="text-xs uppercase tracking-wider text-slate-500">
+                                        Round spacing
+                                    </p>
+                                    <p className="mt-2 font-semibold text-white">
+                                        {aiRecommendation.daysBetweenRounds} day{aiRecommendation.daysBetweenRounds === 1 ? '' : 's'}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                    <p className="text-xs uppercase tracking-wider text-slate-500">
+                                        Venue assignment
+                                    </p>
+                                    <p className="mt-2 font-semibold text-white">
+                                        Home venues
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-slate-400">
+                                Select an organisation and competition to receive AI-assisted generator defaults.
+                            </div>
+                        )}
+
+                        {aiRecommendationApplied && aiRecommendation && (
+                            <div className="mt-4 flex items-center gap-2 text-sm text-lime-300">
+                                <CheckCircle2 className="h-4 w-4" />
+                                AI recommendations are applied. Weekly round spacing and home-team venues remain protected.
+                            </div>
+                        )}
+                    </section>
+
                     <section className="rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6">
                         <div className="flex items-center gap-3">
                             <Settings2 className="h-6 w-6 text-lime-400" />
 
                             <div>
                                 <h3 className="text-xl font-semibold text-white">
-                                    Generator configuration
+                                    Competition setup
                                 </h3>
 
                                 <p className="mt-1 text-sm text-slate-400">
-                                    Configure the competition structure, timing and venue rules.
+                                    Choose the competition format and when each round should be played.
                                 </p>
                             </div>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
                             <label className={labelClassName}>
-                                Generator mode
+                                Competition format
 
                                 <select
                                     className={selectClassName}
-                                    value={
-                                        config.mode
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
+                                    value={config.mode}
+                                    onChange={(event) =>
                                         updateConfig(
                                             'mode',
                                             event.target.value as CompetitionMode
@@ -1379,16 +1634,10 @@ export function TournamentGenerator() {
                                     {competitionModeOptions.map(
                                         (option) => (
                                             <option
-                                                key={
-                                                    option.value
-                                                }
-                                                value={
-                                                    option.value
-                                                }
+                                                key={option.value}
+                                                value={option.value}
                                             >
-                                                {
-                                                    option.label
-                                                }
+                                                {option.label}
                                             </option>
                                         )
                                     )}
@@ -1401,18 +1650,18 @@ export function TournamentGenerator() {
                                 <input
                                     className={inputClassName}
                                     type="datetime-local"
-                                    value={
-                                        config.startDateTime
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
+                                    value={config.startDateTime}
+                                    onChange={(event) =>
                                         updateConfig(
                                             'startDateTime',
                                             event.target.value
                                         )
                                     }
                                 />
+
+                                <span className="mt-2 block text-xs font-normal text-slate-500">
+                                    Defaults to tomorrow at 10:00 and remains editable.
+                                </span>
                             </label>
 
                             <label className={labelClassName}>
@@ -1421,446 +1670,69 @@ export function TournamentGenerator() {
                                 <input
                                     className={inputClassName}
                                     type="number"
-                                    min="0"
+                                    min="1"
                                     step="1"
-                                    value={
-                                        config.daysBetweenRounds
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
+                                    value={config.daysBetweenRounds}
+                                    onChange={(event) =>
                                         updateConfig(
                                             'daysBetweenRounds',
-                                            Number(
-                                                event.target.value
-                                            )
-                                        )
-                                    }
-                                />
-                            </label>
-
-                            <label className={labelClassName}>
-                                Minutes between fixtures
-
-                                <input
-                                    className={inputClassName}
-                                    type="number"
-                                    min="15"
-                                    step="5"
-                                    value={
-                                        intervalMinutes
-                                    }
-                                    onChange={(
-                                        event
-                                    ) => {
-                                        setIntervalMinutes(
-                                            Number(
-                                                event.target.value
-                                            )
-                                        )
-
-                                        setPreview([])
-                                    }}
-                                />
-                            </label>
-
-                            <label className={labelClassName}>
-                                Venue assignment
-
-                                <select
-                                    className={selectClassName}
-                                    value={
-                                        config.venueAssignmentMode
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        updateConfig(
-                                            'venueAssignmentMode',
-                                            event.target.value as VenueAssignmentMode
-                                        )
-                                    }
-                                >
-                                    {venueAssignmentOptions.map(
-                                        (option) => (
-                                            <option
-                                                key={
-                                                    option.value
-                                                }
-                                                value={
-                                                    option.value
-                                                }
-                                            >
-                                                {
-                                                    option.label
-                                                }
-                                            </option>
-                                        )
-                                    )}
-                                </select>
-                            </label>
-
-                            {config.venueAssignmentMode ===
-                                'selected_venue' && (
-                                    <label className={labelClassName}>
-                                        Default venue
-
-                                        <select
-                                            className={selectClassName}
-                                            value={
-                                                config.venueId
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateConfig(
-                                                    'venueId',
-                                                    event.target.value
-                                                )
-                                            }
-                                        >
-                                            <option value="">
-                                                Select venue
-                                            </option>
-
-                                            {venues.map(
-                                                (venue) => (
-                                                    <option
-                                                        key={
-                                                            venue.id
-                                                        }
-                                                        value={
-                                                            venue.id
-                                                        }
-                                                    >
-                                                        {
-                                                            venue.name
-                                                        }
-                                                    </option>
-                                                )
-                                            )}
-                                        </select>
-                                    </label>
-                                )}
-
-                            {config.mode ===
-                                'group_limited' && (
-                                    <label className={labelClassName}>
-                                        Matches per team
-
-                                        <input
-                                            className={inputClassName}
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            value={
-                                                config.matchesPerTeam
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateConfig(
-                                                    'matchesPerTeam',
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                                )
-                                            }
-                                        />
-                                    </label>
-                                )}
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                            {config.mode ===
-                                'knockout' && (
-                                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
-                                        <input
-                                            className="h-4 w-4 accent-lime-400"
-                                            type="checkbox"
-                                            checked={
-                                                config.randomiseCupDraw
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateConfig(
-                                                    'randomiseCupDraw',
-                                                    event.target.checked
-                                                )
-                                            }
-                                        />
-
-                                        <div>
-                                        <span className="font-semibold text-white">
-                                            Randomise knockout draw
-                                        </span>
-
-                                            <p className="mt-1 text-xs text-slate-500">
-                                                Shuffle eligible teams before creating the first round.
-                                            </p>
-                                        </div>
-                                    </label>
-                                )}
-
-                            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
-                                <input
-                                    className="h-4 w-4 accent-lime-400"
-                                    type="checkbox"
-                                    checked={
-                                        config.confirmedOnly
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        updateConfig(
-                                            'confirmedOnly',
-                                            event.target.checked
+                                            Number(event.target.value)
                                         )
                                     }
                                 />
 
-                                <div>
-                                    <span className="font-semibold text-white">
-                                        Use confirmed teams only
-                                    </span>
-
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        Exclude invited, interested and withdrawn teams.
-                                    </p>
-                                </div>
-                            </label>
-
-                            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
-                                <input
-                                    className="h-4 w-4 accent-lime-400"
-                                    type="checkbox"
-                                    checked={
-                                        config.publishImmediately
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        updateConfig(
-                                            'publishImmediately',
-                                            event.target.checked
-                                        )
-                                    }
-                                />
-
-                                <div>
-                                    <span className="font-semibold text-white">
-                                        Publish immediately
-                                    </span>
-
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        Make saved fixtures publicly visible.
-                                    </p>
-                                </div>
+                                <span className="mt-2 block text-xs font-normal text-slate-500">
+                                    Weekly scheduling defaults to seven days.
+                                </span>
                             </label>
                         </div>
 
-                        <div className="mt-6 rounded-2xl border border-lime-800/40 bg-lime-400/5 p-5">
+                        <div className="mt-5 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
                             <div className="flex items-start gap-3">
-                                <Sparkles className="mt-0.5 h-5 w-5 flex-shrink-0 text-lime-400" />
+                                <MapPin className="mt-0.5 h-5 w-5 text-lime-400" />
 
                                 <div>
                                     <p className="font-semibold text-white">
-                                        {selectedMode?.label}
+                                        Home venues are assigned automatically
                                     </p>
 
-                                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                                        {selectedMode?.description}
+                                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                                        Every generated fixture uses the linked primary home venue or pitch of the selected home team. Venue controls are therefore no longer required in the generator.
                                     </p>
                                 </div>
                             </div>
                         </div>
-
-                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                            <button
-                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-6 py-3 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-                                type="button"
-                                onClick={
-                                    generatePreview
-                                }
-                                disabled={
-                                    config.mode ===
-                                    'manual'
-                                }
-                            >
-                                <WandSparkles className="h-5 w-5" />
-                                Generate Preview
-                            </button>
-
-                            {preview.length >
-                                0 && (
-                                    <button
-                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/50 bg-black/20 px-6 py-3 font-semibold text-white transition hover:border-lime-500/60 hover:bg-lime-500/5"
-                                        type="button"
-                                        onClick={() =>
-                                            setPreview([])
-                                        }
-                                    >
-                                        <RefreshCw className="h-5 w-5" />
-                                        Clear Preview
-                                    </button>
-                                )}
-                        </div>
                     </section>
 
-                    <section className="rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6">
-                        <div className="flex items-center gap-3">
-                            <ShieldCheck className="h-6 w-6 text-lime-400" />
-
+                    <section className="rounded-3xl border border-lime-700/50 bg-gradient-to-br from-lime-400/10 to-transparent p-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <h3 className="text-xl font-semibold text-white">
-                                    Tournament readiness
+                                    Generate fixture preview
                                 </h3>
 
-                                <p className="mt-1 text-sm text-slate-400">
-                                    Current data available to the generator.
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                                    Create the proposed fixtures using the selected competition format, seven-day round spacing and each home team's linked venue or pitch. Nothing is saved until you review and confirm the preview.
                                 </p>
+
                             </div>
-                        </div>
 
-                        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            <ReadinessCard
-                                label="Eligible teams"
-                                value={
-                                    eligibleTeams.length
-                                }
-                                status={
-                                    eligibleTeams.length >=
-                                    2
-                                        ? 'ready'
-                                        : 'warning'
-                                }
-                                icon={Users}
-                                detail={
-                                    eligibleTeams.length >=
-                                    2
-                                        ? 'Minimum reached'
-                                        : 'At least 2 required'
-                                }
-                            />
-
-                            <ReadinessCard
-                                label="Groups"
-                                value={
-                                    groups.length
-                                }
-                                status={
-                                    groups.length >
-                                    0
-                                        ? 'ready'
-                                        : 'warning'
-                                }
-                                icon={Trophy}
-                                detail={
-                                    groups.length >
-                                    0
-                                        ? 'Available'
-                                        : 'None configured'
-                                }
-                            />
-
-                            <ReadinessCard
-                                label="Venues"
-                                value={
-                                    venues.length
-                                }
-                                status={
-                                    venues.length >
-                                    0
-                                        ? 'ready'
-                                        : 'warning'
-                                }
-                                icon={MapPin}
-                                detail={
-                                    venues.length >
-                                    0
-                                        ? 'Available'
-                                        : 'None configured'
-                                }
-                            />
-
-                            <ReadinessCard
-                                label="Existing fixtures"
-                                value={
-                                    existingFixtures.length
-                                }
-                                status="protected"
-                                icon={ShieldCheck}
-                                detail="Will not be changed"
-                            />
+                            <button
+                                className="inline-flex min-w-[230px] items-center justify-center gap-2 rounded-xl bg-lime-400 px-6 py-4 text-base font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                                type="button"
+                                onClick={generatePreview}
+                                disabled={isSaving}
+                            >
+                                <WandSparkles className="h-5 w-5" />
+                                {preview.length > 0
+                                    ? 'Regenerate Fixtures'
+                                    : 'Generate Fixtures'}
+                            </button>
                         </div>
                     </section>
 
-                    {(config.mode ===
-                        'group_full' ||
-                        config.mode ===
-                        'group_limited') && (
-                        <section className="rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6">
-                            <div className="flex items-center gap-3">
-                                <Users className="h-6 w-6 text-lime-400" />
 
-                                <div>
-                                    <h3 className="text-xl font-semibold text-white">
-                                        Group readiness
-                                    </h3>
 
-                                    <p className="mt-1 text-sm text-slate-400">
-                                        Eligible teams and existing fixture coverage for each group.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                {groupSummaries.map(
-                                    (group) => (
-                                        <article
-                                            className="rounded-2xl border border-lime-900/40 bg-black/20 p-5"
-                                            key={
-                                                group.id
-                                            }
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <span className="rounded-full border border-lime-800/50 bg-lime-500/10 px-3 py-1 text-xs font-bold text-lime-300">
-                                                        {
-                                                            group.teams.length
-                                                        }{' '}
-                                                        eligible teams
-                                                    </span>
-
-                                                    <h4 className="mt-4 text-lg font-bold text-white">
-                                                        {
-                                                            group.name
-                                                        }
-                                                    </h4>
-                                                </div>
-
-                                                {group.hasExistingFixtures ? (
-                                                    <span className="rounded-full border border-amber-800/50 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
-                                                        Existing fixtures
-                                                    </span>
-                                                ) : group.teams.length <
-                                                2 ? (
-                                                    <span className="rounded-full border border-red-800/50 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
-                                                        Not ready
-                                                    </span>
-                                                ) : (
-                                                    <span className="rounded-full border border-lime-800/50 bg-lime-500/10 px-3 py-1 text-xs font-bold text-lime-300">
-                                                        Ready
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </article>
-                                    )
-                                )}
-                            </div>
-                        </section>
-                    )}
 
                     {preview.length >
                         0 && (
@@ -2031,14 +1903,12 @@ export function TournamentGenerator() {
 
                                             <div>
                                                 <p className="text-xs uppercase tracking-wider text-slate-500">
-                                                    Interval
+                                                    Round spacing
                                                 </p>
 
                                                 <p className="mt-1 text-xl font-bold text-white">
-                                                    {
-                                                        intervalMinutes
-                                                    }{' '}
-                                                    minutes
+                                                    {config.daysBetweenRounds}{' '}
+                                                    days
                                                 </p>
                                             </div>
                                         </div>

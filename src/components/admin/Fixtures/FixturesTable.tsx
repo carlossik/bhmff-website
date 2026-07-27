@@ -1,6 +1,14 @@
+import {
+    CalendarDays,
+    Edit3,
+    MapPin,
+    Shield,
+    Trash2,
+} from 'lucide-react'
 import type {
     Fixture,
     FixtureGroup,
+    FixtureStatus,
     FixtureTeam,
     FixtureVenue,
 } from './fixtureTypes'
@@ -14,6 +22,32 @@ type FixturesTableProps = {
     onDelete: (fixture: Fixture) => void
 }
 
+function formatTeamDisplayName(
+    team: FixtureTeam | undefined,
+    fallback: string
+) {
+    if (!team) return fallback
+
+    return team.club_name
+        ? `${team.club_name} — ${team.team_name}`
+        : team.team_name || fallback
+}
+
+function getStatusClasses(
+    status: FixtureStatus
+) {
+    switch (status) {
+        case 'completed':
+            return 'border-emerald-700/50 bg-emerald-500/10 text-emerald-300'
+        case 'postponed':
+            return 'border-amber-700/50 bg-amber-500/10 text-amber-300'
+        case 'cancelled':
+            return 'border-red-700/50 bg-red-500/10 text-red-300'
+        default:
+            return 'border-sky-700/50 bg-sky-500/10 text-sky-300'
+    }
+}
+
 export function FixturesTable({
                                   fixtures,
                                   teams,
@@ -22,10 +56,10 @@ export function FixturesTable({
                                   onEdit,
                                   onDelete,
                               }: FixturesTableProps) {
-    const teamNames = new Map(
+    const teamMap = new Map(
         teams.map((team) => [
             team.competition_team_id,
-            team.name,
+            team,
         ])
     )
 
@@ -46,8 +80,15 @@ export function FixturesTable({
     function formatKickoff(
         kickoffTime: string | null
     ) {
-        if (!kickoffTime)
+        if (!kickoffTime) {
             return 'Date and time TBC'
+        }
+
+        const date = new Date(kickoffTime)
+
+        if (Number.isNaN(date.getTime())) {
+            return 'Date and time TBC'
+        }
 
         return new Intl.DateTimeFormat(
             'en-GB',
@@ -55,122 +96,154 @@ export function FixturesTable({
                 dateStyle: 'medium',
                 timeStyle: 'short',
             }
-        ).format(new Date(kickoffTime))
+        ).format(date)
     }
 
     if (!fixtures.length) {
         return (
-            <div className="teamsEmptyState">
-                <h3>No fixtures created</h3>
+            <section className="rounded-3xl border border-dashed border-lime-900/60 bg-[#10190f] px-6 py-14 text-center font-sans">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400/10">
+                    <CalendarDays className="h-7 w-7 text-lime-400" />
+                </div>
 
-                <p>
-                    Add the first fixture when
-                    the competition schedule is
-                    ready.
+                <h3 className="mt-5 text-xl font-bold text-white">
+                    No fixtures created
+                </h3>
+
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
+                    Add the first fixture when the competition schedule is ready.
                 </p>
-            </div>
+            </section>
         )
     }
 
     return (
-        <div className="tableWrap adminTableWrap fixturesTableWrap">
-            <table className="adminTable fixturesAdminTable">
-                <thead>
-                <tr>
-                    <th>Stage</th>
-                    <th>Group</th>
-                    <th>Fixture</th>
-                    <th>Kick-off</th>
-                    <th>Venue</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
+        <div className="space-y-4 font-sans">
+            {fixtures.map((fixture) => {
+                const homeTeam =
+                    teamMap.get(
+                        fixture.home_competition_team_id ??
+                        ''
+                    )
 
-                <tbody>
-                {fixtures.map((fixture) => (
-                    <tr key={fixture.id}>
-                        <td>{fixture.stage}</td>
+                const awayTeam =
+                    teamMap.get(
+                        fixture.away_competition_team_id ??
+                        ''
+                    )
 
-                        <td>
-                            {fixture.group_id
-                                ? groupNames.get(
-                                    fixture.group_id
-                                ) ??
-                                'Unknown group'
-                                : '—'}
-                        </td>
+                return (
+                    <article
+                        key={fixture.id}
+                        className="rounded-2xl border border-lime-900/50 bg-[#10190f] p-5 shadow-sm transition hover:border-lime-700/60"
+                    >
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full border border-lime-800/50 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
+                                        {fixture.stage}
+                                    </span>
 
-                        <td className="fixtureAdminTeams">
-                            <strong>
-                                {teamNames.get(
-                                        fixture.home_competition_team_id ??
-                                        ''
-                                    ) ??
-                                    'Home team TBC'}
-                            </strong>
+                                    {fixture.group_id && (
+                                        <span className="rounded-full border border-slate-700 bg-slate-800/40 px-3 py-1 text-xs font-semibold text-slate-300">
+                                            {groupNames.get(
+                                                    fixture.group_id
+                                                ) ??
+                                                'Unknown group'}
+                                        </span>
+                                    )}
 
-                            <span className="muted">
-                                    {' '}
-                                vs{' '}
-                                {teamNames.get(
-                                        fixture.away_competition_team_id ??
-                                        ''
-                                    ) ??
-                                    'Away team TBC'}
-                                </span>
-                        </td>
+                                    <span
+                                        className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${getStatusClasses(
+                                            fixture.status
+                                        )}`}
+                                    >
+                                        {fixture.status}
+                                    </span>
+                                </div>
 
-                        <td>
-                            {formatKickoff(
-                                fixture.kickoff_time
-                            )}
-                        </td>
+                                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                                    <div className="rounded-xl border border-lime-900/40 bg-black/20 p-4">
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                                            Home
+                                        </p>
 
-                        <td>
-                            {venueNames.get(
-                                fixture.venue_id ??
-                                ''
-                            ) ?? 'Venue TBC'}
-                        </td>
+                                        <p className="mt-2 text-base font-bold leading-6 text-white">
+                                            {formatTeamDisplayName(
+                                                homeTeam,
+                                                'Home team TBC'
+                                            )}
+                                        </p>
+                                    </div>
 
-                        <td>
-                                <span className="badge">
-                                    {fixture.status}
-                                </span>
-                        </td>
+                                    <div className="text-center text-sm font-bold uppercase tracking-[0.2em] text-lime-400">
+                                        vs
+                                    </div>
 
-                        <td className="fixtureActionsCell">
-                            <div className="tableActions">
+                                    <div className="rounded-xl border border-lime-900/40 bg-black/20 p-4">
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                                            Away
+                                        </p>
+
+                                        <p className="mt-2 text-base font-bold leading-6 text-white">
+                                            {formatTeamDisplayName(
+                                                awayTeam,
+                                                'Away team TBC'
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 grid grid-cols-1 gap-3 text-sm text-slate-300 sm:grid-cols-2">
+                                    <div className="flex items-center gap-3 rounded-xl border border-lime-900/30 bg-black/10 px-4 py-3">
+                                        <CalendarDays className="h-4 w-4 shrink-0 text-lime-400" />
+                                        <span>
+                                            {formatKickoff(
+                                                fixture.kickoff_time
+                                            )}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 rounded-xl border border-lime-900/30 bg-black/10 px-4 py-3">
+                                        <MapPin className="h-4 w-4 shrink-0 text-lime-400" />
+                                        <span>
+                                            {venueNames.get(
+                                                    fixture.venue_id ??
+                                                    ''
+                                                ) ??
+                                                'Venue TBC'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex shrink-0 flex-row gap-3 lg:flex-col">
                                 <button
-                                    className="btn secondary small"
+                                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-lime-800/60 bg-lime-400/10 px-4 py-2.5 text-sm font-bold text-lime-200 transition hover:bg-lime-400/15 lg:flex-none"
                                     type="button"
                                     onClick={() =>
-                                        onEdit(
-                                            fixture
-                                        )
+                                        onEdit(fixture)
                                     }
                                 >
+                                    <Edit3 className="h-4 w-4" />
                                     Edit
                                 </button>
 
                                 <button
-                                    className="btn secondary small"
+                                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-800/60 bg-red-500/10 px-4 py-2.5 text-sm font-bold text-red-300 transition hover:bg-red-500/15 lg:flex-none"
                                     type="button"
                                     onClick={() =>
-                                        onDelete(
-                                            fixture
-                                        )
+                                        onDelete(fixture)
                                     }
                                 >
+                                    <Trash2 className="h-4 w-4" />
                                     Delete
                                 </button>
                             </div>
-                        </td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
+                        </div>
+                    </article>
+                )
+            })}
         </div>
     )
 }
