@@ -1,12 +1,17 @@
-import { useEffect } from 'react'
+import {
+    type ReactNode,
+    useEffect,
+} from 'react'
+
 import './ConfirmDialog.css'
 
 type ConfirmDialogProps = {
     open: boolean
     title: string
-    message: string
+    message: ReactNode
     confirmLabel?: string
     cancelLabel?: string
+    processingLabel?: string
     isProcessing?: boolean
     onConfirm: () => void | Promise<void>
     onCancel: () => void
@@ -18,20 +23,31 @@ export function ConfirmDialog({
                                   message,
                                   confirmLabel = 'Confirm',
                                   cancelLabel = 'Cancel',
+                                  processingLabel = 'Deleting...',
                                   isProcessing = false,
                                   onConfirm,
                                   onCancel,
                               }: ConfirmDialogProps) {
     useEffect(() => {
-        if (!open) return
+        if (!open) {
+            return
+        }
 
-        function handleKeyDown(event: KeyboardEvent) {
-            if (event.key === 'Escape' && !isProcessing) {
+        function handleKeyDown(
+            event: KeyboardEvent,
+        ) {
+            if (
+                event.key === 'Escape' &&
+                !isProcessing
+            ) {
                 onCancel()
             }
         }
 
-        window.addEventListener('keydown', handleKeyDown)
+        window.addEventListener(
+            'keydown',
+            handleKeyDown,
+        )
 
         return () => {
             window.removeEventListener(
@@ -39,14 +55,20 @@ export function ConfirmDialog({
                 handleKeyDown,
             )
         }
-    }, [open, isProcessing, onCancel])
+    }, [
+        open,
+        isProcessing,
+        onCancel,
+    ])
 
     if (!open) {
         return null
     }
 
     async function handleConfirm() {
-        if (isProcessing) return
+        if (isProcessing) {
+            return
+        }
 
         await onConfirm()
     }
@@ -57,7 +79,8 @@ export function ConfirmDialog({
             role="presentation"
             onMouseDown={(event) => {
                 if (
-                    event.target === event.currentTarget &&
+                    event.target ===
+                    event.currentTarget &&
                     !isProcessing
                 ) {
                     onCancel()
@@ -80,9 +103,9 @@ export function ConfirmDialog({
                         {title}
                     </h3>
 
-                    <p id="confirm-dialog-message">
+                    <div id="confirm-dialog-message">
                         {message}
-                    </p>
+                    </div>
                 </div>
 
                 <div className="confirmDialogActions">
@@ -98,11 +121,13 @@ export function ConfirmDialog({
                     <button
                         type="button"
                         className="confirmDialogConfirmButton"
-                        onClick={handleConfirm}
+                        onClick={() =>
+                            void handleConfirm()
+                        }
                         disabled={isProcessing}
                     >
                         {isProcessing
-                            ? 'Deleting...'
+                            ? processingLabel
                             : confirmLabel}
                     </button>
                 </div>

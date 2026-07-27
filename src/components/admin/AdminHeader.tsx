@@ -1,7 +1,7 @@
 import { formatAdminRole, type AdminProfile } from '../../services/accessControl'
 import { useOrganisation } from '../../context/OrganisationContext'
 import { CompetitionSelector } from './CompetitionSelector'
-
+import { CkefaLogo } from '../CkefaLogo'
 type AdminHeaderProps = {
     profile: AdminProfile
     onLogout: () => void
@@ -28,16 +28,19 @@ export function AdminHeader({
 
                 <div className="adminBrand">
 
-                    <span className="eyebrow">
-                        TournamentHQ
-                    </span>
+                    <CkefaLogo className="adminLoginLogo" />
 
                     <h1>
-                        {currentOrganisation.name}
+                        TournamentHQ
                     </h1>
 
                     <p className="muted">
                         Professional Tournament Management Platform
+                    </p>
+
+                    <p className="muted">
+                        Manage organisations, competitions, clubs, teams, fixtures,
+                        results and officials from one central platform.
                     </p>
 
                 </div>
@@ -45,14 +48,22 @@ export function AdminHeader({
                 <div className="adminAccount">
 
                     <div className="adminUser">
-
                         <strong>
-                            {profile.full_name ?? 'Administrator'}
+                            {profile.full_name?.trim() || 'Administrator'}
                         </strong>
 
+                        {profile.email && (
+                            <span className="adminUserEmail">
+        {profile.email}
+    </span>
+                        )}
+
                         <span className="muted">
-                            {formatAdminRole(profile.role)}
-                        </span>
+    {formatAdminRole(profile.role).replace(
+        'Super Admin',
+        'Super Administrator'
+    )}
+</span>
 
                     </div>
 

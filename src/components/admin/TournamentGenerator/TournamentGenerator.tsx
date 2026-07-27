@@ -4,6 +4,7 @@ import {
     useMemo,
     useState,
 } from 'react'
+
 import { useCompetition } from '../../../contexts/CompetitionContext'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
@@ -648,6 +649,7 @@ export function TournamentGenerator() {
                 </div>
             ) : (
                 <>
+
                     <section className="tournamentGeneratorPanel">
                         <div className="adminFormGrid">
                             <label>

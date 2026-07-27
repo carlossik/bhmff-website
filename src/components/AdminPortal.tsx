@@ -4,7 +4,24 @@ import {
     useMemo,
     useState,
 } from 'react'
+import MetriCard from './ui/MetricCard/MetricCard'
+import type { LucideIcon } from 'lucide-react'
 
+import {
+    CalendarDays,
+    Handshake,
+    Image,
+    Layers3,
+    Mail,
+    MapPin,
+    Newspaper,
+    Shield,
+    Target,
+    Trophy,
+    Users,
+} from 'lucide-react'
+
+import { AITournamentDirector } from './admin/AITournamentDirector/AITournamentDirector'
 import CompetitionManager from './admin/Competitions/CompetitionManager'
 import { MediaManager } from './admin/Media/MediaManager'
 import { supabase } from '../lib/supabaseClient'
@@ -34,6 +51,7 @@ import {
 
 import { useOrganisation } from '../context/OrganisationContext'
 import { useCompetition } from '../contexts/CompetitionContext'
+import MetricCard from "./ui/MetricCard/MetricCard";
 
 const adminTabs: readonly AdminModule[] = [
     'Dashboard',
@@ -43,6 +61,7 @@ const adminTabs: readonly AdminModule[] = [
     'Teams',
     'Competition Teams',
     'Groups',
+    'AI Tournament Director',
     'Auto Fixture Generator',
     'Venues',
     'Fixtures',
@@ -841,8 +860,61 @@ export function AdminPortal({
             activeRole,
             competitionStats,
         ])
+    function getStatisticIcon(label: string): LucideIcon {
+        const normalisedLabel = label.toLowerCase()
 
-    function renderStatGrid(
+        if (normalisedLabel.includes('club')) {
+            return Shield
+        }
+
+        if (
+            normalisedLabel.includes('team') ||
+            normalisedLabel.includes('participant')
+        ) {
+            return Users
+        }
+
+        if (normalisedLabel.includes('venue')) {
+            return MapPin
+        }
+
+        if (normalisedLabel.includes('sponsor')) {
+            return Handshake
+        }
+
+        if (normalisedLabel.includes('article')) {
+            return Newspaper
+        }
+
+        if (normalisedLabel.includes('media')) {
+            return Image
+        }
+
+        if (normalisedLabel.includes('enquir')) {
+            return Mail
+        }
+
+        if (normalisedLabel.includes('group')) {
+            return Layers3
+        }
+
+        if (normalisedLabel.includes('fixture')) {
+            return CalendarDays
+        }
+
+        if (
+            normalisedLabel.includes('result') ||
+            normalisedLabel.includes('competition')
+        ) {
+            return Trophy
+        }
+
+        if (normalisedLabel.includes('goal')) {
+            return Target
+        }
+
+        return Trophy
+    }function renderStatGrid(
         items: Array<{
             label: string
             value: number
@@ -850,25 +922,30 @@ export function AdminPortal({
     ) {
         if (!items.length) {
             return (
-                <p className="muted">
-                    No statistics are available
-                    for your current access level.
-                </p>
+                <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-10 text-center">
+                    <Trophy className="mx-auto h-9 w-9 text-lime-400/70" />
+
+                    <h4 className="mt-4 text-base font-semibold text-white">
+                        No statistics available
+                    </h4>
+
+                    <p className="mt-2 text-sm text-slate-400">
+                        No statistics are available for your current access
+                        level.
+                    </p>
+                </div>
             )
         }
 
         return (
-            <div className="statGrid adminStats">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {items.map((stat) => (
-                    <div key={stat.label}>
-                        <strong>
-                            {stat.value}
-                        </strong>
-
-                        <span>
-                            {stat.label}
-                        </span>
-                    </div>
+                    <MetricCard
+                        key={stat.label}
+                        title={stat.label}
+                        value={stat.value}
+                        icon={getStatisticIcon(stat.label)}
+                    />
                 ))}
             </div>
         )
@@ -908,10 +985,7 @@ export function AdminPortal({
                                 <p className="muted">
                                     Overview for{' '}
                                     <strong>
-                                        {
-                                            currentOrganisation
-                                                .name
-                                        }
+                                        {currentOrganisation.name}
                                     </strong>
                                     .
                                 </p>
@@ -925,8 +999,7 @@ export function AdminPortal({
 
                             {organisationStatsLoading && (
                                 <p className="muted">
-                                    Loading organisation
-                                    statistics...
+                                    Loading organisation statistics...
                                 </p>
                             )}
 
@@ -1054,6 +1127,9 @@ export function AdminPortal({
 
             case 'Groups':
                 return <GroupsManager />
+
+            case 'AI Tournament Director':
+                return <AITournamentDirector />
 
             case 'Auto Fixture Generator':
                 return (

@@ -30,7 +30,7 @@ export function AdminPage() {
     ] = useState('')
 
     const navigate = useNavigate()
-
+    console.log('LOAD PROFILE START')
     async function loadProfile(
         activeSession: Session
     ) {
@@ -40,10 +40,13 @@ export function AdminPage() {
         try {
             const adminProfile =
                 await getCurrentAdminProfile()
-
+            console.log('PROFILE LOADED', adminProfile)
+            console.log('SETTING SESSION')
             setSession(activeSession)
+            console.log('SETTING PROFILE')
             setProfile(adminProfile)
         } catch (error) {
+            console.error('LOAD PROFILE FAILED', error)
             setProfile(null)
 
             setAccessError(

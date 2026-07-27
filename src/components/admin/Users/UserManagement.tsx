@@ -5,6 +5,7 @@ import {
     useState,
 } from 'react'
 
+import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Modal } from '../../common/Modal'
 import { Toast } from '../../common/Toast'
 
@@ -78,6 +79,14 @@ function isValidEmail(value: string) {
     )
 }
 
+function getUserDisplayName(user: AdminUser) {
+    return (
+        user.full_name?.trim() ||
+        user.email?.trim() ||
+        'this user'
+    )
+}
+
 export function UserManagement({
                                    currentProfile,
                                }: UserManagementProps) {
@@ -94,6 +103,11 @@ export function UserManagement({
     const [
         editingUser,
         setEditingUser,
+    ] = useState<AdminUser | null>(null)
+
+    const [
+        userPendingDelete,
+        setUserPendingDelete,
     ] = useState<AdminUser | null>(null)
 
     const [
@@ -122,6 +136,9 @@ export function UserManagement({
         useState(true)
 
     const [saving, setSaving] =
+        useState(false)
+
+    const [deleting, setDeleting] =
         useState(false)
 
     const [
@@ -164,6 +181,7 @@ export function UserManagement({
 
     useEffect(() => {
         setEditingUser(null)
+        setUserPendingDelete(null)
         setShowInviteModal(false)
         setInviteValues(
             initialInviteForm,
@@ -246,6 +264,33 @@ export function UserManagement({
         )
     }
 
+    function requestUserRemoval(
+        user: AdminUser,
+    ) {
+        if (
+            user.user_id ===
+            currentProfile.id
+        ) {
+            setToastType('error')
+
+            setToastMessage(
+                'You cannot remove your own account.',
+            )
+
+            return
+        }
+
+        setUserPendingDelete(user)
+    }
+
+    function closeDeleteDialog() {
+        if (deleting) {
+            return
+        }
+
+        setUserPendingDelete(null)
+    }
+
     async function inviteUser() {
         const fullName =
             inviteValues.fullName.trim()
@@ -296,7 +341,7 @@ export function UserManagement({
                 email,
                 role: inviteValues.role,
                 redirectUrl:
-                    'https://tournamenthq.co.uk/admin/set-password',
+                    `${import.meta.env.VITE_ADMIN_URL}/admin/set-password?invitation=true`,
             })
 
             setShowInviteModal(false)
@@ -440,7 +485,7 @@ export function UserManagement({
                     email: user.email,
                     role: user.role,
                     redirectUrl:
-                        'https://tournamenthq.co.uk/admin/set-password',
+                        `${import.meta.env.VITE_ADMIN_URL}/admin/set-password?invitation=true`,
                 },
                 'resend_setup',
             )
@@ -458,6 +503,57 @@ export function UserManagement({
                     ? error.message
                     : 'Unable to send the password reset email.',
             )
+        }
+    }
+
+    async function confirmUserRemoval() {
+        if (
+            !userPendingDelete ||
+            deleting
+        ) {
+            return
+        }
+
+        if (
+            userPendingDelete.user_id ===
+            currentProfile.id
+        ) {
+            setUserPendingDelete(null)
+
+            setToastType('error')
+
+            setToastMessage(
+                'You cannot remove your own account.',
+            )
+
+            return
+        }
+
+        setDeleting(true)
+
+        try {
+            const result =
+                await userService.removeUser(
+                    organisationId,
+                    userPendingDelete.user_id,
+                )
+
+            setUserPendingDelete(null)
+
+            await loadUsers()
+
+            setToastType('success')
+            setToastMessage(result.message)
+        } catch (error) {
+            setToastType('error')
+
+            setToastMessage(
+                error instanceof Error
+                    ? error.message
+                    : 'Unable to remove the user.',
+            )
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -530,9 +626,12 @@ export function UserManagement({
                             user.user_id ===
                             currentProfile.id
 
-                        const roleClass =
+                        const isSuperAdmin =
                             user.role ===
                             'super_admin'
+
+                        const roleClass =
+                            isSuperAdmin
                                 ? 'role-super'
                                 : user.role ===
                                 'competition_manager'
@@ -630,68 +729,76 @@ export function UserManagement({
                                             : `Access to ${organisationName} is disabled.`}
                                     </span>
 
-                                    <div className="userActions">
-                                        <button
-                                            className="btn secondary small"
-                                            type="button"
-                                            disabled={
-                                                isCurrentUser
-                                            }
-                                            title={
-                                                isCurrentUser
-                                                    ? 'Your own organisation access cannot be changed here.'
-                                                    : undefined
-                                            }
-                                            onClick={() =>
-                                                openEditUser(
-                                                    user,
-                                                )
-                                            }
-                                        >
-                                            Edit Access
-                                        </button>
+                                    {!isCurrentUser && (
+                                        <div className="userActions">
+                                            {!isSuperAdmin && (
+                                                <button
+                                                    className="btn secondary small"
+                                                    type="button"
+                                                    onClick={() =>
+                                                        openEditUser(
+                                                            user,
+                                                        )
+                                                    }
+                                                >
+                                                    Edit Access
+                                                </button>
+                                            )}
 
-                                        <button
-                                            className="btn secondary small"
-                                            type="button"
-                                            disabled={
-                                                !user.email
-                                            }
-                                            onClick={() =>
-                                                void resendSetupEmail(
-                                                    user,
-                                                )
-                                            }
-                                        >
-                                            Reset Password
-                                        </button>
+                                            <button
+                                                className="btn secondary small"
+                                                type="button"
+                                                disabled={
+                                                    !user.email
+                                                }
+                                                onClick={() =>
+                                                    void resendSetupEmail(
+                                                        user,
+                                                    )
+                                                }
+                                            >
+                                                Reset Password
+                                            </button>
 
-                                        <button
-                                            className={`btn small ${
-                                                user.active
-                                                    ? 'danger'
-                                                    : 'secondary'
-                                            }`}
-                                            type="button"
-                                            disabled={
-                                                isCurrentUser
-                                            }
-                                            title={
-                                                isCurrentUser
-                                                    ? 'You cannot deactivate your own organisation access.'
-                                                    : undefined
-                                            }
-                                            onClick={() =>
-                                                void toggleUserAccess(
-                                                    user,
-                                                )
-                                            }
-                                        >
-                                            {user.active
-                                                ? 'Deactivate'
-                                                : 'Activate'}
-                                        </button>
-                                    </div>
+                                            {!isSuperAdmin && (
+                                                <>
+                                                    <button
+                                                        className={`btn small ${
+                                                            user.active
+                                                                ? 'danger'
+                                                                : 'secondary'
+                                                        }`}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            void toggleUserAccess(
+                                                                user,
+                                                            )
+                                                        }
+                                                    >
+                                                        {user.active
+                                                            ? 'Deactivate'
+                                                            : 'Activate'}
+                                                    </button>
+
+                                                    <button
+                                                        className="btn danger small"
+                                                        type="button"
+                                                        disabled={
+                                                            deleting
+                                                        }
+                                                        title={`Remove this user from ${organisationName}.`}
+                                                        onClick={() =>
+                                                            requestUserRemoval(
+                                                                user,
+                                                            )
+                                                        }
+                                                    >
+                                                        Remove User
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </article>
                         )
@@ -1084,6 +1191,29 @@ export function UserManagement({
                         </button>
                     </div>
                 </Modal>
+            )}
+
+            {userPendingDelete && (
+                <ConfirmDialog
+                    title={`Delete ${getUserDisplayName(
+                        userPendingDelete,
+                    )}?`}
+                    message={`${getUserDisplayName(
+                        userPendingDelete,
+                    )} will be removed from ${organisationName}. If this is their only organisation, their TournamentHQ account, login access and profile will also be permanently deleted. This action cannot be undone.`}
+                    confirmText={
+                        deleting
+                            ? 'Deleting...'
+                            : 'Delete User'
+                    }
+                    cancelText="Cancel"
+                    onCancel={
+                        closeDeleteDialog
+                    }
+                    onConfirm={
+                        confirmUserRemoval
+                    }
+                />
             )}
         </div>
     )

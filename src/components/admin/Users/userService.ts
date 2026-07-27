@@ -307,4 +307,74 @@ export const userService = {
             'Failed to update organisation access',
         )
     },
+
+    async removeUser(
+        organisationId: string,
+        userId: string,
+    ): Promise<{
+        accountDeleted: boolean
+        membershipRemoved: boolean
+        message: string
+    }> {
+        const {
+            data,
+            error,
+        } = await supabase.functions.invoke(
+            'manage-admin-user',
+            {
+                body: {
+                    action: 'remove_user',
+                    organisationId,
+                    userId,
+                },
+            },
+        )
+
+        if (error) {
+            console.error(
+                'Failed to remove administrator user:',
+                error,
+            )
+
+            throw new Error(
+                error.message ||
+                'Unable to remove the user.',
+            )
+        }
+
+        const response =
+            data as {
+                success?: boolean
+                accountDeleted?: boolean
+                membershipRemoved?: boolean
+                message?: string
+                error?: string
+            }
+
+        if (response.error) {
+            throw new Error(response.error)
+        }
+
+        if (
+            !response.success ||
+            typeof response.accountDeleted !==
+            'boolean' ||
+            typeof response.membershipRemoved !==
+            'boolean' ||
+            !response.message
+        ) {
+            throw new Error(
+                'The user removal response was incomplete.',
+            )
+        }
+
+        return {
+            accountDeleted:
+            response.accountDeleted,
+            membershipRemoved:
+            response.membershipRemoved,
+            message:
+            response.message,
+        }
+    },
 }
