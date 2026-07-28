@@ -12,6 +12,7 @@ import {
     type AdminProfile,
 } from '../services/accessControl'
 import { OrganisationProvider } from '../context/OrganisationContext'
+import { OrganisationThemeProvider } from '../context/OrganisationThemeProvider'
 import { CompetitionProvider } from '../contexts/CompetitionContext'
 
 export function AdminPage() {
@@ -179,14 +180,16 @@ export function AdminPage() {
             <OrganisationProvider
                 profile={profile}
             >
-                <CompetitionProvider>
-                    <AdminPortal
-                        profile={profile}
-                        onLogout={() =>
-                            void handleLogout()
-                        }
-                    />
-                </CompetitionProvider>
+                <OrganisationThemeProvider>
+                    <CompetitionProvider>
+                        <AdminPortal
+                            profile={profile}
+                            onLogout={() =>
+                                void handleLogout()
+                            }
+                        />
+                    </CompetitionProvider>
+                </OrganisationThemeProvider>
             </OrganisationProvider>
         )
     }

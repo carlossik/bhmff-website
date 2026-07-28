@@ -1,7 +1,11 @@
 import {
     useEffect,
+    useId,
+    useRef,
     type ReactNode,
 } from 'react'
+import { X } from 'lucide-react'
+
 import './Modal.css'
 
 type ModalProps = {
@@ -11,10 +15,14 @@ type ModalProps = {
 }
 
 export function Modal({
-                          title,
-                          children,
-                          onClose,
-                      }: ModalProps) {
+    title,
+    children,
+    onClose,
+}: ModalProps) {
+    const titleId = useId()
+    const dialogRef =
+        useRef<HTMLDivElement | null>(null)
+
     useEffect(() => {
         const previousOverflow =
             document.body.style.overflow
@@ -34,6 +42,8 @@ export function Modal({
             handleKeyDown
         )
 
+        dialogRef.current?.focus()
+
         return () => {
             document.body.style.overflow =
                 previousOverflow
@@ -49,31 +59,43 @@ export function Modal({
         <div
             className="modalOverlay"
             role="presentation"
-            onMouseDown={onClose}
+            onMouseDown={(event) => {
+                if (
+                    event.target ===
+                    event.currentTarget
+                ) {
+                    onClose()
+                }
+            }}
         >
             <div
+                ref={dialogRef}
                 className="modalCard"
                 role="dialog"
                 aria-modal="true"
-                aria-labelledby="modal-title"
-                onMouseDown={(event) =>
-                    event.stopPropagation()
-                }
+                aria-labelledby={titleId}
+                tabIndex={-1}
             >
-                <div className="modalHeader">
-                    <h2 id="modal-title">
-                        {title}
-                    </h2>
+                <header className="modalHeader">
+                    <div>
+                        <p className="modalEyebrow">
+                            TournamentHQ
+                        </p>
+
+                        <h2 id={titleId}>
+                            {title}
+                        </h2>
+                    </div>
 
                     <button
-                        className="btn secondary small modalCloseButton"
+                        className="modalCloseButton"
                         type="button"
                         aria-label={`Close ${title}`}
                         onClick={onClose}
                     >
-                        ✕
+                        <X size={22} />
                     </button>
-                </div>
+                </header>
 
                 <div className="modalBody">
                     {children}

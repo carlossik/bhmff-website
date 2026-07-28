@@ -4,18 +4,17 @@ import {
     useState,
 } from 'react'
 import {
-    AlertTriangle,
     Building2,
     Pencil,
     Plus,
     RefreshCw,
     Search,
     Trash2,
-    X,
 } from 'lucide-react'
 
 import './Organisations.css'
 
+import { ConfirmDialog } from '../../common/ConfirmDialog/ConfirmDialog'
 import { OrganisationForm } from './OrganisationForm'
 
 import type {
@@ -30,19 +29,8 @@ import {
     updateOrganisation,
 } from './organisationService'
 
-const destructiveDataItems = [
-    'competitions',
-    'competition teams',
-    'clubs and teams',
-    'players and coaches',
-    'groups and fixtures',
-    'results and goals',
-    'venues',
-    'articles',
-    'sponsors and enquiries',
-    'media',
-    'organisation memberships and user access',
-]
+const CURRENT_ORGANISATION_KEY =
+    'tournamenthq-current-organisation'
 
 function getErrorMessage(error: unknown) {
     if (
@@ -51,27 +39,34 @@ function getErrorMessage(error: unknown) {
         'message' in error &&
         typeof error.message === 'string'
     ) {
+        const message = error.message.trim()
+        const lowerMessage = message.toLowerCase()
+
         if (
-            error.message
-                .toLowerCase()
-                .includes(
-                    'final organisation cannot be deleted',
-                )
+            lowerMessage.includes('duplicate') ||
+            lowerMessage.includes('already exists') ||
+            lowerMessage.includes('organisations_slug_key')
+        ) {
+            return 'An organisation with this slug already exists. Please choose a different slug.'
+        }
+
+        if (
+            lowerMessage.includes(
+                'final organisation cannot be deleted'
+            )
         ) {
             return 'The final organisation cannot be deleted. Create another organisation before deleting this one.'
         }
 
-        return error.message
+        return message
     }
 
     return 'The operation could not be completed.'
 }
 
 const OrganisationManager = () => {
-    const [
-        organisations,
-        setOrganisations,
-    ] = useState<Organisation[]>([])
+    const [organisations, setOrganisations] =
+        useState<Organisation[]>([])
 
     const [loading, setLoading] =
         useState(true)
@@ -80,6 +75,9 @@ const OrganisationManager = () => {
         useState(false)
 
     const [deleting, setDeleting] =
+        useState(false)
+
+    const [switching, setSwitching] =
         useState(false)
 
     const [search, setSearch] =
@@ -91,57 +89,56 @@ const OrganisationManager = () => {
     const [
         editingOrganisation,
         setEditingOrganisation,
-    ] =
-        useState<Organisation | null>(
-            null,
-        )
+    ] = useState<Organisation | null>(null)
 
     const [
-        deleteOrganisationItem,
-        setDeleteOrganisationItem,
-    ] =
-        useState<Organisation | null>(
-            null,
-        )
+        organisationToDelete,
+        setOrganisationToDelete,
+    ] = useState<Organisation | null>(null)
 
     const [
-        deleteConfirmation,
-        setDeleteConfirmation,
-    ] = useState('')
+        createdOrganisation,
+        setCreatedOrganisation,
+    ] = useState<Organisation | null>(null)
 
     const [message, setMessage] =
         useState<string | null>(null)
 
-    const [
-        errorMessage,
-        setErrorMessage,
-    ] = useState<string | null>(null)
+    const [errorMessage, setErrorMessage] =
+        useState<string | null>(null)
 
-    const loadOrganisations =
-        async () => {
-            try {
-                setLoading(true)
+    async function loadOrganisations(
+        options: {
+            preserveMessages?: boolean
+        } = {}
+    ) {
+        try {
+            setLoading(true)
+
+            if (!options.preserveMessages) {
                 setErrorMessage(null)
-
-                const data =
-                    await getOrganisations()
-
-                setOrganisations(data)
-            } catch (error) {
-                console.error(
-                    'Failed to load organisations:',
-                    error,
-                )
-
-                setOrganisations([])
-
-                setErrorMessage(
-                    getErrorMessage(error),
-                )
-            } finally {
-                setLoading(false)
             }
+
+            const data =
+                await getOrganisations()
+
+            setOrganisations(data)
+            return true
+        } catch (error) {
+            console.error(
+                'Failed to load organisations:',
+                error
+            )
+
+            setErrorMessage(
+                getErrorMessage(error)
+            )
+
+            return false
+        } finally {
+            setLoading(false)
         }
+    }
 
     useEffect(() => {
         void loadOrganisations()
@@ -149,9 +146,8 @@ const OrganisationManager = () => {
 
     const filteredOrganisations =
         useMemo(() => {
-            const term = search
-                .trim()
-                .toLowerCase()
+            const term =
+                search.trim().toLowerCase()
 
             if (!term) {
                 return organisations
@@ -164,161 +160,197 @@ const OrganisationManager = () => {
                         .includes(term) ||
                     organisation.slug
                         .toLowerCase()
-                        .includes(term),
+                        .includes(term)
             )
-        }, [
-            organisations,
-            search,
-        ])
+        }, [organisations, search])
 
-    const deleteNameMatches =
-        useMemo(() => {
-            if (
-                !deleteOrganisationItem
-            ) {
-                return false
-            }
-
-            return (
-                deleteConfirmation.trim() ===
-                deleteOrganisationItem.name
-            )
-        }, [
-            deleteConfirmation,
-            deleteOrganisationItem,
-        ])
-
-    function handleAdd() {
+    function openCreateForm() {
         setEditingOrganisation(null)
+        setCreatedOrganisation(null)
         setShowForm(true)
         setMessage(null)
         setErrorMessage(null)
     }
 
-    function handleEdit(
-        organisation: Organisation,
+    function openEditForm(
+        organisation: Organisation
     ) {
         setEditingOrganisation(
-            organisation,
+            organisation
         )
-
+        setCreatedOrganisation(null)
         setShowForm(true)
         setMessage(null)
         setErrorMessage(null)
     }
 
-    function openDeleteDialog(
-        organisation: Organisation,
-    ) {
-        setDeleteOrganisationItem(
-            organisation,
-        )
-
-        setDeleteConfirmation('')
-        setMessage(null)
-        setErrorMessage(null)
-    }
-
-    function closeDeleteDialog() {
-        if (deleting) {
+    function closeForm() {
+        if (saving) {
             return
         }
 
-        setDeleteOrganisationItem(null)
-        setDeleteConfirmation('')
+        setShowForm(false)
+        setEditingOrganisation(null)
     }
 
     async function handleSave(
         values: OrganisationFormData,
+        provisionalId?: string
     ) {
-        try {
-            setSaving(true)
-            setMessage(null)
-            setErrorMessage(null)
+        setSaving(true)
+        setMessage(null)
+        setErrorMessage(null)
 
-            if (editingOrganisation) {
+        if (editingOrganisation) {
+            try {
                 await updateOrganisation(
                     editingOrganisation.id,
-                    values,
+                    values
+                )
+            } catch (error) {
+                const resolvedMessage =
+                    getErrorMessage(error)
+
+                setErrorMessage(
+                    resolvedMessage
                 )
 
-                setMessage(
-                    'Organisation updated successfully.',
+                throw new Error(
+                    resolvedMessage
                 )
-            } else {
-                await createOrganisation(
-                    values,
-                )
-
-                setMessage(
-                    'Organisation created successfully.',
-                )
+            } finally {
+                setSaving(false)
             }
-
-            await loadOrganisations()
 
             setShowForm(false)
             setEditingOrganisation(null)
-        } catch (error) {
-            console.error(
-                'Failed to save organisation:',
-                error,
+            setMessage(
+                'Organisation updated successfully.'
             )
 
+            await loadOrganisations({
+                preserveMessages: true,
+            })
+
+            return
+        }
+
+        let created: Organisation
+
+        try {
+            created =
+                await createOrganisation(
+                    values,
+                    provisionalId
+                )
+        } catch (error) {
             const resolvedMessage =
                 getErrorMessage(error)
 
             setErrorMessage(
-                resolvedMessage,
+                resolvedMessage
             )
+            setSaving(false)
 
             throw new Error(
-                resolvedMessage,
+                resolvedMessage
             )
-        } finally {
-            setSaving(false)
+        }
+
+        // The database creation has succeeded at this point.
+        // Any subsequent list-refresh problem must not be
+        // presented as a failed creation.
+        setSaving(false)
+        setShowForm(false)
+        setEditingOrganisation(null)
+        setCreatedOrganisation(created)
+        setMessage(
+            `"${created.name}" was created successfully.`
+        )
+
+        const listRefreshed =
+            await loadOrganisations({
+                preserveMessages: true,
+            })
+
+        if (!listRefreshed) {
+            setErrorMessage(
+                'The organisation was created, but the organisation list could not be refreshed automatically. Use the refresh button to reload the list.'
+            )
+        }
+    }
+
+    function handleSwitchToCreated() {
+        if (!createdOrganisation) {
+            return
+        }
+
+        setSwitching(true)
+        setErrorMessage(null)
+
+        try {
+            window.localStorage.setItem(
+                CURRENT_ORGANISATION_KEY,
+                createdOrganisation.id
+            )
+
+            // Reloading intentionally rebuilds the authenticated
+            // admin profile so the newly-created membership is
+            // available to the existing OrganisationProvider.
+            window.location.reload()
+        } catch (error) {
+            console.error(
+                'Failed to switch organisation:',
+                error
+            )
+
+            setSwitching(false)
+            setErrorMessage(
+                'The organisation was created, but TournamentHQ could not switch to it automatically. Refresh the page and select it from the organisation menu.'
+            )
         }
     }
 
     async function confirmDelete() {
-        if (
-            !deleteOrganisationItem ||
-            !deleteNameMatches
-        ) {
+        if (!organisationToDelete) {
             return
         }
+
+        const deletedName =
+            organisationToDelete.name
 
         try {
             setDeleting(true)
             setMessage(null)
             setErrorMessage(null)
 
-            const deletedName =
-                deleteOrganisationItem.name
-
             await deleteOrganisation(
-                deleteOrganisationItem.id,
+                organisationToDelete.id
             )
 
-            setDeleteOrganisationItem(
-                null,
-            )
-
-            setDeleteConfirmation('')
-
-            await loadOrganisations()
-
+            setOrganisationToDelete(null)
             setMessage(
-                `"${deletedName}" and all associated data were permanently deleted.`,
+                `"${deletedName}" was deleted successfully.`
             )
+
+            const listRefreshed =
+                await loadOrganisations({
+                    preserveMessages: true,
+                })
+
+            if (!listRefreshed) {
+                setErrorMessage(
+                    'The organisation was deleted, but the organisation list could not be refreshed automatically.'
+                )
+            }
         } catch (error) {
             console.error(
                 'Failed to delete organisation:',
-                error,
+                error
             )
 
             setErrorMessage(
-                getErrorMessage(error),
+                getErrorMessage(error)
             )
         } finally {
             setDeleting(false)
@@ -328,42 +360,93 @@ const OrganisationManager = () => {
     return (
         <div className="organisation-manager">
             <div className="organisation-header">
-                <div>
+                <div className="organisation-header-copy">
                     <h2>
-                        <Building2
-                            size={22}
-                        />
-
+                        <Building2 size={26} />
                         Organisations
                     </h2>
 
                     <p>
-                        Manage organisations
-                        that use TournamentHQ.
+                        Manage organisations that use
+                        TournamentHQ.
                     </p>
                 </div>
 
                 <button
                     className="primary-button"
                     type="button"
-                    onClick={handleAdd}
+                    onClick={openCreateForm}
                 >
                     <Plus size={18} />
-
                     New Organisation
                 </button>
             </div>
 
             {message && (
-                <p className="adminSuccessMessage">
+                <div
+                    role="status"
+                    className="adminSuccessMessage"
+                >
                     {message}
-                </p>
+                </div>
             )}
 
             {errorMessage && (
-                <p className="adminErrorMessage">
+                <div
+                    role="alert"
+                    className="adminErrorMessage"
+                >
                     {errorMessage}
-                </p>
+                </div>
+            )}
+
+            {createdOrganisation && (
+                <section className="organisation-created-panel">
+                    <div>
+                        <p className="organisation-created-eyebrow">
+                            Organisation ready
+                        </p>
+
+                        <h3>
+                            Switch to{' '}
+                            {createdOrganisation.name}?
+                        </h3>
+
+                        <p>
+                            Stay on the current organisation or
+                            reload TournamentHQ with the new
+                            organisation selected.
+                        </p>
+                    </div>
+
+                    <div className="organisation-created-actions">
+                        <button
+                            type="button"
+                            className="btn secondary"
+                            disabled={switching}
+                            onClick={() =>
+                                setCreatedOrganisation(
+                                    null
+                                )
+                            }
+                        >
+                            Stay here
+                        </button>
+
+                        <button
+                            type="button"
+                            className="btn primary"
+                            disabled={switching}
+                            onClick={
+                                handleSwitchToCreated
+                            }
+                        >
+                            {switching
+                                ? 'Switching...'
+                                : 'Switch organisation'}
+                        </button>
+                    </div>
+                </section>
             )}
 
             <div className="organisation-toolbar">
@@ -374,12 +457,9 @@ const OrganisationManager = () => {
                         type="text"
                         placeholder="Search organisations..."
                         value={search}
-                        onChange={(
-                            event,
-                        ) =>
+                        onChange={(event) =>
                             setSearch(
-                                event.target
-                                    .value,
+                                event.target.value
                             )
                         }
                     />
@@ -397,6 +477,11 @@ const OrganisationManager = () => {
                 >
                     <RefreshCw
                         size={18}
+                        className={
+                            loading
+                                ? 'organisation-spin'
+                                : undefined
+                        }
                     />
                 </button>
             </div>
@@ -404,82 +489,84 @@ const OrganisationManager = () => {
             <div className="organisation-table-container">
                 <table className="organisation-table">
                     <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Slug</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>
-                            Actions
-                        </th>
-                    </tr>
+                        <tr>
+                            <th>Name</th>
+                            <th>Slug</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    {loading && (
-                        <tr>
-                            <td
-                                colSpan={5}
-                                className="loading-cell"
-                            >
-                                Loading
-                                organisations...
-                            </td>
-                        </tr>
-                    )}
-
-                    {!loading &&
-                        filteredOrganisations.length ===
-                        0 && (
+                        {loading && (
                             <tr>
                                 <td
-                                    colSpan={
-                                        5
-                                    }
+                                    colSpan={5}
                                     className="loading-cell"
                                 >
-                                    No
-                                    organisations
-                                    found.
+                                    Loading organisations...
                                 </td>
                             </tr>
                         )}
 
-                    {!loading &&
-                        filteredOrganisations.map(
-                            (
-                                organisation,
-                            ) => (
-                                <tr
-                                    key={
-                                        organisation.id
-                                    }
-                                >
-                                    <td>
-                                        <div className="organisation-name">
-                                            <Building2
-                                                size={
-                                                    18
-                                                }
-                                            />
+                        {!loading &&
+                            filteredOrganisations.length ===
+                                0 && (
+                                <tr>
+                                    <td
+                                        colSpan={5}
+                                        className="loading-cell"
+                                    >
+                                        No organisations found.
+                                    </td>
+                                </tr>
+                            )}
 
-                                            <span>
+                        {!loading &&
+                            filteredOrganisations.map(
+                                (organisation) => (
+                                    <tr
+                                        key={
+                                            organisation.id
+                                        }
+                                    >
+                                        <td>
+                                            <div className="organisation-name">
+                                                {organisation.logo_url ? (
+                                                    <img
+                                                        src={
+                                                            organisation.logo_url
+                                                        }
+                                                        alt=""
+                                                    />
+                                                ) : (
+                                                    <span className="organisation-name-icon">
+                                                        <Building2
+                                                            size={
+                                                                18
+                                                            }
+                                                        />
+                                                    </span>
+                                                )}
+
+                                                <span className="organisation-name-text">
                                                     {
                                                         organisation.name
                                                     }
                                                 </span>
-                                        </div>
-                                    </td>
+                                            </div>
+                                        </td>
 
-                                    <td>
-                                        <code>
-                                            {
-                                                organisation.slug
-                                            }
-                                        </code>
-                                    </td>
+                                        <td>
+                                            <code>
+                                                {
+                                                    organisation.slug
+                                                }
+                                            </code>
+                                        </td>
 
-                                    <td>
+                                        <td>
                                             <span
                                                 className={`status-badge ${organisation.status}`}
                                             >
@@ -487,58 +574,58 @@ const OrganisationManager = () => {
                                                     organisation.status
                                                 }
                                             </span>
-                                    </td>
+                                        </td>
 
-                                    <td>
-                                        {new Date(
-                                            organisation.created_at,
-                                        ).toLocaleDateString(
-                                            'en-GB',
-                                        )}
-                                    </td>
+                                        <td>
+                                            {new Date(
+                                                organisation.created_at
+                                            ).toLocaleDateString(
+                                                'en-GB'
+                                            )}
+                                        </td>
 
-                                    <td>
-                                        <div className="table-actions">
-                                            <button
-                                                className="icon-button"
-                                                type="button"
-                                                aria-label={`Edit ${organisation.name}`}
-                                                title={`Edit ${organisation.name}`}
-                                                onClick={() =>
-                                                    handleEdit(
-                                                        organisation,
-                                                    )
-                                                }
-                                            >
-                                                <Pencil
-                                                    size={
-                                                        16
+                                        <td>
+                                            <div className="table-actions">
+                                                <button
+                                                    className="icon-button"
+                                                    type="button"
+                                                    aria-label={`Edit ${organisation.name}`}
+                                                    title={`Edit ${organisation.name}`}
+                                                    onClick={() =>
+                                                        openEditForm(
+                                                            organisation
+                                                        )
                                                     }
-                                                />
-                                            </button>
+                                                >
+                                                    <Pencil
+                                                        size={
+                                                            16
+                                                        }
+                                                    />
+                                                </button>
 
-                                            <button
-                                                className="icon-button danger"
-                                                type="button"
-                                                aria-label={`Delete ${organisation.name}`}
-                                                title={`Delete ${organisation.name}`}
-                                                onClick={() =>
-                                                    openDeleteDialog(
-                                                        organisation,
-                                                    )
-                                                }
-                                            >
-                                                <Trash2
-                                                    size={
-                                                        16
+                                                <button
+                                                    className="icon-button danger"
+                                                    type="button"
+                                                    aria-label={`Delete ${organisation.name}`}
+                                                    title={`Delete ${organisation.name}`}
+                                                    onClick={() =>
+                                                        setOrganisationToDelete(
+                                                            organisation
+                                                        )
                                                     }
-                                                />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ),
-                        )}
+                                                >
+                                                    <Trash2
+                                                        size={
+                                                            16
+                                                        }
+                                                    />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            )}
                     </tbody>
                 </table>
             </div>
@@ -551,406 +638,32 @@ const OrganisationManager = () => {
                     }
                     saving={saving}
                     onSave={handleSave}
-                    onCancel={() => {
-                        if (saving) {
-                            return
-                        }
-
-                        setShowForm(
-                            false,
-                        )
-
-                        setEditingOrganisation(
-                            null,
-                        )
-                    }}
+                    onCancel={closeForm}
                 />
             )}
 
-            {deleteOrganisationItem && (
-                <div
-                    role="presentation"
-                    onMouseDown={(
-                        event,
-                    ) => {
-                        if (
-                            event.target ===
-                            event.currentTarget
-                        ) {
-                            closeDeleteDialog()
-                        }
-                    }}
-                    style={{
-                        position:
-                            'fixed',
-                        inset: 0,
-                        zIndex: 10000,
-                        display: 'flex',
-                        alignItems:
-                            'center',
-                        justifyContent:
-                            'center',
-                        padding: '24px',
-                        background:
-                            'rgba(0, 0, 0, 0.78)',
-                        backdropFilter:
-                            'blur(5px)',
-                    }}
-                >
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="delete-organisation-title"
-                        style={{
-                            position:
-                                'relative',
-                            width: '100%',
-                            maxWidth:
-                                '620px',
-                            maxHeight:
-                                'calc(100vh - 48px)',
-                            overflowY:
-                                'auto',
-                            border:
-                                '1px solid rgba(239, 68, 68, 0.45)',
-                            borderRadius:
-                                '18px',
-                            padding:
-                                '30px',
-                            background:
-                                '#101d13',
-                            boxShadow:
-                                '0 24px 80px rgba(0, 0, 0, 0.55)',
-                        }}
-                    >
-                        <button
-                            type="button"
-                            aria-label="Close delete confirmation"
-                            disabled={
-                                deleting
-                            }
-                            onClick={
-                                closeDeleteDialog
-                            }
-                            style={{
-                                position:
-                                    'absolute',
-                                top: '16px',
-                                right:
-                                    '16px',
-                                display:
-                                    'grid',
-                                placeItems:
-                                    'center',
-                                width:
-                                    '36px',
-                                height:
-                                    '36px',
-                                border:
-                                    'none',
-                                borderRadius:
-                                    '10px',
-                                color:
-                                    '#d1d5db',
-                                background:
-                                    'rgba(255, 255, 255, 0.07)',
-                                cursor:
-                                    deleting
-                                        ? 'not-allowed'
-                                        : 'pointer',
-                            }}
-                        >
-                            <X
-                                size={18}
-                            />
-                        </button>
-
-                        <div
-                            style={{
-                                display:
-                                    'grid',
-                                placeItems:
-                                    'center',
-                                width:
-                                    '64px',
-                                height:
-                                    '64px',
-                                marginBottom:
-                                    '18px',
-                                borderRadius:
-                                    '50%',
-                                color:
-                                    '#fca5a5',
-                                background:
-                                    'rgba(239, 68, 68, 0.16)',
-                            }}
-                        >
-                            <AlertTriangle
-                                size={32}
-                            />
-                        </div>
-
-                        <h2
-                            id="delete-organisation-title"
-                            style={{
-                                margin:
-                                    '0 0 12px',
-                                color:
-                                    '#ffffff',
-                            }}
-                        >
-                            Permanently Delete
-                            Organisation
-                        </h2>
-
-                        <p
-                            style={{
-                                margin:
-                                    '0 0 18px',
-                                color:
-                                    '#d1d5db',
-                                lineHeight:
-                                    1.6,
-                            }}
-                        >
-                            You are about to
-                            permanently delete{' '}
-                            <strong
-                                style={{
-                                    color:
-                                        '#ffffff',
-                                }}
-                            >
-                                {
-                                    deleteOrganisationItem.name
-                                }
-                            </strong>
-                            .
-                        </p>
-
-                        <div
-                            style={{
-                                marginBottom:
-                                    '20px',
-                                border:
-                                    '1px solid rgba(239, 68, 68, 0.4)',
-                                borderRadius:
-                                    '12px',
-                                padding:
-                                    '18px',
-                                color:
-                                    '#fecaca',
-                                background:
-                                    'rgba(127, 29, 29, 0.24)',
-                            }}
-                        >
-                            <strong
-                                style={{
-                                    display:
-                                        'block',
-                                    marginBottom:
-                                        '10px',
-                                    fontSize:
-                                        '1rem',
-                                }}
-                            >
-                                Warning: this
-                                action cannot be
-                                undone.
-                            </strong>
-
-                            <p
-                                style={{
-                                    margin:
-                                        '0 0 12px',
-                                    lineHeight:
-                                        1.55,
-                                }}
-                            >
-                                Deleting this
-                                organisation will
-                                also permanently
-                                delete all data
-                                associated with it,
-                                including:
-                            </p>
-
-                            <ul
-                                style={{
-                                    columns: 2,
-                                    columnGap:
-                                        '32px',
-                                    margin:
-                                        '0',
-                                    paddingLeft:
-                                        '20px',
-                                    lineHeight:
-                                        1.7,
-                                }}
-                            >
-                                {destructiveDataItems.map(
-                                    (
-                                        item,
-                                    ) => (
-                                        <li
-                                            key={
-                                                item
-                                            }
-                                        >
-                                            {
-                                                item
-                                            }
-                                        </li>
-                                    ),
-                                )}
-                            </ul>
-                        </div>
-
-                        <label
-                            htmlFor="organisation-delete-confirmation"
-                            style={{
-                                display:
-                                    'block',
-                                marginBottom:
-                                    '8px',
-                                color:
-                                    '#f3f4f6',
-                                fontWeight:
-                                    700,
-                            }}
-                        >
-                            Type{' '}
-                            <span
-                                style={{
-                                    color:
-                                        '#fca5a5',
-                                }}
-                            >
-                                {
-                                    deleteOrganisationItem.name
-                                }
-                            </span>{' '}
-                            to confirm
-                        </label>
-
-                        <input
-                            id="organisation-delete-confirmation"
-                            type="text"
-                            autoComplete="off"
-                            autoFocus
-                            disabled={
-                                deleting
-                            }
-                            value={
-                                deleteConfirmation
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setDeleteConfirmation(
-                                    event
-                                        .target
-                                        .value,
-                                )
-                            }
-                            onKeyDown={(
-                                event,
-                            ) => {
-                                if (
-                                    event.key ===
-                                    'Enter' &&
-                                    deleteNameMatches &&
-                                    !deleting
-                                ) {
-                                    event.preventDefault()
-
-                                    void confirmDelete()
-                                }
-                            }}
-                            style={{
-                                boxSizing:
-                                    'border-box',
-                                width:
-                                    '100%',
-                                marginBottom:
-                                    '22px',
-                                border:
-                                    deleteConfirmation &&
-                                    !deleteNameMatches
-                                        ? '1px solid #ef4444'
-                                        : '1px solid rgba(255, 255, 255, 0.18)',
-                                borderRadius:
-                                    '10px',
-                                padding:
-                                    '13px 14px',
-                                color:
-                                    '#ffffff',
-                                background:
-                                    'rgba(255, 255, 255, 0.06)',
-                                outline:
-                                    'none',
-                            }}
-                        />
-
-                        <div
-                            style={{
-                                display:
-                                    'flex',
-                                justifyContent:
-                                    'flex-end',
-                                gap: '12px',
-                                flexWrap:
-                                    'wrap',
-                            }}
-                        >
-                            <button
-                                className="btn secondary"
-                                type="button"
-                                disabled={
-                                    deleting
-                                }
-                                onClick={
-                                    closeDeleteDialog
-                                }
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                className="btn primary dangerButton"
-                                type="button"
-                                disabled={
-                                    deleting ||
-                                    !deleteNameMatches
-                                }
-                                onClick={() =>
-                                    void confirmDelete()
-                                }
-                                style={{
-                                    opacity:
-                                        deleting ||
-                                        !deleteNameMatches
-                                            ? 0.5
-                                            : 1,
-                                    cursor:
-                                        deleting ||
-                                        !deleteNameMatches
-                                            ? 'not-allowed'
-                                            : 'pointer',
-                                }}
-                            >
-                                <Trash2
-                                    size={17}
-                                />
-
-                                {deleting
-                                    ? 'Deleting organisation...'
-                                    : 'Permanently Delete Organisation'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmDialog
+                open={
+                    organisationToDelete !== null
+                }
+                title="Delete organisation?"
+                message={
+                    organisationToDelete
+                        ? `Permanently delete ${organisationToDelete.name} and its associated data? This action cannot be undone.`
+                        : ''
+                }
+                confirmLabel="Delete organisation"
+                cancelLabel="Cancel"
+                isProcessing={deleting}
+                onConfirm={confirmDelete}
+                onCancel={() => {
+                    if (!deleting) {
+                        setOrganisationToDelete(
+                            null
+                        )
+                    }
+                }}
+            />
         </div>
     )
 }

@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient'
+
 import type {
     Organisation,
     OrganisationFormData,
@@ -6,7 +7,100 @@ import type {
 
 const TABLE = 'organisations'
 
-export async function getOrganisations(): Promise<Organisation[]> {
+type OrganisationRecord = {
+    name: string
+    slug: string
+    primary_colour: string
+    secondary_colour: string
+    accent_colour: string
+    background_colour: string
+    surface_colour: string
+    text_colour: string
+    logo_url: string | null
+    status: OrganisationFormData['status']
+    subscription_plan:
+        OrganisationFormData['subscription_plan']
+    subscription_status:
+        OrganisationFormData['subscription_status']
+    trial_end: string | null
+    max_users: number
+    max_competitions: number
+    public_site_enabled: boolean
+    owner_name: string | null
+    owner_email: string | null
+    owner_phone: string | null
+    enabled_modules:
+        OrganisationFormData['enabled_modules']
+}
+
+function normaliseOptionalText(
+    value: string
+): string | null {
+    const normalisedValue = value.trim()
+
+    return normalisedValue || null
+}
+
+function toOrganisationRecord(
+    organisation: OrganisationFormData
+): OrganisationRecord {
+    return {
+        name: organisation.name.trim(),
+        slug: organisation.slug
+            .trim()
+            .toLowerCase(),
+        primary_colour:
+            organisation.primary_colour,
+        secondary_colour:
+            organisation.secondary_colour,
+        accent_colour:
+            organisation.accent_colour,
+        background_colour:
+            organisation.background_colour,
+        surface_colour:
+            organisation.surface_colour,
+        text_colour:
+            organisation.text_colour,
+        logo_url:
+            normaliseOptionalText(
+                organisation.logo_url
+            ),
+        status: organisation.status,
+        subscription_plan:
+            organisation.subscription_plan,
+        subscription_status:
+            organisation.subscription_status,
+        trial_end:
+            normaliseOptionalText(
+                organisation.trial_end
+            ),
+        max_users:
+            organisation.max_users,
+        max_competitions:
+            organisation.max_competitions,
+        public_site_enabled:
+            organisation.public_site_enabled,
+        owner_name:
+            normaliseOptionalText(
+                organisation.owner_name
+            ),
+        owner_email:
+            normaliseOptionalText(
+                organisation.owner_email
+            )?.toLowerCase() ?? null,
+        owner_phone:
+            normaliseOptionalText(
+                organisation.owner_phone
+            ),
+        enabled_modules: [
+            ...organisation.enabled_modules,
+        ],
+    }
+}
+
+export async function getOrganisations(): Promise<
+    Organisation[]
+> {
     const { data, error } = await supabase
         .from(TABLE)
         .select('*')
@@ -42,7 +136,10 @@ export async function slugExists(
     let query = supabase
         .from(TABLE)
         .select('id')
-        .eq('slug', slug)
+        .eq(
+            'slug',
+            slug.trim().toLowerCase()
+        )
 
     if (excludeId) {
         query = query.neq('id', excludeId)
@@ -58,9 +155,15 @@ export async function slugExists(
 }
 
 export async function createOrganisation(
-    organisation: OrganisationFormData
+    organisation: OrganisationFormData,
+    provisionalId?: string
 ): Promise<Organisation> {
-    const exists = await slugExists(organisation.slug)
+    const record =
+        toOrganisationRecord(organisation)
+
+    const exists = await slugExists(
+        record.slug
+    )
 
     if (exists) {
         throw new Error(
@@ -85,15 +188,10 @@ export async function createOrganisation(
     } = await supabase
         .from(TABLE)
         .insert({
-            name: organisation.name,
-            slug: organisation.slug.toLowerCase(),
-            primary_colour:
-            organisation.primary_colour,
-            secondary_colour:
-            organisation.secondary_colour,
-            logo_url:
-                organisation.logo_url || null,
-            status: organisation.status,
+            ...(provisionalId
+                ? { id: provisionalId }
+                : {}),
+            ...record,
         })
         .select()
         .single()
@@ -107,7 +205,7 @@ export async function createOrganisation(
             .from('organisation_memberships')
             .insert({
                 organisation_id:
-                newOrganisation.id,
+                    newOrganisation.id,
                 user_id: user.id,
                 role: 'super_admin',
                 active: true,
@@ -127,12 +225,16 @@ export async function createOrganisation(
 
     return newOrganisation as Organisation
 }
+
 export async function updateOrganisation(
     id: string,
     organisation: OrganisationFormData
 ): Promise<Organisation> {
+    const record =
+        toOrganisationRecord(organisation)
+
     const exists = await slugExists(
-        organisation.slug,
+        record.slug,
         id
     )
 
@@ -144,15 +246,7 @@ export async function updateOrganisation(
 
     const { data, error } = await supabase
         .from(TABLE)
-        .update({
-            name: organisation.name,
-            slug: organisation.slug.toLowerCase(),
-            primary_colour: organisation.primary_colour,
-            secondary_colour: organisation.secondary_colour,
-            logo_url:
-                organisation.logo_url || null,
-            status: organisation.status,
-        })
+        .update(record)
         .eq('id', id)
         .select()
         .single()
