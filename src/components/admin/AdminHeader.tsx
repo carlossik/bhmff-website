@@ -1,7 +1,6 @@
 import { formatAdminRole, type AdminProfile } from '../../services/accessControl'
 import { useOrganisation } from '../../context/OrganisationContext'
 import { CompetitionSelector } from './CompetitionSelector'
-import { CkefaLogo } from '../CkefaLogo'
 type AdminHeaderProps = {
     profile: AdminProfile
     onLogout: () => void
@@ -28,14 +27,20 @@ export function AdminHeader({
 
                 <div className="adminBrand">
 
-                    <CkefaLogo className="adminLoginLogo" />
+                    <a
+                        href="/"
+                        className="inline-block"
+                        aria-label="TournamentHQ"
+                    >
+                        <img
+                            src="/assets/tournamenthq-logo.png"
+                            alt="TournamentHQ"
+                            className="h-20 w-auto object-contain"
+                        />
+                    </a>
 
-                    <h1>
-                        TournamentHQ
-                    </h1>
-
-                    <p className="muted">
-                        Professional Tournament Management Platform
+                    <p className="muted font-semibold">
+                        The Headquarters for Sporting Tournaments
                     </p>
 
                     <p className="muted">

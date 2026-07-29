@@ -42,6 +42,7 @@ import {
 import { lastYearFinalVideo } from './data/festivalData'
 import { usePublicArticles } from './hooks/usePublicArticles'
 import { SetPasswordPage } from './pages/Auth/SetPasswordPage'
+import { PublicOrganisationLayout } from './pages/public/PublicOrganisationLayout'
 
 type RelatedTeam = {
     id: string
@@ -898,11 +899,18 @@ function App() {
         )
     }
     if (
+        location.pathname.startsWith('/o/')
+    ) {
+        return <PublicOrganisationLayout />
+    }
+
+    if (
         location.pathname ===
         '/admin/set-password'
     ) {
         return <SetPasswordPage />
     }
+
     if (
         location.pathname ===
         '/admin'

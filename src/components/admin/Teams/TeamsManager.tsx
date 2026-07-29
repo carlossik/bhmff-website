@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabaseClient'
 import { useOrganisation } from '../../../context/OrganisationContext'
+import { useCompetition } from '../../../contexts/CompetitionContext'
 import { Toast } from '../../common/Toast'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { TeamModal } from './TeamModal'
@@ -16,6 +17,7 @@ import {
     deleteTeamLogo,
     replaceTeamLogo,
 } from './teamService'
+import { venueService } from '../Venues/venueService'
 import type {
     ClubOption,
     DbTeam,
@@ -54,6 +56,9 @@ export function TeamsManager({
                              }: TeamsManagerProps) {
     const { currentOrganisation } =
         useOrganisation()
+
+    const { currentCompetition } =
+        useCompetition()
 
     const [
         showTeamModal,
@@ -349,23 +354,23 @@ export function TeamsManager({
             return existingVenue.id
         }
 
-        const { data, error } =
-            await supabase
-                .from('venues')
-                .insert({
-                    organisation_id:
-                    currentOrganisation.id,
-                    name: venueName,
-                })
-                .select('id, name')
-                .single()
-
-        if (error) {
-            throw error
+        if (!currentCompetition?.id) {
+            throw new Error(
+                'Select a competition before creating a venue.'
+            )
         }
 
         const createdVenue =
-            data as TeamVenueOption
+            await venueService.createVenue(
+                currentCompetition.id,
+                currentOrganisation.id,
+                {
+                    name: venueName,
+                    address: '',
+                    postcode: '',
+                    notes: '',
+                }
+            )
 
         setVenues((current) =>
             [...current, createdVenue]

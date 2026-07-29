@@ -1,9 +1,12 @@
 import {
+    useCallback,
     useEffect,
+    useRef,
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
+
 import { AdminLogin } from '../components/AdminLogin'
 import { AdminPortal } from '../components/AdminPortal'
 import { supabase } from '../lib/supabaseClient'
@@ -31,42 +34,117 @@ export function AdminPage() {
     ] = useState('')
 
     const navigate = useNavigate()
-    console.log('LOAD PROFILE START')
-    async function loadProfile(
-        activeSession: Session
-    ) {
-        setIsLoading(true)
-        setAccessError('')
 
-        try {
-            const adminProfile =
-                await getCurrentAdminProfile()
-            console.log('PROFILE LOADED', adminProfile)
-            console.log('SETTING SESSION')
-            setSession(activeSession)
-            console.log('SETTING PROFILE')
-            setProfile(adminProfile)
-        } catch (error) {
-            console.error('LOAD PROFILE FAILED', error)
-            setProfile(null)
+    const isMountedRef =
+        useRef(true)
 
-            setAccessError(
-                error instanceof Error
-                    ? error.message
-                    : 'Your administrator access could not be verified.'
-            )
-        } finally {
-            setIsLoading(false)
-        }
-    }
+    const profileRef =
+        useRef<AdminProfile | null>(null)
+
+    const loadedUserIdRef =
+        useRef<string | null>(null)
+
+    const profileRequestRef =
+        useRef<Promise<void> | null>(null)
 
     useEffect(() => {
-        let isMounted = true
+        profileRef.current = profile
+    }, [profile])
 
-        supabase.auth
+    const loadProfile = useCallback(
+        async (
+            activeSession: Session,
+            showLoadingScreen = false
+        ) => {
+            const userId =
+                activeSession.user.id
+
+            if (
+                loadedUserIdRef.current ===
+                userId &&
+                profileRef.current
+            ) {
+                setSession(activeSession)
+                return
+            }
+
+            if (profileRequestRef.current) {
+                await profileRequestRef.current
+                return
+            }
+
+            const request = (async () => {
+                if (showLoadingScreen) {
+                    setIsLoading(true)
+                }
+
+                setAccessError('')
+
+                try {
+                    const adminProfile =
+                        await getCurrentAdminProfile()
+
+                    if (
+                        !isMountedRef.current
+                    ) {
+                        return
+                    }
+
+                    loadedUserIdRef.current =
+                        userId
+                    profileRef.current =
+                        adminProfile
+
+                    setSession(activeSession)
+                    setProfile(adminProfile)
+                } catch (error) {
+                    if (
+                        !isMountedRef.current
+                    ) {
+                        return
+                    }
+
+                    loadedUserIdRef.current =
+                        null
+                    profileRef.current =
+                        null
+
+                    setProfile(null)
+
+                    setAccessError(
+                        error instanceof Error
+                            ? error.message
+                            : 'Your administrator access could not be verified.'
+                    )
+                } finally {
+                    if (
+                        isMountedRef.current
+                    ) {
+                        setIsLoading(false)
+                    }
+
+                    profileRequestRef.current =
+                        null
+                }
+            })()
+
+            profileRequestRef.current =
+                request
+
+            await request
+        },
+        []
+    )
+
+    useEffect(() => {
+        isMountedRef.current = true
+
+        void supabase.auth
             .getSession()
             .then(({ data, error }) => {
-                if (!isMounted) {
+                if (
+                    !isMountedRef.current
+                ) {
                     return
                 }
 
@@ -74,6 +152,11 @@ export function AdminPage() {
                     error ||
                     !data.session
                 ) {
+                    loadedUserIdRef.current =
+                        null
+                    profileRef.current =
+                        null
+
                     setSession(null)
                     setProfile(null)
                     setIsLoading(false)
@@ -81,7 +164,8 @@ export function AdminPage() {
                 }
 
                 void loadProfile(
-                    data.session
+                    data.session,
+                    true
                 )
             })
 
@@ -93,7 +177,9 @@ export function AdminPage() {
                     event,
                     activeSession
                 ) => {
-                    if (!isMounted) {
+                    if (
+                        !isMountedRef.current
+                    ) {
                         return
                     }
 
@@ -102,6 +188,13 @@ export function AdminPage() {
                         'SIGNED_OUT' ||
                         !activeSession
                     ) {
+                        loadedUserIdRef.current =
+                            null
+                        profileRequestRef.current =
+                            null
+                        profileRef.current =
+                            null
+
                         setSession(null)
                         setProfile(null)
                         setAccessError('')
@@ -111,30 +204,53 @@ export function AdminPage() {
 
                     if (
                         event ===
-                        'SIGNED_IN' ||
-                        event ===
                         'TOKEN_REFRESHED'
                     ) {
-                        void loadProfile(
+                        setSession(
                             activeSession
+                        )
+                        return
+                    }
+
+                    if (
+                        event ===
+                        'SIGNED_IN' ||
+                        event ===
+                        'INITIAL_SESSION' ||
+                        event ===
+                        'USER_UPDATED'
+                    ) {
+                        void loadProfile(
+                            activeSession,
+                            !profileRef.current
                         )
                     }
                 }
             )
 
         return () => {
-            isMounted = false
+            isMountedRef.current = false
             authListener.subscription.unsubscribe()
         }
-    }, [])
+    }, [loadProfile])
 
-    async function handleLogout() {
-        await supabase.auth.signOut()
-        setSession(null)
-        setProfile(null)
-        setAccessError('')
-        navigate('/admin')
-    }
+    const handleLogout =
+        useCallback(async () => {
+            await supabase.auth.signOut()
+
+            loadedUserIdRef.current =
+                null
+            profileRequestRef.current =
+                null
+            profileRef.current =
+                null
+
+            setSession(null)
+            setProfile(null)
+            setAccessError('')
+
+            navigate('/admin')
+        }, [navigate])
 
     if (isLoading) {
         return (
@@ -184,8 +300,8 @@ export function AdminPage() {
                     <CompetitionProvider>
                         <AdminPortal
                             profile={profile}
-                            onLogout={() =>
-                                void handleLogout()
+                            onLogout={
+                                handleLogout
                             }
                         />
                     </CompetitionProvider>
@@ -199,7 +315,7 @@ export function AdminPage() {
             onLoginSuccess={() => {
                 setIsLoading(true)
 
-                supabase.auth
+                void supabase.auth
                     .getSession()
                     .then(
                         ({
@@ -220,7 +336,8 @@ export function AdminPage() {
                             }
 
                             void loadProfile(
-                                data.session
+                                data.session,
+                                true
                             )
                         }
                     )

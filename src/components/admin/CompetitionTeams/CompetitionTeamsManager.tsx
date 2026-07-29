@@ -10,10 +10,38 @@ import { Toast } from '../../common/Toast'
 
 import { competitionTeamService } from './competitionTeamService'
 
-import type {
-    CompetitionTeam,
-    OrganisationTeamOption,
+import {
+    MATCH_DAYS,
+    type CompetitionTeam,
+    type MatchDay,
+    type OrganisationTeamOption,
 } from './competitionTeamTypes'
+
+const DEFAULT_MATCH_DAYS: MatchDay[] = [
+    'saturday',
+    'sunday',
+]
+
+const MATCH_DAY_LABELS: Record<
+    MatchDay,
+    string
+> = {
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+}
+
+function isMatchDay(
+    value: string
+): value is MatchDay {
+    return MATCH_DAYS.includes(
+        value as MatchDay
+    )
+}
 
 export function CompetitionTeamsManager() {
     const { currentOrganisation } =
@@ -23,6 +51,28 @@ export function CompetitionTeamsManager() {
         currentCompetition,
         currentCompetitionId,
     } = useCompetition()
+
+    const allowedMatchDays =
+        useMemo<MatchDay[]>(() => {
+            const competition =
+                currentCompetition as
+                    | {
+                    allowed_match_days?:
+                        string[] | null
+                }
+                    | null
+
+            const validDays =
+                (
+                    competition
+                        ?.allowed_match_days ??
+                    []
+                ).filter(isMatchDay)
+
+            return validDays.length > 0
+                ? validDays
+                : DEFAULT_MATCH_DAYS
+        }, [currentCompetition])
 
     const [
         organisationTeams,
@@ -38,6 +88,13 @@ export function CompetitionTeamsManager() {
         selectedTeamIds,
         setSelectedTeamIds,
     ] = useState<string[]>([])
+
+    const [
+        preferredDaysByTeam,
+        setPreferredDaysByTeam,
+    ] = useState<
+        Record<string, MatchDay[]>
+    >({})
 
     const [searchTerm, setSearchTerm] =
         useState('')
@@ -75,6 +132,7 @@ export function CompetitionTeamsManager() {
         setOrganisationTeams([])
         setCompetitionTeams([])
         setSelectedTeamIds([])
+        setPreferredDaysByTeam({})
         setSearchTerm('')
     }
 
@@ -114,6 +172,22 @@ export function CompetitionTeamsManager() {
                         competitionTeam.team_id
                 )
             )
+
+            setPreferredDaysByTeam(
+                Object.fromEntries(
+                    competitionTeamRows.map(
+                        (competitionTeam) => [
+                            competitionTeam.team_id,
+                            competitionTeam
+                                .preferred_match_days
+                                .length > 0
+                                ? competitionTeam
+                                    .preferred_match_days
+                                : allowedMatchDays,
+                        ]
+                    )
+                )
+            )
         } catch (error) {
             clearData()
 
@@ -147,6 +221,7 @@ export function CompetitionTeamsManager() {
     }, [
         currentOrganisation?.id,
         currentCompetitionId,
+        allowedMatchDays,
     ])
 
     const existingTeamIds = useMemo(
@@ -157,6 +232,23 @@ export function CompetitionTeamsManager() {
             ),
         [competitionTeams]
     )
+
+    const savedPreferredDaysByTeam =
+        useMemo(
+            () =>
+                Object.fromEntries(
+                    competitionTeams.map(
+                        (competitionTeam) => [
+                            competitionTeam.team_id,
+                            [
+                                ...competitionTeam
+                                    .preferred_match_days,
+                            ].sort(),
+                        ]
+                    )
+                ),
+            [competitionTeams]
+        )
 
     const hasUnsavedChanges = useMemo(() => {
         if (
@@ -169,12 +261,40 @@ export function CompetitionTeamsManager() {
         const existingIds =
             new Set(existingTeamIds)
 
+        if (
+            selectedTeamIds.some(
+                (teamId) =>
+                    !existingIds.has(teamId)
+            )
+        ) {
+            return true
+        }
+
         return selectedTeamIds.some(
-            (teamId) =>
-                !existingIds.has(teamId)
+            (teamId) => {
+                const currentDays = [
+                    ...(
+                        preferredDaysByTeam[
+                            teamId
+                            ] ?? []
+                    ),
+                ].sort()
+
+                const savedDays =
+                    savedPreferredDaysByTeam[
+                        teamId
+                        ] ?? []
+
+                return (
+                    currentDays.join('|') !==
+                    savedDays.join('|')
+                )
+            }
         )
     }, [
         existingTeamIds,
+        preferredDaysByTeam,
+        savedPreferredDaysByTeam,
         selectedTeamIds,
     ])
 
@@ -213,10 +333,24 @@ export function CompetitionTeamsManager() {
 
     function toggleTeam(teamId: string) {
         setSelectedTeamIds(
-            (currentSelectedTeamIds) =>
-                currentSelectedTeamIds.includes(
-                    teamId
-                )
+            (currentSelectedTeamIds) => {
+                const isSelected =
+                    currentSelectedTeamIds.includes(
+                        teamId
+                    )
+
+                if (!isSelected) {
+                    setPreferredDaysByTeam(
+                        (current) => ({
+                            ...current,
+                            [teamId]:
+                                current[teamId] ??
+                                allowedMatchDays,
+                        })
+                    )
+                }
+
+                return isSelected
                     ? currentSelectedTeamIds.filter(
                         (selectedTeamId) =>
                             selectedTeamId !==
@@ -226,6 +360,36 @@ export function CompetitionTeamsManager() {
                         ...currentSelectedTeamIds,
                         teamId,
                     ]
+            }
+        )
+    }
+
+    function togglePreferredDay(
+        teamId: string,
+        day: MatchDay
+    ) {
+        setPreferredDaysByTeam(
+            (current) => {
+                const currentDays =
+                    current[teamId] ??
+                    allowedMatchDays
+
+                const nextDays =
+                    currentDays.includes(day)
+                        ? currentDays.filter(
+                            (currentDay) =>
+                                currentDay !== day
+                        )
+                        : [
+                            ...currentDays,
+                            day,
+                        ]
+
+                return {
+                    ...current,
+                    [teamId]: nextDays,
+                }
+            }
         )
     }
 
@@ -243,6 +407,24 @@ export function CompetitionTeamsManager() {
                         ...visibleTeamIds,
                     ])
                 )
+        )
+
+        setPreferredDaysByTeam(
+            (current) => {
+                const next = {
+                    ...current,
+                }
+
+                visibleTeamIds.forEach(
+                    (teamId) => {
+                        next[teamId] =
+                            next[teamId] ??
+                            allowedMatchDays
+                    }
+                )
+
+                return next
+            }
         )
     }
 
@@ -269,12 +451,42 @@ export function CompetitionTeamsManager() {
         setSelectedTeamIds(
             existingTeamIds
         )
+
+        setPreferredDaysByTeam(
+            Object.fromEntries(
+                competitionTeams.map(
+                    (competitionTeam) => [
+                        competitionTeam.team_id,
+                        competitionTeam
+                            .preferred_match_days,
+                    ]
+                )
+            )
+        )
     }
 
     async function saveSelection() {
         if (!currentCompetitionId) {
             showToast(
                 'Select a competition before assigning teams.',
+                'error'
+            )
+            return
+        }
+
+        const teamsWithoutDays =
+            selectedTeamIds.filter(
+                (teamId) =>
+                    !(
+                        preferredDaysByTeam[
+                            teamId
+                            ] ?? []
+                    ).length
+            )
+
+        if (teamsWithoutDays.length > 0) {
+            showToast(
+                'Every selected team must have at least one preferred match day.',
                 'error'
             )
             return
@@ -287,7 +499,9 @@ export function CompetitionTeamsManager() {
                 .saveSelection(
                     currentCompetitionId,
                     selectedTeamIds,
-                    existingTeamIds
+                    existingTeamIds,
+                    preferredDaysByTeam,
+                    allowedMatchDays
                 )
 
             if (currentOrganisation?.id) {
@@ -298,7 +512,7 @@ export function CompetitionTeamsManager() {
             }
 
             showToast(
-                'Competition teams updated successfully.'
+                'Competition teams and match-day preferences updated successfully.'
             )
         } catch (error) {
             showToast(
@@ -349,9 +563,9 @@ export function CompetitionTeamsManager() {
                     </h3>
 
                     <p className="muted">
-                        Select which organisation
-                        teams are participating in
-                        the selected competition.
+                        Select participating teams
+                        and their preferred
+                        group-stage match days.
                     </p>
 
                     {currentCompetition && (
@@ -479,8 +693,37 @@ export function CompetitionTeamsManager() {
                                             .length
                                     }
                                 </strong>{' '}
-                                teams selected for
-                                this competition.
+                                teams selected.
+                            </p>
+
+                            <p className="muted">
+                                Group-stage preferences
+                                are enforced where
+                                possible. Knockout dates
+                                take priority after teams
+                                qualify.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="adminInfoBox">
+                        <div className="adminInfoIcon">
+                            📅
+                        </div>
+
+                        <div>
+                            <p>
+                                Competition match days:{' '}
+                                <strong>
+                                    {allowedMatchDays
+                                        .map(
+                                            (day) =>
+                                                MATCH_DAY_LABELS[
+                                                    day
+                                                    ]
+                                        )
+                                        .join(', ')}
+                                </strong>
                             </p>
                         </div>
                     </div>
@@ -505,19 +748,27 @@ export function CompetitionTeamsManager() {
                                             team.id
                                         )
 
+                                    const preferredDays =
+                                        preferredDaysByTeam[
+                                            team.id
+                                            ] ??
+                                        allowedMatchDays
+
                                     return (
-                                        <label
+                                        <article
                                             className="adminGroupCard"
                                             key={
                                                 team.id
                                             }
-                                            style={{
-                                                cursor:
-                                                    'pointer',
-                                            }}
                                         >
                                             <div className="adminGroupHeader">
-                                                <div className="adminGroupTeam">
+                                                <label
+                                                    className="adminGroupTeam"
+                                                    style={{
+                                                        cursor:
+                                                            'pointer',
+                                                    }}
+                                                >
                                                     {team.logo_url ? (
                                                         <img
                                                             src={
@@ -545,19 +796,19 @@ export function CompetitionTeamsManager() {
                                                                 'Independent team'}
                                                         </p>
                                                     </div>
-                                                </div>
 
-                                                <input
-                                                    type="checkbox"
-                                                    checked={
-                                                        isSelected
-                                                    }
-                                                    onChange={() =>
-                                                        toggleTeam(
-                                                            team.id
-                                                        )
-                                                    }
-                                                />
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            isSelected
+                                                        }
+                                                        onChange={() =>
+                                                            toggleTeam(
+                                                                team.id
+                                                            )
+                                                        }
+                                                    />
+                                                </label>
                                             </div>
 
                                             <div className="adminGroupMeta">
@@ -591,7 +842,67 @@ export function CompetitionTeamsManager() {
                                                         : 'Draft'}
                                                 </span>
                                             </div>
-                                        </label>
+
+                                            {isSelected && (
+                                                <div className="mt-4 border-t border-lime-900/40 pt-4">
+                                                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-lime-400">
+                                                        Preferred group-stage days
+                                                    </p>
+
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {allowedMatchDays.map(
+                                                            (
+                                                                day
+                                                            ) => {
+                                                                const checked =
+                                                                    preferredDays.includes(
+                                                                        day
+                                                                    )
+
+                                                                return (
+                                                                    <label
+                                                                        key={
+                                                                            day
+                                                                        }
+                                                                        className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                                                            checked
+                                                                                ? 'border-lime-400 bg-lime-400 text-black'
+                                                                                : 'border-lime-900/60 bg-black/20 text-slate-300 hover:border-lime-600'
+                                                                        }`}
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="sr-only"
+                                                                            checked={
+                                                                                checked
+                                                                            }
+                                                                            onChange={() =>
+                                                                                togglePreferredDay(
+                                                                                    team.id,
+                                                                                    day
+                                                                                )
+                                                                            }
+                                                                        />
+
+                                                                        {
+                                                                            MATCH_DAY_LABELS[
+                                                                                day
+                                                                                ]
+                                                                        }
+                                                                    </label>
+                                                                )
+                                                            }
+                                                        )}
+                                                    </div>
+
+                                                    {!preferredDays.length && (
+                                                        <p className="mt-2 text-sm text-red-300">
+                                                            Select at least one preferred day.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </article>
                                     )
                                 }
                             )}

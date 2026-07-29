@@ -1,10 +1,12 @@
 import { supabase } from '../../../lib/supabaseClient'
 
-import type {
-    CompetitionTeam,
-    CompetitionTeamRow,
-    OrganisationTeamOption,
-    OrganisationTeamRow,
+import {
+    MATCH_DAYS,
+    type CompetitionTeam,
+    type CompetitionTeamRow,
+    type MatchDay,
+    type OrganisationTeamOption,
+    type OrganisationTeamRow,
 } from './competitionTeamTypes'
 
 function getSingleRelation<T>(
@@ -17,6 +19,20 @@ function getSingleRelation<T>(
     return Array.isArray(value)
         ? value[0] ?? null
         : value
+}
+
+function isMatchDay(
+    value: string
+): value is MatchDay {
+    return MATCH_DAYS.includes(
+        value as MatchDay
+    )
+}
+
+function normaliseMatchDays(
+    values: string[] | null | undefined
+): MatchDay[] {
+    return (values ?? []).filter(isMatchDay)
 }
 
 function mapOrganisationTeam(
@@ -54,6 +70,10 @@ function mapCompetitionTeam(
         competition_id: row.competition_id,
         team_id: row.team_id,
         created_at: row.created_at,
+        preferred_match_days:
+            normaliseMatchDays(
+                row.preferred_match_days
+            ),
         team: {
             id: team.id,
             club_id: team.club_id,
@@ -115,6 +135,7 @@ export const competitionTeamService = {
                 competition_id,
                 team_id,
                 created_at,
+                preferred_match_days,
                 team:teams (
                     id,
                     club_id,
@@ -153,45 +174,15 @@ export const competitionTeamService = {
             )
     },
 
-    async addTeam(
-        competitionId: string,
-        teamId: string
-    ): Promise<void> {
-        const { error } = await supabase
-            .from('competition_teams')
-            .insert({
-                competition_id:
-                competitionId,
-                team_id: teamId,
-            })
-
-        if (error) {
-            throw error
-        }
-    },
-
-    async removeTeam(
-        competitionId: string,
-        teamId: string
-    ): Promise<void> {
-        const { error } = await supabase
-            .from('competition_teams')
-            .delete()
-            .eq(
-                'competition_id',
-                competitionId
-            )
-            .eq('team_id', teamId)
-
-        if (error) {
-            throw error
-        }
-    },
-
     async saveSelection(
         competitionId: string,
         selectedTeamIds: string[],
-        existingTeamIds: string[]
+        existingTeamIds: string[],
+        preferredDaysByTeam: Record<
+            string,
+            MatchDay[]
+        >,
+        defaultMatchDays: MatchDay[]
     ): Promise<void> {
         const selectedIds = new Set(
             selectedTeamIds
@@ -213,12 +204,26 @@ export const competitionTeamService = {
                     !selectedIds.has(teamId)
             )
 
+        const getDaysForTeam = (
+            teamId: string
+        ): MatchDay[] => {
+            const preferredDays =
+                preferredDaysByTeam[teamId] ??
+                []
+
+            return preferredDays.length > 0
+                ? preferredDays
+                : defaultMatchDays
+        }
+
         if (teamIdsToAdd.length) {
             const rows = teamIdsToAdd.map(
                 (teamId) => ({
                     competition_id:
                     competitionId,
                     team_id: teamId,
+                    preferred_match_days:
+                        getDaysForTeam(teamId),
                 })
             )
 
@@ -228,6 +233,49 @@ export const competitionTeamService = {
 
             if (error) {
                 throw error
+            }
+        }
+
+        const teamIdsToUpdate =
+            selectedTeamIds.filter(
+                (teamId) =>
+                    existingIds.has(teamId)
+            )
+
+        if (teamIdsToUpdate.length) {
+            const updateResults =
+                await Promise.all(
+                    teamIdsToUpdate.map(
+                        (teamId) =>
+                            supabase
+                                .from(
+                                    'competition_teams'
+                                )
+                                .update({
+                                    preferred_match_days:
+                                        getDaysForTeam(
+                                            teamId
+                                        ),
+                                })
+                                .eq(
+                                    'competition_id',
+                                    competitionId
+                                )
+                                .eq(
+                                    'team_id',
+                                    teamId
+                                )
+                    )
+                )
+
+            const updateError =
+                updateResults.find(
+                    (result) =>
+                        result.error
+                )?.error
+
+            if (updateError) {
+                throw updateError
             }
         }
 

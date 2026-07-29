@@ -8,14 +8,17 @@ import {
 } from 'react'
 
 import {
+    ArrowLeft,
     Building2,
     Check,
     ImagePlus,
+    Palette,
+    Save,
+    ShieldCheck,
     Trash2,
     UserRound,
 } from 'lucide-react'
 
-import { Modal } from '../../common/Modal'
 import { supabase } from '../../../lib/supabaseClient'
 
 import type {
@@ -103,6 +106,15 @@ const allowedImageTypes = [
 const maximumImageSize =
     5 * 1024 * 1024
 
+const inputClassName =
+    'mt-2 w-full rounded-xl border border-lime-900/50 bg-black/20 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-lime-500/70 focus:ring-2 focus:ring-lime-500/10 disabled:cursor-not-allowed disabled:opacity-60'
+
+const selectClassName =
+    'mt-2 w-full rounded-xl border border-lime-900/50 bg-[#10190d] px-4 py-3 text-white outline-none transition focus:border-lime-500/70 focus:ring-2 focus:ring-lime-500/10 disabled:cursor-not-allowed disabled:opacity-60'
+
+const labelClassName =
+    'text-sm font-semibold text-slate-300'
+
 function createSlug(value: string) {
     return value
         .toLowerCase()
@@ -173,9 +185,37 @@ function FieldError({
     }
 
     return (
-        <p className="mt-1.5 text-xs font-semibold text-red-300">
+        <p className="mt-2 text-xs font-semibold text-red-300">
             {message}
         </p>
+    )
+}
+
+function SectionHeading({
+    icon: Icon,
+    title,
+    description,
+}: {
+    icon: typeof Building2
+    title: string
+    description: string
+}) {
+    return (
+        <div className="mb-5 flex items-start gap-3">
+            <div className="rounded-xl bg-lime-400/10 p-2.5">
+                <Icon className="h-5 w-5 text-lime-400" />
+            </div>
+
+            <div>
+                <h3 className="m-0 text-lg font-bold normal-case text-white">
+                    {title}
+                </h3>
+
+                <p className="mt-1 text-sm leading-6 text-slate-400">
+                    {description}
+                </p>
+            </div>
+        </div>
     )
 }
 
@@ -484,659 +524,689 @@ export function OrganisationForm({
         saving || uploadingLogo
 
     return (
-        <Modal
-            title={
-                organisation
-                    ? 'Organisation Settings'
-                    : 'Add Organisation'
-            }
-            onClose={onCancel}
+        <form
+            onSubmit={handleSubmit}
+            className="space-y-6"
+            noValidate
         >
-            <form
-                onSubmit={handleSubmit}
-                className="mx-auto w-full max-w-[1320px] font-sans"
-                noValidate
-            >
-                <div className="rounded-3xl border border-emerald-400/20 bg-[#0b170c] p-5 shadow-2xl sm:p-6">
-                    <div className="mb-5 flex items-center justify-between gap-4 border-b border-emerald-300/15 pb-4">
-                        <div>
-                            <p className="m-0 text-xs font-black uppercase tracking-[0.18em] text-emerald-400">
-                                TournamentHQ setup
-                            </p>
-
-                            <h3 className="m-0 mt-1 text-xl font-bold normal-case text-white">
-                                Complete organisation details
-                            </h3>
+            <section className="overflow-hidden rounded-3xl border border-lime-900/50 bg-gradient-to-br from-[#1b2a15] via-[#14200f] to-[#0d140a] p-6 lg:p-8">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-start gap-4">
+                        <div className="rounded-2xl bg-lime-400/10 p-3">
+                            <Building2 className="h-9 w-9 text-lime-400" />
                         </div>
 
-                        <div className="hidden items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 sm:flex">
-                            <Building2 className="h-4 w-4" />
-                            Single-page setup
+                        <div>
+                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-lime-400">
+                                Organisation administration
+                            </p>
+
+                            <h2 className="mt-2 text-3xl font-bold normal-case text-white">
+                                {organisation
+                                    ? 'Edit organisation'
+                                    : 'Add organisation'}
+                            </h2>
+
+                            <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+                                Complete the organisation, administrator,
+                                subscription and branding details in one place.
+                            </p>
                         </div>
                     </div>
 
-                    <div className="grid gap-4 xl:grid-cols-12">
-                        <section className="rounded-2xl border border-emerald-300/15 bg-[#112214] p-4 xl:col-span-7">
-                            <div className="mb-4 flex items-center gap-3">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300">
-                                    <Building2 className="h-5 w-5" />
-                                </div>
+                    <button
+                        type="button"
+                        disabled={
+                            controlsDisabled
+                        }
+                        onClick={onCancel}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/60 bg-black/20 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-lime-500/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to organisations
+                    </button>
+                </div>
+            </section>
 
-                                <div>
-                                    <h4 className="m-0 text-sm font-bold text-white">
-                                        Organisation
-                                    </h4>
+            <div className="grid gap-6 xl:grid-cols-12">
+                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-7">
+                    <SectionHeading
+                        icon={Building2}
+                        title="Organisation details"
+                        description="Workspace identity, status and public-site availability."
+                    />
 
-                                    <p className="m-0 mt-0.5 text-xs text-slate-400">
-                                        Identity and public-site settings
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Organisation name
-                                        <span className="ml-1 text-red-400">
-                                            *
-                                        </span>
-                                    </span>
-
-                                    <input
-                                        type="text"
-                                        value={form.name}
-                                        disabled={controlsDisabled}
-                                        onChange={(event) => {
-                                            const value =
-                                                event.target.value
-
-                                            updateField(
-                                                'name',
-                                                value
-                                            )
-
-                                            if (!organisation) {
-                                                updateField(
-                                                    'slug',
-                                                    createSlug(
-                                                        value
-                                                    )
-                                                )
-                                            }
-                                        }}
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/15"
-                                    />
-
-                                    <FieldError
-                                        message={
-                                            errors.name
-                                        }
-                                    />
-                                </label>
-
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Organisation slug
-                                        <span className="ml-1 text-red-400">
-                                            *
-                                        </span>
-                                    </span>
-
-                                    <input
-                                        type="text"
-                                        value={form.slug}
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'slug',
-                                                createSlug(
-                                                    event.target.value
-                                                )
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/15"
-                                    />
-
-                                    <FieldError
-                                        message={
-                                            errors.slug
-                                        }
-                                    />
-                                </label>
-
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Status
-                                    </span>
-
-                                    <select
-                                        value={form.status}
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'status',
-                                                event.target.value as OrganisationFormData['status']
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400"
-                                    >
-                                        <option value="active">
-                                            Active
-                                        </option>
-                                        <option value="inactive">
-                                            Inactive
-                                        </option>
-                                        <option value="suspended">
-                                            Suspended
-                                        </option>
-                                    </select>
-                                </label>
-
-                                <label className="flex min-h-[64px] items-center gap-3 rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5">
-                                    <input
-                                        type="checkbox"
-                                        checked={
-                                            form.public_site_enabled
-                                        }
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'public_site_enabled',
-                                                event.target.checked
-                                            )
-                                        }
-                                        className="h-4 w-4 rounded border-emerald-300/30 bg-transparent text-emerald-500 focus:ring-emerald-500"
-                                    />
-
-                                    <span>
-                                        <span className="block text-xs font-semibold text-white">
-                                            Enable public site
-                                        </span>
-
-                                        <span className="mt-0.5 block text-[11px] leading-4 text-slate-400">
-                                            Publish fixtures and results publicly.
-                                        </span>
-                                    </span>
-                                </label>
-                            </div>
-                        </section>
-
-                        <section className="rounded-2xl border border-emerald-300/15 bg-[#112214] p-4 xl:col-span-5">
-                            <div className="mb-4 flex items-center gap-3">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300">
-                                    <UserRound className="h-5 w-5" />
-                                </div>
-
-                                <div>
-                                    <h4 className="m-0 text-sm font-bold text-white">
-                                        Administrator
-                                    </h4>
-
-                                    <p className="m-0 mt-0.5 text-xs text-slate-400">
-                                        Primary customer contact
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Name
-                                        <span className="ml-1 text-red-400">
-                                            *
-                                        </span>
-                                    </span>
-
-                                    <input
-                                        type="text"
-                                        value={form.owner_name}
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'owner_name',
-                                                event.target.value
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/15"
-                                    />
-
-                                    <FieldError
-                                        message={
-                                            errors.owner_name
-                                        }
-                                    />
-                                </label>
-
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Email
-                                        <span className="ml-1 text-red-400">
-                                            *
-                                        </span>
-                                    </span>
-
-                                    <input
-                                        type="email"
-                                        value={form.owner_email}
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'owner_email',
-                                                event.target.value
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/15"
-                                    />
-
-                                    <FieldError
-                                        message={
-                                            errors.owner_email
-                                        }
-                                    />
-                                </label>
-
-                                <label className="block sm:col-span-2 xl:col-span-1">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Phone
-                                    </span>
-
-                                    <input
-                                        type="tel"
-                                        value={form.owner_phone}
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'owner_phone',
-                                                event.target.value
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/15"
-                                    />
-                                </label>
-                            </div>
-                        </section>
-
-                        <section className="rounded-2xl border border-emerald-300/15 bg-[#112214] p-4 xl:col-span-4">
-                            <div className="mb-4 flex items-center gap-3">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300">
-                                    <ImagePlus className="h-5 w-5" />
-                                </div>
-
-                                <div>
-                                    <h4 className="m-0 text-sm font-bold text-white">
-                                        Logo
-                                    </h4>
-
-                                    <p className="m-0 mt-0.5 text-xs text-slate-400">
-                                        PNG, JPG, WebP or SVG
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-emerald-300/20 bg-[#081109] p-2">
-                                    {form.logo_url ? (
-                                        <img
-                                            src={form.logo_url}
-                                            alt=""
-                                            className="h-full w-full object-contain"
-                                        />
-                                    ) : (
-                                        <Building2 className="h-9 w-9 text-emerald-300/60" />
-                                    )}
-                                </div>
-
-                                <div className="min-w-0 flex-1 space-y-2">
-                                    <button
-                                        type="button"
-                                        disabled={controlsDisabled}
-                                        onClick={() =>
-                                            logoInputRef.current?.click()
-                                        }
-                                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-500 disabled:opacity-60"
-                                    >
-                                        <ImagePlus className="h-4 w-4" />
-
-                                        {uploadingLogo
-                                            ? 'Uploading...'
-                                            : form.logo_url
-                                              ? 'Replace logo'
-                                              : 'Upload logo'}
-                                    </button>
-
-                                    {form.logo_url && (
-                                        <button
-                                            type="button"
-                                            disabled={controlsDisabled}
-                                            onClick={() =>
-                                                updateField(
-                                                    'logo_url',
-                                                    ''
-                                                )
-                                            }
-                                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/15 disabled:opacity-60"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            Remove
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                    <div className="grid gap-5 md:grid-cols-2">
+                        <label>
+                            <span className={labelClassName}>
+                                Organisation name
+                                <span className="ml-1 text-red-400">
+                                    *
+                                </span>
+                            </span>
 
                             <input
-                                ref={logoInputRef}
-                                type="file"
-                                hidden
-                                accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
-                                disabled={controlsDisabled}
-                                onChange={handleLogoChange}
+                                type="text"
+                                value={form.name}
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) => {
+                                    const value =
+                                        event.target.value
+
+                                    updateField(
+                                        'name',
+                                        value
+                                    )
+
+                                    if (!organisation) {
+                                        updateField(
+                                            'slug',
+                                            createSlug(
+                                                value
+                                            )
+                                        )
+                                    }
+                                }}
+                                className={inputClassName}
                             />
 
                             <FieldError
                                 message={
-                                    errors.logo_url
+                                    errors.name
                                 }
                             />
-                        </section>
+                        </label>
 
-                        <section className="rounded-2xl border border-emerald-300/15 bg-[#112214] p-4 xl:col-span-4">
-                            <div className="mb-4">
-                                <h4 className="m-0 text-sm font-bold text-white">
-                                    Subscription
-                                </h4>
+                        <label>
+                            <span className={labelClassName}>
+                                Organisation slug
+                                <span className="ml-1 text-red-400">
+                                    *
+                                </span>
+                            </span>
 
-                                <p className="m-0 mt-0.5 text-xs text-slate-400">
-                                    Plan and usage limits
-                                </p>
-                            </div>
+                            <input
+                                type="text"
+                                value={form.slug}
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'slug',
+                                        createSlug(
+                                            event.target.value
+                                        )
+                                    )
+                                }
+                                className={inputClassName}
+                            />
 
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Plan
+                            <FieldError
+                                message={
+                                    errors.slug
+                                }
+                            />
+                        </label>
+
+                        <label>
+                            <span className={labelClassName}>
+                                Organisation status
+                            </span>
+
+                            <select
+                                value={form.status}
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'status',
+                                        event.target.value as OrganisationFormData['status']
+                                    )
+                                }
+                                className={selectClassName}
+                            >
+                                <option value="active">
+                                    Active
+                                </option>
+
+                                <option value="inactive">
+                                    Inactive
+                                </option>
+
+                                <option value="suspended">
+                                    Suspended
+                                </option>
+                            </select>
+                        </label>
+
+                        <label className="flex min-h-[76px] items-center gap-3 rounded-xl border border-lime-900/50 bg-black/20 px-4 py-3">
+                            <input
+                                type="checkbox"
+                                checked={
+                                    form.public_site_enabled
+                                }
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'public_site_enabled',
+                                        event.target.checked
+                                    )
+                                }
+                                className="h-5 w-5 rounded border-lime-900 bg-[#10190d] text-lime-500 focus:ring-lime-500"
+                            />
+
+                            <span>
+                                <span className="block text-sm font-semibold text-white">
+                                    Enable public site
+                                </span>
+
+                                <span className="mt-1 block text-xs leading-5 text-slate-400">
+                                    Publish competitions, fixtures and results publicly.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                </section>
+
+                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-5">
+                    <SectionHeading
+                        icon={UserRound}
+                        title="Administrator"
+                        description="Primary owner and customer contact."
+                    />
+
+                    <div className="grid gap-5">
+                        <label>
+                            <span className={labelClassName}>
+                                Administrator name
+                                <span className="ml-1 text-red-400">
+                                    *
+                                </span>
+                            </span>
+
+                            <input
+                                type="text"
+                                value={
+                                    form.owner_name
+                                }
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'owner_name',
+                                        event.target.value
+                                    )
+                                }
+                                className={inputClassName}
+                            />
+
+                            <FieldError
+                                message={
+                                    errors.owner_name
+                                }
+                            />
+                        </label>
+
+                        <div className="grid gap-5 sm:grid-cols-2">
+                            <label>
+                                <span className={labelClassName}>
+                                    Email
+                                    <span className="ml-1 text-red-400">
+                                        *
                                     </span>
+                                </span>
 
-                                    <select
-                                        value={
-                                            form.subscription_plan
-                                        }
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'subscription_plan',
-                                                event.target.value as OrganisationFormData['subscription_plan']
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400"
-                                    >
-                                        <option value="starter">
-                                            Starter
-                                        </option>
-                                        <option value="professional">
-                                            Professional
-                                        </option>
-                                        <option value="enterprise">
-                                            Enterprise
-                                        </option>
-                                    </select>
-                                </label>
-
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Status
-                                    </span>
-
-                                    <select
-                                        value={
-                                            form.subscription_status
-                                        }
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'subscription_status',
-                                                event.target.value as OrganisationFormData['subscription_status']
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400"
-                                    >
-                                        <option value="trial">
-                                            Trial
-                                        </option>
-                                        <option value="active">
-                                            Active
-                                        </option>
-                                        <option value="past_due">
-                                            Past due
-                                        </option>
-                                        <option value="cancelled">
-                                            Cancelled
-                                        </option>
-                                    </select>
-                                </label>
-
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Max users
-                                    </span>
-
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={form.max_users}
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'max_users',
-                                                Number(
-                                                    event.target.value
-                                                )
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400"
-                                    />
-                                </label>
-
-                                <label className="block">
-                                    <span className="text-xs font-semibold text-slate-200">
-                                        Max competitions
-                                    </span>
-
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={
-                                            form.max_competitions
-                                        }
-                                        disabled={controlsDisabled}
-                                        onChange={(event) =>
-                                            updateField(
-                                                'max_competitions',
-                                                Number(
-                                                    event.target.value
-                                                )
-                                            )
-                                        }
-                                        className="mt-1.5 w-full rounded-lg border border-emerald-300/15 bg-[#081109] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-400"
-                                    />
-                                </label>
-                            </div>
-                        </section>
-
-                        <section className="rounded-2xl border border-emerald-300/15 bg-[#112214] p-4 xl:col-span-4">
-                            <div className="mb-4">
-                                <h4 className="m-0 text-sm font-bold text-white">
-                                    Enabled modules
-                                </h4>
-
-                                <p className="m-0 mt-0.5 text-xs text-slate-400">
-                                    Select available features
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                {defaultOrganisation.enabled_modules.map(
-                                    (module) => {
-                                        const enabled =
-                                            form.enabled_modules.includes(
-                                                module
-                                            )
-
-                                        return (
-                                            <button
-                                                key={module}
-                                                type="button"
-                                                disabled={
-                                                    controlsDisabled
-                                                }
-                                                onClick={() =>
-                                                    toggleModule(
-                                                        module
-                                                    )
-                                                }
-                                                className={[
-                                                    'flex min-h-10 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition',
-                                                    enabled
-                                                        ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
-                                                        : 'border-emerald-300/10 bg-[#081109] text-slate-400 hover:border-emerald-300/25',
-                                                ].join(
-                                                    ' '
-                                                )}
-                                            >
-                                                <span className="truncate">
-                                                    {module}
-                                                </span>
-
-                                                <span
-                                                    className={[
-                                                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                                                        enabled
-                                                            ? 'border-emerald-400 bg-emerald-500 text-white'
-                                                            : 'border-slate-600 text-transparent',
-                                                    ].join(
-                                                        ' '
-                                                    )}
-                                                >
-                                                    <Check className="h-3.5 w-3.5" />
-                                                </span>
-                                            </button>
+                                <input
+                                    type="email"
+                                    value={
+                                        form.owner_email
+                                    }
+                                    disabled={
+                                        controlsDisabled
+                                    }
+                                    onChange={(event) =>
+                                        updateField(
+                                            'owner_email',
+                                            event.target.value
                                         )
                                     }
-                                )}
-                            </div>
-                        </section>
+                                    className={inputClassName}
+                                />
 
-                        <section className="rounded-2xl border border-emerald-300/15 bg-[#112214] p-4 xl:col-span-12">
-                            <div className="mb-3">
-                                <h4 className="m-0 text-sm font-bold text-white">
-                                    Brand colours
-                                </h4>
+                                <FieldError
+                                    message={
+                                        errors.owner_email
+                                    }
+                                />
+                            </label>
 
-                                <p className="m-0 mt-0.5 text-xs text-slate-400">
-                                    Colours applied to the organisation experience
-                                </p>
-                            </div>
+                            <label>
+                                <span className={labelClassName}>
+                                    Phone
+                                </span>
 
-                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                                {colourFields.map(
-                                    ({
-                                        field,
-                                        label,
-                                    }) => (
-                                        <label
-                                            key={field}
-                                            className="block rounded-xl border border-emerald-300/12 bg-[#081109] p-3"
-                                        >
-                                            <span className="text-[11px] font-semibold text-slate-300">
-                                                {label}
-                                            </span>
+                                <input
+                                    type="tel"
+                                    value={
+                                        form.owner_phone
+                                    }
+                                    disabled={
+                                        controlsDisabled
+                                    }
+                                    onChange={(event) =>
+                                        updateField(
+                                            'owner_phone',
+                                            event.target.value
+                                        )
+                                    }
+                                    className={inputClassName}
+                                />
+                            </label>
+                        </div>
+                    </div>
+                </section>
 
-                                            <div className="mt-2 flex items-center gap-2">
-                                                <input
-                                                    type="color"
-                                                    value={
-                                                        form[field]
-                                                    }
-                                                    disabled={
-                                                        controlsDisabled
-                                                    }
-                                                    onChange={(event) =>
-                                                        updateField(
-                                                            field,
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="h-9 w-11 shrink-0 cursor-pointer rounded-md border border-emerald-300/20 bg-transparent p-1"
-                                                />
+                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
+                    <SectionHeading
+                        icon={ImagePlus}
+                        title="Organisation logo"
+                        description="Upload the customer brand mark."
+                    />
 
-                                                <input
-                                                    type="text"
-                                                    value={
-                                                        form[field]
-                                                    }
-                                                    disabled={
-                                                        controlsDisabled
-                                                    }
-                                                    onChange={(event) =>
-                                                        updateField(
-                                                            field,
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="min-w-0 flex-1 rounded-md border border-emerald-300/12 bg-[#0e1a10] px-2 py-2 font-mono text-[11px] uppercase text-white outline-none focus:border-emerald-400"
-                                                />
-                                            </div>
+                    <div className="flex items-center gap-4">
+                        <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-lime-900/50 bg-black/20 p-3">
+                            {form.logo_url ? (
+                                <img
+                                    src={
+                                        form.logo_url
+                                    }
+                                    alt=""
+                                    className="h-full w-full object-contain"
+                                />
+                            ) : (
+                                <Building2 className="h-10 w-10 text-lime-400/60" />
+                            )}
+                        </div>
 
-                                            <FieldError
-                                                message={
-                                                    errors[field]
-                                                }
-                                            />
-                                        </label>
-                                    )
-                                )}
-                            </div>
-                        </section>
+                        <div className="min-w-0 flex-1 space-y-3">
+                            <button
+                                type="button"
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onClick={() =>
+                                    logoInputRef.current?.click()
+                                }
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-lime-400 px-4 py-3 text-sm font-black text-[#071006] transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <ImagePlus className="h-4 w-4" />
+
+                                {uploadingLogo
+                                    ? 'Uploading...'
+                                    : form.logo_url
+                                      ? 'Replace logo'
+                                      : 'Upload logo'}
+                            </button>
+
+                            {form.logo_url && (
+                                <button
+                                    type="button"
+                                    disabled={
+                                        controlsDisabled
+                                    }
+                                    onClick={() =>
+                                        updateField(
+                                            'logo_url',
+                                            ''
+                                        )
+                                    }
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-800/50 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Remove logo
+                                </button>
+                            )}
+                        </div>
                     </div>
 
-                    {errors.submit && (
-                        <div
-                            role="alert"
-                            className="mt-4 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200"
-                        >
-                            {errors.submit}
-                        </div>
-                    )}
+                    <input
+                        ref={logoInputRef}
+                        type="file"
+                        hidden
+                        accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
+                        disabled={
+                            controlsDisabled
+                        }
+                        onChange={
+                            handleLogoChange
+                        }
+                    />
 
-                    <footer className="mt-5 flex items-center justify-end gap-3 border-t border-emerald-300/15 pt-4">
-                        <button
-                            type="button"
-                            disabled={
-                                controlsDisabled
-                            }
-                            onClick={onCancel}
-                            className="min-h-11 rounded-xl border border-emerald-300/20 bg-transparent px-5 py-2.5 text-sm font-bold text-slate-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/5 disabled:opacity-60"
-                        >
-                            Cancel
-                        </button>
+                    <FieldError
+                        message={
+                            errors.logo_url
+                        }
+                    />
+                </section>
 
-                        <button
-                            type="submit"
-                            disabled={
-                                controlsDisabled
+                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
+                    <SectionHeading
+                        icon={ShieldCheck}
+                        title="Subscription"
+                        description="Plan, state and account limits."
+                    />
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <label>
+                            <span className={labelClassName}>
+                                Plan
+                            </span>
+
+                            <select
+                                value={
+                                    form.subscription_plan
+                                }
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'subscription_plan',
+                                        event.target.value as OrganisationFormData['subscription_plan']
+                                    )
+                                }
+                                className={selectClassName}
+                            >
+                                <option value="starter">
+                                    Starter
+                                </option>
+
+                                <option value="professional">
+                                    Professional
+                                </option>
+
+                                <option value="enterprise">
+                                    Enterprise
+                                </option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span className={labelClassName}>
+                                Status
+                            </span>
+
+                            <select
+                                value={
+                                    form.subscription_status
+                                }
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'subscription_status',
+                                        event.target.value as OrganisationFormData['subscription_status']
+                                    )
+                                }
+                                className={selectClassName}
+                            >
+                                <option value="trial">
+                                    Trial
+                                </option>
+
+                                <option value="active">
+                                    Active
+                                </option>
+
+                                <option value="past_due">
+                                    Past due
+                                </option>
+
+                                <option value="cancelled">
+                                    Cancelled
+                                </option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <span className={labelClassName}>
+                                Maximum users
+                            </span>
+
+                            <input
+                                type="number"
+                                min={1}
+                                value={
+                                    form.max_users
+                                }
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'max_users',
+                                        Number(
+                                            event.target.value
+                                        )
+                                    )
+                                }
+                                className={inputClassName}
+                            />
+                        </label>
+
+                        <label>
+                            <span className={labelClassName}>
+                                Maximum competitions
+                            </span>
+
+                            <input
+                                type="number"
+                                min={1}
+                                value={
+                                    form.max_competitions
+                                }
+                                disabled={
+                                    controlsDisabled
+                                }
+                                onChange={(event) =>
+                                    updateField(
+                                        'max_competitions',
+                                        Number(
+                                            event.target.value
+                                        )
+                                    )
+                                }
+                                className={inputClassName}
+                            />
+                        </label>
+                    </div>
+                </section>
+
+                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
+                    <SectionHeading
+                        icon={Check}
+                        title="Enabled modules"
+                        description="Choose the features available to this organisation."
+                    />
+
+                    <div className="grid grid-cols-2 gap-2">
+                        {defaultOrganisation.enabled_modules.map(
+                            (module) => {
+                                const enabled =
+                                    form.enabled_modules.includes(
+                                        module
+                                    )
+
+                                return (
+                                    <button
+                                        key={module}
+                                        type="button"
+                                        disabled={
+                                            controlsDisabled
+                                        }
+                                        onClick={() =>
+                                            toggleModule(
+                                                module
+                                            )
+                                        }
+                                        className={[
+                                            'flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition',
+                                            enabled
+                                                ? 'border-lime-700/50 bg-lime-500/10 text-lime-200'
+                                                : 'border-lime-900/40 bg-black/20 text-slate-400 hover:border-lime-700/50',
+                                        ].join(' ')}
+                                    >
+                                        <span className="truncate">
+                                            {module}
+                                        </span>
+
+                                        <span
+                                            className={[
+                                                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                                                enabled
+                                                    ? 'border-lime-400 bg-lime-400 text-[#071006]'
+                                                    : 'border-slate-600 text-transparent',
+                                            ].join(' ')}
+                                        >
+                                            <Check className="h-3.5 w-3.5" />
+                                        </span>
+                                    </button>
+                                )
                             }
-                            className="min-h-11 rounded-xl bg-gradient-to-r from-emerald-500 to-lime-400 px-6 py-2.5 text-sm font-black text-[#071107] shadow-lg shadow-emerald-950/30 transition hover:from-emerald-400 hover:to-lime-300 disabled:opacity-60"
-                        >
-                            {saving
-                                ? organisation
-                                    ? 'Updating...'
-                                    : 'Creating...'
-                                : organisation
-                                  ? 'Update organisation'
-                                  : 'Create organisation'}
-                        </button>
-                    </footer>
+                        )}
+                    </div>
+                </section>
+
+                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-12">
+                    <SectionHeading
+                        icon={Palette}
+                        title="Brand colours"
+                        description="Theme values applied to the organisation portal and public site."
+                    />
+
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                        {colourFields.map(
+                            ({
+                                field,
+                                label,
+                            }) => (
+                                <label
+                                    key={field}
+                                    className="rounded-2xl border border-lime-900/40 bg-black/20 p-4"
+                                >
+                                    <span className={labelClassName}>
+                                        {label}
+                                    </span>
+
+                                    <div className="mt-3 flex items-center gap-3">
+                                        <input
+                                            type="color"
+                                            value={
+                                                form[field]
+                                            }
+                                            disabled={
+                                                controlsDisabled
+                                            }
+                                            onChange={(event) =>
+                                                updateField(
+                                                    field,
+                                                    event.target.value
+                                                )
+                                            }
+                                            className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-lime-900/50 bg-[#10190d] p-1"
+                                        />
+
+                                        <input
+                                            type="text"
+                                            value={
+                                                form[field]
+                                            }
+                                            disabled={
+                                                controlsDisabled
+                                            }
+                                            onChange={(event) =>
+                                                updateField(
+                                                    field,
+                                                    event.target.value
+                                                )
+                                            }
+                                            className="min-w-0 flex-1 rounded-lg border border-lime-900/50 bg-[#10190d] px-3 py-2 font-mono text-xs uppercase text-white outline-none focus:border-lime-500/70"
+                                        />
+                                    </div>
+
+                                    <FieldError
+                                        message={
+                                            errors[field]
+                                        }
+                                    />
+                                </label>
+                            )
+                        )}
+                    </div>
+                </section>
+            </div>
+
+            {errors.submit && (
+                <div
+                    role="alert"
+                    className="rounded-2xl border border-red-800/50 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-200"
+                >
+                    {errors.submit}
                 </div>
-            </form>
-        </Modal>
+            )}
+
+            <section className="flex flex-col gap-4 rounded-3xl border border-lime-800/50 bg-gradient-to-r from-[#15250f] to-[#0d170b] p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 className="m-0 text-lg font-bold normal-case text-white">
+                        {organisation
+                            ? 'Save organisation changes'
+                            : 'Create this organisation'}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-400">
+                        All details above will be validated before saving.
+                    </p>
+                </div>
+
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                    <button
+                        type="button"
+                        disabled={
+                            controlsDisabled
+                        }
+                        onClick={onCancel}
+                        className="inline-flex min-h-12 items-center justify-center rounded-xl border border-lime-900/60 bg-black/20 px-6 py-3 text-sm font-bold text-slate-200 transition hover:border-lime-500/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        disabled={
+                            controlsDisabled
+                        }
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-lime-400 px-7 py-3 text-sm font-black text-[#071006] transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <Save className="h-5 w-5" />
+
+                        {saving
+                            ? organisation
+                                ? 'Updating organisation...'
+                                : 'Creating organisation...'
+                            : organisation
+                              ? 'Update organisation'
+                              : 'Create organisation'}
+                    </button>
+                </div>
+            </section>
+        </form>
     )
 }
