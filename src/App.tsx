@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Calendar, Camera, Shield, Users } from 'lucide-react'
+import {
+    Calendar,
+    Camera,
+    Handshake,
+    Scale,
+    Shield,
+    Trophy,
+    UserCheck,
+    Users,
+} from 'lucide-react'
 import { PublicGroupStandings } from './components/public/PublicGroupStandings'
 import {
     PublicTeams,
@@ -26,8 +35,6 @@ import {
     type PublicGoal,
 } from './components/GoldenBootTable'
 
-import { CkefaLink } from './components/CkefaLink'
-import { CkefaLogo } from './components/CkefaLogo'
 import { ArticlePage } from './components/ArticlePage'
 import { TournamentCountdown } from './components/public/TournamentCountdown'
 import { AdminPage } from './pages/AdminPage'
@@ -237,47 +244,67 @@ function getRelatedGoalTeam(
 
 const benefits = [
     [
-        'Full Month Format',
-        'The festival spreads games across October instead of forcing several matches into one day.',
-        Calendar,
+        'Competition Format',
+        'The tournament begins with group-stage football, where every team plays every other team in their group once. Group winners and runners-up qualify for the semi-finals, with the winners progressing to the Championship Final.',
+        Trophy,
     ],
     [
-        'Player Welfare',
-        'Longer recovery windows help reduce fatigue, protect players and allow matches to be played properly.',
+        'Tournament Rules',
+        'Every fixture is played under the Laws of the Game and the published tournament regulations. Player eligibility, substitutions, disciplinary procedures, scheduling and competition decisions are applied consistently.',
+        Scale,
+    ],
+    [
+        'Match Officials',
+        'Qualified referees and supporting match officials will be appointed to fixtures. Officials will record match reports, disciplinary incidents and key match events through TournamentHQ.',
+        UserCheck,
+    ],
+    [
+        'Respect & Code of Conduct',
+        'We operate a zero-tolerance policy towards racism, discrimination, referee abuse, violence, intimidation and unsporting behaviour. Players, coaches and supporters must uphold the highest standards of respect.',
         Shield,
     ],
     [
-        'Community Platform',
-        'The event brings together clubs, families, volunteers, sponsors and local businesses.',
+        'Player Welfare',
+        'Fixtures are scheduled to provide sensible recovery time, reduce unnecessary congestion and create the safest possible competitive environment for every player.',
+        Calendar,
+    ],
+    [
+        'Professional Media Coverage',
+        'Match filming, highlights, interviews, reports and digital storytelling will showcase players, clubs, partners and the wider community throughout the tournament.',
+        Camera,
+    ],
+    [
+        'Community Legacy',
+        'The festival promotes education, Black History Month, community cohesion and opportunities for young people while building lasting relationships with businesses and public organisations.',
         Users,
     ],
     [
-        'CKEFA Media Coverage',
-        'Highlights, interviews, goals and match stories create a lasting digital archive.',
-        Camera,
+        'Partnership & Investment',
+        'The tournament offers a credible platform for sponsors and strategic partners to support grassroots football, youth development, inclusion and measurable community impact.',
+        Handshake,
     ],
 ] as const
 
 const timeline = [
     [
-        'Weekend 1',
-        'Opening Weekend & Group Fixtures',
-        'Festival opening, team welcome, first group fixtures and community activity.',
+        'Group Stage',
+        'Opening Fixtures',
+        'Teams begin their group-stage campaigns, with each side playing every other team in its group once.',
     ],
     [
-        'Weekend 2',
-        'Group Fixtures Continue',
-        'The second round of group matches, sponsor activity and matchday media coverage.',
+        'Group Stage',
+        'Qualification Decided',
+        'The remaining group fixtures determine the group winners and runners-up who progress to the semi-finals.',
     ],
     [
-        'Weekend 3',
         'Semi Finals',
-        'The four qualifying teams compete for places in the festival final.',
+        'Final Places at Stake',
+        'The four qualifying teams compete in two semi-finals, with both winners progressing to the Championship Final.',
     ],
     [
-        'Weekend 4',
-        'Grand Final',
-        'The two semi-final winners compete for the Black History Month Football Festival title.',
+        'Finals',
+        'Final & Third-Place Match',
+        'The semi-final winners compete for the Black History Month Football Festival title, while the remaining teams contest the third-place match before presentations and awards.',
     ],
 ] as const
 
@@ -926,10 +953,10 @@ function App() {
 
             <Section
                 id="festival"
-                title="The Festival Vision"
-                intro="A month-long football celebration built around player welfare, community pride, cultural legacy and professional media coverage."
+                title="Tournament Standards & Governance"
+                intro="A professionally organised tournament with a clear competitive pathway, qualified match officials, strong safeguarding standards, zero tolerance for discrimination and a platform designed to attract credible partners and long-term investment."
             >
-                <div className="cardGrid four">
+                <div className="cardGrid four tournamentStandardsGrid">
                     {benefits.map(
                         ([
                              title,
@@ -951,8 +978,8 @@ function App() {
 
             <Section
                 id="fixtures"
-                title="October Festival Schedule"
-                intro="The 2026 format gives every fixture proper focus while ensuring each team plays no more than once per weekend."
+                title="Tournament Pathway"
+                intro="The competition progresses from a single round-robin group stage to the semi-finals, followed by the final and third-place match, with fixtures scheduled to give every game proper focus."
             >
                 <div className="timeline">
                     {timeline.map(
@@ -1021,10 +1048,24 @@ function App() {
             </Section>
 
             <Section
-                id="golden-boot"
-                title="Golden Boot"
-                intro="The leading goalscorers from published Black History Month Football Festival matches."
+                id="statistics"
+                title="Statistics Centre"
+                intro="Official tournament statistics calculated from published match data."
             >
+                <h3 className="subheading">
+                    Top Scorers
+                </h3>
+
+                <p
+                    style={{
+                        marginTop: '-0.35rem',
+                        marginBottom: '1.25rem',
+                        opacity: 0.78,
+                    }}
+                >
+                    Live goalscoring leaderboard from confirmed tournament matches. The leading scorer at the end of the competition will receive the Golden Boot Award.
+                </p>
+
                 <GoldenBootTable
                     goals={publicGoals}
                 />
@@ -1033,7 +1074,7 @@ function App() {
             <Section
                 id="media"
                 title="Official Media Coverage"
-                intro="Featured matches are professionally filmed, with highlights, interviews and exclusive coverage produced by CKEFA Media throughout the festival."
+                intro="Featured matches are professionally filmed, with highlights, interviews and exclusive coverage presented through the official TournamentHQ-powered competition website."
             >
                 <div className="cardGrid three">
                     <article className="videoCard featuredVideo">
@@ -1132,54 +1173,6 @@ function App() {
             >
                 <PublicSponsors />
             </Section>
-            <Section
-                id="ckefa-ecosystem"
-                title="Part of the CKEFA Ecosystem"
-                intro="Explore the connected CKEFA products and services supporting events, grassroots sport, media and digital transformation."
-            >
-                <div className="cardGrid four">
-                    {ckefaEcosystem.map((product) => (
-                        <article
-                            className="card"
-                            key={product.name}
-                        >
-                            <span className="badge">
-                                CKEFA
-                            </span>
-
-                            <h3>{product.name}</h3>
-
-                            <p>
-                                {product.description}
-                            </p>
-
-                            {product.requestDemo ? (
-                                <button
-                                    className="btn secondary small"
-                                    type="button"
-                                    onClick={() =>
-                                        setShowDemoRequest(
-                                            true
-                                        )
-                                    }
-                                >
-                                    {product.action}
-                                </button>
-                            ) : (
-                                <a
-                                    className="btn secondary small"
-                                    href={product.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    {product.action}
-                                </a>
-                            )}
-                        </article>
-                    ))}
-                </div>
-            </Section>
-
             {showDemoRequest && (
                 <DemoRequestModal
                     onClose={() =>
@@ -1188,58 +1181,136 @@ function App() {
                 />
             )}
 
-            <footer className="footer">
-                <div className="container footerGrid">
+            <footer
+                className="footer"
+                style={{
+                    padding: '1.15rem 0',
+                    minHeight: 'auto',
+                }}
+            >
+                <div
+                    className="container"
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns:
+                            'minmax(220px, 1fr) auto',
+                        alignItems: 'center',
+                        gap: '1.5rem',
+                    }}
+                >
                     <div>
-                        <strong>
-                            Competition Management
-                            Platform
-                        </strong>
+                        <a
+                            href="https://tournamenthq.co.uk"
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                color: 'inherit',
+                                textDecoration: 'none',
+                            }}
+                        >
+                            <img
+                                src="/assets/tournamenthq-logo.png"
+                                alt="TournamentHQ"
+                                style={{
+                                    display: 'block',
+                                    width: '190px',
+                                    maxWidth: '100%',
+                                    height: 'auto',
+                                    maxHeight: '52px',
+                                    objectFit: 'contain',
+                                }}
+                            />
+                        </a>
 
-                        <p>
-                            Powered by{' '}
-                            <CkefaLink />
-                        </p>
-
-                        <p>
-                            Part of the CKEFA ecosystem:
-                            software, AI, events and
-                            grassroots sports media.
-                        </p>
-
-                        <p>
-                            <a
-                                href="https://fcfs.app"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                FCFS Events
-                            </a>
-                            {' · '}
-                            <a
-                                href="https://www.youtube.com/@CKEFAMedia"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                CKEFA Media
-                            </a>
-                            {' · '}
-                            <a
-                                href="https://www.ckefa.co.uk"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                CKEFA Software Solutions
-                            </a>
+                        <p
+                            style={{
+                                margin: '0.4rem 0 0',
+                                maxWidth: '540px',
+                                fontSize: '0.82rem',
+                                lineHeight: 1.45,
+                                opacity: 0.76,
+                            }}
+                        >
+                            Official competition website powered by TournamentHQ, a CKEFA Software Solutions platform.
                         </p>
                     </div>
 
-                    <CkefaLogo
-                        className="footerCkefaLogo"
-                    />
+                    <div
+                        aria-label="CKEFA group companies"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: '0.65rem',
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        {[
+                            {
+                                label: 'FCFS',
+                                href: 'https://fcfs.app',
+                                accent: '#3b82f6',
+                            },
+                            {
+                                label: 'CKEFA Media',
+                                href: 'https://www.youtube.com/@CKEFAMedia',
+                                accent: '#ef4444',
+                            },
+                            {
+                                label: 'CKEFA Software',
+                                href: 'https://www.ckefa.co.uk',
+                                accent: '#f59e0b',
+                            },
+                        ].map((brand) => (
+                            <a
+                                key={brand.label}
+                                href={brand.href}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    minHeight: '34px',
+                                    padding: '0.45rem 0.7rem',
+                                    borderRadius: '8px',
+                                    border: `1px solid ${brand.accent}70`,
+                                    color: 'inherit',
+                                    background: `${brand.accent}12`,
+                                    textDecoration: 'none',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 900,
+                                    letterSpacing: '0.03em',
+                                }}
+                            >
+                                {brand.label}
+                            </a>
+                        ))}
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setShowDemoRequest(true)
+                            }
+                            style={{
+                                minHeight: '34px',
+                                padding: '0.45rem 0.75rem',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(132, 204, 22, 0.55)',
+                                color: '#b8ff7a',
+                                background: 'rgba(132, 204, 22, 0.12)',
+                                font: 'inherit',
+                                fontSize: '0.72rem',
+                                fontWeight: 900,
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Request a Demo
+                        </button>
+                    </div>
                 </div>
-            </footer>
-        </>
+            </footer>        </>
     )
 }
 

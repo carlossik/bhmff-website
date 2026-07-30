@@ -6,7 +6,10 @@ import {
 import { useLocation } from 'react-router-dom'
 import { PublicCompetitionsPage } from './PublicCompetitionsPage'
 import type { Organisation } from '../../components/admin/Organisations/organisationTypes'
-import { organisationPublicService } from '../../services/public/organisationPublicService'
+import {
+    organisationPublicService,
+    type PublicOrganisationData,
+} from '../../services/public/organisationPublicService'
 import { PublicHomePage } from './PublicHomePage'
 
 function getOrganisationSlug(
@@ -67,10 +70,10 @@ export function PublicOrganisationLayout() {
     const location = useLocation()
 
     const [
-        organisation,
-        setOrganisation,
+        publicData,
+        setPublicData,
     ] =
-        useState<Organisation | null>(
+        useState<PublicOrganisationData | null>(
             null,
         )
 
@@ -94,7 +97,7 @@ export function PublicOrganisationLayout() {
                 )
 
             if (!slug) {
-                setOrganisation(null)
+                setPublicData(null)
                 setError(
                     'The organisation link is invalid.',
                 )
@@ -108,18 +111,18 @@ export function PublicOrganisationLayout() {
 
                 const result =
                     await organisationPublicService
-                        .getOrganisationBySlug(
+                        .getPublicOrganisationData(
                             slug,
                         )
 
-                setOrganisation(result)
+                setPublicData(result)
             } catch (loadError) {
                 console.error(
                     'Unable to load the public organisation:',
                     loadError,
                 )
 
-                setOrganisation(null)
+                setPublicData(null)
                 setError(
                     'We could not load this organisation right now.',
                 )
@@ -130,6 +133,9 @@ export function PublicOrganisationLayout() {
 
         void loadOrganisation()
     }, [location.pathname])
+
+    const organisation =
+        publicData?.organisation ?? null
 
     const theme =
         useMemo(() => {
@@ -220,7 +226,7 @@ export function PublicOrganisationLayout() {
         )
     }
 
-    if (!organisation) {
+    if (!organisation || !publicData) {
         return (
             <main
                 style={{
@@ -494,6 +500,10 @@ export function PublicOrganisationLayout() {
                     accentColour={theme.accentColour}
                     accentTextColour={theme.accentTextColour}
                     basePath={basePath}
+                    competitions={publicData.competitions}
+                    articles={publicData.articles}
+                    sponsors={publicData.sponsors}
+                    media={publicData.media}
                 />
             ) : location.pathname === `${basePath}/competitions` ? (
                 <PublicCompetitionsPage
@@ -513,6 +523,10 @@ export function PublicOrganisationLayout() {
                     accentColour={theme.accentColour}
                     accentTextColour={theme.accentTextColour}
                     basePath={basePath}
+                    competitions={publicData.competitions}
+                    articles={publicData.articles}
+                    sponsors={publicData.sponsors}
+                    media={publicData.media}
                 />
             )}
 
