@@ -331,6 +331,41 @@ export function CompetitionTeamsManager() {
         searchTerm,
     ])
 
+    const visibleTeamIds = useMemo(
+        () =>
+            filteredTeams.map(
+                (team) => team.id
+            ),
+        [filteredTeams]
+    )
+
+    const selectedTeamIdSet = useMemo(
+        () => new Set(selectedTeamIds),
+        [selectedTeamIds]
+    )
+
+    const visibleSelectedCount =
+        visibleTeamIds.filter((teamId) =>
+            selectedTeamIdSet.has(teamId)
+        ).length
+
+    const allVisibleSelected =
+        visibleTeamIds.length > 0 &&
+        visibleSelectedCount ===
+        visibleTeamIds.length
+
+    const noVisibleSelected =
+        visibleSelectedCount === 0
+
+    const selectionPercentage =
+        organisationTeams.length > 0
+            ? Math.round(
+                (selectedTeamIds.length /
+                    organisationTeams.length) *
+                100
+            )
+            : 0
+
     function toggleTeam(teamId: string) {
         setSelectedTeamIds(
             (currentSelectedTeamIds) => {
@@ -394,10 +429,13 @@ export function CompetitionTeamsManager() {
     }
 
     function selectAllVisibleTeams() {
-        const visibleTeamIds =
-            filteredTeams.map(
-                (team) => team.id
+        if (!visibleTeamIds.length) {
+            showToast(
+                'There are no visible teams to select.',
+                'info'
             )
+            return
+        }
 
         setSelectedTeamIds(
             (currentSelectedTeamIds) =>
@@ -426,24 +464,43 @@ export function CompetitionTeamsManager() {
                 return next
             }
         )
+
+        showToast(
+            `${visibleTeamIds.length} visible ${
+                visibleTeamIds.length === 1
+                    ? 'team'
+                    : 'teams'
+            } selected.`,
+            'info'
+        )
     }
 
     function clearVisibleTeams() {
-        const visibleTeamIds =
-            new Set(
-                filteredTeams.map(
-                    (team) => team.id
-                )
+        if (!visibleTeamIds.length) {
+            showToast(
+                'There are no visible teams to clear.',
+                'info'
             )
+            return
+        }
 
         setSelectedTeamIds(
             (currentSelectedTeamIds) =>
                 currentSelectedTeamIds.filter(
                     (teamId) =>
-                        !visibleTeamIds.has(
+                        !visibleTeamIds.includes(
                             teamId
                         )
                 )
+        )
+
+        showToast(
+            `${visibleSelectedCount} visible ${
+                visibleSelectedCount === 1
+                    ? 'team'
+                    : 'teams'
+            } cleared.`,
+            'info'
         )
     }
 
@@ -462,6 +519,13 @@ export function CompetitionTeamsManager() {
                     ]
                 )
             )
+        )
+
+        setSearchTerm('')
+
+        showToast(
+            'Unsaved changes were reset.',
+            'info'
         )
     }
 
@@ -540,14 +604,16 @@ export function CompetitionTeamsManager() {
 
     if (isLoading) {
         return (
-            <p className="muted">
-                Loading competition teams...
-            </p>
+            <div className="flex min-h-56 items-center justify-center rounded-2xl border border-lime-900/40 bg-black/20">
+                <p className="text-sm text-slate-400">
+                    Loading competition teams...
+                </p>
+            </div>
         )
     }
 
     return (
-        <div>
+        <div className="space-y-6">
             <Toast
                 message={toastMessage}
                 type={toastType}
@@ -556,191 +622,241 @@ export function CompetitionTeamsManager() {
                 }
             />
 
-            <div className="adminWorkspaceHeader">
-                <div>
-                    <h3>
-                        Competition Teams
-                    </h3>
-
-                    <p className="muted">
-                        Select participating teams
-                        and their preferred
-                        group-stage match days.
-                    </p>
-
-                    {currentCompetition && (
-                        <p className="muted">
-                            Managing participants for{' '}
-                            <strong>
-                                {
-                                    currentCompetition
-                                        .name
-                                }
-                            </strong>
+            <section className="rounded-2xl border border-lime-900/40 bg-black/20 p-5 shadow-xl sm:p-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                            Participant management
                         </p>
-                    )}
-                </div>
 
-                <button
-                    className="btn primary"
-                    type="button"
-                    disabled={
-                        !currentCompetitionId ||
-                        !hasUnsavedChanges ||
-                        isSaving
-                    }
-                    onClick={() =>
-                        void saveSelection()
-                    }
-                >
-                    {isSaving
-                        ? 'Saving...'
-                        : 'Save Teams'}
-                </button>
-            </div>
+                        <h2 className="mt-2 text-2xl font-bold text-white">
+                            Competition Teams
+                        </h2>
+
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                            Select participating teams and set their preferred group-stage match days.
+                        </p>
+
+                        {currentCompetition && (
+                            <p className="mt-2 text-sm text-slate-400">
+                                Managing participants for{' '}
+                                <strong className="text-white">
+                                    {
+                                        currentCompetition
+                                            .name
+                                    }
+                                </strong>
+                            </p>
+                        )}
+                    </div>
+
+                    <button
+                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-lime-500 px-5 py-2.5 text-sm font-bold text-black shadow-lg transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        type="button"
+                        disabled={
+                            !currentCompetitionId ||
+                            !hasUnsavedChanges ||
+                            isSaving
+                        }
+                        onClick={() =>
+                            void saveSelection()
+                        }
+                    >
+                        {isSaving
+                            ? 'Saving...'
+                            : 'Save Teams'}
+                    </button>
+                </div>
+            </section>
 
             {!currentCompetitionId ? (
-                <div className="teamsEmptyState">
-                    <h3>
+                <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-12 text-center">
+                    <h3 className="text-lg font-bold text-white">
                         No competition selected
                     </h3>
 
-                    <p>
-                        Select a competition from
-                        the competition selector
-                        before assigning teams.
+                    <p className="mt-2 text-sm text-slate-400">
+                        Select a competition before assigning teams.
                     </p>
                 </div>
             ) : !organisationTeams.length ? (
-                <div className="teamsEmptyState">
-                    <h3>
+                <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-12 text-center">
+                    <h3 className="text-lg font-bold text-white">
                         No teams available
                     </h3>
 
-                    <p>
-                        Create organisation teams
-                        first, then return here to
-                        add them to this competition.
+                    <p className="mt-2 text-sm text-slate-400">
+                        Create organisation teams first, then return here to add them to this competition.
                     </p>
                 </div>
             ) : (
                 <>
-                    <div className="adminWorkspaceToolbar">
-                        <input
-                            type="search"
-                            value={searchTerm}
-                            placeholder="Search teams, clubs, age groups or divisions..."
-                            onChange={(event) =>
-                                setSearchTerm(
-                                    event.target.value
-                                )
-                            }
-                        />
+                    <section className="rounded-2xl border border-lime-900/40 bg-black/20 p-4 sm:p-5">
+                        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="relative w-full xl:max-w-xl">
+                                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
+                                    ⌕
+                                </span>
 
-                        <div className="adminGroupActions">
-                            <button
-                                className="btn secondary small"
-                                type="button"
-                                onClick={
-                                    selectAllVisibleTeams
-                                }
-                            >
-                                Select Visible
-                            </button>
+                                <input
+                                    type="search"
+                                    value={searchTerm}
+                                    placeholder="Search teams, clubs, age groups or divisions..."
+                                    className="min-h-11 w-full rounded-xl border border-lime-900/50 bg-slate-950 py-2.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10"
+                                    onChange={(event) =>
+                                        setSearchTerm(
+                                            event.currentTarget
+                                                .value
+                                        )
+                                    }
+                                />
+                            </div>
 
-                            <button
-                                className="btn secondary small"
-                                type="button"
-                                onClick={
-                                    clearVisibleTeams
-                                }
-                            >
-                                Clear Visible
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-lime-700 bg-lime-500/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-lime-300 transition hover:bg-lime-500 hover:text-black disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                                    type="button"
+                                    disabled={
+                                        allVisibleSelected ||
+                                        !visibleTeamIds.length
+                                    }
+                                    onClick={
+                                        selectAllVisibleTeams
+                                    }
+                                >
+                                    Select Visible
+                                </button>
 
-                            <button
-                                className="btn secondary small"
-                                type="button"
-                                disabled={
-                                    !hasUnsavedChanges
-                                }
-                                onClick={
-                                    resetSelection
-                                }
-                            >
-                                Reset
-                            </button>
+                                <button
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-lime-700 bg-lime-500/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-lime-300 transition hover:bg-lime-500 hover:text-black disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                                    type="button"
+                                    disabled={
+                                        noVisibleSelected ||
+                                        !visibleTeamIds.length
+                                    }
+                                    onClick={
+                                        clearVisibleTeams
+                                    }
+                                >
+                                    Clear Visible
+                                </button>
+
+                                <button
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-600 bg-slate-900 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-200 transition hover:border-slate-400 hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
+                                    type="button"
+                                    disabled={
+                                        !hasUnsavedChanges &&
+                                        !searchTerm
+                                    }
+                                    onClick={
+                                        resetSelection
+                                    }
+                                >
+                                    Reset
+                                </button>
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="adminInfoBox">
-                        <div className="adminInfoIcon">
-                            ℹ
-                        </div>
-
-                        <div>
-                            <p>
-                                <strong>
+                        {searchTerm && (
+                            <p className="mt-3 text-xs text-slate-400">
+                                Showing{' '}
+                                <strong className="text-white">
                                     {
-                                        selectedTeamIds
-                                            .length
+                                        filteredTeams.length
                                     }
                                 </strong>{' '}
                                 of{' '}
-                                <strong>
+                                <strong className="text-white">
                                     {
-                                        organisationTeams
-                                            .length
+                                        organisationTeams.length
                                     }
                                 </strong>{' '}
-                                teams selected.
+                                teams.
+                            </p>
+                        )}
+                    </section>
+
+                    <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+                        <div className="overflow-hidden rounded-2xl border border-lime-700/40 bg-gradient-to-br from-lime-500/15 to-emerald-950/40 p-5">
+                            <div className="flex items-center gap-5">
+                                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-lime-500 text-2xl font-black text-black shadow-lg">
+                                    {
+                                        selectedTeamIds.length
+                                    }
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-300">
+                                        Teams selected
+                                    </p>
+
+                                    <p className="mt-1 text-xl font-bold text-white">
+                                        {
+                                            selectedTeamIds.length
+                                        }{' '}
+                                        of{' '}
+                                        {
+                                            organisationTeams.length
+                                        }{' '}
+                                        participating
+                                    </p>
+
+                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+                                        <div
+                                            className="h-full rounded-full bg-lime-400 transition-all"
+                                            style={{
+                                                width: `${selectionPercentage}%`,
+                                            }}
+                                        />
+                                    </div>
+
+                                    <p className="mt-2 text-xs text-slate-300">
+                                        {selectionPercentage}% of available teams are currently selected.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-sky-700/40 bg-sky-500/10 p-5">
+                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">
+                                Competition match days
                             </p>
 
-                            <p className="muted">
-                                Group-stage preferences
-                                are enforced where
-                                possible. Knockout dates
-                                take priority after teams
-                                qualify.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="adminInfoBox">
-                        <div className="adminInfoIcon">
-                            📅
-                        </div>
-
-                        <div>
-                            <p>
-                                Competition match days:{' '}
-                                <strong>
-                                    {allowedMatchDays
-                                        .map(
-                                            (day) =>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {allowedMatchDays.map(
+                                    (day) => (
+                                        <span
+                                            key={day}
+                                            className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-sm font-semibold text-sky-100"
+                                        >
+                                            {
                                                 MATCH_DAY_LABELS[
                                                     day
                                                     ]
-                                        )
-                                        .join(', ')}
-                                </strong>
+                                            }
+                                        </span>
+                                    )
+                                )}
+                            </div>
+
+                            <p className="mt-3 text-xs leading-5 text-slate-300">
+                                Group-stage preferences are used where possible. Knockout dates take priority after qualification.
                             </p>
                         </div>
-                    </div>
+                    </section>
 
                     {!filteredTeams.length ? (
-                        <div className="teamsEmptyState">
-                            <h3>
+                        <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-12 text-center">
+                            <h3 className="text-lg font-bold text-white">
                                 No matching teams
                             </h3>
 
-                            <p>
-                                Try changing your
-                                search term.
+                            <p className="mt-2 text-sm text-slate-400">
+                                Try changing your search term.
                             </p>
                         </div>
                     ) : (
-                        <div className="adminGroupsGrid">
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                             {filteredTeams.map(
                                 (team) => {
                                     const isSelected =
@@ -756,64 +872,62 @@ export function CompetitionTeamsManager() {
 
                                     return (
                                         <article
-                                            className="adminGroupCard"
+                                            className={`rounded-2xl border p-4 transition ${
+                                                isSelected
+                                                    ? 'border-lime-500/70 bg-lime-500/10 shadow-lg shadow-lime-950/20'
+                                                    : 'border-lime-900/40 bg-black/20 hover:border-lime-700/60'
+                                            }`}
                                             key={
                                                 team.id
                                             }
                                         >
-                                            <div className="adminGroupHeader">
-                                                <label
-                                                    className="adminGroupTeam"
-                                                    style={{
-                                                        cursor:
-                                                            'pointer',
-                                                    }}
-                                                >
-                                                    {team.logo_url ? (
-                                                        <img
-                                                            src={
-                                                                team.logo_url
-                                                            }
-                                                            alt={`${team.name} logo`}
-                                                        />
-                                                    ) : (
-                                                        <span>
-                                                            {getInitials(
-                                                                team.name
-                                                            )}
-                                                        </span>
-                                                    )}
-
-                                                    <div>
-                                                        <h4>
-                                                            {
-                                                                team.name
-                                                            }
-                                                        </h4>
-
-                                                        <p className="muted">
-                                                            {team.club_name ??
-                                                                'Independent team'}
-                                                        </p>
-                                                    </div>
-
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={
-                                                            isSelected
+                                            <label className="flex cursor-pointer items-center gap-3">
+                                                {team.logo_url ? (
+                                                    <img
+                                                        className="h-12 w-12 rounded-xl border border-white/10 object-cover"
+                                                        src={
+                                                            team.logo_url
                                                         }
-                                                        onChange={() =>
-                                                            toggleTeam(
-                                                                team.id
-                                                            )
-                                                        }
+                                                        alt={`${team.name} logo`}
                                                     />
-                                                </label>
-                                            </div>
+                                                ) : (
+                                                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lime-500/15 text-sm font-black text-lime-300">
+                                                        {getInitials(
+                                                            team.name
+                                                        )}
+                                                    </span>
+                                                )}
 
-                                            <div className="adminGroupMeta">
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="truncate font-bold text-white">
+                                                        {
+                                                            team.name
+                                                        }
+                                                    </h4>
+
+                                                    <p className="truncate text-sm text-slate-400">
+                                                        {team.club_name ??
+                                                            'Independent team'}
+                                                    </p>
+                                                </div>
+
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-5 w-5 rounded border-slate-600 bg-slate-900 text-lime-500 accent-lime-500"
+                                                    checked={
+                                                        isSelected
+                                                    }
+                                                    onChange={() =>
+                                                        toggleTeam(
+                                                            team.id
+                                                        )
+                                                    }
+                                                />
+                                            </label>
+
+                                            <div className="mt-4 flex flex-wrap gap-2">
                                                 {team.age_group && (
-                                                    <span className="badge">
+                                                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
                                                         {
                                                             team.age_group
                                                         }
@@ -821,7 +935,7 @@ export function CompetitionTeamsManager() {
                                                 )}
 
                                                 {team.division && (
-                                                    <span className="badge">
+                                                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
                                                         {
                                                             team.division
                                                         }
@@ -829,14 +943,14 @@ export function CompetitionTeamsManager() {
                                                 )}
 
                                                 {team.participation_status && (
-                                                    <span className="badge">
+                                                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
                                                         {
                                                             team.participation_status
                                                         }
                                                     </span>
                                                 )}
 
-                                                <span className="badge">
+                                                <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
                                                     {team.published
                                                         ? 'Published'
                                                         : 'Draft'}
@@ -844,7 +958,7 @@ export function CompetitionTeamsManager() {
                                             </div>
 
                                             {isSelected && (
-                                                <div className="mt-4 border-t border-lime-900/40 pt-4">
+                                                <div className="mt-4 border-t border-lime-900/50 pt-4">
                                                     <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-lime-400">
                                                         Preferred group-stage days
                                                     </p>
@@ -909,9 +1023,9 @@ export function CompetitionTeamsManager() {
                         </div>
                     )}
 
-                    <div className="adminWorkspaceFooter">
+                    <div className="sticky bottom-4 z-20 flex justify-end rounded-2xl border border-lime-900/50 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
                         <button
-                            className="btn primary"
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-lime-500 px-5 py-2.5 text-sm font-bold text-black shadow-lg transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                             type="button"
                             disabled={
                                 !hasUnsavedChanges ||
@@ -923,7 +1037,9 @@ export function CompetitionTeamsManager() {
                         >
                             {isSaving
                                 ? 'Saving...'
-                                : 'Save Competition Teams'}
+                                : hasUnsavedChanges
+                                    ? 'Save Competition Teams'
+                                    : 'All Changes Saved'}
                         </button>
                     </div>
                 </>

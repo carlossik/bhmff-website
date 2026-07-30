@@ -43,19 +43,19 @@ function sanitiseFolderName(value: string) {
 }
 
 export function ImageUpload({
-    value,
-    organisationId,
-    folder,
-    label = 'Image',
-    disabled = false,
-    uploadLabel = 'Upload image',
-    replaceLabel = 'Replace image',
-    removeLabel = 'Remove image',
-    helperText =
-        'PNG, JPG, WebP or SVG. Maximum 5 MB.',
-    previewAlt,
-    onChange,
-}: ImageUploadProps) {
+                                value,
+                                organisationId,
+                                folder,
+                                label = 'Image',
+                                disabled = false,
+                                uploadLabel = 'Upload image',
+                                replaceLabel = 'Replace image',
+                                removeLabel = 'Remove image',
+                                helperText =
+                                'PNG, JPG, WebP or SVG. Maximum 5 MB.',
+                                previewAlt,
+                                onChange,
+                            }: ImageUploadProps) {
     const inputRef =
         useRef<HTMLInputElement | null>(null)
 
@@ -169,14 +169,14 @@ export function ImageUpload({
 
     return (
         <div className="space-y-3">
-            <span className="block text-sm font-semibold text-slate-800">
+            <span className="block text-sm font-semibold text-slate-200">
                 {label}
             </span>
 
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
+            <div className="rounded-2xl border border-dashed border-lime-700/30 bg-[#0d1709] p-5">
                 {value ? (
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                        <div className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                        <div className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-lime-700/30 bg-[#12210d] p-3 shadow-sm">
                             <img
                                 src={value}
                                 alt={
@@ -194,7 +194,7 @@ export function ImageUpload({
                                 onClick={() =>
                                     inputRef.current?.click()
                                 }
-                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-lime-700/30 bg-[#12210d] px-4 py-2.5 text-sm font-semibold text-white transition hover:border-lime-500 hover:bg-[#183014] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <RefreshCw className="h-4 w-4" />
 
@@ -207,7 +207,7 @@ export function ImageUpload({
                                 type="button"
                                 disabled={isDisabled}
                                 onClick={() => onChange('')}
-                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-800/40 bg-[#2b1111] px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-[#3b1616] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <Trash2 className="h-4 w-4" />
                                 {removeLabel}
@@ -216,7 +216,7 @@ export function ImageUpload({
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center px-4 py-6 text-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#12210d] text-lime-300">
                             <ImagePlus className="h-7 w-7" />
                         </div>
 
@@ -226,7 +226,7 @@ export function ImageUpload({
                             onClick={() =>
                                 inputRef.current?.click()
                             }
-                            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-lime-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <ImagePlus className="h-4 w-4" />
 
@@ -247,14 +247,14 @@ export function ImageUpload({
                 onChange={handleFileChange}
             />
 
-            <p className="text-xs leading-5 text-slate-500">
+            <p className="text-xs leading-5 text-slate-400">
                 {helperText}
             </p>
 
             {error && (
                 <p
                     role="alert"
-                    className="text-sm font-medium text-red-600"
+                    className="text-sm font-medium text-red-300"
                 >
                     {error}
                 </p>

@@ -1,8 +1,10 @@
 import {
     useEffect,
+    useRef,
     useState,
     type ChangeEvent,
 } from 'react'
+import { TournamentHQBrand } from '../../common/TournamentHQBrand'
 import {
     ImagePlus,
     MapPin,
@@ -114,9 +116,22 @@ export function TeamModal({
     const [preview, setPreview] =
         useState(logoUrl)
 
+    const teamNameManuallyEditedRef =
+        useRef(false)
+
+    const previousSelectedClubNameRef =
+        useRef('')
+
     useEffect(() => {
         setPreview(logoUrl)
     }, [logoUrl])
+
+    useEffect(() => {
+        if (mode === 'create') {
+            teamNameManuallyEditedRef.current =
+                Boolean(teamName.trim())
+        }
+    }, [mode])
 
     useEffect(() => {
         const previousOverflow =
@@ -174,6 +189,47 @@ export function TeamModal({
         setPreview(logoUrl)
     }
 
+    function handleClubChange(
+        value: string
+    ) {
+        const selectedClub =
+            clubs.find(
+                (club) => club.id === value
+            )
+
+        const selectedClubName =
+            selectedClub?.name ?? ''
+
+        const shouldAutoFillTeamName =
+            mode === 'create' &&
+            (
+                !teamName.trim() ||
+                !teamNameManuallyEditedRef.current ||
+                teamName.trim() ===
+                previousSelectedClubNameRef.current
+            )
+
+        onClubIdChange(value)
+
+        if (shouldAutoFillTeamName) {
+            onTeamNameChange(
+                selectedClubName
+            )
+        }
+
+        previousSelectedClubNameRef.current =
+            selectedClubName
+    }
+
+    function handleTeamNameChange(
+        value: string
+    ) {
+        teamNameManuallyEditedRef.current =
+            true
+
+        onTeamNameChange(value)
+    }
+
     return (
         <div
             className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/75 p-4 font-sans backdrop-blur-sm"
@@ -196,18 +252,24 @@ export function TeamModal({
             >
                 <header className="flex shrink-0 items-center justify-between border-b border-lime-900/50 px-6 py-5 sm:px-8">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-400">
-                            Team administration
-                        </p>
+                        <TournamentHQBrand
+                            variant="compact"
+                            size="sm"
+                            className="max-w-[190px]"
+                        />
 
                         <h2
                             id="team-modal-title"
-                            className="mt-1 text-2xl font-bold tracking-tight text-lime-300 sm:text-3xl"
+                            className="mt-3 text-2xl font-bold tracking-tight text-lime-300 sm:text-3xl"
                         >
                             {mode === 'edit'
                                 ? 'Edit Team'
                                 : 'Add Team'}
                         </h2>
+
+                        <p className="mt-1 text-sm text-slate-400">
+                            Add the team details, home venue and public-facing information.
+                        </p>
                     </div>
 
                     <button
@@ -233,8 +295,8 @@ export function TeamModal({
                                 className={fieldClassName}
                                 value={clubId}
                                 onChange={(event) =>
-                                    onClubIdChange(
-                                        event.target
+                                    handleClubChange(
+                                        event.currentTarget
                                             .value
                                     )
                                 }
@@ -271,14 +333,18 @@ export function TeamModal({
                             <input
                                 className={fieldClassName}
                                 value={teamName}
-                                placeholder="e.g. U15 Reds"
+                                placeholder="Automatically copied from the selected club"
                                 onChange={(event) =>
-                                    onTeamNameChange(
-                                        event.target
+                                    handleTeamNameChange(
+                                        event.currentTarget
                                             .value
                                     )
                                 }
                             />
+
+                            <span className="mt-2 block text-xs font-normal leading-5 text-slate-500">
+                                The selected club name is copied automatically until you edit the team name yourself.
+                            </span>
                         </label>
 
                         <label className={labelClassName}>
@@ -287,14 +353,40 @@ export function TeamModal({
                             <input
                                 className={fieldClassName}
                                 value={ageGroup}
-                                placeholder="e.g. U15"
+                                list="team-age-group-options"
+                                placeholder="e.g. U15 or Open Age"
                                 onChange={(event) =>
                                     onAgeGroupChange(
-                                        event.target
+                                        event.currentTarget
                                             .value
                                     )
                                 }
                             />
+
+                            <datalist id="team-age-group-options">
+                                {[
+                                    'U7',
+                                    'U8',
+                                    'U9',
+                                    'U10',
+                                    'U11',
+                                    'U12',
+                                    'U13',
+                                    'U14',
+                                    'U15',
+                                    'U16',
+                                    'U17',
+                                    'U18',
+                                    'U21',
+                                    'Open Age',
+                                    'Veterans',
+                                ].map((option) => (
+                                    <option
+                                        key={option}
+                                        value={option}
+                                    />
+                                ))}
+                            </datalist>
                         </label>
 
                         <label className={labelClassName}>
@@ -655,7 +747,16 @@ export function TeamModal({
                     <button
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         type="button"
-                        disabled={isSaving}
+                        disabled={
+                            isSaving ||
+                            !clubId ||
+                            !teamName.trim() ||
+                            (
+                                createNewVenue
+                                    ? !newVenueDraft.groundName.trim()
+                                    : !primaryHomeVenueId
+                            )
+                        }
                         onClick={onSave}
                     >
                         <Save className="h-4 w-4" />

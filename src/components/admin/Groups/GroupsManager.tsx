@@ -17,6 +17,54 @@ const emptyForm: GroupFormValues = {
     competition_team_ids: [],
 }
 
+function createNextGroupName(
+    groups: CompetitionGroup[]
+) {
+    const usedNames = new Set(
+        groups.map((group) =>
+            group.name.trim().toLowerCase()
+        )
+    )
+
+    for (
+        let index = 0;
+        index < 26;
+        index += 1
+    ) {
+        const candidate = `Group ${String.fromCharCode(
+            65 + index
+        )}`
+
+        if (
+            !usedNames.has(
+                candidate.toLowerCase()
+            )
+        ) {
+            return candidate
+        }
+    }
+
+    return `Group ${groups.length + 1}`
+}
+
+function getNextSortOrder(
+    groups: CompetitionGroup[]
+) {
+    if (!groups.length) {
+        return 1
+    }
+
+    return (
+        Math.max(
+            ...groups.map(
+                (group) =>
+                    Number(group.sort_order) ||
+                    0
+            )
+        ) + 1
+    )
+}
+
 export function GroupsManager() {
     const {
         currentCompetition,
@@ -115,7 +163,10 @@ export function GroupsManager() {
 
         setFormValues({
             ...emptyForm,
-            sort_order: String(groups.length + 1),
+            name: createNextGroupName(groups),
+            sort_order: String(
+                getNextSortOrder(groups)
+            ),
         })
 
         setShowModal(true)
@@ -163,6 +214,26 @@ export function GroupsManager() {
             return
         }
 
+        const duplicateGroup =
+            groups.find(
+                (group) =>
+                    group.name
+                        .trim()
+                        .toLowerCase() ===
+                    formValues.name
+                        .trim()
+                        .toLowerCase() &&
+                    group.id !== editingGroup?.id
+            )
+
+        if (duplicateGroup) {
+            showToast(
+                'A group with this name already exists.',
+                'error'
+            )
+            return
+        }
+
         const sortOrder = Number(formValues.sort_order)
 
         if (
@@ -171,7 +242,7 @@ export function GroupsManager() {
             sortOrder < 1
         ) {
             showToast(
-                'Display order must be at least 1.',
+                'Group position must be at least 1.',
                 'error'
             )
             return
@@ -238,7 +309,8 @@ export function GroupsManager() {
                     currentGroup.id === group.id
                         ? {
                             ...currentGroup,
-                            published: newPublishedStatus,
+                            published:
+                            newPublishedStatus,
                         }
                         : currentGroup
                 )
@@ -379,7 +451,7 @@ export function GroupsManager() {
                                     <div>
                                         <div className="adminGroupMeta">
                                             <span className="badge">
-                                                Order {group.sort_order}
+                                                Position {group.sort_order}
                                             </span>
 
                                             <span
@@ -509,6 +581,7 @@ export function GroupsManager() {
                     mode={editingGroup ? 'edit' : 'create'}
                     values={formValues}
                     teams={teams}
+                    groups={groups}
                     memberships={memberships}
                     editingGroupId={
                         editingGroup?.id ?? null

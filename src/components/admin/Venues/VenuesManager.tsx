@@ -26,6 +26,27 @@ type ToastType =
     | 'error'
     | 'info'
 
+function normaliseVenueName(
+    value: string
+) {
+    return value
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+}
+
+function formatPostcode(value: string) {
+    const compact = value
+        .toUpperCase()
+        .replace(/\s+/g, '')
+
+    if (compact.length <= 3) {
+        return compact
+    }
+
+    return `${compact.slice(0, -3)} ${compact.slice(-3)}`
+}
+
 export function VenuesManager() {
     const { currentOrganisation } =
         useOrganisation()
@@ -135,7 +156,9 @@ export function VenuesManager() {
         }
 
         setEditingVenue(null)
-        setFormValues(emptyForm)
+        setFormValues({
+            ...emptyForm,
+        })
         setShowModal(true)
     }
 
@@ -158,8 +181,14 @@ export function VenuesManager() {
     }
 
     function closeModal() {
+        if (isSaving) {
+            return
+        }
+
         setEditingVenue(null)
-        setFormValues(emptyForm)
+        setFormValues({
+            ...emptyForm,
+        })
         setShowModal(false)
     }
 
@@ -172,7 +201,20 @@ export function VenuesManager() {
             return
         }
 
-        if (!formValues.name.trim()) {
+        const cleanedValues: VenueFormValues = {
+            name: formValues.name
+                .trim()
+                .replace(/\s+/g, ' '),
+            address: formValues.address
+                .trim()
+                .replace(/\s+/g, ' '),
+            postcode: formatPostcode(
+                formValues.postcode
+            ),
+            notes: formValues.notes.trim(),
+        }
+
+        if (!cleanedValues.name) {
             showToast(
                 'Venue name is required.',
                 'error'
@@ -180,6 +222,28 @@ export function VenuesManager() {
             return
         }
 
+        const duplicateVenue =
+            venues.find(
+                (venue) =>
+                    venue.id !==
+                    editingVenue?.id &&
+                    normaliseVenueName(
+                        venue.name
+                    ) ===
+                    normaliseVenueName(
+                        cleanedValues.name
+                    )
+            )
+
+        if (duplicateVenue) {
+            showToast(
+                `A venue named ${duplicateVenue.name} already exists.`,
+                'error'
+            )
+            return
+        }
+
+        setFormValues(cleanedValues)
         setIsSaving(true)
 
         const wasEditing =
@@ -191,17 +255,21 @@ export function VenuesManager() {
                     editingVenue.id,
                     currentCompetition.id,
                     currentOrganisation.id,
-                    formValues
+                    cleanedValues
                 )
             } else {
                 await venueService.createVenue(
                     currentCompetition.id,
                     currentOrganisation.id,
-                    formValues
+                    cleanedValues
                 )
             }
 
-            closeModal()
+            setEditingVenue(null)
+            setFormValues({
+                ...emptyForm,
+            })
+            setShowModal(false)
 
             await loadData(
                 currentCompetition.id

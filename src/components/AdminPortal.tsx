@@ -48,6 +48,7 @@ import { UserManagement } from './admin/Users/UserManagement'
 import OrganisationManager from './admin/Organisations/OrganisationManager'
 import { AdminHeader } from './admin/AdminHeader'
 import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTeamsManager'
+import { TournamentHQBrand } from './common/TournamentHQBrand'
 
 import {
     canAccessModule,
@@ -1455,11 +1456,13 @@ export function AdminPortal({
                 <div className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
                     <aside className="w-full overflow-hidden rounded-3xl border border-lime-900/50 bg-[#0b140a] shadow-2xl shadow-black/20">
                         <div className="border-b border-lime-900/50 px-5 py-5">
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
-                                TournamentHQ
-                            </p>
+                            <TournamentHQBrand
+                                variant="compact"
+                                size="sm"
+                                className="max-w-[170px]"
+                            />
 
-                            <strong className="mt-1 block text-lg leading-6 text-white">
+                            <strong className="mt-3 block text-lg leading-6 text-white">
                                 Competition Administration
                             </strong>
 

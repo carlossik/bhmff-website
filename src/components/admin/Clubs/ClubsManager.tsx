@@ -55,7 +55,7 @@ export function ClubsManager() {
     const [clubToDelete, setClubToDelete] =
         useState<DbClub | null>(null)
 
-    const [formValues, setFormValues] =
+    const [modalInitialValues, setModalInitialValues] =
         useState<ClubFormValues>({
             ...emptyClubForm,
         })
@@ -106,7 +106,7 @@ export function ClubsManager() {
     function openCreateModal() {
         setEditingClub(null)
 
-        setFormValues({
+        setModalInitialValues({
             ...emptyClubForm,
         })
 
@@ -115,7 +115,7 @@ export function ClubsManager() {
 
     function openEditModal(club: DbClub) {
         setEditingClub(club)
-        setFormValues(mapClubToForm(club))
+        setModalInitialValues(mapClubToForm(club))
         setShowModal(true)
     }
 
@@ -127,7 +127,7 @@ export function ClubsManager() {
         setShowModal(false)
         setEditingClub(null)
 
-        setFormValues({
+        setModalInitialValues({
             ...emptyClubForm,
         })
     }
@@ -136,22 +136,14 @@ export function ClubsManager() {
         setShowModal(false)
         setEditingClub(null)
 
-        setFormValues({
+        setModalInitialValues({
             ...emptyClubForm,
         })
     }
 
-    function updateFormValue(
-        field: keyof ClubFormValues,
-        value: string
+    async function saveClub(
+        formValues: ClubFormValues
     ) {
-        setFormValues((currentValues) => ({
-            ...currentValues,
-            [field]: value,
-        }))
-    }
-
-    async function saveClub() {
         if (!organisationId) {
             alert(
                 'No organisation is currently selected.'
@@ -342,7 +334,7 @@ export function ClubsManager() {
 
     return (
         <>
-            <div className="adminSectionHeader">
+            <div className="adminSectionHeader mb-6">
                 <div>
                     <h2>Clubs</h2>
 
@@ -376,9 +368,8 @@ export function ClubsManager() {
                         : 'create'
                 }
                 organisationId={organisationId}
-                values={formValues}
+                initialValues={modalInitialValues}
                 isSaving={isSaving}
-                onChange={updateFormValue}
                 onClose={closeModal}
                 onSave={saveClub}
             />
