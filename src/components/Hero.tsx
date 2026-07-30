@@ -123,58 +123,175 @@ export function Hero() {
     return (
         <section id="home" className="hero">
             <div className="container">
-                <div
-                    style={{
-                        minHeight: '148px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.9rem',
-                        marginBottom: '1rem',
-                        padding: '1rem 1.25rem',
-                        overflowX: 'auto',
-                        borderRadius: '13px',
-                        border:
-                            '1px solid rgba(132, 204, 22, 0.24)',
-                        background:
-                            'rgba(7, 16, 6, 0.76)',
-                    }}
-                >
-          <span
-              style={{
-                  flexShrink: 0,
-                  color: '#b8ff7a',
-                  fontSize: '0.66rem',
-                  fontWeight: 900,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.13em',
-              }}
-          >
-            Official Partners
-          </span>
+                <style>
+                    {`
+                        .bhmffHeroPartners {
+                            min-height: 118px;
+                            display: flex;
+                            align-items: center;
+                            gap: 0.9rem;
+                            margin-bottom: 1rem;
+                            padding: 1rem 1.25rem;
+                            overflow-x: auto;
+                            border: 1px solid rgba(132, 204, 22, 0.24);
+                            border-radius: 13px;
+                            background: rgba(7, 16, 6, 0.76);
+                        }
+
+                        .bhmffHeroPlatformGrid {
+                            display: grid;
+                            grid-template-columns: minmax(250px, 0.75fr) minmax(0, 2.25fr);
+                            align-items: stretch;
+                            gap: 1rem;
+                            margin-bottom: 2rem;
+                        }
+
+                        .bhmffHeroMainGrid {
+                            display: grid;
+                            grid-template-columns: minmax(0, 1fr) 480px;
+                            align-items: center;
+                            gap: 2.5rem;
+                            width: 100%;
+                        }
+
+                        .bhmffHeroCopy {
+                            min-width: 0;
+                            max-width: 660px;
+                        }
+
+                        .hero .bhmffHeroTitle {
+                            width: 100%;
+                            max-width: 660px;
+                            margin: 1rem 0 1.2rem !important;
+                            font-size: 3.2rem !important;
+                            line-height: 0.96 !important;
+                            letter-spacing: -0.035em !important;
+                            text-transform: uppercase;
+                        }
+
+                        .hero .bhmffHeroTitleLine {
+                            display: block;
+                            white-space: nowrap;
+                        }
+
+                        .bhmffFeaturedMatch {
+                            width: 100%;
+                            max-width: 480px;
+                            justify-self: end;
+                        }
+
+                        @media (max-width: 1250px) {
+                            .hero .bhmffHeroTitle {
+                                font-size: 2.85rem !important;
+                            }
+                        }
+
+                        @media (max-width: 1080px) {
+                            .bhmffHeroMainGrid {
+                                grid-template-columns: minmax(0, 1fr) 410px;
+                                gap: 2rem;
+                            }
+
+                            .hero .bhmffHeroTitle {
+                                font-size: 2.5rem !important;
+                            }
+
+                            .bhmffFeaturedMatch {
+                                max-width: 410px;
+                            }
+                        }
+
+                        @media (max-width: 980px) {
+                            .bhmffHeroPlatformGrid,
+                            .bhmffHeroMainGrid {
+                                grid-template-columns: 1fr;
+                            }
+
+                            .bhmffHeroCopy {
+                                max-width: 100%;
+                            }
+
+                            .bhmffFeaturedMatch {
+                                max-width: 100%;
+                                justify-self: stretch;
+                            }
+
+                            .hero .bhmffHeroTitle {
+                                max-width: 100%;
+                                font-size: 3rem !important;
+                            }
+
+                            .hero .bhmffHeroTitleLine {
+                                white-space: normal;
+                            }
+                        }
+
+                        @media (max-width: 640px) {
+                            .bhmffHeroPartners {
+                                min-height: 96px;
+                                padding: 0.8rem;
+                            }
+
+                            .hero .bhmffHeroTitle {
+                                font-size: 2.35rem !important;
+                            }
+                        }
+                    `}
+                </style>
+
+                <div className="bhmffHeroPartners">
+                    <span
+                        style={{
+                            flexShrink: 0,
+                            color: '#b8ff7a',
+                            fontSize: '0.66rem',
+                            fontWeight: 900,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.13em',
+                        }}
+                    >
+                        Official Partners
+                    </span>
 
                     {sponsors.length > 0 ? (
                         sponsors.map((sponsor) => {
-                            const content =
-                                sponsor.logo_url ? (
-                                    <img
-                                        src={sponsor.logo_url}
-                                        alt={sponsor.name}
-                                        style={{
-                                            display: 'block',
-                                            width: '112px',
-                                            height: '42px',
-                                            objectFit: 'contain',
-                                        }}
-                                    />
-                                ) : (
-                                    <strong
-                                        style={{
-                                            fontSize: '0.75rem',
-                                        }}
-                                    >
-                                        {sponsor.name}
-                                    </strong>
-                                )
+                            const sponsorContent = sponsor.logo_url ? (
+                                <img
+                                    src={sponsor.logo_url}
+                                    alt={sponsor.name}
+                                    style={{
+                                        display: 'block',
+                                        width: '112px',
+                                        height: '42px',
+                                        objectFit: 'contain',
+                                    }}
+                                />
+                            ) : (
+                                <strong
+                                    style={{
+                                        fontSize: '0.75rem',
+                                    }}
+                                >
+                                    {sponsor.name}
+                                </strong>
+                            )
+
+                            const sponsorStyle = {
+                                flexShrink: 0,
+                                minWidth: '130px',
+                                minHeight: '50px',
+                                display: 'grid',
+                                placeItems: 'center',
+                                padding: '0.3rem 0.6rem',
+                                borderRadius: '9px',
+                                border:
+                                    '1px solid rgba(132, 204, 22, 0.2)',
+                                background:
+                                    'rgba(255, 255, 255, 0.025)',
+                                color: 'inherit',
+                                textDecoration: 'none',
+                                textAlign: 'center' as const,
+                            }
 
                             return sponsor.website_url ? (
                                 <a
@@ -182,43 +299,16 @@ export function Hero() {
                                     href={sponsor.website_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    style={{
-                                        flexShrink: 0,
-                                        minWidth: '130px',
-                                        minHeight: '50px',
-                                        display: 'grid',
-                                        placeItems: 'center',
-                                        padding: '0.3rem 0.6rem',
-                                        borderRadius: '9px',
-                                        border:
-                                            '1px solid rgba(132, 204, 22, 0.2)',
-                                        background:
-                                            'rgba(255, 255, 255, 0.025)',
-                                        color: 'inherit',
-                                        textDecoration: 'none',
-                                    }}
+                                    style={sponsorStyle}
                                 >
-                                    {content}
+                                    {sponsorContent}
                                 </a>
                             ) : (
                                 <div
                                     key={sponsor.id}
-                                    style={{
-                                        flexShrink: 0,
-                                        minWidth: '130px',
-                                        minHeight: '50px',
-                                        display: 'grid',
-                                        placeItems: 'center',
-                                        padding: '0.3rem 0.6rem',
-                                        borderRadius: '9px',
-                                        border:
-                                            '1px solid rgba(132, 204, 22, 0.2)',
-                                        background:
-                                            'rgba(255, 255, 255, 0.025)',
-                                        textAlign: 'center',
-                                    }}
+                                    style={sponsorStyle}
                                 >
-                                    {content}
+                                    {sponsorContent}
                                 </div>
                             )
                         })
@@ -229,21 +319,12 @@ export function Hero() {
                                 opacity: 0.72,
                             }}
                         >
-              Partnership opportunities are currently available.
-            </span>
+                            Partnership opportunities are currently available.
+                        </span>
                     )}
                 </div>
 
-                <div
-                    style={{
-                        display: 'grid',
-                        gridTemplateColumns:
-                            'minmax(250px, 0.75fr) minmax(0, 2.25fr)',
-                        alignItems: 'stretch',
-                        gap: '1rem',
-                        marginBottom: '1rem',
-                    }}
-                >
+                <div className="bhmffHeroPlatformGrid">
                     <a
                         href="https://tournamenthq.co.uk"
                         target="_blank"
@@ -264,11 +345,7 @@ export function Hero() {
                             textDecoration: 'none',
                         }}
                     >
-                        <div
-                            style={{
-                                textAlign: 'center',
-                            }}
-                        >
+                        <div style={{ textAlign: 'center' }}>
                             <img
                                 src="/assets/tournamenthq-logo.png"
                                 alt="TournamentHQ"
@@ -294,8 +371,8 @@ export function Hero() {
                                     letterSpacing: '0.14em',
                                 }}
                             >
-                Official Tournament Platform
-              </span>
+                                Official Tournament Platform
+                            </span>
                         </div>
                     </a>
 
@@ -306,8 +383,7 @@ export function Hero() {
                             borderRadius: '16px',
                             border:
                                 '1px solid rgba(132, 204, 22, 0.3)',
-                            background:
-                                'rgba(10, 20, 9, 0.82)',
+                            background: 'rgba(10, 20, 9, 0.82)',
                             overflow: 'hidden',
                         }}
                     >
@@ -332,140 +408,62 @@ export function Hero() {
                                 gap: '0.6rem',
                             }}
                         >
-                            {overviewItems.map(
-                                (item) => (
-                                    <div
-                                        key={item.label}
+                            {overviewItems.map((item) => (
+                                <div
+                                    key={item.label}
+                                    style={{
+                                        minWidth: 0,
+                                        minHeight: '92px',
+                                        display: 'grid',
+                                        alignContent: 'center',
+                                        justifyItems: 'center',
+                                        padding: '0.65rem 0.45rem',
+                                        borderRadius: '10px',
+                                        border:
+                                            '1px solid rgba(132, 204, 22, 0.24)',
+                                        background:
+                                            'rgba(132, 204, 22, 0.055)',
+                                        textAlign: 'center',
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    <strong
                                         style={{
-                                            minWidth: 0,
-                                            minHeight: '92px',
-                                            display: 'grid',
-                                            alignContent: 'center',
-                                            justifyItems: 'center',
-                                            padding: '0.65rem 0.45rem',
-                                            borderRadius: '10px',
-                                            border:
-                                                '1px solid rgba(132, 204, 22, 0.24)',
-                                            background:
-                                                'rgba(132, 204, 22, 0.055)',
-                                            textAlign: 'center',
-                                            overflow: 'hidden',
+                                            display: 'block',
+                                            maxWidth: '100%',
+                                            color: '#b8ff7a',
+                                            fontSize:
+                                                item.value.length > 10
+                                                    ? '0.76rem'
+                                                    : '1.35rem',
+                                            lineHeight: 1.08,
+                                            overflowWrap: 'anywhere',
                                         }}
                                     >
-                                        <strong
-                                            style={{
-                                                display: 'block',
-                                                maxWidth: '100%',
-                                                color: '#b8ff7a',
-                                                fontSize:
-                                                    item.value.length > 10
-                                                        ? '0.76rem'
-                                                        : '1.35rem',
-                                                lineHeight: 1.08,
-                                                overflowWrap:
-                                                    'anywhere',
-                                            }}
-                                        >
-                                            {item.value}
-                                        </strong>
+                                        {item.value}
+                                    </strong>
 
-                                        <span
-                                            style={{
-                                                display: 'block',
-                                                maxWidth: '100%',
-                                                marginTop: '0.45rem',
-                                                fontSize: '0.58rem',
-                                                fontWeight: 900,
-                                                lineHeight: 1.25,
-                                                textTransform:
-                                                    'uppercase',
-                                                letterSpacing:
-                                                    '0.07em',
-                                                opacity: 0.78,
-                                                overflowWrap:
-                                                    'anywhere',
-                                            }}
-                                        >
-                      {item.label}
-                    </span>
-                                    </div>
-                                ),
-                            )}
+                                    <span
+                                        style={{
+                                            display: 'block',
+                                            maxWidth: '100%',
+                                            marginTop: '0.45rem',
+                                            fontSize: '0.58rem',
+                                            fontWeight: 900,
+                                            lineHeight: 1.25,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.07em',
+                                            opacity: 0.78,
+                                            overflowWrap: 'anywhere',
+                                        }}
+                                    >
+                                        {item.label}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
-
-                <style>
-                    {`
-            .bhmffHeroMainGrid {
-              display: grid;
-              grid-template-columns: minmax(0, 1fr) minmax(440px, 480px);
-              align-items: center;
-              gap: 2.5rem;
-              width: 100%;
-            }
-
-            .bhmffHeroCopy {
-              min-width: 0;
-              max-width: 660px;
-            }
-
-            .hero .bhmffHeroTitle {
-              margin: 1rem 0 1.2rem !important;
-              max-width: 660px;
-              font-size: clamp(2.55rem, 2.9vw, 3.4rem) !important;
-              line-height: 0.96 !important;
-              letter-spacing: -0.035em !important;
-              text-transform: uppercase;
-            }
-
-            .hero .bhmffHeroTitleLine {
-              display: block;
-              white-space: nowrap;
-            }
-
-            .bhmffFeaturedMatch {
-              width: 100%;
-              max-width: 480px;
-              justify-self: end;
-            }
-
-            @media (max-width: 1180px) {
-              .bhmffHeroMainGrid {
-                grid-template-columns: minmax(0, 1fr) 410px;
-                gap: 2rem;
-              }
-
-              .hero .bhmffHeroTitle {
-                font-size: clamp(2.35rem, 3vw, 3.05rem) !important;
-              }
-            }
-
-            @media (max-width: 980px) {
-              .bhmffHeroMainGrid {
-                grid-template-columns: 1fr;
-              }
-
-              .bhmffHeroCopy {
-                max-width: 100%;
-                overflow: visible;
-              }
-
-              .bhmffFeaturedMatch {
-                max-width: 100%;
-                justify-self: stretch;
-              }
-
-              .hero .bhmffHeroTitle {
-                max-width: 100%;
-              }
-
-              .hero .bhmffHeroTitleLine {
-                white-space: normal;
-              }
-            }
-          `}
-                </style>
 
                 <div className="bhmffHeroMainGrid">
                     <div className="heroCopy bhmffHeroCopy">
@@ -474,13 +472,13 @@ export function Hero() {
                         </p>
 
                         <h1 className="bhmffHeroTitle">
-              <span className="bhmffHeroTitleLine">
-                Black History Month
-              </span>
+                            <span className="bhmffHeroTitleLine">
+                                Black History Month
+                            </span>
 
                             <span className="bhmffHeroTitleLine">
-                Football Festival
-              </span>
+                                Football Festival
+                            </span>
                         </h1>
 
                         <div
@@ -511,7 +509,7 @@ export function Hero() {
                         <p
                             className="heroText"
                             style={{
-                                maxWidth: '700px',
+                                maxWidth: '650px',
                                 fontSize: '1.08rem',
                                 lineHeight: 1.7,
                             }}
@@ -556,9 +554,9 @@ export function Hero() {
                         />
 
                         <div className="heroVideoMeta premiumVideoMeta">
-              <span>
-                Official Tournament Coverage
-              </span>
+                            <span>
+                                Official Tournament Coverage
+                            </span>
 
                             <strong>
                                 {lastYearFinalVideo.title}
