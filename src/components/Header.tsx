@@ -1,3 +1,9 @@
+import {
+    Menu,
+    X,
+} from 'lucide-react'
+import { useState } from 'react'
+
 const navItems = [
     ['Festival', '#festival'],
     ['Fixtures', '#fixtures'],
@@ -10,27 +16,145 @@ const navItems = [
 ] as const
 
 export function Header() {
+    const [menuOpen, setMenuOpen] =
+        useState(false)
+
+    function closeMenu() {
+        setMenuOpen(false)
+    }
+
     return (
         <header className="topbar">
-            <nav
-                className="container nav"
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                        'minmax(390px, 1fr) auto minmax(620px, 1fr)',
-                    alignItems: 'center',
-                    gap: '1.5rem',
-                    minHeight: '92px',
-                }}
-            >
+            <style>
+                {`
+                    .bhmffHeaderNav {
+                        display: grid;
+                        grid-template-columns: minmax(340px, 1fr) auto minmax(560px, 1fr);
+                        align-items: center;
+                        gap: 1.5rem;
+                        min-height: 92px;
+                    }
+
+                    .bhmffHeaderBrand {
+                        min-width: 0;
+                    }
+
+                    .bhmffHeaderPlatformLogo {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        text-decoration: none;
+                    }
+
+                    .bhmffHeaderPlatformLogo img {
+                        display: block;
+                        width: 185px;
+                        max-width: 100%;
+                        height: auto;
+                        max-height: 50px;
+                        object-fit: contain;
+                    }
+
+                    .bhmffHeaderDesktopLinks {
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        gap: 1rem;
+                        flex-wrap: nowrap;
+                        white-space: nowrap;
+                    }
+
+                    .bhmffHeaderDesktopLinks a {
+                        flex-shrink: 0;
+                    }
+
+                    .bhmffHeaderMenuButton,
+                    .bhmffHeaderMobileMenu {
+                        display: none;
+                    }
+
+                    @media (max-width: 1100px) {
+                        .bhmffHeaderNav {
+                            grid-template-columns: minmax(0, 1fr) auto auto;
+                            min-height: 82px;
+                        }
+
+                        .bhmffHeaderDesktopLinks {
+                            display: none;
+                        }
+
+                        .bhmffHeaderMenuButton {
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            width: 44px;
+                            height: 44px;
+                            padding: 0;
+                            border: 1px solid rgba(132, 204, 22, 0.35);
+                            border-radius: 10px;
+                            background: rgba(132, 204, 22, 0.08);
+                            color: #ffffff;
+                            cursor: pointer;
+                        }
+
+                        .bhmffHeaderMobileMenu {
+                            display: grid;
+                            grid-template-columns: repeat(2, minmax(0, 1fr));
+                            gap: 0.6rem;
+                            padding: 0 1rem 1rem;
+                            border-top: 1px solid rgba(132, 204, 22, 0.2);
+                            background: rgba(4, 12, 4, 0.98);
+                        }
+
+                        .bhmffHeaderMobileMenu a {
+                            display: flex;
+                            align-items: center;
+                            min-height: 44px;
+                            padding: 0.7rem 0.85rem;
+                            border: 1px solid rgba(132, 204, 22, 0.2);
+                            border-radius: 9px;
+                            color: inherit;
+                            text-decoration: none;
+                            font-weight: 800;
+                        }
+                    }
+
+                    @media (max-width: 700px) {
+                        .bhmffHeaderNav {
+                            grid-template-columns: minmax(0, 1fr) auto;
+                            gap: 0.75rem;
+                            min-height: 76px;
+                        }
+
+                        .bhmffHeaderPlatformLogo {
+                            display: none;
+                        }
+
+                        .bhmffHeaderBrand strong {
+                            font-size: 0.82rem;
+                            line-height: 1.15;
+                        }
+
+                        .bhmffHeaderBrand span {
+                            font-size: 0.66rem;
+                        }
+
+                        .bhmffHeaderMobileMenu {
+                            grid-template-columns: 1fr;
+                        }
+                    }
+                `}
+            </style>
+
+            <nav className="container nav bhmffHeaderNav">
                 <a
-                    className="brand"
+                    className="brand bhmffHeaderBrand"
                     href="#home"
-                    style={{
-                        minWidth: 0,
-                    }}
+                    onClick={closeMenu}
                 >
-                    <div className="logoMark">BHM</div>
+                    <div className="logoMark">
+                        BHM
+                    </div>
 
                     <div>
                         <strong>
@@ -38,61 +162,72 @@ export function Header() {
                         </strong>
 
                         <span>
-              Powered by TournamentHQ
-            </span>
+                            Powered by TournamentHQ
+                        </span>
                     </div>
                 </a>
 
                 <a
+                    className="bhmffHeaderPlatformLogo"
                     href="https://tournamenthq.co.uk"
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Visit TournamentHQ"
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        textDecoration: 'none',
-                    }}
                 >
                     <img
                         src="/assets/tournamenthq-logo.png"
                         alt="TournamentHQ"
-                        style={{
-                            display: 'block',
-                            width: '185px',
-                            maxWidth: '100%',
-                            height: 'auto',
-                            maxHeight: '50px',
-                            objectFit: 'contain',
-                        }}
                     />
                 </a>
 
-                <div
-                    className="navLinks"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        gap: '1.05rem',
-                        flexWrap: 'nowrap',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
+                <div className="navLinks bhmffHeaderDesktopLinks">
                     {navItems.map(([label, href]) => (
                         <a
                             key={label}
                             href={href}
-                            style={{
-                                flexShrink: 0,
-                            }}
                         >
                             {label}
                         </a>
                     ))}
                 </div>
+
+                <button
+                    type="button"
+                    className="bhmffHeaderMenuButton"
+                    aria-label={
+                        menuOpen
+                            ? 'Close navigation menu'
+                            : 'Open navigation menu'
+                    }
+                    aria-expanded={menuOpen}
+                    onClick={() =>
+                        setMenuOpen(
+                            (current) =>
+                                !current,
+                        )
+                    }
+                >
+                    {menuOpen ? (
+                        <X size={22} />
+                    ) : (
+                        <Menu size={22} />
+                    )}
+                </button>
             </nav>
+
+            {menuOpen ? (
+                <div className="bhmffHeaderMobileMenu">
+                    {navItems.map(([label, href]) => (
+                        <a
+                            key={label}
+                            href={href}
+                            onClick={closeMenu}
+                        >
+                            {label}
+                        </a>
+                    ))}
+                </div>
+            ) : null}
         </header>
     )
 }

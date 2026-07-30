@@ -226,14 +226,106 @@ export function Hero() {
                             }
                         }
 
-                        @media (max-width: 640px) {
+                        @media (max-width: 760px) {
                             .bhmffHeroPartners {
                                 min-height: 96px;
+                                align-items: flex-start;
                                 padding: 0.8rem;
+                            }
+
+                            .bhmffHeroPlatformGrid {
+                                gap: 0.8rem;
+                            }
+
+                            .bhmffHeroPlatformGrid > a,
+                            .bhmffHeroPlatformGrid > div {
+                                min-height: auto !important;
+                            }
+
+                            .bhmffHeroMainGrid {
+                                gap: 1.5rem;
                             }
 
                             .hero .bhmffHeroTitle {
                                 font-size: 2.35rem !important;
+                            }
+
+                            .bhmffFeaturedMatch {
+                                width: 100%;
+                            }
+                        }
+
+                        @media (max-width: 640px) {
+                            .hero {
+                                overflow-x: hidden;
+                            }
+
+                            .hero .container {
+                                width: min(100%, calc(100% - 1rem));
+                            }
+
+                            .bhmffHeroPartners {
+                                min-height: 88px;
+                                gap: 0.7rem;
+                                margin-bottom: 0.8rem;
+                                padding: 0.75rem;
+                            }
+
+                            .bhmffHeroPlatformGrid {
+                                margin-bottom: 1.25rem;
+                            }
+
+                            .bhmffHeroPlatformGrid > a {
+                                padding: 0.9rem !important;
+                            }
+
+                            .bhmffHeroPlatformGrid > a img {
+                                width: 190px !important;
+                            }
+
+                            .bhmffHeroPlatformGrid > div {
+                                padding: 0.75rem !important;
+                            }
+
+                            .bhmffHeroPlatformGrid > div > div {
+                                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                            }
+
+                            .bhmffHeroPlatformGrid > div > div > div {
+                                min-height: 82px !important;
+                            }
+
+                            .bhmffHeroCopy {
+                                width: 100%;
+                            }
+
+                            .hero .bhmffHeroTitle {
+                                font-size: clamp(2rem, 10vw, 2.55rem) !important;
+                                line-height: 0.98 !important;
+                            }
+
+                            .hero .bhmffHeroTitleLine {
+                                white-space: normal;
+                            }
+
+                            .heroText {
+                                font-size: 0.98rem !important;
+                                line-height: 1.65 !important;
+                            }
+
+                            .ctaRow {
+                                display: grid !important;
+                                grid-template-columns: 1fr;
+                                gap: 0.7rem !important;
+                            }
+
+                            .ctaRow .btn {
+                                width: 100%;
+                                justify-content: center;
+                            }
+
+                            .bhmffFeaturedMatch iframe {
+                                min-height: 220px;
                             }
                         }
                     `}
