@@ -29,9 +29,12 @@ export function Header() {
                 {`
                     .bhmffHeaderNav {
                         display: grid;
-                        grid-template-columns: minmax(340px, 1fr) auto minmax(560px, 1fr);
+                        grid-template-columns:
+                            minmax(340px, 1fr)
+                            190px
+                            minmax(0, 1.65fr);
                         align-items: center;
-                        gap: 1.5rem;
+                        column-gap: 2.75rem;
                         min-height: 92px;
                     }
 
@@ -43,6 +46,7 @@ export function Header() {
                         display: inline-flex;
                         align-items: center;
                         justify-content: center;
+                        width: 190px;
                         text-decoration: none;
                     }
 
@@ -58,8 +62,9 @@ export function Header() {
                     .bhmffHeaderDesktopLinks {
                         display: flex;
                         align-items: center;
-                        justify-content: flex-end;
+                        justify-content: flex-start;
                         gap: 1rem;
+                        min-width: 0;
                         flex-wrap: nowrap;
                         white-space: nowrap;
                     }
@@ -76,6 +81,7 @@ export function Header() {
                     @media (max-width: 1100px) {
                         .bhmffHeaderNav {
                             grid-template-columns: minmax(0, 1fr) auto auto;
+                            column-gap: 1rem;
                             min-height: 82px;
                         }
 
