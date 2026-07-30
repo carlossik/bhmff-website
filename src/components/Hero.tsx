@@ -399,23 +399,23 @@ export function Hero() {
                     {`
             .bhmffHeroMainGrid {
               display: grid;
-              grid-template-columns: minmax(0, 1fr) 500px;
+              grid-template-columns: minmax(0, 1fr) minmax(440px, 480px);
               align-items: center;
-              gap: 3rem;
+              gap: 2.5rem;
               width: 100%;
             }
 
             .bhmffHeroCopy {
               min-width: 0;
-              max-width: 700px;
+              max-width: 660px;
             }
 
             .hero .bhmffHeroTitle {
               margin: 1rem 0 1.2rem !important;
-              max-width: 700px;
-              font-size: clamp(2.6rem, 3.3vw, 3.95rem) !important;
-              line-height: 0.95 !important;
-              letter-spacing: -0.045em !important;
+              max-width: 660px;
+              font-size: clamp(2.55rem, 2.9vw, 3.4rem) !important;
+              line-height: 0.96 !important;
+              letter-spacing: -0.035em !important;
               text-transform: uppercase;
             }
 
@@ -426,18 +426,18 @@ export function Hero() {
 
             .bhmffFeaturedMatch {
               width: 100%;
-              max-width: 500px;
+              max-width: 480px;
               justify-self: end;
             }
 
             @media (max-width: 1180px) {
               .bhmffHeroMainGrid {
-                grid-template-columns: minmax(0, 1fr) 430px;
+                grid-template-columns: minmax(0, 1fr) 410px;
                 gap: 2rem;
               }
 
               .hero .bhmffHeroTitle {
-                font-size: clamp(2.45rem, 3.55vw, 3.6rem) !important;
+                font-size: clamp(2.35rem, 3vw, 3.05rem) !important;
               }
             }
 
