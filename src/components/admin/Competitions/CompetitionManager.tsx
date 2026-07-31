@@ -238,20 +238,18 @@ const CompetitionManager: React.FC = () => {
             let savedCompetition: Competition
 
             if (editingCompetition) {
-                const updates:
-                    UpdateCompetitionInput = {
+                const updates: UpdateCompetitionInput = {
+                    sport_id: values.sport_id,
+
                     name: values.name,
                     slug: values.slug,
                     season: values.season,
                     format: values.format,
-                    description:
-                    values.description,
-                    start_date:
-                    values.start_date,
+                    description: values.description,
+                    start_date: values.start_date,
                     end_date: values.end_date,
                     status: values.status,
-                    published:
-                    values.published,
+                    published: values.published,
                 }
 
                 savedCompetition =
@@ -260,24 +258,21 @@ const CompetitionManager: React.FC = () => {
                         updates
                     )
             } else {
-                const input:
-                    CreateCompetitionInput = {
-                    organisation_id:
-                    currentOrganisationId,
+                const input: CreateCompetitionInput = {
+                    organisation_id: currentOrganisationId,
+
+                    sport_id: values.sport_id,
+
                     name: values.name,
                     slug: values.slug,
                     season: values.season,
                     format: values.format,
-                    description:
-                    values.description,
-                    start_date:
-                    values.start_date,
+                    description: values.description,
+                    start_date: values.start_date,
                     end_date: values.end_date,
                     status: values.status,
-                    published:
-                    values.published,
+                    published: values.published,
                 }
-
                 savedCompetition =
                     await competitionService.create(
                         input

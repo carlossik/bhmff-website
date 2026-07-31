@@ -27,6 +27,7 @@ export function CompetitionSelector() {
                     )
 
                 setCompetitions(data)
+                console.log('Competitions:', data);
 
                 if (
                     !currentCompetition &&
@@ -84,6 +85,8 @@ export function CompetitionSelector() {
                         setCurrentCompetition(
                             selected
                         )
+                        console.log('Competition selected:', selected);
+
                     }
                 }}
             >

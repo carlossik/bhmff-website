@@ -7,11 +7,16 @@ import {
 
 const TABLE = 'competitions'
 
+const DEFAULT_SELECT = `
+    *,
+    sport:sports(*)
+`
+
 export const competitionService = {
     async getAll(organisationId: string): Promise<Competition[]> {
         const { data, error } = await supabase
             .from(TABLE)
-            .select('*')
+            .select(DEFAULT_SELECT)
             .eq('organisation_id', organisationId)
             .order('created_at')
 
@@ -23,7 +28,7 @@ export const competitionService = {
     async getById(id: string): Promise<Competition | null> {
         const { data, error } = await supabase
             .from(TABLE)
-            .select('*')
+            .select(DEFAULT_SELECT)
             .eq('id', id)
             .single()
 
@@ -36,7 +41,7 @@ export const competitionService = {
         const { data, error } = await supabase
             .from(TABLE)
             .insert(input)
-            .select()
+            .select(DEFAULT_SELECT)
             .single()
 
         if (error) throw error
@@ -52,7 +57,7 @@ export const competitionService = {
             .from(TABLE)
             .update(updates)
             .eq('id', id)
-            .select()
+            .select(DEFAULT_SELECT)
             .single()
 
         if (error) throw error

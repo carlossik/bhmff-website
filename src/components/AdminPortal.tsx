@@ -5,6 +5,8 @@ import {
     useState,
 } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import { Gavel } from 'lucide-react'
+import OfficialsPage from '../pages/OfficialsPage'
 import {
     BarChart3,
     Bot,
@@ -125,6 +127,10 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Venues',
                 icon: MapPin,
+            },
+            {
+                module: 'Sports Officials',
+                icon: Gavel,
             },
         ],
     },
@@ -1374,6 +1380,8 @@ export function AdminPortal({
 
             case 'Venues':
                 return <VenuesManager />
+            case 'Sports Officials':
+                return <OfficialsPage />
 
             case 'Fixtures':
                 return <FixturesManager />

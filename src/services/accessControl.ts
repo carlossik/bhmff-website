@@ -67,7 +67,29 @@ export type AdminModule =
     | 'Media'
     | 'Enquiries'
     | 'User Access'
+    | 'Sports Officials'
 
+export const allAdminModules: readonly AdminModule[] = [
+    'Dashboard',
+    'Organisations',
+    'Competitions',
+    'Clubs',
+    'Teams',
+    'Competition Teams',
+    'Groups',
+    'AI Tournament Director',
+    'Auto Fixture Generator',
+    'Venues',
+    'Sports Officials',
+    'Fixtures',
+    'Results',
+    'Goals',
+    'Sponsors',
+    'Articles',
+    'Media',
+    'Enquiries',
+    'User Access',
+]
 
 const roleModules: Record<
     AdminRole,
@@ -90,43 +112,29 @@ const roleModules: Record<
         'AI Tournament Director',
         'Auto Fixture Generator',
         'Venues',
+        'Sports Officials',
         'Fixtures',
         'Results',
         'Goals',
     ],
 
-    super_admin: [
-        'Dashboard',
-        'Organisations',
-        'Competitions',
-        'Clubs',
-        'Teams',
-        'Competition Teams',
-        'Groups',
-        'AI Tournament Director',
-        'Auto Fixture Generator',
-        'Venues',
-        'Fixtures',
-        'Results',
-        'Goals',
-        'Sponsors',
-        'Articles',
-        'Media',
-        'Enquiries',
-        'User Access',
-    ],
+    super_admin: allAdminModules,
 }
 
 export function canAccessModule(
     role: AdminRole,
     module: AdminModule
-) {
+): boolean {
+    if (role === 'super_admin') {
+        return true
+    }
+
     return roleModules[role].includes(module)
 }
 
 export function formatAdminRole(
     role: AdminRole
-) {
+): string {
     return role
         .split('_')
         .map(
@@ -145,7 +153,7 @@ type ProfileRow = {
     active: boolean
 }
 
-function getStoredOrganisationId() {
+function getStoredOrganisationId(): string | null {
     try {
         return window.localStorage.getItem(
             'tournamenthq-current-organisation'

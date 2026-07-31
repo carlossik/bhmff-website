@@ -1,3 +1,5 @@
+import { Sport } from './sportTypes'
+
 export type CompetitionFormat =
     | 'LEAGUE'
     | 'ROUND_ROBIN'
@@ -16,6 +18,11 @@ export type CompetitionStatus =
 export interface Competition {
     id: string
     organisation_id: string
+
+    // Multi-Sport
+    sport_id: string
+    sport?: Sport
+
     name: string
     slug: string
     season: string | null
@@ -32,6 +39,10 @@ export interface Competition {
 
 export interface CreateCompetitionInput {
     organisation_id: string
+
+    // Multi-Sport
+    sport_id: string
+
     name: string
     slug: string
     season?: string | null
@@ -44,6 +55,9 @@ export interface CreateCompetitionInput {
 }
 
 export interface UpdateCompetitionInput {
+    // Multi-Sport
+    sport_id?: string
+
     name?: string
     slug?: string
     season?: string | null
