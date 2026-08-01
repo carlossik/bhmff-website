@@ -14,6 +14,7 @@ import {
     CalendarDays,
     ChevronDown,
     CircleUserRound,
+    ExternalLink,
     Flag,
     Handshake,
     Image,
@@ -82,6 +83,15 @@ type NavigationSection = {
     icon: LucideIcon
     items: readonly NavigationItem[]
 }
+
+const PUBLIC_SITE_URL =
+    (
+        import.meta.env
+            .VITE_PUBLIC_SITE_URL as
+            | string
+            | undefined
+    )?.replace(/\/$/, '') ||
+    window.location.origin
 
 const navigationSections: readonly NavigationSection[] = [
     {
@@ -1454,6 +1464,46 @@ export function AdminPortal({
                     }
                     onLogout={onLogout}
                 />
+
+                <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-lime-900/50 bg-[#0b140a] px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-400">
+                            Public Website
+                        </p>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <strong className="truncate text-sm text-white sm:text-base">
+                                {currentOrganisation.name}
+                            </strong>
+
+                            {currentCompetition && (
+                                <>
+                                    <span
+                                        className="hidden text-slate-600 sm:inline"
+                                        aria-hidden="true"
+                                    >
+                                        •
+                                    </span>
+
+                                    <span className="truncate text-sm text-slate-400">
+                                        {currentCompetition.name}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    <a
+                        href={PUBLIC_SITE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 text-sm font-black text-black transition hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-300 focus:ring-offset-2 focus:ring-offset-[#071006]"
+                        aria-label="Open the public website in a new tab"
+                    >
+                        <ExternalLink className="h-4 w-4" />
+                        View Public Site
+                    </a>
+                </div>
 
                 <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400 sm:text-base">
                     Your portal access is limited

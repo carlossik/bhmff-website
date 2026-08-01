@@ -7,7 +7,16 @@ import {
     Plus,
     Trophy,
 } from 'lucide-react'
+
+import { useOrganisation } from '../../../context/OrganisationContext'
 import { useCompetition } from '../../../contexts/CompetitionContext'
+import { officialService } from '../../../services/officialService'
+import type {
+    Official,
+    OfficialAssignment,
+    OfficialRole,
+} from '../../../types/officialTypes'
+
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { FixtureModal } from './FixtureModal'
@@ -30,12 +39,51 @@ const emptyForm: FixtureFormValues = {
     venue_id: '',
     kickoff_time: '',
     status: 'scheduled',
+    referee_official_id: '',
+    assistant_referee_1_official_id: '',
+    assistant_referee_2_official_id: '',
+    fourth_official_id: '',
 }
 
 type ToastType =
     | 'success'
     | 'error'
     | 'info'
+
+type AssignmentSlot = {
+    field:
+        | 'referee_official_id'
+        | 'assistant_referee_1_official_id'
+        | 'assistant_referee_2_official_id'
+        | 'fourth_official_id'
+    role: OfficialRole
+    label: string
+}
+
+const assignmentSlots: AssignmentSlot[] = [
+    {
+        field: 'referee_official_id',
+        role: 'referee',
+        label: 'Referee',
+    },
+    {
+        field:
+            'assistant_referee_1_official_id',
+        role: 'assistant_referee',
+        label: 'Assistant Referee 1',
+    },
+    {
+        field:
+            'assistant_referee_2_official_id',
+        role: 'assistant_referee',
+        label: 'Assistant Referee 2',
+    },
+    {
+        field: 'fourth_official_id',
+        role: 'fourth_official',
+        label: 'Fourth Official',
+    },
+]
 
 function toDateTimeLocal(
     value: string | null
@@ -61,7 +109,64 @@ function toDateTimeLocal(
         .slice(0, 16)
 }
 
+function getActiveAssignments(
+    assignments: OfficialAssignment[]
+) {
+    return assignments.filter(
+        (assignment) =>
+            assignment.status !==
+            'cancelled' &&
+            assignment.status !==
+            'declined'
+    )
+}
+
+function getAssignmentSelections(
+    assignments: OfficialAssignment[]
+) {
+    const activeAssignments =
+        getActiveAssignments(assignments)
+
+    const referee =
+        activeAssignments.find(
+            (assignment) =>
+                assignment.role ===
+                'referee'
+        )
+
+    const assistantReferees =
+        activeAssignments.filter(
+            (assignment) =>
+                assignment.role ===
+                'assistant_referee'
+        )
+
+    const fourthOfficial =
+        activeAssignments.find(
+            (assignment) =>
+                assignment.role ===
+                'fourth_official'
+        )
+
+    return {
+        referee_official_id:
+            referee?.official_id ?? '',
+        assistant_referee_1_official_id:
+            assistantReferees[0]
+                ?.official_id ?? '',
+        assistant_referee_2_official_id:
+            assistantReferees[1]
+                ?.official_id ?? '',
+        fourth_official_id:
+            fourthOfficial
+                ?.official_id ?? '',
+    }
+}
+
 export function FixturesManager() {
+    const { currentOrganisation } =
+        useOrganisation()
+
     const {
         currentCompetition,
         currentCompetitionId,
@@ -76,16 +181,25 @@ export function FixturesManager() {
     const [venues, setVenues] =
         useState<FixtureVenue[]>([])
 
+    const [officials, setOfficials] =
+        useState<Official[]>([])
+
+    const [
+        assignments,
+        setAssignments,
+    ] = useState<
+        OfficialAssignment[]
+    >([])
+
     const [groups, setGroups] =
         useState<FixtureGroup[]>([])
 
     const [
         groupMemberships,
         setGroupMemberships,
-    ] =
-        useState<
-            FixtureGroupMembership[]
-        >([])
+    ] = useState<
+        FixtureGroupMembership[]
+    >([])
 
     const [isLoading, setIsLoading] =
         useState(false)
@@ -116,10 +230,9 @@ export function FixturesManager() {
     const [
         formValues,
         setFormValues,
-    ] =
-        useState<FixtureFormValues>(
-            emptyForm
-        )
+    ] = useState<FixtureFormValues>(
+        emptyForm
+    )
 
     const [
         toastMessage,
@@ -129,10 +242,9 @@ export function FixturesManager() {
     const [
         toastType,
         setToastType,
-    ] =
-        useState<ToastType>(
-            'success'
-        )
+    ] = useState<ToastType>(
+        'success'
+    )
 
     function showToast(
         message: string,
@@ -148,6 +260,8 @@ export function FixturesManager() {
         setVenues([])
         setGroups([])
         setGroupMemberships([])
+        setOfficials([])
+        setAssignments([])
     }
 
     async function loadData(
@@ -161,6 +275,8 @@ export function FixturesManager() {
                 teamRows,
                 venueRows,
                 groupRows,
+                officialRows,
+                assignmentRows,
             ] = await Promise.all([
                 fixtureService.getFixtures(
                     competitionId
@@ -174,15 +290,22 @@ export function FixturesManager() {
                 fixtureService.getGroups(
                     competitionId
                 ),
+                officialService.getAll(
+                    currentOrganisation.id
+                ),
+                officialService.getAssignments(
+                    currentOrganisation.id
+                ),
             ])
 
             const membershipRows =
-                await fixtureService.getGroupMemberships(
-                    groupRows.map(
-                        (group) =>
-                            group.id
+                await fixtureService
+                    .getGroupMemberships(
+                        groupRows.map(
+                            (group) =>
+                                group.id
+                        )
                     )
-                )
 
             setFixtures(fixtureRows)
             setTeams(teamRows)
@@ -190,6 +313,34 @@ export function FixturesManager() {
             setGroups(groupRows)
             setGroupMemberships(
                 membershipRows
+            )
+
+            setOfficials(
+                officialRows.filter(
+                    (official) =>
+                        official.status ===
+                        'active' &&
+                        (
+                            !currentCompetition
+                                ?.sport_id ||
+                            official.sport_id ===
+                            currentCompetition
+                                .sport_id
+                        )
+                )
+            )
+
+            setAssignments(
+                assignmentRows.filter(
+                    (assignment) =>
+                        assignment.competition_id ===
+                        competitionId ||
+                        fixtureRows.some(
+                            (fixture) =>
+                                fixture.id ===
+                                assignment.fixture_id
+                        )
+                )
             )
         } catch (error) {
             clearFixtureData()
@@ -219,7 +370,10 @@ export function FixturesManager() {
         void loadData(
             currentCompetitionId
         )
-    }, [currentCompetitionId])
+    }, [
+        currentCompetitionId,
+        currentOrganisation.id,
+    ])
 
     function openCreateModal() {
         if (!currentCompetitionId) {
@@ -235,31 +389,53 @@ export function FixturesManager() {
         setShowModal(true)
     }
 
-    function openEditModal(
+    async function openEditModal(
         fixture: Fixture
     ) {
-        setEditingFixture(fixture)
+        try {
+            setEditingFixture(fixture)
 
-        setFormValues({
-            stage: fixture.stage,
-            group_id:
-                fixture.group_id ?? '',
-            home_competition_team_id:
-                fixture.home_competition_team_id ??
-                '',
-            away_competition_team_id:
-                fixture.away_competition_team_id ??
-                '',
-            venue_id:
-                fixture.venue_id ?? '',
-            kickoff_time:
-                toDateTimeLocal(
-                    fixture.kickoff_time
+            const assignments =
+                await officialService
+                    .getAssignmentsForFixture(
+                        fixture.id
+                    )
+
+            setFormValues({
+                stage: fixture.stage,
+                group_id:
+                    fixture.group_id ?? '',
+                home_competition_team_id:
+                    fixture
+                        .home_competition_team_id ??
+                    '',
+                away_competition_team_id:
+                    fixture
+                        .away_competition_team_id ??
+                    '',
+                venue_id:
+                    fixture.venue_id ?? '',
+                kickoff_time:
+                    toDateTimeLocal(
+                        fixture.kickoff_time
+                    ),
+                status: fixture.status,
+                ...getAssignmentSelections(
+                    assignments
                 ),
-            status: fixture.status,
-        })
+            })
 
-        setShowModal(true)
+            setShowModal(true)
+        } catch (error) {
+            setEditingFixture(null)
+
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to load fixture officials.',
+                'error'
+            )
+        }
     }
 
     function closeModal() {
@@ -323,9 +499,7 @@ export function FixturesManager() {
             return false
         }
 
-        if (
-            !formValues.kickoff_time
-        ) {
+        if (!formValues.kickoff_time) {
             showToast(
                 'Kick-off date and time are required.',
                 'error'
@@ -349,6 +523,7 @@ export function FixturesManager() {
             )
             return false
         }
+
         if (
             !editingFixture &&
             kickoffDate.getTime() <
@@ -360,6 +535,7 @@ export function FixturesManager() {
             )
             return false
         }
+
         if (
             formValues.stage ===
             'Group Stage'
@@ -368,8 +544,10 @@ export function FixturesManager() {
                 groupMemberships
                     .filter(
                         (membership) =>
-                            membership.group_id ===
-                            formValues.group_id
+                            membership
+                                .group_id ===
+                            formValues
+                                .group_id
                     )
                     .map(
                         (membership) =>
@@ -377,21 +555,15 @@ export function FixturesManager() {
                                 .competition_team_id
                     )
 
-            const homeTeamBelongsToGroup =
-                groupCompetitionTeamIds.includes(
+            if (
+                !groupCompetitionTeamIds.includes(
                     formValues
                         .home_competition_team_id
-                )
-
-            const awayTeamBelongsToGroup =
-                groupCompetitionTeamIds.includes(
+                ) ||
+                !groupCompetitionTeamIds.includes(
                     formValues
                         .away_competition_team_id
                 )
-
-            if (
-                !homeTeamBelongsToGroup ||
-                !awayTeamBelongsToGroup
             ) {
                 showToast(
                     'Both teams must belong to the selected group.',
@@ -401,7 +573,189 @@ export function FixturesManager() {
             }
         }
 
+        const selectedOfficialIds = [
+            formValues
+                .referee_official_id,
+            formValues
+                .assistant_referee_1_official_id,
+            formValues
+                .assistant_referee_2_official_id,
+            formValues
+                .fourth_official_id,
+        ].filter(Boolean)
+
+        if (
+            new Set(selectedOfficialIds)
+                .size !==
+            selectedOfficialIds.length
+        ) {
+            showToast(
+                'The same official cannot be assigned to more than one role in the same fixture.',
+                'error'
+            )
+            return false
+        }
+
         return true
+    }
+
+    async function cancelAssignment(
+        assignment: OfficialAssignment,
+        reason: string
+    ) {
+        await officialService
+            .updateAssignment(
+                assignment.id,
+                {
+                    status: 'cancelled',
+                    notes: [
+                        assignment.notes,
+                        reason,
+                    ]
+                        .filter(Boolean)
+                        .join('\n'),
+                }
+            )
+    }
+
+    async function createAssignment(
+        fixture: Fixture,
+        officialId: string,
+        role: OfficialRole,
+        label: string
+    ) {
+        const official =
+            officials.find(
+                (item) =>
+                    item.id === officialId
+            )
+
+        if (!official) {
+            throw new Error(
+                `${label} could not be found in the active officials directory.`
+            )
+        }
+
+        await officialService
+            .assignOfficial({
+                organisation_id:
+                currentOrganisation.id,
+                official_id:
+                officialId,
+                competition_id:
+                currentCompetitionId,
+                fixture_id:
+                fixture.id,
+                venue_id:
+                fixture.venue_id,
+                sport_id:
+                    currentCompetition
+                        ?.sport_id ??
+                    official.sport_id ??
+                    null,
+                role,
+                source: 'manual',
+                status: 'proposed',
+                assignment_score: null,
+                travel_distance_km: null,
+                travel_duration_minutes:
+                    null,
+                assigned_fee: 0,
+                assigned_expenses: 0,
+                assigned_by: null,
+                assigned_at: null,
+                accepted_at: null,
+                notes: `${label} assigned from the fixture administration screen.`,
+            })
+    }
+
+    async function saveAssignments(
+        fixture: Fixture
+    ) {
+        const existingAssignments =
+            getActiveAssignments(
+                await officialService
+                    .getAssignmentsForFixture(
+                        fixture.id
+                    )
+            )
+
+        const assignmentsByRole =
+            new Map<
+                OfficialRole,
+                OfficialAssignment[]
+            >()
+
+        for (
+            const assignment of
+            existingAssignments
+            ) {
+            const roleAssignments =
+                assignmentsByRole.get(
+                    assignment.role
+                ) ?? []
+
+            roleAssignments.push(
+                assignment
+            )
+
+            assignmentsByRole.set(
+                assignment.role,
+                roleAssignments
+            )
+        }
+
+        const roleIndexes =
+            new Map<OfficialRole, number>()
+
+        for (
+            const slot of
+            assignmentSlots
+            ) {
+            const roleIndex =
+                roleIndexes.get(
+                    slot.role
+                ) ?? 0
+
+            const currentAssignment =
+                assignmentsByRole.get(
+                    slot.role
+                )?.[roleIndex]
+
+            roleIndexes.set(
+                slot.role,
+                roleIndex + 1
+            )
+
+            const selectedOfficialId =
+                formValues[slot.field]
+
+            if (
+                currentAssignment
+                    ?.official_id ===
+                selectedOfficialId
+            ) {
+                continue
+            }
+
+            if (currentAssignment) {
+                await cancelAssignment(
+                    currentAssignment,
+                    selectedOfficialId
+                        ? `${slot.label} replaced through fixture editing.`
+                        : `${slot.label} removed through fixture editing.`
+                )
+            }
+
+            if (selectedOfficialId) {
+                await createAssignment(
+                    fixture,
+                    selectedOfficialId,
+                    slot.role,
+                    slot.label
+                )
+            }
+        }
     }
 
     async function saveFixture() {
@@ -418,19 +772,22 @@ export function FixturesManager() {
             editingFixture !== null
 
         try {
-            if (editingFixture) {
-                await fixtureService
-                    .updateFixture(
-                        editingFixture.id,
-                        formValues
-                    )
-            } else {
-                await fixtureService
-                    .createFixture(
-                        currentCompetitionId,
-                        formValues
-                    )
-            }
+            const savedFixture =
+                editingFixture
+                    ? await fixtureService
+                        .updateFixture(
+                            editingFixture.id,
+                            formValues
+                        )
+                    : await fixtureService
+                        .createFixture(
+                            currentCompetitionId,
+                            formValues
+                        )
+
+            await saveAssignments(
+                savedFixture
+            )
 
             closeModal()
 
@@ -440,15 +797,15 @@ export function FixturesManager() {
 
             showToast(
                 wasEditing
-                    ? 'Fixture updated successfully.'
-                    : 'Fixture created successfully.',
+                    ? 'Fixture and official assignments updated successfully.'
+                    : 'Fixture and official assignments created successfully.',
                 'success'
             )
         } catch (error) {
             showToast(
                 error instanceof Error
                     ? error.message
-                    : 'Failed to save fixture.',
+                    : 'Failed to save fixture and official assignments.',
                 'error'
             )
         } finally {
@@ -468,6 +825,24 @@ export function FixturesManager() {
         setIsDeleting(true)
 
         try {
+            const assignments =
+                await officialService
+                    .getAssignmentsForFixture(
+                        fixtureToDelete.id
+                    )
+
+            await Promise.all(
+                getActiveAssignments(
+                    assignments
+                ).map(
+                    (assignment) =>
+                        cancelAssignment(
+                            assignment,
+                            'Fixture deleted.'
+                        )
+                )
+            )
+
             await fixtureService
                 .deleteFixture(
                     fixtureToDelete.id
@@ -580,8 +955,12 @@ export function FixturesManager() {
                     teams={teams}
                     venues={venues}
                     groups={groups}
-                    onEdit={
-                        openEditModal
+                    officials={officials}
+                    assignments={assignments}
+                    onEdit={(fixture) =>
+                        void openEditModal(
+                            fixture
+                        )
                     }
                     onDelete={
                         setFixtureToDelete
@@ -601,6 +980,7 @@ export function FixturesManager() {
                         teams={teams}
                         venues={venues}
                         groups={groups}
+                        officials={officials}
                         groupMemberships={
                             groupMemberships
                         }

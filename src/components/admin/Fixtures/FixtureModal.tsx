@@ -1,15 +1,20 @@
 import {
     useEffect,
+    useState,
 } from 'react'
 import {
     CalendarDays,
     MapPin,
     Save,
     Shield,
+    Sparkles,
     Trophy,
     Users,
     X,
 } from 'lucide-react'
+import { TournamentHQBrand } from '../../common/TournamentHQBrand'
+import type { Official } from '../../../types/officialTypes'
+
 import type {
     FixtureFormValues,
     FixtureGroup,
@@ -26,6 +31,7 @@ type FixtureModalProps = {
     venues: FixtureVenue[]
     groups: FixtureGroup[]
     groupMemberships: FixtureGroupMembership[]
+    officials: Official[]
     isSaving: boolean
     onChange: (values: FixtureFormValues) => void
     onClose: () => void
@@ -56,12 +62,31 @@ const fieldClassName =
 const labelClassName =
     'block text-sm font-semibold text-slate-300'
 
-function getKickoffDate(
+function getKickoffDateParts(
     kickoffTime: string
 ) {
-    if (!kickoffTime) return ''
+    if (!kickoffTime) {
+        return {
+            day: '',
+            month: '',
+            year: '',
+        }
+    }
 
-    return kickoffTime.slice(0, 10)
+    const datePart =
+        kickoffTime.slice(0, 10)
+
+    const [
+        year = '',
+        month = '',
+        day = '',
+    ] = datePart.split('-')
+
+    return {
+        day,
+        month,
+        year,
+    }
 }
 
 function getKickoffClockTime(
@@ -77,14 +102,75 @@ function getKickoffClockTime(
     return time || defaultKickoffTime
 }
 
-function combineKickoffDateAndTime(
-    date: string,
+function getDaysInMonth(
+    year: string,
+    month: string
+) {
+    const numericYear =
+        Number(year)
+
+    const numericMonth =
+        Number(month)
+
+    if (
+        !numericYear ||
+        !numericMonth
+    ) {
+        return 31
+    }
+
+    return new Date(
+        numericYear,
+        numericMonth,
+        0
+    ).getDate()
+}
+
+function buildKickoffDateTime(
+    day: string,
+    month: string,
+    year: string,
     time: string
 ) {
-    if (!date) return ''
+    if (
+        !day ||
+        !month ||
+        !year
+    ) {
+        return ''
+    }
 
-    return `${date}T${time || defaultKickoffTime}`
+    const paddedDay =
+        day.padStart(2, '0')
+
+    const paddedMonth =
+        month.padStart(2, '0')
+
+    const value =
+        `${year}-${paddedMonth}-${paddedDay}`
+
+    const candidate =
+        new Date(
+            `${value}T${time || defaultKickoffTime}`
+        )
+
+    if (
+        Number.isNaN(
+            candidate.getTime()
+        ) ||
+        candidate.getFullYear() !==
+        Number(year) ||
+        candidate.getMonth() + 1 !==
+        Number(month) ||
+        candidate.getDate() !==
+        Number(day)
+    ) {
+        return ''
+    }
+
+    return `${value}T${time || defaultKickoffTime}`
 }
+
 function getTodayLocalDate() {
     const today = new Date()
 
@@ -116,6 +202,26 @@ function formatStatus(
     )
 }
 
+
+function formatOfficialDisplayName(
+    official: Official
+) {
+    const fullName =
+        official.full_name?.trim()
+
+    if (fullName) {
+        return fullName
+    }
+
+    return [
+        official.first_name,
+        official.last_name,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Unnamed official'
+}
+
 export function FixtureModal({
                                  mode,
                                  values,
@@ -123,6 +229,7 @@ export function FixtureModal({
                                  venues,
                                  groups,
                                  groupMemberships,
+                                 officials,
                                  isSaving,
                                  onChange,
                                  onClose,
@@ -131,19 +238,63 @@ export function FixtureModal({
     const isGroupStage =
         values.stage === 'Group Stage'
 
-    const kickoffDate =
-        getKickoffDate(
+    const initialKickoffDate =
+        getKickoffDateParts(
             values.kickoff_time
         )
 
-    const kickoffClockTime =
+    const [
+        kickoffDay,
+        setKickoffDay,
+    ] = useState(
+        initialKickoffDate.day
+    )
+
+    const [
+        kickoffMonth,
+        setKickoffMonth,
+    ] = useState(
+        initialKickoffDate.month
+    )
+
+    const [
+        kickoffYear,
+        setKickoffYear,
+    ] = useState(
+        initialKickoffDate.year
+    )
+
+    const [
+        kickoffClockTime,
+        setKickoffClockTime,
+    ] = useState(
         getKickoffClockTime(
             values.kickoff_time
         )
-    const minimumFixtureDate =
-        mode === 'create'
-            ? getTodayLocalDate()
-            : undefined
+    )
+
+    const currentYear =
+        new Date().getFullYear()
+
+    const yearOptions =
+        Array.from(
+            { length: 11 },
+            (_, index) =>
+                currentYear + index
+        )
+
+    const maximumDay =
+        getDaysInMonth(
+            kickoffYear,
+            kickoffMonth
+        )
+
+    const dayOptions =
+        Array.from(
+            { length: maximumDay },
+            (_, index) =>
+                index + 1
+        )
 
     const groupCompetitionTeamIds =
         groupMemberships
@@ -195,6 +346,58 @@ export function FixtureModal({
                             'base',
                     }
                 )
+        )
+
+
+    const activeOfficials =
+        officials
+            .filter(
+                (official) =>
+                    official.status ===
+                    'active'
+            )
+            .sort(
+                (
+                    firstOfficial,
+                    secondOfficial
+                ) =>
+                    formatOfficialDisplayName(
+                        firstOfficial
+                    ).localeCompare(
+                        formatOfficialDisplayName(
+                            secondOfficial
+                        ),
+                        'en-GB',
+                        {
+                            sensitivity:
+                                'base',
+                        }
+                    )
+            )
+
+    const referees =
+        activeOfficials.filter(
+            (official) =>
+                official.role ===
+                'referee'
+        )
+
+    const assistantReferees =
+        activeOfficials.filter(
+            (official) =>
+                official.role ===
+                'referee' ||
+                official.role ===
+                'assistant_referee'
+        )
+
+    const fourthOfficials =
+        activeOfficials.filter(
+            (official) =>
+                official.role ===
+                'referee' ||
+                official.role ===
+                'fourth_official'
         )
 
     useEffect(() => {
@@ -276,31 +479,45 @@ export function FixtureModal({
         })
     }
 
-    function handleKickoffDateChange(
-        date: string
+    function updateKickoffDatePart(
+        nextDay: string,
+        nextMonth: string,
+        nextYear: string
     ) {
-        updateField(
-            'kickoff_time',
-            combineKickoffDateAndTime(
-                date,
+        setKickoffDay(nextDay)
+        setKickoffMonth(nextMonth)
+        setKickoffYear(nextYear)
+
+        const combinedValue =
+            buildKickoffDateTime(
+                nextDay,
+                nextMonth,
+                nextYear,
                 kickoffClockTime
             )
+
+        updateField(
+            'kickoff_time',
+            combinedValue
         )
     }
 
     function handleKickoffTimeChange(
         time: string
     ) {
-        if (!kickoffDate) {
-            return
-        }
+        setKickoffClockTime(time)
+
+        const combinedValue =
+            buildKickoffDateTime(
+                kickoffDay,
+                kickoffMonth,
+                kickoffYear,
+                time
+            )
 
         updateField(
             'kickoff_time',
-            combineKickoffDateAndTime(
-                kickoffDate,
-                time
-            )
+            combinedValue
         )
     }
 
@@ -324,20 +541,31 @@ export function FixtureModal({
                 className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-lime-900/60 bg-[#0d170c] shadow-2xl shadow-black/70"
                 role="dialog"
             >
-                <header className="flex shrink-0 items-center justify-between border-b border-lime-900/50 px-6 py-5 sm:px-8">
-                    <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-400">
-                            Fixture administration
-                        </p>
+                <header className="flex shrink-0 items-center justify-between border-b border-lime-900/50 bg-[#10190f] px-6 py-5 sm:px-8">
+                    <div className="flex items-center gap-5">
+                        <TournamentHQBrand
+                            variant="compact"
+                            size="sm"
+                        />
 
-                        <h2
-                            id="fixture-modal-title"
-                            className="mt-1 text-2xl font-bold tracking-tight text-lime-300 sm:text-3xl"
-                        >
-                            {mode === 'edit'
-                                ? 'Edit Fixture'
-                                : 'Add Fixture'}
-                        </h2>
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.20em] text-lime-400">
+                                Fixture Administration
+                            </p>
+
+                            <h2
+                                id="fixture-modal-title"
+                                className="mt-1 text-3xl font-black tracking-tight text-white"
+                            >
+                                {mode === 'edit'
+                                    ? 'Edit Football Fixture'
+                                    : 'Add Football Fixture'}
+                            </h2>
+
+                            <p className="mt-2 text-sm text-slate-400">
+                                Schedule fixtures, assign venues and prepare match officials for this competition.
+                            </p>
+                        </div>
                     </div>
 
                     <button
@@ -594,43 +822,120 @@ export function FixtureModal({
                                 </div>
                             </div>
 
-                            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-                                <label className={labelClassName}>
-                                    Date
-                                    <span className="ml-1 text-red-400">
-                                        *
+                            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-[1.6fr_1fr]">
+                                <div>
+                                    <span className={labelClassName}>
+                                        Date
+                                        <span className="ml-1 text-red-400">
+                                            *
+                                        </span>
                                     </span>
 
-                                    <input
-                                        className={fieldClassName}
-                                        type="date"
-                                        min={minimumFixtureDate}
-                                        value={kickoffDate}
-                                        required
-                                        onChange={(event) => {
-                                            const selectedDate =
-                                                event.target.value
-
-                                            if (
-                                                mode === 'create' &&
-                                                selectedDate &&
-                                                selectedDate <
-                                                getTodayLocalDate()
-                                            ) {
-                                                onChange({
-                                                    ...values,
-                                                    kickoff_time: '',
-                                                })
-
-                                                return
+                                    <div className="mt-2 grid grid-cols-3 gap-3">
+                                        <select
+                                            className={fieldClassName.replace('mt-2 ', '')}
+                                            value={kickoffDay}
+                                            onChange={(event) =>
+                                                updateKickoffDatePart(
+                                                    event.target.value,
+                                                    kickoffMonth,
+                                                    kickoffYear
+                                                )
                                             }
+                                        >
+                                            <option value="">
+                                                Day
+                                            </option>
 
-                                            handleKickoffDateChange(
-                                                selectedDate
-                                            )
-                                        }}
-                                    />
-                                </label>
+                                            {dayOptions.map(
+                                                (day) => (
+                                                    <option
+                                                        key={day}
+                                                        value={String(day)}
+                                                    >
+                                                        {day}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+
+                                        <select
+                                            className={fieldClassName.replace('mt-2 ', '')}
+                                            value={kickoffMonth}
+                                            onChange={(event) =>
+                                                updateKickoffDatePart(
+                                                    kickoffDay,
+                                                    event.target.value,
+                                                    kickoffYear
+                                                )
+                                            }
+                                        >
+                                            <option value="">
+                                                Month
+                                            </option>
+
+                                            {[
+                                                'January',
+                                                'February',
+                                                'March',
+                                                'April',
+                                                'May',
+                                                'June',
+                                                'July',
+                                                'August',
+                                                'September',
+                                                'October',
+                                                'November',
+                                                'December',
+                                            ].map(
+                                                (
+                                                    month,
+                                                    index
+                                                ) => (
+                                                    <option
+                                                        key={month}
+                                                        value={String(
+                                                            index + 1
+                                                        )}
+                                                    >
+                                                        {month}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+
+                                        <select
+                                            className={fieldClassName.replace('mt-2 ', '')}
+                                            value={kickoffYear}
+                                            onChange={(event) =>
+                                                updateKickoffDatePart(
+                                                    kickoffDay,
+                                                    kickoffMonth,
+                                                    event.target.value
+                                                )
+                                            }
+                                        >
+                                            <option value="">
+                                                Year
+                                            </option>
+
+                                            {yearOptions.map(
+                                                (year) => (
+                                                    <option
+                                                        key={year}
+                                                        value={String(year)}
+                                                    >
+                                                        {year}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                    </div>
+
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Select the date in any order. The time remains editable while the date is being completed.
+                                    </p>
+                                </div>
 
                                 <label className={labelClassName}>
                                     Time
@@ -698,6 +1003,141 @@ export function FixtureModal({
                                     )}
                                 </select>
                             </label>
+                        </section>
+
+                        <section className="rounded-2xl border border-lime-900/50 bg-black/20 p-5 sm:p-6">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex items-start gap-3">
+                                    <div className="rounded-xl bg-lime-400/10 p-3">
+                                        <Shield className="h-5 w-5 text-lime-400" />
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-base font-bold text-white">
+                                            Match Officials
+                                        </h3>
+
+                                        <p className="mt-1 text-sm leading-6 text-slate-400">
+                                            Select, replace or remove officials for this fixture. Changes are saved with the fixture.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    disabled
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-700/60 bg-lime-400/10 px-4 py-2 text-sm font-semibold text-lime-300 opacity-60"
+                                >
+                                    <Sparkles className="h-4 w-4" />
+                                    AI Recommend
+                                </button>
+                            </div>
+
+                            <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                <label className={labelClassName}>
+                                    Referee
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.referee_official_id}
+                                        onChange={(event) =>
+                                            updateField(
+                                                'referee_official_id',
+                                                event.target.value
+                                            )
+                                        }
+                                    >
+                                        <option value="">
+                                            {referees.length ? 'Select referee' : 'No active referees available'}
+                                        </option>
+                                        {referees.map((official) => (
+                                            <option key={official.id} value={official.id}>
+                                                {formatOfficialDisplayName(official)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className={labelClassName}>
+                                    Fourth Official
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.fourth_official_id}
+                                        onChange={(event) =>
+                                            updateField(
+                                                'fourth_official_id',
+                                                event.target.value
+                                            )
+                                        }
+                                    >
+                                        <option value="">
+                                            {fourthOfficials.length ? 'Select fourth official' : 'No active fourth officials available'}
+                                        </option>
+                                        {fourthOfficials.map((official) => (
+                                            <option key={official.id} value={official.id}>
+                                                {formatOfficialDisplayName(official)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className={labelClassName}>
+                                    Assistant Referee 1
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.assistant_referee_1_official_id}
+                                        onChange={(event) =>
+                                            updateField(
+                                                'assistant_referee_1_official_id',
+                                                event.target.value
+                                            )
+                                        }
+                                    >
+                                        <option value="">
+                                            {assistantReferees.length ? 'Select assistant referee' : 'No active assistant referees available'}
+                                        </option>
+                                        {assistantReferees.map((official) => (
+                                            <option key={official.id} value={official.id}>
+                                                {formatOfficialDisplayName(official)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className={labelClassName}>
+                                    Assistant Referee 2
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.assistant_referee_2_official_id}
+                                        onChange={(event) =>
+                                            updateField(
+                                                'assistant_referee_2_official_id',
+                                                event.target.value
+                                            )
+                                        }
+                                    >
+                                        <option value="">
+                                            {assistantReferees.length ? 'Select assistant referee' : 'No active assistant referees available'}
+                                        </option>
+                                        {assistantReferees.map((official) => (
+                                            <option key={official.id} value={official.id}>
+                                                {formatOfficialDisplayName(official)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+
+                            <div className="mt-6 rounded-xl border border-dashed border-lime-700/40 bg-lime-400/[0.04] p-4">
+                                <p className="text-sm font-semibold text-lime-300">
+                                    {activeOfficials.length} active official{activeOfficials.length === 1 ? '' : 's'} available
+                                </p>
+
+                                <p className="mt-2 text-sm leading-6 text-slate-400">
+                                    {activeOfficials.length
+                                        ? 'Active football referees can also be appointed as assistant referees or fourth officials.'
+                                        : 'Add active officials for this sport in Sports Officials before assigning them to fixtures.'}
+                                </p>
+                            </div>
                         </section>
                     </div>
                 </div>

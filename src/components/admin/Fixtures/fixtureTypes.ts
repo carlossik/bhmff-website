@@ -4,6 +4,13 @@ export type FixtureStatus =
     | 'completed'
     | 'cancelled'
 
+export type FixtureOfficialSelections = {
+    referee_official_id: string
+    assistant_referee_1_official_id: string
+    assistant_referee_2_official_id: string
+    fourth_official_id: string
+}
+
 export type Fixture = {
     id: string
     competition_id: string | null
@@ -49,7 +56,8 @@ export type Competition = {
     status: string
 }
 
-export type FixtureFormValues = {
+export type FixtureFormValues =
+    FixtureOfficialSelections & {
     stage: string
     group_id: string
     home_competition_team_id: string

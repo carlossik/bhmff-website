@@ -4,83 +4,39 @@ import {
     useMemo,
     useState,
 } from "react";
+
 import { supabase } from "../../../lib/supabaseClient";
 import { useOrganisation } from "../../../context/OrganisationContext";
+import { ConfirmDialog } from "../../common/ConfirmDialog";
+
+import ArticleModal from "./ArticleModal";
+import ArticlesTable, {
+    type DbArticle,
+} from "./ArticlesTable";
+
+import {
+    ARTICLE_IMAGE_BUCKET,
+    MAX_IMAGE_SIZE_BYTES,
+    allowedImageTypes,
+    createSafeFileName,
+    createSlug,
+    formatActions,
+    normaliseArticleActions,
+    parseActions,
+    parseBody,
+    parseTags,
+    toDateTimeLocal,
+} from "./articleHelpers";
+
+import {
+    validateArticle,
+    type ArticleFormState,
+} from "./articleValidation";
+
 import type {
-    ArticleAction,
-    ArticleCategory,
     ArticleStatus,
 } from "../../../data/festivalData";
 
-const ARTICLE_IMAGE_BUCKET = "article-images";
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
-
-const allowedImageTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-];
-
-const articleCategories: ArticleCategory[] = [
-    "Black Football History",
-    "Player Stories",
-    "Coach & Volunteer Spotlights",
-    "Club & Community Features",
-    "Festival News",
-    "Match Reports",
-    "Careers in Football",
-    "Opinion & Education",
-    "Sponsor & Partner Stories",
-    "Youth Voices",
-];
-
-const articleStatuses: ArticleStatus[] = [
-    "draft",
-    "review",
-    "scheduled",
-    "published",
-    "archived",
-];
-
-type DbArticle = {
-    id: string;
-    organisation_id: string;
-    slug: string;
-    title: string;
-    category: ArticleCategory;
-    status: ArticleStatus;
-    summary: string;
-    hero: string;
-    read_time: string;
-    body: string[];
-    author: string;
-    published_at: string | null;
-    featured: boolean;
-    image_url: string | null;
-    image_alt: string | null;
-    tags: string[];
-    actions: ArticleAction[];
-    created_at: string;
-    updated_at: string;
-};
-
-type ArticleFormState = {
-    title: string;
-    slug: string;
-    category: ArticleCategory;
-    status: ArticleStatus;
-    summary: string;
-    hero: string;
-    readTime: string;
-    body: string;
-    author: string;
-    publishedAt: string;
-    featured: boolean;
-    imageUrl: string;
-    imageAlt: string;
-    tags: string;
-    actions: string;
-};
 
 type ArticlesManagerProps = {
     onArticlesChanged?: () => void;
@@ -104,36 +60,6 @@ const initialFormState: ArticleFormState = {
     actions: "",
 };
 
-function createSlug(value: string) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replace(/['’]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-}
-
-function createSafeFileName(fileName: string) {
-    const extension = fileName
-        .split(".")
-        .pop()
-        ?.toLowerCase();
-
-    const baseName = fileName
-        .replace(/\.[^/.]+$/, "")
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-    const safeBaseName =
-        baseName || "article-image";
-
-    return extension
-        ? `${safeBaseName}.${extension}`
-        : safeBaseName;
-}
-
 function createImagePath(
     organisationId: string,
     fileName: string,
@@ -151,191 +77,97 @@ function createImagePath(
     )}`;
 }
 
-function toDateTimeLocal(value: string | null) {
-    if (!value) {
-        return "";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "";
-    }
-
-    const offset = date.getTimezoneOffset();
-
-    const localDate = new Date(
-        date.getTime() - offset * 60_000,
-    );
-
-    return localDate
-        .toISOString()
-        .slice(0, 16);
-}
-
-function parseBody(value: string) {
-    return value
-        .split(/\n\s*\n/)
-        .map((paragraph) => paragraph.trim())
-        .filter(Boolean);
-}
-
-function parseTags(value: string) {
-    return value
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean);
-}
-
-function isValidHttpUrl(value: string) {
-    try {
-        const url = new URL(value);
-
-        return (
-            url.protocol === "http:" ||
-            url.protocol === "https:"
-        );
-    } catch {
-        return false;
-    }
-}
-
-function parseActions(
-    value: string,
-): ArticleAction[] {
+function getEnteredActionLines(value: string) {
     return value
         .split("\n")
         .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-            const markdownMatch = line.match(
-                /^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/i,
-            );
-
-            if (markdownMatch) {
-                return {
-                    label: markdownMatch[1].trim(),
-                    href: markdownMatch[2].trim(),
-                };
-            }
-
-            const separatorIndex =
-                line.indexOf("|");
-
-            if (separatorIndex !== -1) {
-                const label = line
-                    .slice(0, separatorIndex)
-                    .trim();
-
-                const href = line
-                    .slice(separatorIndex + 1)
-                    .trim();
-
-                if (
-                    label &&
-                    isValidHttpUrl(href)
-                ) {
-                    return {
-                        label,
-                        href,
-                    };
-                }
-
-                return null;
-            }
-
-            if (isValidHttpUrl(line)) {
-                try {
-                    const url = new URL(line);
-
-                    return {
-                        label: url.hostname.replace(
-                            /^www\./,
-                            "",
-                        ),
-                        href: line,
-                    };
-                } catch {
-                    return null;
-                }
-            }
-
-            return null;
-        })
-        .filter(
-            (
-                action,
-            ): action is ArticleAction =>
-                action !== null,
-        );
+        .filter(Boolean);
 }
 
-function normaliseArticleActions(
-    value: unknown,
-): ArticleAction[] {
+function normaliseArticleBody(
+    value: DbArticle["body"],
+): string {
     if (Array.isArray(value)) {
         return value
-            .map((item) => {
-                if (
-                    !item ||
-                    typeof item !== "object"
-                ) {
-                    return null;
-                }
-
-                const action =
-                    item as Record<
-                        string,
-                        unknown
-                    >;
-
-                if (
-                    typeof action.label !==
-                    "string" ||
-                    typeof action.href !==
-                    "string" ||
-                    !isValidHttpUrl(
-                        action.href,
-                    )
-                ) {
-                    return null;
-                }
-
-                return {
-                    label: action.label,
-                    href: action.href,
-                };
-            })
-            .filter(
-                (
-                    action,
-                ): action is ArticleAction =>
-                    action !== null,
-            );
+            .map((paragraph) =>
+                String(paragraph).trim(),
+            )
+            .filter(Boolean)
+            .join("\n\n");
     }
 
     if (typeof value === "string") {
-        try {
-            return normaliseArticleActions(
-                JSON.parse(value),
-            );
-        } catch {
-            return parseActions(value);
+        const trimmedValue =
+            value.trim();
+
+        if (!trimmedValue) {
+            return "";
         }
+
+        try {
+            const parsedValue =
+                JSON.parse(trimmedValue);
+
+            if (Array.isArray(parsedValue)) {
+                return parsedValue
+                    .map((paragraph) =>
+                        String(
+                            paragraph,
+                        ).trim(),
+                    )
+                    .filter(Boolean)
+                    .join("\n\n");
+            }
+        } catch {
+            // The value is ordinary article text.
+        }
+
+        return value;
     }
 
-    return [];
+    return "";
 }
 
-function formatActions(
-    actions: ArticleAction[] | null,
-) {
-    return (actions ?? [])
-        .map(
-            (action) =>
-                `${action.label} | ${action.href}`,
-        )
-        .join("\n");
+function normaliseArticleTags(
+    value: DbArticle["tags"],
+): string {
+    if (Array.isArray(value)) {
+        return value
+            .map((tag) =>
+                String(tag).trim(),
+            )
+            .filter(Boolean)
+            .join(", ");
+    }
+
+    if (typeof value === "string") {
+        const trimmedValue =
+            value.trim();
+
+        if (!trimmedValue) {
+            return "";
+        }
+
+        try {
+            const parsedValue =
+                JSON.parse(trimmedValue);
+
+            if (Array.isArray(parsedValue)) {
+                return parsedValue
+                    .map((tag) =>
+                        String(tag).trim(),
+                    )
+                    .filter(Boolean)
+                    .join(", ");
+            }
+        } catch {
+            // The value is already display text.
+        }
+
+        return value;
+    }
+
+    return "";
 }
 
 export function ArticlesManager({
@@ -343,6 +175,9 @@ export function ArticlesManager({
                                 }: ArticlesManagerProps) {
     const { currentOrganisation } =
         useOrganisation();
+
+    const organisationId =
+        currentOrganisation?.id ?? null;
 
     const [articles, setArticles] =
         useState<DbArticle[]>([]);
@@ -356,9 +191,14 @@ export function ArticlesManager({
         useState<string | null>(null);
 
     const [
-        showArticleForm,
-        setShowArticleForm,
+        showArticleModal,
+        setShowArticleModal,
     ] = useState(false);
+
+    const [
+        articleToDelete,
+        setArticleToDelete,
+    ] = useState<DbArticle | null>(null);
 
     const [loading, setLoading] =
         useState(false);
@@ -379,9 +219,6 @@ export function ArticlesManager({
         setErrorMessage,
     ] = useState<string | null>(null);
 
-    const organisationId =
-        currentOrganisation?.id ?? null;
-
     const editingArticle = useMemo(
         () =>
             articles.find(
@@ -394,9 +231,7 @@ export function ArticlesManager({
     const resetForm = useCallback(() => {
         setForm(initialFormState);
         setEditingId(null);
-        setShowArticleForm(false);
-        setMessage(null);
-        setErrorMessage(null);
+        setShowArticleModal(false);
     }, []);
 
     const loadArticles =
@@ -450,11 +285,10 @@ export function ArticlesManager({
                     error,
                 );
 
+                setArticles([]);
                 setErrorMessage(
                     "Unable to load articles for this organisation.",
                 );
-
-                setArticles([]);
                 setLoading(false);
                 return;
             }
@@ -462,18 +296,18 @@ export function ArticlesManager({
             setArticles(
                 (data ?? []) as DbArticle[],
             );
-
             setLoading(false);
         }, [organisationId]);
 
     useEffect(() => {
         setArticles([]);
+        setArticleToDelete(null);
         resetForm();
 
         void loadArticles();
     }, [
-        organisationId,
         loadArticles,
+        organisationId,
         resetForm,
     ]);
 
@@ -492,17 +326,22 @@ export function ArticlesManager({
     function handleTitleChange(
         title: string,
     ) {
+        const shouldPreserveSlug =
+            editingArticle?.status ===
+            "published" ||
+            editingArticle?.status ===
+            "archived";
+
         setForm((current) => ({
             ...current,
             title,
-            slug:
-                editingId || current.slug
-                    ? current.slug
-                    : createSlug(title),
+            slug: shouldPreserveSlug
+                ? current.slug
+                : createSlug(title),
         }));
     }
 
-    function openCreateArticleForm() {
+    function openCreateArticleModal() {
         if (!organisationId) {
             setErrorMessage(
                 "Select an organisation before creating an article.",
@@ -512,12 +351,12 @@ export function ArticlesManager({
 
         setForm(initialFormState);
         setEditingId(null);
-        setShowArticleForm(true);
         setMessage(null);
         setErrorMessage(null);
+        setShowArticleModal(true);
     }
 
-    function startEditing(
+    function openEditArticleModal(
         article: DbArticle,
     ) {
         if (
@@ -530,29 +369,6 @@ export function ArticlesManager({
             );
             return;
         }
-
-        const articleBody = Array.isArray(
-            article.body,
-        )
-            ? article.body.join("\n\n")
-            : typeof article.body === "string"
-                ? article.body
-                : "";
-
-        const articleTags = Array.isArray(
-            article.tags,
-        )
-            ? article.tags.join(", ")
-            : typeof article.tags === "string"
-                ? article.tags
-                : "";
-
-        const articleActions =
-            formatActions(
-                normaliseArticleActions(
-                    article.actions,
-                ),
-            );
 
         setForm({
             title: article.title ?? "",
@@ -567,7 +383,9 @@ export function ArticlesManager({
             readTime:
                 article.read_time ??
                 "3 min read",
-            body: articleBody,
+            body: normaliseArticleBody(
+                article.body,
+            ),
             author:
                 article.author ??
                 "Editorial Team",
@@ -580,57 +398,20 @@ export function ArticlesManager({
                 article.image_url ?? "",
             imageAlt:
                 article.image_alt ?? "",
-            tags: articleTags,
-            actions: articleActions,
+            tags: normaliseArticleTags(
+                article.tags,
+            ),
+            actions: formatActions(
+                normaliseArticleActions(
+                    article.actions,
+                ),
+            ),
         });
 
         setEditingId(article.id);
-        setShowArticleForm(true);
         setMessage(null);
         setErrorMessage(null);
-
-        requestAnimationFrame(() => {
-            document
-                .querySelector<HTMLElement>(
-                    ".articleAdminForm",
-                )
-                ?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                });
-        });
-    }
-
-    function validateForm() {
-        if (!organisationId) {
-            return "Select an organisation before saving an article.";
-        }
-
-        if (!form.title.trim()) {
-            return "Article title is required.";
-        }
-
-        if (!form.slug.trim()) {
-            return "Article slug is required.";
-        }
-
-        if (!form.summary.trim()) {
-            return "Article summary is required.";
-        }
-
-        if (!form.hero.trim()) {
-            return "Article introduction is required.";
-        }
-
-        if (!form.body.trim()) {
-            return "Article body is required.";
-        }
-
-        if (!form.author.trim()) {
-            return "Article author is required.";
-        }
-
-        return null;
+        setShowArticleModal(true);
     }
 
     async function uploadArticleImage(
@@ -669,13 +450,16 @@ export function ArticlesManager({
 
         setUploadingImage(true);
 
-        const imagePath = createImagePath(
-            organisationId,
-            file.name,
-        );
+        try {
+            const imagePath =
+                createImagePath(
+                    organisationId,
+                    file.name,
+                );
 
-        const { error: uploadError } =
-            await supabase.storage
+            const {
+                error: uploadError,
+            } = await supabase.storage
                 .from(
                     ARTICLE_IMAGE_BUCKET,
                 )
@@ -685,53 +469,51 @@ export function ArticlesManager({
                     contentType: file.type,
                 });
 
-        if (uploadError) {
-            console.error(
-                "Failed to upload article image:",
-                uploadError,
-            );
+            if (uploadError) {
+                console.error(
+                    "Failed to upload article image:",
+                    uploadError,
+                );
 
-            setErrorMessage(
-                uploadError.message ||
-                "Unable to upload the image.",
-            );
+                setErrorMessage(
+                    uploadError.message ||
+                    "Unable to upload the image.",
+                );
+                return;
+            }
 
-            setUploadingImage(false);
-            return;
-        }
-
-        const { data: publicUrlData } =
-            supabase.storage
+            const {
+                data: publicUrlData,
+            } = supabase.storage
                 .from(
                     ARTICLE_IMAGE_BUCKET,
                 )
                 .getPublicUrl(imagePath);
 
-        const publicUrl =
-            publicUrlData.publicUrl;
+            const publicUrl =
+                publicUrlData.publicUrl;
 
-        if (!publicUrl) {
-            setErrorMessage(
-                "The image uploaded, but its public URL could not be generated.",
+            if (!publicUrl) {
+                setErrorMessage(
+                    "The image uploaded, but its public URL could not be generated.",
+                );
+                return;
+            }
+
+            setForm((current) => ({
+                ...current,
+                imageUrl: publicUrl,
+                imageAlt:
+                    current.imageAlt.trim() ||
+                    current.title.trim(),
+            }));
+
+            setMessage(
+                "Hero image uploaded successfully. Save the article to keep this image.",
             );
-
+        } finally {
             setUploadingImage(false);
-            return;
         }
-
-        setForm((current) => ({
-            ...current,
-            imageUrl: publicUrl,
-            imageAlt:
-                current.imageAlt.trim() ||
-                current.title.trim(),
-        }));
-
-        setMessage(
-            "Hero image uploaded successfully. Save the article to keep this image.",
-        );
-
-        setUploadingImage(false);
     }
 
     function clearArticleImage() {
@@ -742,21 +524,30 @@ export function ArticlesManager({
         }));
 
         setMessage(
-            "The hero image has been removed from the form. Save the article to apply the change.",
+            "The hero image has been removed. Save the article to apply the change.",
         );
-
         setErrorMessage(null);
     }
 
     async function saveArticle() {
         const validationError =
-            validateForm();
+            validateArticle(
+                form,
+                organisationId,
+            );
+
+        if (validationError) {
+            setErrorMessage(
+                validationError,
+            );
+            setMessage(null);
+            return;
+        }
 
         const enteredActionLines =
-            form.actions
-                .split("\n")
-                .map((line) => line.trim())
-                .filter(Boolean);
+            getEnteredActionLines(
+                form.actions,
+            );
 
         const parsedActions =
             parseActions(form.actions);
@@ -766,16 +557,7 @@ export function ArticlesManager({
             parsedActions.length
         ) {
             setErrorMessage(
-                "Each further-reading link must be entered as 'Link label | https://example.com', a plain https:// URL, or Markdown such as '[Link label](https://example.com)'.",
-            );
-
-            setMessage(null);
-            return;
-        }
-
-        if (validationError) {
-            setErrorMessage(
-                validationError,
+                "Each further-reading link must be entered as 'Link label | https://example.com'.",
             );
             setMessage(null);
             return;
@@ -810,7 +592,8 @@ export function ArticlesManager({
                 organisationId,
                 title: form.title.trim(),
                 slug: createSlug(
-                    form.slug,
+                    form.slug ||
+                    form.title,
                 ),
                 category: form.category,
                 status: form.status,
@@ -831,6 +614,7 @@ export function ArticlesManager({
                     null,
                 image_alt:
                     form.imageAlt.trim() ||
+                    form.title.trim() ||
                     null,
                 tags: parseTags(
                     form.tags,
@@ -860,11 +644,9 @@ export function ArticlesManager({
                 setErrorMessage(
                     response.error.code ===
                     "23505"
-                        ? "An article with this slug already exists."
-                        : response.error
-                            .message,
+                        ? "An article with this URL already exists."
+                        : response.error.message,
                 );
-
                 return;
             }
 
@@ -874,12 +656,20 @@ export function ArticlesManager({
                     : "Article created successfully.",
             );
 
-            setForm(initialFormState);
-            setEditingId(null);
-            setShowArticleForm(false);
-
+            resetForm();
             await loadArticles();
             onArticlesChanged?.();
+        } catch (error) {
+            console.error(
+                "Unexpected error while saving article:",
+                error,
+            );
+
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Unable to save the article.",
+            );
         } finally {
             setSaving(false);
         }
@@ -909,17 +699,19 @@ export function ArticlesManager({
                 new Date().toISOString()
                 : article.published_at;
 
-        const { error } = await supabase
-            .from("articles")
-            .update({
-                status,
-                published_at: publishedAt,
-            })
-            .eq("id", article.id)
-            .eq(
-                "organisation_id",
-                organisationId,
-            );
+        const { error } =
+            await supabase
+                .from("articles")
+                .update({
+                    status,
+                    published_at:
+                    publishedAt,
+                })
+                .eq("id", article.id)
+                .eq(
+                    "organisation_id",
+                    organisationId,
+                );
 
         if (error) {
             console.error(
@@ -941,801 +733,224 @@ export function ArticlesManager({
         onArticlesChanged?.();
     }
 
-    async function deleteArticle(
-        article: DbArticle,
-    ) {
+    async function deleteArticle() {
         if (
+            !articleToDelete ||
             !organisationId ||
-            article.organisation_id !==
+            saving
+        ) {
+            return;
+        }
+
+        if (
+            articleToDelete
+                .organisation_id !==
             organisationId
         ) {
             setErrorMessage(
                 "This article does not belong to the selected organisation.",
             );
+            setArticleToDelete(null);
             return;
         }
 
-        const confirmed =
-            window.confirm(
-                `Delete "${article.title}"? This action cannot be undone.`,
-            );
+        const article =
+            articleToDelete;
 
-        if (!confirmed) {
-            return;
-        }
-
+        setSaving(true);
         setMessage(null);
         setErrorMessage(null);
 
-        const { error } = await supabase
-            .from("articles")
-            .delete()
-            .eq("id", article.id)
-            .eq(
-                "organisation_id",
-                organisationId,
+        try {
+            const { error } =
+                await supabase
+                    .from("articles")
+                    .delete()
+                    .eq(
+                        "id",
+                        article.id,
+                    )
+                    .eq(
+                        "organisation_id",
+                        organisationId,
+                    );
+
+            if (error) {
+                console.error(
+                    "Failed to delete article:",
+                    error,
+                );
+
+                setErrorMessage(
+                    "Unable to delete the article.",
+                );
+                return;
+            }
+
+            if (
+                editingId ===
+                article.id
+            ) {
+                resetForm();
+            }
+
+            setArticleToDelete(null);
+            setMessage(
+                "Article deleted successfully.",
             );
 
-        if (error) {
-            console.error(
-                "Failed to delete article:",
-                error,
-            );
-
-            setErrorMessage(
-                "Unable to delete the article.",
-            );
-            return;
+            await loadArticles();
+            onArticlesChanged?.();
+        } finally {
+            setSaving(false);
         }
-
-        if (
-            editingId === article.id
-        ) {
-            resetForm();
-        }
-
-        setMessage(
-            "Article deleted successfully.",
-        );
-
-        await loadArticles();
-        onArticlesChanged?.();
     }
 
     if (!currentOrganisation) {
         return (
-            <div className="teamsEmptyState">
-                <h3>No organisation selected</h3>
+            <div className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-8 text-center">
+                <h3 className="text-xl font-bold text-white">
+                    No organisation selected
+                </h3>
 
-                <p>
-                    Select an organisation before
-                    managing articles.
+                <p className="mt-2 text-slate-400">
+                    Select an organisation before managing articles.
                 </p>
             </div>
         );
     }
 
     return (
-        <div>
-            <div className="adminWorkspaceHeader">
+        <div className="space-y-6">
+            <div className="flex flex-col gap-4 rounded-2xl border border-lime-900/50 bg-[#0b150a] p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h3>Manage Articles</h3>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                        Content Management
+                    </p>
 
-                    <p className="muted">
-                        Create, edit, review and
-                        publish content for{" "}
-                        <strong>
-                            {
-                                currentOrganisation.name
-                            }
+                    <h3 className="mt-1 text-3xl font-black text-white">
+                        Manage Articles
+                    </h3>
+
+                    <p className="mt-2 text-sm text-slate-400">
+                        Create, edit, review and publish content for{" "}
+                        <strong className="text-white">
+                            {currentOrganisation.name}
                         </strong>
                         .
                     </p>
                 </div>
 
-                {!showArticleForm ? (
-                    <button
-                        className="btn primary"
-                        type="button"
-                        onClick={
-                            openCreateArticleForm
-                        }
-                    >
-                        + Add Article
-                    </button>
-                ) : (
-                    <button
-                        className="btn secondary"
-                        type="button"
-                        disabled={
-                            saving ||
-                            uploadingImage
-                        }
-                        onClick={resetForm}
-                    >
-                        Cancel
-                    </button>
-                )}
+                <button
+                    type="button"
+                    onClick={
+                        openCreateArticleModal
+                    }
+                    className="rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
+                >
+                    + Add Article
+                </button>
             </div>
 
             {message && (
-                <p className="adminSuccessMessage">
+                <p className="rounded-xl border border-emerald-700/50 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
                     {message}
                 </p>
             )}
 
             {errorMessage && (
-                <p className="adminErrorMessage">
+                <p className="rounded-xl border border-red-800/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
                     {errorMessage}
                 </p>
             )}
 
-            {showArticleForm && (
-                <div className="articleAdminForm">
-                    <div className="adminFormGrid">
-                        <label>
-                            <span>
-                                Article title
-                            </span>
-
-                            <input
-                                value={form.title}
-                                onChange={(
-                                    event,
-                                ) =>
-                                    handleTitleChange(
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Enter article title"
-                            />
-                        </label>
-
-                        <label>
-                            <span>
-                                URL slug
-                            </span>
-
-                            <input
-                                value={form.slug}
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "slug",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="article-url-slug"
-                            />
-                        </label>
-
-                        <label>
-                            <span>
-                                Category
-                            </span>
-
-                            <select
-                                value={
-                                    form.category
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "category",
-                                        event
-                                            .target
-                                            .value as ArticleCategory,
-                                    )
-                                }
-                            >
-                                {articleCategories.map(
-                                    (
-                                        category,
-                                    ) => (
-                                        <option
-                                            key={
-                                                category
-                                            }
-                                            value={
-                                                category
-                                            }
-                                        >
-                                            {
-                                                category
-                                            }
-                                        </option>
-                                    ),
-                                )}
-                            </select>
-                        </label>
-
-                        <label>
-                            <span>
-                                Status
-                            </span>
-
-                            <select
-                                value={
-                                    form.status
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "status",
-                                        event
-                                            .target
-                                            .value as ArticleStatus,
-                                    )
-                                }
-                            >
-                                {articleStatuses.map(
-                                    (status) => (
-                                        <option
-                                            key={
-                                                status
-                                            }
-                                            value={
-                                                status
-                                            }
-                                        >
-                                            {
-                                                status
-                                            }
-                                        </option>
-                                    ),
-                                )}
-                            </select>
-                        </label>
-
-                        <label>
-                            <span>
-                                Author
-                            </span>
-
-                            <input
-                                value={
-                                    form.author
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "author",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Article author"
-                            />
-                        </label>
-
-                        <label>
-                            <span>
-                                Read time
-                            </span>
-
-                            <input
-                                value={
-                                    form.readTime
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "readTime",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="3 min read"
-                            />
-                        </label>
-
-                        <label>
-                            <span>
-                                Publication date
-                            </span>
-
-                            <input
-                                type="datetime-local"
-                                value={
-                                    form.publishedAt
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "publishedAt",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                            />
-                        </label>
-
-                        <label className="adminCheckboxLabel">
-                            <input
-                                type="checkbox"
-                                checked={
-                                    form.featured
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "featured",
-                                        event
-                                            .target
-                                            .checked,
-                                    )
-                                }
-                            />
-
-                            <span>
-                                Featured article
-                            </span>
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>
-                                Summary
-                            </span>
-
-                            <textarea
-                                value={
-                                    form.summary
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "summary",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Short card summary"
-                                rows={3}
-                            />
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>
-                                Article
-                                introduction
-                            </span>
-
-                            <textarea
-                                value={
-                                    form.hero
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "hero",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Opening introduction displayed beneath the title"
-                                rows={4}
-                            />
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>
-                                Article body
-                            </span>
-
-                            <textarea
-                                value={
-                                    form.body
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "body",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Separate paragraphs with a blank line"
-                                rows={12}
-                            />
-                        </label>
-
-                        <div className="adminFormFullWidth articleImageUploadSection">
-                            <div>
-                                <span className="articleImageUploadLabel">
-                                    Hero image
-                                </span>
-
-                                <p className="muted articleImageUploadHelp">
-                                    Upload a JPEG,
-                                    PNG or WebP
-                                    image. Maximum
-                                    file size: 5 MB.
-                                </p>
-                            </div>
-
-                            <label className="articleImageUploadButton">
-                                <input
-                                    type="file"
-                                    accept="image/jpeg,image/png,image/webp"
-                                    disabled={
-                                        uploadingImage
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) => {
-                                        const file =
-                                            event
-                                                .target
-                                                .files?.[0];
-
-                                        if (
-                                            file
-                                        ) {
-                                            void uploadArticleImage(
-                                                file,
-                                            );
-                                        }
-
-                                        event.target.value =
-                                            "";
-                                    }}
-                                />
-
-                                <span className="btn secondary">
-                                    {uploadingImage
-                                        ? "Uploading..."
-                                        : "Choose image"}
-                                </span>
-                            </label>
-
-                            {form.imageUrl && (
-                                <div className="articleImagePreview">
-                                    <img
-                                        src={
-                                            form.imageUrl
-                                        }
-                                        alt={
-                                            form.imageAlt ||
-                                            form.title ||
-                                            "Article hero preview"
-                                        }
-                                    />
-
-                                    <div className="articleImagePreviewActions">
-                                        <a
-                                            className="btn secondary small"
-                                            href={
-                                                form.imageUrl
-                                            }
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            Open image
-                                        </a>
-
-                                        <button
-                                            className="btn secondary small dangerButton"
-                                            type="button"
-                                            onClick={
-                                                clearArticleImage
-                                            }
-                                        >
-                                            Remove image
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <label>
-                            <span>
-                                Hero image URL
-                            </span>
-
-                            <input
-                                type="url"
-                                value={
-                                    form.imageUrl
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "imageUrl",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Automatically populated after upload"
-                            />
-                        </label>
-
-                        <label>
-                            <span>
-                                Hero image alt
-                                text
-                            </span>
-
-                            <input
-                                value={
-                                    form.imageAlt
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "imageAlt",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Describe the image"
-                            />
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>Tags</span>
-
-                            <input
-                                value={
-                                    form.tags
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "tags",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder="Football history, Grassroots football, Community"
-                            />
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>
-                                Further-reading
-                                links
-                            </span>
-
-                            <textarea
-                                value={
-                                    form.actions
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
-                                    updateForm(
-                                        "actions",
-                                        event
-                                            .target
-                                            .value,
-                                    )
-                                }
-                                placeholder={
-                                    "Link label | https://example.com\nhttps://example.com/page\n[Another resource](https://example.com/resource)"
-                                }
-                                rows={4}
-                            />
-                        </label>
-                    </div>
-
-                    <div className="adminFormActions">
-                        <button
-                            className="btn primary"
-                            type="button"
-                            disabled={
-                                saving ||
-                                uploadingImage
-                            }
-                            onClick={() =>
-                                void saveArticle()
-                            }
-                        >
-                            {saving
-                                ? "Saving..."
-                                : editingId
-                                    ? "Update article"
-                                    : "Create article"}
-                        </button>
-
-                        <button
-                            className="btn secondary"
-                            type="button"
-                            disabled={
-                                saving ||
-                                uploadingImage
-                            }
-                            onClick={resetForm}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            <div className="adminRecordList">
-                <h4>
-                    Current articles for{" "}
-                    {currentOrganisation.name}
-                </h4>
-
-                {loading ? (
-                    <p className="muted">
-                        Loading articles...
-                    </p>
-                ) : articles.length ? (
-                    articles.map(
-                        (article) => (
-                            <article
-                                className="adminRecord articleAdminRecord"
-                                key={
-                                    article.id
-                                }
-                            >
-                                {article.image_url && (
-                                    <img
-                                        className="articleAdminThumbnail"
-                                        src={
-                                            article.image_url
-                                        }
-                                        alt={
-                                            article.image_alt ??
-                                            article.title
-                                        }
-                                    />
-                                )}
-
-                                <div className="articleAdminRecordDetails">
-                                    <div className="articleAdminRecordBadges">
-                                        <span className="badge">
-                                            {
-                                                article.category
-                                            }
-                                        </span>
-
-                                        <span
-                                            className={`articleStatusBadge articleStatus-${article.status}`}
-                                        >
-                                            {
-                                                article.status
-                                            }
-                                        </span>
-
-                                        {article.featured && (
-                                            <span className="featuredBadge">
-                                                Featured
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <strong>
-                                        {
-                                            article.title
-                                        }
-                                    </strong>
-
-                                    <span className="muted">
-                                        /
-                                        {
-                                            article.slug
-                                        }
-                                    </span>
-
-                                    <p>
-                                        {
-                                            article.summary
-                                        }
-                                    </p>
-                                </div>
-
-                                <div className="articleAdminRecordActions">
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            startEditing(
-                                                article,
-                                            )
-                                        }
-                                    >
-                                        Edit
-                                    </button>
-
-                                    {article.status !==
-                                        "published" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void updateStatus(
-                                                        article,
-                                                        "published",
-                                                    )
-                                                }
-                                            >
-                                                Publish
-                                            </button>
-                                        )}
-
-                                    {article.status ===
-                                        "published" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void updateStatus(
-                                                        article,
-                                                        "draft",
-                                                    )
-                                                }
-                                            >
-                                                Unpublish
-                                            </button>
-                                        )}
-
-                                    {article.status !==
-                                        "archived" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void updateStatus(
-                                                        article,
-                                                        "archived",
-                                                    )
-                                                }
-                                            >
-                                                Archive
-                                            </button>
-                                        )}
-
-                                    <button
-                                        type="button"
-                                        className="dangerButton"
-                                        onClick={() =>
-                                            void deleteArticle(
-                                                article,
-                                            )
-                                        }
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </article>
-                        ),
+            <ArticlesTable
+                loading={loading}
+                organisationName={
+                    currentOrganisation.name
+                }
+                articles={articles}
+                onEdit={
+                    openEditArticleModal
+                }
+                onPublish={(article) =>
+                    void updateStatus(
+                        article,
+                        "published",
                     )
-                ) : (
-                    <p className="muted">
-                        No articles have been
-                        created for{" "}
-                        {
-                            currentOrganisation.name
+                }
+                onUnpublish={(article) =>
+                    void updateStatus(
+                        article,
+                        "draft",
+                    )
+                }
+                onArchive={(article) =>
+                    void updateStatus(
+                        article,
+                        "archived",
+                    )
+                }
+                onDelete={
+                    setArticleToDelete
+                }
+            />
+
+            <ArticleModal
+                open={showArticleModal}
+                mode={
+                    editingId
+                        ? "edit"
+                        : "create"
+                }
+                values={form}
+                organisationName={
+                    currentOrganisation.name
+                }
+                uploadingImage={
+                    uploadingImage
+                }
+                saving={saving}
+                message={message}
+                errorMessage={errorMessage}
+                onChange={updateForm}
+                onTitleChange={
+                    handleTitleChange
+                }
+                onUploadImage={
+                    uploadArticleImage
+                }
+                onRemoveImage={
+                    clearArticleImage
+                }
+                onSave={saveArticle}
+                onCancel={resetForm}
+            />
+
+            {articleToDelete && (
+                <ConfirmDialog
+                    title="Delete Article"
+                    message={`Are you sure you want to delete "${articleToDelete.title}"? This action cannot be undone.`}
+                    confirmText={
+                        saving
+                            ? "Deleting..."
+                            : "Delete"
+                    }
+                    cancelText="Cancel"
+                    onCancel={() => {
+                        if (!saving) {
+                            setArticleToDelete(
+                                null,
+                            );
                         }
-                        .
-                    </p>
-                )}
-            </div>
+                    }}
+                    onConfirm={() => {
+                        if (!saving) {
+                            void deleteArticle();
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

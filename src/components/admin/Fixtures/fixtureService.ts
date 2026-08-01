@@ -13,9 +13,31 @@ function throwSupabaseError(
     context: string
 ) {
     if (!error) return
-
     console.error(`${context}:`, error)
     throw new Error(error.message)
+}
+
+function buildFixturePayload(
+    values: FixtureFormValues
+) {
+    const isGroupStage =
+        values.stage === 'Group Stage'
+
+    return {
+        group_id: isGroupStage
+            ? values.group_id || null
+            : null,
+        home_competition_team_id:
+            values.home_competition_team_id || null,
+        away_competition_team_id:
+            values.away_competition_team_id || null,
+        venue_id: values.venue_id || null,
+        stage: values.stage.trim(),
+        kickoff_time: values.kickoff_time
+            ? new Date(values.kickoff_time).toISOString()
+            : null,
+        status: values.status,
+    }
 }
 
 export const fixtureService = {
@@ -35,7 +57,7 @@ export const fixtureService = {
             'Failed to load fixtures'
         )
 
-        return data ?? []
+        return (data ?? []) as Fixture[]
     },
 
     async getTeams(
@@ -43,19 +65,15 @@ export const fixtureService = {
     ): Promise<FixtureTeam[]> {
         const { data, error } = await supabase
             .from('competition_teams')
-            .select(
-                `
+            .select(`
                 id,
                 team_id,
                 teams(
                     name,
                     logo_url,
-                    clubs(
-                        name
-                    )
+                    clubs(name)
                 )
-            `
-            )
+            `)
             .eq('competition_id', competitionId)
             .order('team_id')
 
@@ -70,7 +88,6 @@ export const fixtureService = {
                     Array.isArray(row.teams)
                         ? row.teams[0]
                         : row.teams
-
                 const clubRow =
                     Array.isArray(teamRow?.clubs)
                         ? teamRow.clubs[0]
@@ -79,12 +96,9 @@ export const fixtureService = {
                 return {
                     competition_team_id: row.id,
                     team_id: row.team_id,
-                    team_name:
-                        teamRow?.name ?? '',
-                    club_name:
-                        clubRow?.name ?? null,
-                    logo_url:
-                        teamRow?.logo_url ?? null,
+                    team_name: teamRow?.name ?? '',
+                    club_name: clubRow?.name ?? null,
+                    logo_url: teamRow?.logo_url ?? null,
                 }
             }) ?? []
         )
@@ -95,9 +109,7 @@ export const fixtureService = {
     ): Promise<FixtureVenue[]> {
         const { data, error } = await supabase
             .from('venues')
-            .select(
-                'id,name,address,postcode'
-            )
+            .select('id,name,address,postcode')
             .eq('competition_id', competitionId)
             .order('name')
 
@@ -106,7 +118,7 @@ export const fixtureService = {
             'Failed to load venues'
         )
 
-        return data ?? []
+        return (data ?? []) as FixtureVenue[]
     },
 
     async getGroups(
@@ -114,9 +126,7 @@ export const fixtureService = {
     ): Promise<FixtureGroup[]> {
         const { data, error } = await supabase
             .from('groups')
-            .select(
-                'id,name,sort_order'
-            )
+            .select('id,name,sort_order')
             .eq('competition_id', competitionId)
             .order('sort_order')
 
@@ -125,7 +135,7 @@ export const fixtureService = {
             'Failed to load groups'
         )
 
-        return data ?? []
+        return (data ?? []) as FixtureGroup[]
     },
 
     async getGroupMemberships(
@@ -135,9 +145,7 @@ export const fixtureService = {
 
         const { data, error } = await supabase
             .from('group_teams')
-            .select(
-                'group_id,competition_team_id'
-            )
+            .select('group_id,competition_team_id')
             .in('group_id', groupIds)
 
         throwSupabaseError(
@@ -145,83 +153,61 @@ export const fixtureService = {
             'Failed to load group memberships'
         )
 
-        return data ?? []
+        return (
+            data ?? []
+        ) as FixtureGroupMembership[]
     },
 
     async createFixture(
         competitionId: string,
         values: FixtureFormValues
-    ): Promise<void> {
-        const isGroupStage =
-            values.stage === 'Group Stage'
-
-        const { error } = await supabase
+    ): Promise<Fixture> {
+        const { data, error } = await supabase
             .from('fixtures')
             .insert({
                 competition_id: competitionId,
-                group_id: isGroupStage
-                    ? values.group_id || null
-                    : null,
-                home_competition_team_id:
-                    values.home_competition_team_id ||
-                    null,
-                away_competition_team_id:
-                    values.away_competition_team_id ||
-                    null,
-                venue_id:
-                    values.venue_id || null,
-                stage: values.stage.trim(),
-                kickoff_time:
-                    values.kickoff_time
-                        ? new Date(
-                            values.kickoff_time
-                        ).toISOString()
-                        : null,
-                status: values.status,
+                ...buildFixturePayload(values),
             })
+            .select('*')
+            .single()
 
         throwSupabaseError(
             error,
             'Failed to create fixture'
         )
+
+        if (!data) {
+            throw new Error(
+                'The fixture was created but could not be returned.'
+            )
+        }
+
+        return data as Fixture
     },
 
     async updateFixture(
         fixtureId: string,
         values: FixtureFormValues
-    ): Promise<void> {
-        const isGroupStage =
-            values.stage === 'Group Stage'
-
-        const { error } = await supabase
+    ): Promise<Fixture> {
+        const { data, error } = await supabase
             .from('fixtures')
-            .update({
-                group_id: isGroupStage
-                    ? values.group_id || null
-                    : null,
-                home_competition_team_id:
-                    values.home_competition_team_id ||
-                    null,
-                away_competition_team_id:
-                    values.away_competition_team_id ||
-                    null,
-                venue_id:
-                    values.venue_id || null,
-                stage: values.stage.trim(),
-                kickoff_time:
-                    values.kickoff_time
-                        ? new Date(
-                            values.kickoff_time
-                        ).toISOString()
-                        : null,
-                status: values.status,
-            })
+            .update(buildFixturePayload(values))
             .eq('id', fixtureId)
+            .select('*')
+            .single()
 
         throwSupabaseError(
             error,
             'Failed to update fixture'
         )
+
+        if (!data) {
+            throw new Error(
+                'The fixture was updated but could not be returned.'
+            )
+        }
+
+        return data as Fixture
     },
 
     async deleteFixture(

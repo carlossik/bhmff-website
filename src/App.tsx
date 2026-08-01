@@ -242,6 +242,15 @@ function getRelatedGoalTeam(
     return relation
 }
 
+const PUBLIC_COMPETITION_NAME =
+    (
+        import.meta.env
+            .VITE_PUBLIC_COMPETITION_NAME as
+            | string
+            | undefined
+    )?.trim() ||
+    'Black History Month Football Tournament'
+
 const benefits = [
     [
         'Competition Format',
@@ -382,26 +391,55 @@ function App() {
     }, [])
 
     useEffect(() => {
+        let requestVersion = 0
+        let isDisposed = false
+
         async function loadPublicTournamentData() {
+            const currentRequest =
+                ++requestVersion
+
             const {
                 data: competition,
                 error: competitionError,
             } = await supabase
                 .from('competitions')
                 .select('id')
+                .eq(
+                    'name',
+                    PUBLIC_COMPETITION_NAME
+                )
                 .eq('status', 'ACTIVE')
+                .eq('published', true)
+                .order('start_date', {
+                    ascending: false,
+                    nullsFirst: false,
+                })
+                .order('created_at', {
+                    ascending: false,
+                })
                 .limit(1)
                 .maybeSingle()
 
+            if (
+                isDisposed ||
+                currentRequest !==
+                requestVersion
+            ) {
+                return
+            }
+
             if (competitionError) {
                 console.error(
-                    'Failed to load active competition:',
+                    'Failed to load the published public competition:',
                     competitionError
                 )
                 return
             }
 
             if (!competition) {
+                console.warn(
+                    `No active published competition was found for "${PUBLIC_COMPETITION_NAME}".`
+                )
                 setPublicTeams([])
                 setPublicFixtures([])
                 setPublicResults([])
@@ -508,6 +546,14 @@ function App() {
                         competition.id
                     ),
             ])
+
+            if (
+                isDisposed ||
+                currentRequest !==
+                requestVersion
+            ) {
+                return
+            }
 
             if (teamsResponse.error) {
                 console.error(
@@ -788,6 +834,14 @@ function App() {
                     ascending: true,
                 })
 
+            if (
+                isDisposed ||
+                currentRequest !==
+                requestVersion
+            ) {
+                return
+            }
+
             if (goalsError) {
                 console.error(
                     'Failed to load public goals:',
@@ -843,7 +897,41 @@ function App() {
             setPublicGoals(mappedGoals)
         }
 
+        function refreshWhenVisible() {
+            if (
+                document.visibilityState ===
+                'visible'
+            ) {
+                void loadPublicTournamentData()
+            }
+        }
+
         void loadPublicTournamentData()
+
+        window.addEventListener(
+            'focus',
+            refreshWhenVisible
+        )
+
+        document.addEventListener(
+            'visibilitychange',
+            refreshWhenVisible
+        )
+
+        return () => {
+            isDisposed = true
+            requestVersion += 1
+
+            window.removeEventListener(
+                'focus',
+                refreshWhenVisible
+            )
+
+            document.removeEventListener(
+                'visibilitychange',
+                refreshWhenVisible
+            )
+        }
     }, [])
 
     const activeArticle = useMemo(

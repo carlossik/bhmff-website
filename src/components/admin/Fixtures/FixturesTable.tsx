@@ -4,6 +4,7 @@ import {
     MapPin,
     Shield,
     Trash2,
+    UserRoundCheck,
 } from 'lucide-react'
 import type {
     Fixture,
@@ -12,12 +13,18 @@ import type {
     FixtureTeam,
     FixtureVenue,
 } from './fixtureTypes'
+import type {
+    Official,
+    OfficialAssignment,
+} from '../../../types/officialTypes'
 
 type FixturesTableProps = {
     fixtures: Fixture[]
     teams: FixtureTeam[]
     venues: FixtureVenue[]
     groups: FixtureGroup[]
+    officials: Official[]
+    assignments: OfficialAssignment[]
     onEdit: (fixture: Fixture) => void
     onDelete: (fixture: Fixture) => void
 }
@@ -48,11 +55,65 @@ function getStatusClasses(
     }
 }
 
+
+function formatOfficialDisplayName(
+    official: Official | undefined
+) {
+    if (!official) {
+        return 'To be confirmed'
+    }
+
+    const fullName =
+        official.full_name?.trim()
+
+    if (fullName) {
+        return fullName
+    }
+
+    return [
+        official.first_name,
+        official.last_name,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Unnamed official'
+}
+
+function getCurrentFixtureAssignments(
+    fixtureId: string,
+    assignments: OfficialAssignment[]
+) {
+    return assignments
+        .filter(
+            (assignment) =>
+                assignment.fixture_id ===
+                fixtureId &&
+                assignment.status !==
+                'cancelled' &&
+                assignment.status !==
+                'declined'
+        )
+        .sort(
+            (
+                firstAssignment,
+                secondAssignment
+            ) =>
+                new Date(
+                    firstAssignment.created_at
+                ).getTime() -
+                new Date(
+                    secondAssignment.created_at
+                ).getTime()
+        )
+}
+
 export function FixturesTable({
                                   fixtures,
                                   teams,
                                   venues,
                                   groups,
+                                  officials,
+                                  assignments,
                                   onEdit,
                                   onDelete,
                               }: FixturesTableProps) {
@@ -74,6 +135,13 @@ export function FixturesTable({
         groups.map((group) => [
             group.id,
             group.name,
+        ])
+    )
+
+    const officialMap = new Map(
+        officials.map((official) => [
+            official.id,
+            official,
         ])
     )
 
@@ -129,6 +197,61 @@ export function FixturesTable({
                 const awayTeam =
                     teamMap.get(
                         fixture.away_competition_team_id ??
+                        ''
+                    )
+
+                const fixtureAssignments =
+                    getCurrentFixtureAssignments(
+                        fixture.id,
+                        assignments
+                    )
+
+                const refereeAssignment =
+                    fixtureAssignments.find(
+                        (assignment) =>
+                            assignment.role ===
+                            'referee'
+                    )
+
+                const assistantAssignments =
+                    fixtureAssignments.filter(
+                        (assignment) =>
+                            assignment.role ===
+                            'assistant_referee'
+                    )
+
+                const fourthOfficialAssignment =
+                    fixtureAssignments.find(
+                        (assignment) =>
+                            assignment.role ===
+                            'fourth_official'
+                    )
+
+                const referee =
+                    officialMap.get(
+                        refereeAssignment
+                            ?.official_id ??
+                        ''
+                    )
+
+                const assistantRefereeOne =
+                    officialMap.get(
+                        assistantAssignments[0]
+                            ?.official_id ??
+                        ''
+                    )
+
+                const assistantRefereeTwo =
+                    officialMap.get(
+                        assistantAssignments[1]
+                            ?.official_id ??
+                        ''
+                    )
+
+                const fourthOfficial =
+                    officialMap.get(
+                        fourthOfficialAssignment
+                            ?.official_id ??
                         ''
                     )
 
@@ -215,6 +338,73 @@ export function FixturesTable({
                                         </span>
                                     </div>
                                 </div>
+
+                                <section className="mt-5 rounded-2xl border border-lime-900/40 bg-black/15 p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="rounded-xl bg-lime-400/10 p-2.5">
+                                            <Shield className="h-4 w-4 text-lime-400" />
+                                        </div>
+
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-400">
+                                                Match Officials
+                                            </p>
+
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                Current non-cancelled appointments
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                        {[
+                                            {
+                                                label: 'Referee',
+                                                official: referee,
+                                            },
+                                            {
+                                                label: 'Assistant Referee 1',
+                                                official: assistantRefereeOne,
+                                            },
+                                            {
+                                                label: 'Assistant Referee 2',
+                                                official: assistantRefereeTwo,
+                                            },
+                                            {
+                                                label: 'Fourth Official',
+                                                official: fourthOfficial,
+                                            },
+                                        ].map(
+                                            ({
+                                                 label,
+                                                 official,
+                                             }) => (
+                                                <div
+                                                    key={label}
+                                                    className="rounded-xl border border-lime-900/30 bg-[#0c160b] px-4 py-3"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <UserRoundCheck className="h-4 w-4 shrink-0 text-lime-400" />
+
+                                                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                                                            {label}
+                                                        </p>
+                                                    </div>
+
+                                                    <p className={`mt-2 text-sm font-semibold ${
+                                                        official
+                                                            ? 'text-white'
+                                                            : 'text-slate-500'
+                                                    }`}>
+                                                        {formatOfficialDisplayName(
+                                                            official
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                </section>
                             </div>
 
                             <div className="flex shrink-0 flex-row gap-3 lg:flex-col">

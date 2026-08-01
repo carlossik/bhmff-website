@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
+import { useOrganisation } from "../../../context/OrganisationContext";
+import { useCompetition } from "../../../contexts/CompetitionContext";
 import { ConfirmDialog } from "../../common/ConfirmDialog";
 
 const mediaCategories = [
@@ -29,6 +31,8 @@ type MediaStatus = (typeof mediaStatuses)[number];
 
 type DbMedia = {
     id: string;
+    organisation_id: string;
+    competition_id: string;
     title: string;
     slug: string;
     category: MediaCategory;
@@ -145,6 +149,13 @@ function toDateTimeLocal(value: string | null) {
 }
 
 export function MediaManager() {
+    const { currentOrganisation } = useOrganisation();
+
+    const {
+        currentCompetition,
+        currentCompetitionId,
+    } = useCompetition();
+
     const [mediaItems, setMediaItems] = useState<DbMedia[]>([]);
 
     const [form, setForm] = useState<MediaFormState>(initialFormState);
@@ -173,11 +184,22 @@ export function MediaManager() {
         setLoading(true);
         setErrorMessage(null);
 
+        if (
+            !currentOrganisation?.id ||
+            !currentCompetitionId
+        ) {
+            setMediaItems([]);
+            setLoading(false);
+            return;
+        }
+
         const { data, error } = await supabase
             .from("media")
             .select(
                 `
                         id,
+                        organisation_id,
+                        competition_id,
                         title,
                         slug,
                         category,
@@ -193,6 +215,14 @@ export function MediaManager() {
                         created_at,
                         updated_at
                     `,
+            )
+            .eq(
+                "organisation_id",
+                currentOrganisation.id,
+            )
+            .eq(
+                "competition_id",
+                currentCompetitionId,
             )
             .order("created_at", {
                 ascending: false,
@@ -211,7 +241,10 @@ export function MediaManager() {
         setMediaItems((data ?? []) as DbMedia[]);
 
         setLoading(false);
-    }, []);
+    }, [
+        currentCompetitionId,
+        currentOrganisation?.id,
+    ]);
 
     useEffect(() => {
         void loadMedia();
@@ -295,6 +328,14 @@ export function MediaManager() {
     }
 
     function validateForm() {
+        if (!currentOrganisation?.id) {
+            return "Select an organisation before adding media.";
+        }
+
+        if (!currentCompetitionId) {
+            return "Select a competition before adding media.";
+        }
+
         if (!form.title.trim()) {
             return "Media title is required.";
         }
@@ -350,6 +391,10 @@ export function MediaManager() {
                     : null;
 
         const payload = {
+            organisation_id:
+            currentOrganisation.id,
+            competition_id:
+            currentCompetitionId,
             title: form.title.trim(),
             slug: createSlug(form.slug),
             category: form.category,
@@ -364,8 +409,21 @@ export function MediaManager() {
         };
 
         const response = editingId
-            ? await supabase.from("media").update(payload).eq("id", editingId)
-            : await supabase.from("media").insert(payload);
+            ? await supabase
+                .from("media")
+                .update(payload)
+                .eq("id", editingId)
+                .eq(
+                    "organisation_id",
+                    currentOrganisation.id,
+                )
+                .eq(
+                    "competition_id",
+                    currentCompetitionId,
+                )
+            : await supabase
+                .from("media")
+                .insert(payload);
 
         if (response.error) {
             console.error("Failed to save media:", response.error);
@@ -396,6 +454,16 @@ export function MediaManager() {
     }
 
     async function updateStatus(item: DbMedia, status: MediaStatus) {
+        if (
+            !currentOrganisation?.id ||
+            !currentCompetitionId
+        ) {
+            setErrorMessage(
+                "Select an organisation and competition before updating media.",
+            );
+            return;
+        }
+
         setMessage(null);
         setErrorMessage(null);
 
@@ -410,7 +478,15 @@ export function MediaManager() {
                 status,
                 published_at: publishedAt,
             })
-            .eq("id", item.id);
+            .eq("id", item.id)
+            .eq(
+                "organisation_id",
+                currentOrganisation.id,
+            )
+            .eq(
+                "competition_id",
+                currentCompetitionId,
+            );
 
         if (error) {
             console.error("Failed to update media status:", error);
@@ -425,7 +501,12 @@ export function MediaManager() {
     }
 
     async function deleteMedia() {
-        if (!mediaToDelete || saving) {
+        if (
+            !mediaToDelete ||
+            saving ||
+            !currentOrganisation?.id ||
+            !currentCompetitionId
+        ) {
             return;
         }
 
@@ -438,7 +519,15 @@ export function MediaManager() {
         const { error } = await supabase
             .from("media")
             .delete()
-            .eq("id", item.id);
+            .eq("id", item.id)
+            .eq(
+                "organisation_id",
+                currentOrganisation.id,
+            )
+            .eq(
+                "competition_id",
+                currentCompetitionId,
+            );
 
         if (error) {
             console.error("Failed to delete media:", error);
@@ -470,6 +559,15 @@ export function MediaManager() {
                         Manage competition media including highlights, full matches,
                         interviews, livestreams, podcasts and promotional content.
                     </p>
+
+                    {currentCompetition && (
+                        <p className="muted">
+                            Managing media for{" "}
+                            <strong>
+                                {currentCompetition.name}
+                            </strong>
+                        </p>
+                    )}
                 </div>
 
                 {!showMediaForm ? (

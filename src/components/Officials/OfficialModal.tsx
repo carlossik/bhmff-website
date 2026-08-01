@@ -341,7 +341,15 @@ const OfficialModal: React.FC<Props> = ({
         ) {
             return;
         }
+        const email = form.email.trim()
+        const phone = form.phone.trim()
 
+        if (!email || !phone) {
+            setLoadError(
+                'Email and phone number are required.'
+            )
+            return
+        }
         await onSave({
             ...form,
             sport_id: form.sport_id,
@@ -375,9 +383,11 @@ const OfficialModal: React.FC<Props> = ({
     const formIsValid =
         Boolean(form.first_name.trim()) &&
         Boolean(form.last_name.trim()) &&
+        Boolean(form.email.trim()) &&
+        Boolean(form.phone.trim()) &&
         Boolean(form.sport_id) &&
         Boolean(form.role) &&
-        !loadingRoles;
+        !loadingRoles
 
     return (
         <div
@@ -586,13 +596,41 @@ const OfficialModal: React.FC<Props> = ({
                         </div>
 
                         <div>
-                            <label className={labelClass}>Email</label>
-                            <input type="email" value={form.email} onChange={event => updateField('email', event.target.value)} className={inputClass} />
+                            <label className={labelClass}>
+                                Email
+                                <span className="ml-1 text-red-400">*</span>
+                            </label>
+                            <input
+                                type="email"
+                                required
+                                value={form.email}
+                                onChange={event =>
+                                    updateField(
+                                        'email',
+                                        event.target.value
+                                    )
+                                }
+                                className={inputClass}
+                            />
                         </div>
 
                         <div>
-                            <label className={labelClass}>Phone</label>
-                            <input type="tel" value={form.phone} onChange={event => updateField('phone', event.target.value)} className={inputClass} />
+                            <label className={labelClass}>
+                                Phone
+                                <span className="ml-1 text-red-400">*</span>
+                            </label>
+                            <input
+                                type="tel"
+                                required
+                                value={form.phone}
+                                onChange={event =>
+                                    updateField(
+                                        'phone',
+                                        event.target.value
+                                    )
+                                }
+                                className={inputClass}
+                            />
                         </div>
 
                         <div>
