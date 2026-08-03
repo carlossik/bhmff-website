@@ -2,372 +2,622 @@ import {
     useEffect,
     useState,
     type FormEvent,
-} from 'react'
-import { supabase } from '../../lib/supabaseClient'
+} from "react";
+
+import {
+    Building2,
+    Handshake,
+    Mail,
+    Phone,
+    X,
+} from "lucide-react";
+
+import { supabase } from "../../lib/supabaseClient";
+import { useOptionalPublicOrganisation } from "../../context/PublicOrganisationContext";
 
 type PublicSponsor = {
-    id: string
-    name: string
-    tier: string | null
-    logo_url: string | null
-    website_url: string | null
-    description: string | null
-}
+    id: string;
+    name: string;
+    tier: string | null;
+    logo_url: string | null;
+    website_url: string | null;
+    description: string | null;
+};
 
 type SponsorEnquiryForm = {
-    companyName: string
-    contactName: string
-    email: string
-    phone: string
-    sponsorshipInterest: string
-    estimatedBudget: string
-    message: string
-}
+    companyName: string;
+    contactName: string;
+    email: string;
+    phone: string;
+    sponsorshipInterest: string;
+    estimatedBudget: string;
+    message: string;
+};
 
 const initialEnquiryForm: SponsorEnquiryForm = {
-    companyName: '',
-    contactName: '',
-    email: '',
-    phone: '',
-    sponsorshipInterest: '',
-    estimatedBudget: '',
-    message: '',
-}
+    companyName: "",
+    contactName: "",
+    email: "",
+    phone: "",
+    sponsorshipInterest: "",
+    estimatedBudget: "",
+    message: "",
+};
 
 function isValidPhoneNumber(value: string) {
-    const trimmedValue = value.trim()
+    const trimmedValue =
+        value.trim();
 
     if (!trimmedValue) {
-        return true
-    }
-
-    if (!/^[0-9+() -]+$/.test(trimmedValue)) {
-        return false
+        return true;
     }
 
     if (
-        trimmedValue.includes('+') &&
-        !trimmedValue.startsWith('+')
+        !/^[0-9+() -]+$/.test(
+            trimmedValue,
+        )
     ) {
-        return false
+        return false;
     }
 
     if (
-        (trimmedValue.match(/\+/g) ?? []).length > 1
+        trimmedValue.includes("+") &&
+        !trimmedValue.startsWith("+")
     ) {
-        return false
+        return false;
+    }
+
+    if (
+        (
+            trimmedValue.match(
+                /\+/g,
+            ) ?? []
+        ).length > 1
+    ) {
+        return false;
     }
 
     const digitCount =
-        trimmedValue.replace(/\D/g, '').length
+        trimmedValue.replace(
+            /\D/g,
+            "",
+        ).length;
 
-    return digitCount >= 7 && digitCount <= 15
+    return (
+        digitCount >= 7 &&
+        digitCount <= 15
+    );
 }
 
 export function PublicSponsors() {
+    const publicOrganisation =
+        useOptionalPublicOrganisation();
+
     const [sponsors, setSponsors] =
-        useState<PublicSponsor[]>([])
+        useState<PublicSponsor[]>([]);
 
     const [isLoading, setIsLoading] =
-        useState(true)
+        useState(true);
 
     const [
         activeCompetitionId,
         setActiveCompetitionId,
-    ] = useState<string | null>(null)
+    ] =
+        useState<string | null>(
+            null,
+        );
+
+    const [
+        activeOrganisationId,
+        setActiveOrganisationId,
+    ] =
+        useState<string | null>(
+            publicOrganisation
+                ?.organisationId ??
+            null,
+        );
 
     const [
         showEnquiryForm,
         setShowEnquiryForm,
-    ] = useState(false)
+    ] =
+        useState(false);
 
     const [form, setForm] =
         useState<SponsorEnquiryForm>(
-            initialEnquiryForm
-        )
+            initialEnquiryForm,
+        );
 
-    const [isSubmitting, setIsSubmitting] =
-        useState(false)
+    const [
+        isSubmitting,
+        setIsSubmitting,
+    ] =
+        useState(false);
 
     const [
         submissionMessage,
         setSubmissionMessage,
-    ] = useState<string | null>(null)
+    ] =
+        useState<string | null>(
+            null,
+        );
 
     const [
         submissionError,
         setSubmissionError,
-    ] = useState<string | null>(null)
+    ] =
+        useState<string | null>(
+            null,
+        );
 
     useEffect(() => {
         async function loadSponsors() {
             try {
+                let resolvedOrganisationId =
+                    publicOrganisation
+                        ?.organisationId ??
+                    null;
+
+                if (!resolvedOrganisationId) {
+                    const legacyOrganisationSlug =
+                        (
+                            import.meta.env
+                                .VITE_PUBLIC_ORGANISATION_SLUG as
+                                | string
+                                | undefined
+                        )?.trim() ||
+                        "bhmff";
+
+                    const {
+                        data: legacyOrganisation,
+                        error:
+                            legacyOrganisationError,
+                    } = await supabase
+                        .from(
+                            "organisations",
+                        )
+                        .select("id")
+                        .eq(
+                            "slug",
+                            legacyOrganisationSlug,
+                        )
+                        .eq(
+                            "public_site_enabled",
+                            true,
+                        )
+                        .eq(
+                            "status",
+                            "active",
+                        )
+                        .maybeSingle();
+
+                    if (
+                        legacyOrganisationError
+                    ) {
+                        throw legacyOrganisationError;
+                    }
+
+                    resolvedOrganisationId =
+                        legacyOrganisation?.id ??
+                        null;
+                }
+
+                if (!resolvedOrganisationId) {
+                    throw new Error(
+                        "The BHMFF organisation could not be identified.",
+                    );
+                }
+
                 const {
                     data: competition,
-                    error: competitionError,
+                    error:
+                        competitionError,
                 } = await supabase
-                    .from('competitions')
-                    .select('id')
-                    .eq('status', 'ACTIVE')
-                    .order('created_at', {
-                        ascending: false,
-                    })
+                    .from(
+                        "competitions",
+                    )
+                    .select(
+                        "id, organisation_id",
+                    )
+                    .eq(
+                        "organisation_id",
+                        resolvedOrganisationId,
+                    )
+                    .eq(
+                        "status",
+                        "ACTIVE",
+                    )
+                    .eq(
+                        "published",
+                        true,
+                    )
+                    .order(
+                        "start_date",
+                        {
+                            ascending:
+                                false,
+                            nullsFirst:
+                                false,
+                        },
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false,
+                        },
+                    )
                     .limit(1)
-                    .maybeSingle()
+                    .maybeSingle();
 
-                if (competitionError) {
-                    throw competitionError
+                if (
+                    competitionError
+                ) {
+                    throw competitionError;
                 }
 
                 if (!competition) {
-                    setActiveCompetitionId(null)
-                    setSponsors([])
-                    return
+                    setActiveCompetitionId(
+                        null,
+                    );
+                    setActiveOrganisationId(
+                        publicOrganisation
+                            ?.organisationId ??
+                        null,
+                    );
+                    setSponsors([]);
+                    return;
                 }
 
-                setActiveCompetitionId(competition.id)
+                setActiveCompetitionId(
+                    competition.id,
+                );
 
-                const { data, error } =
+                setActiveOrganisationId(
+                    competition.organisation_id,
+                );
+
+                const {
+                    data,
+                    error,
+                } =
                     await supabase
-                        .from('sponsors')
-                        .select(`
-                            id,
-                            name,
-                            tier,
-                            logo_url,
-                            website_url,
-                            description
-                        `)
-                        .eq(
-                            'competition_id',
-                            competition.id
+                        .from(
+                            "sponsors",
                         )
-                        .eq('active', true)
-                        .order('created_at', {
-                            ascending: true,
-                        })
+                        .select(
+                            `
+                                id,
+                                name,
+                                tier,
+                                logo_url,
+                                website_url,
+                                description
+                            `,
+                        )
+                        .eq(
+                            "organisation_id",
+                            competition
+                                .organisation_id,
+                        )
+                        .eq(
+                            "competition_id",
+                            competition.id,
+                        )
+                        .eq(
+                            "active",
+                            true,
+                        )
+                        .order(
+                            "created_at",
+                            {
+                                ascending:
+                                    true,
+                            },
+                        );
 
                 if (error) {
-                    throw error
+                    throw error;
                 }
 
-                setSponsors(data ?? [])
+                setSponsors(
+                    data ?? [],
+                );
             } catch (error) {
                 console.error(
-                    'Failed to load public sponsors:',
-                    error
-                )
+                    "Failed to load public sponsors:",
+                    error,
+                );
 
-                setSponsors([])
+                setSponsors([]);
             } finally {
-                setIsLoading(false)
+                setIsLoading(
+                    false,
+                );
             }
         }
 
-        void loadSponsors()
-    }, [])
+        void loadSponsors();
+    }, [
+        publicOrganisation
+            ?.organisationId,
+    ]);
 
     function updateForm<
-        Key extends keyof SponsorEnquiryForm
+        Key extends keyof SponsorEnquiryForm,
     >(
         key: Key,
-        value: SponsorEnquiryForm[Key]
+        value: SponsorEnquiryForm[Key],
     ) {
-        setForm((current) => ({
-            ...current,
-            [key]: value,
-        }))
+        setForm(
+            (current) => ({
+                ...current,
+                [key]: value,
+            }),
+        );
     }
 
     function openEnquiryForm() {
-        setSubmissionMessage(null)
-        setSubmissionError(null)
-        setShowEnquiryForm(true)
+        setSubmissionMessage(
+            null,
+        );
+        setSubmissionError(
+            null,
+        );
+        setShowEnquiryForm(
+            true,
+        );
     }
 
     function closeEnquiryForm() {
         if (isSubmitting) {
-            return
+            return;
         }
 
-        setShowEnquiryForm(false)
-        setSubmissionMessage(null)
-        setSubmissionError(null)
-        setForm(initialEnquiryForm)
+        setShowEnquiryForm(
+            false,
+        );
+        setSubmissionMessage(
+            null,
+        );
+        setSubmissionError(
+            null,
+        );
+        setForm(
+            initialEnquiryForm,
+        );
     }
 
     function validateEnquiry() {
-        if (!form.companyName.trim()) {
-            return 'Organisation name is required.'
+        if (
+            !form.companyName.trim()
+        ) {
+            return "Organisation name is required.";
         }
 
-        if (!form.contactName.trim()) {
-            return 'Contact name is required.'
+        if (
+            !form.contactName.trim()
+        ) {
+            return "Contact name is required.";
         }
 
-        if (!form.email.trim()) {
-            return 'Email address is required.'
+        if (
+            !form.email.trim()
+        ) {
+            return "Email address is required.";
         }
 
         if (
             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                form.email.trim()
+                form.email.trim(),
             )
         ) {
-            return 'Enter a valid email address.'
+            return "Enter a valid email address.";
         }
 
-        if (!isValidPhoneNumber(form.phone)) {
-            return 'Enter a valid phone number containing 7 to 15 digits.'
+        if (
+            !isValidPhoneNumber(
+                form.phone,
+            )
+        ) {
+            return "Enter a valid phone number containing 7 to 15 digits.";
         }
 
-        if (!form.message.trim()) {
-            return 'Please enter a short message.'
+        if (
+            !form.message.trim()
+        ) {
+            return "Please enter a short message.";
         }
 
-        if (!activeCompetitionId) {
-            return 'The active competition could not be identified.'
+        if (
+            !activeOrganisationId
+        ) {
+            return "The public organisation could not be identified.";
         }
 
-        return null
+        if (
+            !activeCompetitionId
+        ) {
+            return "The active competition could not be identified.";
+        }
+
+        return null;
     }
 
     async function submitEnquiry(
-        event: FormEvent<HTMLFormElement>
+        event: FormEvent<HTMLFormElement>,
     ) {
-        event.preventDefault()
+        event.preventDefault();
 
         const validationError =
-            validateEnquiry()
+            validateEnquiry();
 
         if (validationError) {
             setSubmissionError(
-                validationError
-            )
-            setSubmissionMessage(null)
-            return
+                validationError,
+            );
+            setSubmissionMessage(
+                null,
+            );
+            return;
         }
 
-        setIsSubmitting(true)
-        setSubmissionError(null)
-        setSubmissionMessage(null)
+        if (
+            !activeOrganisationId ||
+            !activeCompetitionId
+        ) {
+            return;
+        }
 
-        const { error } = await supabase
-            .from('sponsor_enquiries')
-            .insert({
-                competition_id:
-                activeCompetitionId,
-                company_name:
-                    form.companyName.trim(),
-                contact_name:
-                    form.contactName.trim(),
-                email: form.email.trim(),
-                phone:
-                    form.phone.trim() ||
-                    null,
-                sponsorship_interest:
-                    form.sponsorshipInterest.trim() ||
-                    null,
-                estimated_budget:
-                    form.estimatedBudget.trim() ||
-                    null,
-                message:
-                    form.message.trim(),
-                status: 'new',
-            })
+        setIsSubmitting(true);
+        setSubmissionError(
+            null,
+        );
+        setSubmissionMessage(
+            null,
+        );
+
+        const { error } =
+            await supabase
+                .from(
+                    "sponsor_enquiries",
+                )
+                .insert({
+                    organisation_id:
+                    activeOrganisationId,
+                    competition_id:
+                    activeCompetitionId,
+                    company_name:
+                        form.companyName.trim(),
+                    contact_name:
+                        form.contactName.trim(),
+                    email:
+                        form.email.trim(),
+                    phone:
+                        form.phone.trim() ||
+                        null,
+                    sponsorship_interest:
+                        form.sponsorshipInterest.trim() ||
+                        null,
+                    estimated_budget:
+                        form.estimatedBudget.trim() ||
+                        null,
+                    message:
+                        form.message.trim(),
+                    status: "new",
+                });
 
         if (error) {
             console.error(
-                'Failed to submit sponsorship enquiry:',
-                error
-            )
+                "Failed to submit sponsorship enquiry:",
+                error,
+            );
 
             setSubmissionError(
-                'Your enquiry could not be submitted. Please try again.'
-            )
+                "Your enquiry could not be submitted. Please try again.",
+            );
 
-            setIsSubmitting(false)
-            return
+            setIsSubmitting(
+                false,
+            );
+            return;
         }
 
         setSubmissionMessage(
-            'Thank you. Your partnership enquiry has been received and a member of the festival team will contact you shortly.'
-        )
+            "Thank you. Your partnership enquiry has been received and a member of the festival team will contact you shortly.",
+        );
 
-        setForm(initialEnquiryForm)
-        setIsSubmitting(false)
+        setForm(
+            initialEnquiryForm,
+        );
+        setIsSubmitting(false);
     }
 
     if (isLoading) {
         return (
-            <p className="muted">
+            <p className="text-sm font-semibold text-slate-400">
                 Loading festival partners...
             </p>
-        )
+        );
     }
+
+    const inputClassName =
+        "mt-2 w-full rounded-xl border border-lime-900/70 bg-[#071006] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-lime-400 disabled:cursor-not-allowed disabled:opacity-60";
 
     return (
         <>
-            <div className="cardGrid three">
-                {sponsors.map((sponsor) => (
-                    <article
-                        className="card sponsorCard publicSponsorCard"
-                        key={sponsor.id}
-                    >
-                        {sponsor.logo_url && (
-                            <div className="publicSponsorLogo">
-                                <img
-                                    src={
-                                        sponsor.logo_url
-                                    }
-                                    alt={`${sponsor.name} logo`}
-                                    loading="lazy"
-                                />
-                            </div>
-                        )}
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {sponsors.map(
+                    (sponsor) => (
+                        <article
+                            key={
+                                sponsor.id
+                            }
+                            className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-5"
+                        >
+                            {sponsor.logo_url && (
+                                <div className="grid min-h-32 place-items-center rounded-xl bg-white p-4">
+                                    <img
+                                        src={
+                                            sponsor.logo_url
+                                        }
+                                        alt={`${sponsor.name} logo`}
+                                        loading="lazy"
+                                        className="max-h-24 max-w-full object-contain"
+                                    />
+                                </div>
+                            )}
 
-                        <span className="badge">
-                            {sponsor.tier ??
-                                'Festival Partner'}
-                        </span>
+                            <span className="mt-4 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
+                                {sponsor.tier ??
+                                    "Festival Partner"}
+                            </span>
 
-                        <h3>
-                            {sponsor.name}
-                        </h3>
-
-                        {sponsor.description && (
-                            <p>
+                            <h3 className="mt-4 text-xl font-black text-white">
                                 {
-                                    sponsor.description
+                                    sponsor.name
                                 }
-                            </p>
-                        )}
+                            </h3>
 
-                        {sponsor.website_url && (
-                            <a
-                                className="btn secondary small"
-                                href={
-                                    sponsor.website_url
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                Visit Partner
-                            </a>
-                        )}
-                    </article>
-                ))}
+                            {sponsor.description && (
+                                <p className="mt-3 text-sm leading-6 text-slate-400">
+                                    {
+                                        sponsor.description
+                                    }
+                                </p>
+                            )}
 
-                <article className="card sponsorCard partnershipCallout">
-                    <span className="badge">
+                            {sponsor.website_url && (
+                                <a
+                                    href={
+                                        sponsor.website_url
+                                    }
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-5 inline-flex rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white no-underline transition hover:border-lime-500 hover:text-lime-300"
+                                >
+                                    Visit Partner
+                                </a>
+                            )}
+                        </article>
+                    ),
+                )}
+
+                <article className="rounded-2xl border border-lime-700/50 bg-gradient-to-br from-lime-400/10 to-[#0b150a] p-6">
+                    <Handshake
+                        size={30}
+                        className="text-lime-400"
+                    />
+
+                    <span className="mt-5 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
                         Partnership Opportunities
                     </span>
 
-                    <h3>
+                    <h3 className="mt-4 text-2xl font-black text-white">
                         Become a Festival Partner
                     </h3>
 
-                    <p>
+                    <p className="mt-3 text-sm leading-6 text-slate-400">
                         Support grassroots football,
                         community development and Black
                         History Month while promoting
@@ -377,11 +627,11 @@ export function PublicSponsors() {
                     </p>
 
                     <button
-                        className="btn primary small"
                         type="button"
                         onClick={
                             openEnquiryForm
                         }
+                        className="mt-6 rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
                     >
                         Discuss Partnership
                     </button>
@@ -390,34 +640,45 @@ export function PublicSponsors() {
 
             {showEnquiryForm && (
                 <div
-                    className="sponsorEnquiryOverlay"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
                     role="presentation"
-                    onMouseDown={(event) => {
+                    onMouseDown={(
+                        event,
+                    ) => {
                         if (
                             event.target ===
                             event.currentTarget
                         ) {
-                            closeEnquiryForm()
+                            closeEnquiryForm();
                         }
                     }}
                 >
                     <section
-                        className="sponsorEnquiryModal"
+                        className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-lime-800/60 bg-[#071006] shadow-2xl"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="sponsor-enquiry-title"
                     >
-                        <div className="sponsorEnquiryHeader">
+                        <header className="sticky top-0 z-10 flex flex-col gap-5 border-b border-lime-900/50 bg-[#071006]/95 p-6 backdrop-blur sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <span className="eyebrow">
-                                    Festival Partnership
-                                </span>
+                                <img
+                                    src="/assets/tournamenthq-logo.png"
+                                    alt="TournamentHQ"
+                                    className="mb-5 h-auto max-h-12 w-[190px] object-contain"
+                                />
 
-                                <h2 id="sponsor-enquiry-title">
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-400">
+                                    Festival Partnership
+                                </p>
+
+                                <h2
+                                    id="sponsor-enquiry-title"
+                                    className="mt-2 text-4xl font-black text-white"
+                                >
                                     Discuss Sponsorship
                                 </h2>
 
-                                <p className="muted">
+                                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
                                     Tell us about your
                                     organisation and how
                                     you would like to
@@ -426,7 +687,6 @@ export function PublicSponsors() {
                             </div>
 
                             <button
-                                className="btn secondary small"
                                 type="button"
                                 disabled={
                                     isSubmitting
@@ -434,334 +694,363 @@ export function PublicSponsors() {
                                 onClick={
                                     closeEnquiryForm
                                 }
+                                className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white transition hover:border-lime-500 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
                             >
+                                <X
+                                    size={17}
+                                />
                                 Close
                             </button>
-                        </div>
+                        </header>
 
-                        {submissionMessage ? (
-                            <div className="sponsorEnquirySuccess">
-                                <h3>
-                                    Enquiry received
-                                </h3>
+                        <div className="p-6 sm:p-8">
+                            {submissionMessage ? (
+                                <div className="rounded-2xl border border-emerald-700/50 bg-emerald-500/10 p-8 text-center">
+                                    <Handshake
+                                        size={42}
+                                        className="mx-auto text-emerald-300"
+                                    />
 
-                                <p>
-                                    {
-                                        submissionMessage
-                                    }
-                                </p>
+                                    <h3 className="mt-4 text-2xl font-black text-white">
+                                        Enquiry received
+                                    </h3>
 
-                                <button
-                                    className="btn primary"
-                                    type="button"
-                                    onClick={
-                                        closeEnquiryForm
-                                    }
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        ) : (
-                            <form
-                                onSubmit={
-                                    submitEnquiry
-                                }
-                            >
-                                {submissionError && (
-                                    <p className="adminErrorMessage">
+                                    <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-emerald-200">
                                         {
-                                            submissionError
+                                            submissionMessage
                                         }
                                     </p>
-                                )}
-
-                                <div className="adminFormGrid">
-                                    <label>
-                                        <span>
-                                            Organisation
-                                        </span>
-
-                                        <input
-                                            value={
-                                                form.companyName
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateForm(
-                                                    'companyName',
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                            placeholder="Organisation name"
-                                            autoComplete="organization"
-                                        />
-                                    </label>
-
-                                    <label>
-                                        <span>
-                                            Contact name
-                                        </span>
-
-                                        <input
-                                            value={
-                                                form.contactName
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateForm(
-                                                    'contactName',
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                            placeholder="Your name"
-                                            autoComplete="name"
-                                        />
-                                    </label>
-
-                                    <label>
-                                        <span>
-                                            Email
-                                        </span>
-
-                                        <input
-                                            type="email"
-                                            value={
-                                                form.email
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateForm(
-                                                    'email',
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                            placeholder="name@organisation.com"
-                                            autoComplete="email"
-                                        />
-                                    </label>
-
-                                    <label>
-                                        <span>
-                                            Phone
-                                        </span>
-
-                                        <input
-                                            type="tel"
-                                            inputMode="tel"
-                                            value={
-                                                form.phone
-                                            }
-                                            maxLength={25}
-                                            pattern="[0-9+() -]*"
-                                            onChange={(
-                                                event
-                                            ) => {
-                                                const value =
-                                                    event
-                                                        .target
-                                                        .value
-
-                                                if (
-                                                    /^[0-9+() -]*$/.test(
-                                                        value
-                                                    )
-                                                ) {
-                                                    updateForm(
-                                                        'phone',
-                                                        value
-                                                    )
-                                                }
-                                            }}
-                                            placeholder="e.g. 07951 750370"
-                                            autoComplete="tel"
-                                        />
-                                    </label>
-
-                                    <label>
-                                        <span>
-                                            Partnership
-                                            interest
-                                        </span>
-
-                                        <select
-                                            value={
-                                                form.sponsorshipInterest
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateForm(
-                                                    'sponsorshipInterest',
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                        >
-                                            <option value="">
-                                                Select an
-                                                option
-                                            </option>
-
-                                            <option value="Festival sponsorship">
-                                                Festival
-                                                sponsorship
-                                            </option>
-
-                                            <option value="Match sponsorship">
-                                                Match
-                                                sponsorship
-                                            </option>
-
-                                            <option value="Finals sponsorship">
-                                                Finals
-                                                sponsorship
-                                            </option>
-
-                                            <option value="Health and welfare partnership">
-                                                Health and
-                                                welfare
-                                                partnership
-                                            </option>
-
-                                            <option value="Media and livestream sponsorship">
-                                                Media and
-                                                livestream
-                                                sponsorship
-                                            </option>
-
-                                            <option value="Community partnership">
-                                                Community
-                                                partnership
-                                            </option>
-
-                                            <option value="Open to discussion">
-                                                Open to
-                                                discussion
-                                            </option>
-                                        </select>
-                                    </label>
-
-                                    <label>
-                                        <span>
-                                            Estimated budget
-                                        </span>
-
-                                        <select
-                                            value={
-                                                form.estimatedBudget
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateForm(
-                                                    'estimatedBudget',
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                        >
-                                            <option value="">
-                                                Select an
-                                                option
-                                            </option>
-
-                                            <option value="Under £1,000">
-                                                Under £1,000
-                                            </option>
-
-                                            <option value="£1,000 - £2,500">
-                                                £1,000 -
-                                                £2,500
-                                            </option>
-
-                                            <option value="£2,500 - £5,000">
-                                                £2,500 -
-                                                £5,000
-                                            </option>
-
-                                            <option value="£5,000 - £10,000">
-                                                £5,000 -
-                                                £10,000
-                                            </option>
-
-                                            <option value="Over £10,000">
-                                                Over £10,000
-                                            </option>
-
-                                            <option value="Open to discussion">
-                                                Open to
-                                                discussion
-                                            </option>
-                                        </select>
-                                    </label>
-
-                                    <label className="adminFormFullWidth">
-                                        <span>
-                                            Message
-                                        </span>
-
-                                        <textarea
-                                            value={
-                                                form.message
-                                            }
-                                            onChange={(
-                                                event
-                                            ) =>
-                                                updateForm(
-                                                    'message',
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                            }
-                                            placeholder="Tell us how your organisation would like to support the festival."
-                                            rows={6}
-                                        />
-                                    </label>
-                                </div>
-
-                                <div className="adminFormActions">
-                                    <button
-                                        className="btn primary"
-                                        type="submit"
-                                        disabled={
-                                            isSubmitting
-                                        }
-                                    >
-                                        {isSubmitting
-                                            ? 'Submitting...'
-                                            : 'Send Enquiry'}
-                                    </button>
 
                                     <button
-                                        className="btn secondary"
                                         type="button"
-                                        disabled={
-                                            isSubmitting
-                                        }
                                         onClick={
                                             closeEnquiryForm
                                         }
+                                        className="mt-6 rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
                                     >
-                                        Cancel
+                                        Close
                                     </button>
                                 </div>
-                            </form>
-                        )}
+                            ) : (
+                                <form
+                                    onSubmit={
+                                        submitEnquiry
+                                    }
+                                    className="space-y-6"
+                                >
+                                    {submissionError && (
+                                        <p className="rounded-xl border border-red-800/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+                                            {
+                                                submissionError
+                                            }
+                                        </p>
+                                    )}
+
+                                    <div className="grid gap-5 sm:grid-cols-2">
+                                        <label className="block text-sm font-bold text-white">
+                                            <span className="inline-flex items-center gap-2">
+                                                <Building2
+                                                    size={16}
+                                                    className="text-lime-400"
+                                                />
+                                                Organisation
+                                            </span>
+
+                                            <input
+                                                value={
+                                                    form.companyName
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "companyName",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                                placeholder="Organisation name"
+                                                autoComplete="organization"
+                                                disabled={
+                                                    isSubmitting
+                                                }
+                                                className={
+                                                    inputClassName
+                                                }
+                                            />
+                                        </label>
+
+                                        <label className="block text-sm font-bold text-white">
+                                            Contact name
+
+                                            <input
+                                                value={
+                                                    form.contactName
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "contactName",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                                placeholder="Your name"
+                                                autoComplete="name"
+                                                disabled={
+                                                    isSubmitting
+                                                }
+                                                className={
+                                                    inputClassName
+                                                }
+                                            />
+                                        </label>
+
+                                        <label className="block text-sm font-bold text-white">
+                                            <span className="inline-flex items-center gap-2">
+                                                <Mail
+                                                    size={16}
+                                                    className="text-lime-400"
+                                                />
+                                                Email
+                                            </span>
+
+                                            <input
+                                                type="email"
+                                                value={
+                                                    form.email
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "email",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                                placeholder="name@organisation.com"
+                                                autoComplete="email"
+                                                disabled={
+                                                    isSubmitting
+                                                }
+                                                className={
+                                                    inputClassName
+                                                }
+                                            />
+                                        </label>
+
+                                        <label className="block text-sm font-bold text-white">
+                                            <span className="inline-flex items-center gap-2">
+                                                <Phone
+                                                    size={16}
+                                                    className="text-lime-400"
+                                                />
+                                                Phone
+                                            </span>
+
+                                            <input
+                                                type="tel"
+                                                inputMode="tel"
+                                                value={
+                                                    form.phone
+                                                }
+                                                maxLength={
+                                                    25
+                                                }
+                                                pattern="[0-9+() -]*"
+                                                onChange={(
+                                                    event,
+                                                ) => {
+                                                    const value =
+                                                        event
+                                                            .target
+                                                            .value;
+
+                                                    if (
+                                                        /^[0-9+() -]*$/.test(
+                                                            value,
+                                                        )
+                                                    ) {
+                                                        updateForm(
+                                                            "phone",
+                                                            value,
+                                                        );
+                                                    }
+                                                }}
+                                                placeholder="e.g. 07951 750370"
+                                                autoComplete="tel"
+                                                disabled={
+                                                    isSubmitting
+                                                }
+                                                className={
+                                                    inputClassName
+                                                }
+                                            />
+                                        </label>
+
+                                        <label className="block text-sm font-bold text-white">
+                                            Partnership interest
+
+                                            <select
+                                                value={
+                                                    form.sponsorshipInterest
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "sponsorshipInterest",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                                disabled={
+                                                    isSubmitting
+                                                }
+                                                className={
+                                                    inputClassName
+                                                }
+                                            >
+                                                <option value="">
+                                                    Select an option
+                                                </option>
+                                                <option value="Festival sponsorship">
+                                                    Festival sponsorship
+                                                </option>
+                                                <option value="Match sponsorship">
+                                                    Match sponsorship
+                                                </option>
+                                                <option value="Finals sponsorship">
+                                                    Finals sponsorship
+                                                </option>
+                                                <option value="Health and welfare partnership">
+                                                    Health and welfare partnership
+                                                </option>
+                                                <option value="Media and livestream sponsorship">
+                                                    Media and livestream sponsorship
+                                                </option>
+                                                <option value="Community partnership">
+                                                    Community partnership
+                                                </option>
+                                                <option value="Open to discussion">
+                                                    Open to discussion
+                                                </option>
+                                            </select>
+                                        </label>
+
+                                        <label className="block text-sm font-bold text-white">
+                                            Estimated budget
+
+                                            <select
+                                                value={
+                                                    form.estimatedBudget
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "estimatedBudget",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                                disabled={
+                                                    isSubmitting
+                                                }
+                                                className={
+                                                    inputClassName
+                                                }
+                                            >
+                                                <option value="">
+                                                    Select an option
+                                                </option>
+                                                <option value="Under £1,000">
+                                                    Under £1,000
+                                                </option>
+                                                <option value="£1,000 - £2,500">
+                                                    £1,000 - £2,500
+                                                </option>
+                                                <option value="£2,500 - £5,000">
+                                                    £2,500 - £5,000
+                                                </option>
+                                                <option value="£5,000 - £10,000">
+                                                    £5,000 - £10,000
+                                                </option>
+                                                <option value="Over £10,000">
+                                                    Over £10,000
+                                                </option>
+                                                <option value="Open to discussion">
+                                                    Open to discussion
+                                                </option>
+                                            </select>
+                                        </label>
+
+                                        <label className="block text-sm font-bold text-white sm:col-span-2">
+                                            Message
+
+                                            <textarea
+                                                value={
+                                                    form.message
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updateForm(
+                                                        "message",
+                                                        event
+                                                            .target
+                                                            .value,
+                                                    )
+                                                }
+                                                placeholder="Tell us how your organisation would like to support the festival."
+                                                rows={6}
+                                                disabled={
+                                                    isSubmitting
+                                                }
+                                                className={`${inputClassName} resize-y`}
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-3 border-t border-lime-900/50 pt-6">
+                                        <button
+                                            type="submit"
+                                            disabled={
+                                                isSubmitting
+                                            }
+                                            className="rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {isSubmitting
+                                                ? "Submitting..."
+                                                : "Send Enquiry"}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                isSubmitting
+                                            }
+                                            onClick={
+                                                closeEnquiryForm
+                                            }
+                                            className="rounded-xl border border-slate-700 px-5 py-3 font-bold text-white transition hover:border-lime-500 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
                     </section>
                 </div>
             )}
         </>
-    )
+    );
 }

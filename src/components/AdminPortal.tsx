@@ -869,6 +869,7 @@ export function AdminPortal({
             const items: Array<{
                 label: string
                 value: number
+                module: AdminModule
             }> = []
 
             if (
@@ -881,6 +882,7 @@ export function AdminPortal({
                     label: 'Clubs',
                     value:
                     organisationStats.clubs,
+                    module: 'Clubs',
                 })
             }
 
@@ -894,6 +896,7 @@ export function AdminPortal({
                     label: 'Teams',
                     value:
                     organisationStats.teams,
+                    module: 'Teams',
                 })
             }
 
@@ -907,6 +910,7 @@ export function AdminPortal({
                     label: 'Venues',
                     value:
                     organisationStats.venues,
+                    module: 'Venues',
                 })
             }
 
@@ -920,6 +924,7 @@ export function AdminPortal({
                     label: 'Sponsors',
                     value:
                     organisationStats.sponsors,
+                    module: 'Sponsors',
                 })
             }
 
@@ -933,6 +938,7 @@ export function AdminPortal({
                     label: 'Articles',
                     value:
                     organisationStats.articles,
+                    module: 'Articles',
                 })
             }
 
@@ -946,6 +952,7 @@ export function AdminPortal({
                     label: 'Media',
                     value:
                     organisationStats.media,
+                    module: 'Media',
                 })
             }
 
@@ -958,6 +965,7 @@ export function AdminPortal({
                 items.push({
                     label: 'New Enquiries',
                     value: enquiryCount,
+                    module: 'Enquiries',
                 })
             }
 
@@ -973,6 +981,7 @@ export function AdminPortal({
             const items: Array<{
                 label: string
                 value: number
+                module: AdminModule
             }> = []
 
             if (
@@ -986,6 +995,7 @@ export function AdminPortal({
                         'Competition Teams',
                     value:
                     competitionStats.competitionTeams,
+                    module: 'Competition Teams',
                 })
             }
 
@@ -999,6 +1009,7 @@ export function AdminPortal({
                     label: 'Groups',
                     value:
                     competitionStats.groups,
+                    module: 'Groups',
                 })
             }
 
@@ -1012,6 +1023,7 @@ export function AdminPortal({
                     label: 'Fixtures',
                     value:
                     competitionStats.fixtures,
+                    module: 'Fixtures',
                 })
             }
 
@@ -1025,6 +1037,7 @@ export function AdminPortal({
                     label: 'Results',
                     value:
                     competitionStats.results,
+                    module: 'Results',
                 })
             }
 
@@ -1038,6 +1051,7 @@ export function AdminPortal({
                     label: 'Goals',
                     value:
                     competitionStats.goals,
+                    module: 'Goals',
                 })
             }
 
@@ -1154,6 +1168,7 @@ export function AdminPortal({
         items: Array<{
             label: string
             value: number
+            module: AdminModule
         }>
     ) {
         if (!items.length) {
@@ -1176,14 +1191,29 @@ export function AdminPortal({
         return (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {items.map((stat) => (
-                    <MetricCard
+                    <button
                         key={stat.label}
-                        title={stat.label}
-                        value={stat.value}
-                        icon={getStatisticIcon(
-                            stat.label
-                        )}
-                    />
+                        type="button"
+                        onClick={() =>
+                            setActiveTab(
+                                stat.module
+                            )
+                        }
+                        aria-label={`Open ${stat.module}`}
+                        className="group rounded-2xl text-left outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-lime-950/20 focus-visible:ring-2 focus-visible:ring-lime-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071006]"
+                    >
+                        <MetricCard
+                            title={stat.label}
+                            value={stat.value}
+                            icon={getStatisticIcon(
+                                stat.label
+                            )}
+                        />
+
+                        <span className="sr-only">
+                            Open {stat.module}
+                        </span>
+                    </button>
                 ))}
             </div>
         )

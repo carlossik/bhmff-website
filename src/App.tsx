@@ -46,7 +46,6 @@ import {
     type StandingsTeam,
 } from './utils/calculateStandings'
 
-import { lastYearFinalVideo } from './data/festivalData'
 import { usePublicArticles } from './hooks/usePublicArticles'
 import { SetPasswordPage } from './pages/Auth/SetPasswordPage'
 import { PublicOrganisationLayout } from './pages/public/PublicOrganisationLayout'
@@ -156,6 +155,20 @@ type PublicGoalRelationRow = {
     minute: number | null
     video_timestamp: string | null
     team: RelatedGoalTeam
+}
+
+type PublicMediaItem = {
+    id: string
+    title: string
+    slug: string
+    category: string
+    description: string | null
+    youtube_url: string | null
+    embed_url: string | null
+    thumbnail_url: string | null
+    thumbnail_alt: string | null
+    featured: boolean
+    published_at: string | null
 }
 
 function getRelatedTeam(
@@ -384,6 +397,9 @@ function App() {
     const [publicGoals, setPublicGoals] =
         useState<PublicGoal[]>([])
 
+    const [publicMedia, setPublicMedia] =
+        useState<PublicMediaItem[]>([])
+
     useEffect(() => {
         getCurrentUser().finally(() => {
             setIsCheckingSession(false)
@@ -403,7 +419,7 @@ function App() {
                 error: competitionError,
             } = await supabase
                 .from('competitions')
-                .select('id')
+                .select('id, organisation_id')
                 .eq(
                     'name',
                     PUBLIC_COMPETITION_NAME
@@ -444,6 +460,7 @@ function App() {
                 setPublicFixtures([])
                 setPublicResults([])
                 setPublicGoals([])
+                setPublicMedia([])
                 return
             }
 
@@ -451,6 +468,7 @@ function App() {
                 teamsResponse,
                 fixturesResponse,
                 resultsResponse,
+                mediaResponse,
             ] = await Promise.all([
                 supabase
                     .from('competition_teams')
@@ -545,6 +563,41 @@ function App() {
                         'fixture.competition_id',
                         competition.id
                     ),
+
+                supabase
+                    .from('media')
+                    .select(`
+                        id,
+                        title,
+                        slug,
+                        category,
+                        description,
+                        youtube_url,
+                        embed_url,
+                        thumbnail_url,
+                        thumbnail_alt,
+                        featured,
+                        published_at
+                    `)
+                    .eq(
+                        'organisation_id',
+                        competition.organisation_id
+                    )
+                    .eq(
+                        'competition_id',
+                        competition.id
+                    )
+                    .eq('status', 'published')
+                    .order('featured', {
+                        ascending: false,
+                    })
+                    .order('published_at', {
+                        ascending: false,
+                        nullsFirst: false,
+                    })
+                    .order('created_at', {
+                        ascending: false,
+                    }),
             ])
 
             if (
@@ -793,6 +846,19 @@ function App() {
 
                 setPublicResults(
                     mappedResults
+                )
+            }
+
+            if (mediaResponse.error) {
+                console.error(
+                    'Failed to load public media:',
+                    mediaResponse.error
+                )
+                setPublicMedia([])
+            } else {
+                setPublicMedia(
+                    (mediaResponse.data ??
+                        []) as PublicMediaItem[]
                 )
             }
 
@@ -1078,7 +1144,7 @@ function App() {
                          ]) => (
                             <article
                                 className="timelineItem"
-                                key={week}
+                                key={`${week}-${title}`}
                             >
                                 <div className="timelineIcon">
                                     <span>
@@ -1164,66 +1230,86 @@ function App() {
                 title="Official Media Coverage"
                 intro="Featured matches are professionally filmed, with highlights, interviews and exclusive coverage presented through the official TournamentHQ-powered competition website."
             >
-                <div className="cardGrid three">
-                    <article className="videoCard featuredVideo">
-                        <iframe
-                            className="mediaIframe"
-                            src={
-                                lastYearFinalVideo.embedUrl
-                            }
-                            title={
-                                lastYearFinalVideo.title
-                            }
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                        />
+                {publicMedia.length ? (
+                    <div className="cardGrid three">
+                        {publicMedia.map((item) => (
+                            <article
+                                className={`videoCard ${
+                                    item.featured
+                                        ? 'featuredVideo'
+                                        : ''
+                                }`}
+                                key={item.id}
+                            >
+                                {item.embed_url ? (
+                                    <iframe
+                                        className="mediaIframe"
+                                        src={item.embed_url}
+                                        title={item.title}
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                    />
+                                ) : item.thumbnail_url ? (
+                                    <img
+                                        className="mediaIframe"
+                                        src={item.thumbnail_url}
+                                        alt={
+                                            item.thumbnail_alt ??
+                                            item.title
+                                        }
+                                        loading="lazy"
+                                    />
+                                ) : (
+                                    <div className="videoPlaceholder">
+                                        {item.category}
+                                    </div>
+                                )}
 
+                                <div className="articleAdminRecordBadges">
+                                    <span className="badge">
+                                        {item.category}
+                                    </span>
+
+                                    {item.featured && (
+                                        <span className="featuredBadge">
+                                            Featured
+                                        </span>
+                                    )}
+                                </div>
+
+                                <h3>{item.title}</h3>
+
+                                <p>
+                                    {item.description ||
+                                        'Official tournament media coverage.'}
+                                </p>
+
+                                {item.youtube_url && (
+                                    <a
+                                        className="btn secondary small"
+                                        href={item.youtube_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Watch on YouTube
+                                    </a>
+                                )}
+                            </article>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="teamsEmptyState">
                         <h3>
-                            Festival Highlights
+                            Media coverage coming soon
                         </h3>
 
                         <p>
-                            Watch featured matches,
-                            finals and tournament
-                            highlights produced by
-                            CKEFA Media.
+                            Published highlights,
+                            interviews and livestreams
+                            will appear here.
                         </p>
-                    </article>
-
-                    <article className="videoCard">
-                        <div className="videoPlaceholder">
-                            Match Highlights
-                        </div>
-
-                        <h3>
-                            Match Highlights
-                        </h3>
-
-                        <p>
-                            Catch goals, saves,
-                            celebrations and key
-                            moments from featured
-                            festival fixtures.
-                        </p>
-                    </article>
-
-                    <article className="videoCard">
-                        <div className="videoPlaceholder">
-                            Interviews
-                        </div>
-
-                        <h3>
-                            Live Coverage & Interviews
-                        </h3>
-
-                        <p>
-                            Follow interviews,
-                            post-match reactions,
-                            player spotlights and
-                            behind-the-scenes coverage.
-                        </p>
-                    </article>
-                </div>
+                    </div>
+                )}
             </Section>
 
             <Section
@@ -1269,87 +1355,46 @@ function App() {
                 />
             )}
 
-            <footer
-                className="footer"
-                style={{
-                    padding: '1.15rem 0',
-                    minHeight: 'auto',
-                }}
-            >
-                <div
-                    className="container"
-                    style={{
-                        display: 'grid',
-                        gridTemplateColumns:
-                            'minmax(220px, 1fr) auto',
-                        alignItems: 'center',
-                        gap: '1.5rem',
-                    }}
-                >
+            <footer className="border-t border-lime-900/40 bg-black py-8 text-white">
+                <div className="container grid gap-8 lg:grid-cols-[minmax(260px,1fr)_auto] lg:items-center">
                     <div>
                         <a
                             href="https://tournamenthq.co.uk"
                             target="_blank"
                             rel="noreferrer"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                color: 'inherit',
-                                textDecoration: 'none',
-                            }}
+                            className="inline-flex items-center no-underline"
                         >
                             <img
                                 src="/assets/tournamenthq-logo.png"
                                 alt="TournamentHQ"
-                                style={{
-                                    display: 'block',
-                                    width: '190px',
-                                    maxWidth: '100%',
-                                    height: 'auto',
-                                    maxHeight: '52px',
-                                    objectFit: 'contain',
-                                }}
+                                className="block h-auto max-h-14 w-[210px] max-w-full object-contain"
                             />
                         </a>
 
-                        <p
-                            style={{
-                                margin: '0.4rem 0 0',
-                                maxWidth: '540px',
-                                fontSize: '0.82rem',
-                                lineHeight: 1.45,
-                                opacity: 0.76,
-                            }}
-                        >
+                        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
                             Official competition website powered by TournamentHQ, a CKEFA Software Solutions platform.
                         </p>
                     </div>
 
                     <div
                         aria-label="CKEFA group companies"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'flex-end',
-                            gap: '0.65rem',
-                            flexWrap: 'wrap',
-                        }}
+                        className="flex flex-wrap items-center gap-4 lg:justify-end"
                     >
                         {[
                             {
-                                label: 'FCFS',
-                                href: 'https://fcfs.app',
-                                accent: '#3b82f6',
+                                label: "FCFS",
+                                href: "https://fcfs.app",
+                                image: "/assets/fcfs-logo.png",
                             },
                             {
-                                label: 'CKEFA Media',
-                                href: 'https://www.youtube.com/@CKEFAMedia',
-                                accent: '#ef4444',
+                                label: "CKEFA Media",
+                                href: "https://www.youtube.com/@CKEFAMedia",
+                                image: "/assets/ckefa-media-logo.jpg",
                             },
                             {
-                                label: 'CKEFA Software',
-                                href: 'https://www.ckefa.co.uk',
-                                accent: '#f59e0b',
+                                label: "CKEFA Software",
+                                href: "https://www.ckefa.co.uk",
+                                image: "/assets/ckefa-software-logo.png",
                             },
                         ].map((brand) => (
                             <a
@@ -1357,22 +1402,34 @@ function App() {
                                 href={brand.href}
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    minHeight: '34px',
-                                    padding: '0.45rem 0.7rem',
-                                    borderRadius: '8px',
-                                    border: `1px solid ${brand.accent}70`,
-                                    color: 'inherit',
-                                    background: `${brand.accent}12`,
-                                    textDecoration: 'none',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 900,
-                                    letterSpacing: '0.03em',
-                                }}
+                                className="group grid min-h-16 min-w-36 place-items-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 no-underline transition hover:border-lime-500/60 hover:bg-white/10"
                             >
-                                {brand.label}
+                                <img
+                                    src={brand.image}
+                                    alt={brand.label}
+                                    className="max-h-10 max-w-32 object-contain"
+                                    onError={(event) => {
+                                        event.currentTarget.style.display =
+                                            "none";
+
+                                        const fallback =
+                                            event.currentTarget
+                                                .nextElementSibling as
+                                                | HTMLElement
+                                                | null;
+
+                                        if (fallback) {
+                                            fallback.style.display =
+                                                "block";
+                                        }
+                                    }}
+                                />
+
+                                <span
+                                    className="hidden text-sm font-black text-white"
+                                >
+                                    {brand.label}
+                                </span>
                             </a>
                         ))}
 
@@ -1381,18 +1438,7 @@ function App() {
                             onClick={() =>
                                 setShowDemoRequest(true)
                             }
-                            style={{
-                                minHeight: '34px',
-                                padding: '0.45rem 0.75rem',
-                                borderRadius: '8px',
-                                border: '1px solid rgba(132, 204, 22, 0.55)',
-                                color: '#b8ff7a',
-                                background: 'rgba(132, 204, 22, 0.12)',
-                                font: 'inherit',
-                                fontSize: '0.72rem',
-                                fontWeight: 900,
-                                cursor: 'pointer',
-                            }}
+                            className="min-h-16 rounded-xl border border-lime-500/60 bg-lime-400/10 px-6 py-3 font-black text-lime-300 transition hover:bg-lime-400 hover:text-black"
                         >
                             Request a Demo
                         </button>

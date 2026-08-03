@@ -3,1214 +3,750 @@ import {
     useEffect,
     useMemo,
     useState,
-} from 'react'
-import { supabase } from '../../../lib/supabaseClient'
-import { ConfirmDialog } from '../../common/ConfirmDialog'
+} from "react";
 
-const sponsorStatuses = [
-    'new',
-    'contacted',
-    'proposal_sent',
-    'negotiating',
-    'secured',
-    'closed',
-] as const
+import { supabase } from "../../../lib/supabaseClient";
+import { useOrganisation } from "../../../context/OrganisationContext";
+import { ConfirmDialog } from "../../common/ConfirmDialog";
 
-const demoStatuses = [
-    'new',
-    'contacted',
-    'qualified',
-    'closed',
-] as const
+import EnquiriesTable from "./EnquiriesTable";
+import EnquiryModal from "./EnquiryModal";
 
-type SponsorEnquiryStatus =
-    (typeof sponsorStatuses)[number]
+import {
+    formatEnquiryType,
+    formatStatus,
+    getEnquiryStats,
+    getSourceTable,
+    isStatusAllowed,
+    mapDemoRequest,
+    mapSponsorEnquiry,
+    mergeEnquiries,
+    type CommercialEnquiry,
+    type CommercialEnquiryStatus,
+    type DemoRequestRow,
+    type EnquiryFilter,
+    type SponsorEnquiryRow,
+} from "./enquiryHelpers";
 
-type DemoRequestStatus =
-    (typeof demoStatuses)[number]
-
-type CommercialEnquiryStatus =
-    | SponsorEnquiryStatus
-    | DemoRequestStatus
-
-type EnquiryType =
-    | 'sponsorship'
-    | 'demo'
-
-type EnquiryFilter =
-    | 'all'
-    | EnquiryType
-
-type SponsorEnquiryRow = {
-    id: string
-    created_at: string
-    competition_id: string | null
-    company_name: string
-    contact_name: string
-    email: string
-    phone: string | null
-    sponsorship_interest: string | null
-    estimated_budget: string | null
-    message: string
-    status: SponsorEnquiryStatus
-    internal_notes: string | null
-}
-
-type DemoRequestRow = {
-    id: string
-    created_at: string
-    organisation: string
-    contact_name: string
-    email: string
-    phone: string | null
-    competition_type: string
-    number_of_teams: number | null
-    message: string
-    status: DemoRequestStatus
-    internal_notes: string | null
-}
-
-type CommercialEnquiry = {
-    id: string
-    type: EnquiryType
-    createdAt: string
-    organisation: string
-    contactName: string
-    email: string
-    phone: string | null
-    message: string
-    status: CommercialEnquiryStatus
-    internalNotes: string | null
-    sponsorshipInterest: string | null
-    estimatedBudget: string | null
-    competitionType: string | null
-    numberOfTeams: number | null
-}
-
-function formatStatus(
-    status: CommercialEnquiryStatus
-) {
-    return status
-        .split('_')
-        .map(
-            (word) =>
-                word.charAt(0).toUpperCase() +
-                word.slice(1)
-        )
-        .join(' ')
-}
-
-function formatDate(value: string) {
-    return new Date(value).toLocaleString(
-        'en-GB',
-        {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        }
-    )
-}
-
-function formatEnquiryType(
-    type: EnquiryType
-) {
-    return type === 'sponsorship'
-        ? 'Sponsorship'
-        : 'Demo Request'
-}
-
-function formatCompetitionType(
-    value: string | null
-) {
-    if (!value) {
-        return 'Not specified'
-    }
-
-    return value
-        .split('_')
-        .map(
-            (word) =>
-                word.charAt(0).toUpperCase() +
-                word.slice(1)
-        )
-        .join(' ')
-}
-
-function getStatusOptions(
-    enquiry: CommercialEnquiry
-) {
-    return enquiry.type === 'sponsorship'
-        ? sponsorStatuses
-        : demoStatuses
-}
-
-function getSourceTable(
-    enquiry: CommercialEnquiry
-) {
-    return enquiry.type === 'sponsorship'
-        ? 'sponsor_enquiries'
-        : 'demo_requests'
-}
+import {
+    normaliseInternalNotes,
+    validateInternalNotes,
+    validateStatusUpdate,
+} from "./enquiryValidation";
 
 export function EnquiriesManager() {
+    const { currentOrganisation } =
+        useOrganisation();
+
+    const organisationId =
+        currentOrganisation?.id ?? null;
+
     const [enquiries, setEnquiries] =
-        useState<CommercialEnquiry[]>([])
+        useState<CommercialEnquiry[]>([]);
 
-    const [selectedEnquiry, setSelectedEnquiry] =
-        useState<CommercialEnquiry | null>(null)
+    const [
+        selectedEnquiry,
+        setSelectedEnquiry,
+    ] =
+        useState<CommercialEnquiry | null>(
+            null,
+        );
 
-    const [enquiryToDelete, setEnquiryToDelete] =
-        useState<CommercialEnquiry | null>(null)
+    const [
+        enquiryToDelete,
+        setEnquiryToDelete,
+    ] =
+        useState<CommercialEnquiry | null>(
+            null,
+        );
 
-    const [activeFilter, setActiveFilter] =
-        useState<EnquiryFilter>('all')
+    const [
+        activeFilter,
+        setActiveFilter,
+    ] =
+        useState<EnquiryFilter>("all");
 
-    const [internalNotes, setInternalNotes] =
-        useState('')
+    const [
+        internalNotes,
+        setInternalNotes,
+    ] = useState("");
 
     const [loading, setLoading] =
-        useState(true)
+        useState(false);
 
     const [saving, setSaving] =
-        useState(false)
+        useState(false);
 
     const [message, setMessage] =
-        useState<string | null>(null)
+        useState<string | null>(null);
 
-    const [errorMessage, setErrorMessage] =
-        useState<string | null>(null)
+    const [
+        errorMessage,
+        setErrorMessage,
+    ] =
+        useState<string | null>(null);
 
     const loadEnquiries =
         useCallback(async () => {
-            setLoading(true)
-            setErrorMessage(null)
+            if (!organisationId) {
+                setEnquiries([]);
+                setLoading(false);
+                return;
+            }
 
-            const [
-                sponsorResponse,
-                demoResponse,
-            ] = await Promise.all([
-                supabase
-                    .from(
-                        'sponsor_enquiries'
-                    )
-                    .select(`
-                        id,
-                        created_at,
-                        competition_id,
-                        company_name,
-                        contact_name,
-                        email,
-                        phone,
-                        sponsorship_interest,
-                        estimated_budget,
-                        message,
-                        status,
-                        internal_notes
-                    `)
-                    .order(
-                        'created_at',
-                        {
-                            ascending: false,
-                        }
-                    ),
+            setLoading(true);
+            setErrorMessage(null);
 
-                supabase
-                    .from('demo_requests')
-                    .select(`
-                        id,
-                        created_at,
-                        organisation,
-                        contact_name,
-                        email,
-                        phone,
-                        competition_type,
-                        number_of_teams,
-                        message,
-                        status,
-                        internal_notes
-                    `)
-                    .order(
-                        'created_at',
-                        {
-                            ascending: false,
-                        }
-                    ),
-            ])
+            try {
+                const [
+                    sponsorResponse,
+                    demoResponse,
+                ] = await Promise.all([
+                    supabase
+                        .from(
+                            "sponsor_enquiries",
+                        )
+                        .select(
+                            `
+                                id,
+                                created_at,
+                                organisation_id,
+                                competition_id,
+                                company_name,
+                                contact_name,
+                                email,
+                                phone,
+                                sponsorship_interest,
+                                estimated_budget,
+                                message,
+                                status,
+                                internal_notes
+                            `,
+                        )
+                        .eq(
+                            "organisation_id",
+                            currentOrganisation.id,
+                        )
+                        .order(
+                            "created_at",
+                            {
+                                ascending:
+                                    false,
+                            },
+                        ),
 
-            const errors: string[] = []
+                    supabase
+                        .from(
+                            "demo_requests",
+                        )
+                        .select(
+                            `
+                                id,
+                                created_at,
+                                organisation_id,
+                                organisation,
+                                contact_name,
+                                email,
+                                phone,
+                                competition_type,
+                                number_of_teams,
+                                message,
+                                status,
+                                internal_notes
+                            `,
+                        )
+                        .eq(
+                            "organisation_id",
+                            currentOrganisation.id,
+                        )
+                        .order(
+                            "created_at",
+                            {
+                                ascending:
+                                    false,
+                            },
+                        ),
+                ]);
 
-            if (
-                sponsorResponse.error
-            ) {
-                console.error(
-                    'Failed to load sponsorship enquiries:',
+                const errors: string[] =
+                    [];
+
+                if (
                     sponsorResponse.error
-                )
+                ) {
+                    console.error(
+                        "Failed to load sponsorship enquiries:",
+                        sponsorResponse.error,
+                    );
 
-                errors.push(
-                    'sponsorship enquiries'
-                )
-            }
+                    errors.push(
+                        "sponsorship enquiries",
+                    );
+                }
 
-            if (demoResponse.error) {
-                console.error(
-                    'Failed to load demo requests:',
+                if (
                     demoResponse.error
-                )
+                ) {
+                    console.error(
+                        "Failed to load demo requests:",
+                        demoResponse.error,
+                    );
 
-                errors.push(
-                    'demo requests'
-                )
-            }
+                    errors.push(
+                        "demo requests",
+                    );
+                }
 
-            const sponsorEnquiries =
-                (
-                    sponsorResponse.data ??
-                    []
-                ).map((row) => {
-                    const sponsor =
-                        row as SponsorEnquiryRow
+                const sponsorEnquiries =
+                    (
+                        sponsorResponse.data ??
+                        []
+                    ).map((row) =>
+                        mapSponsorEnquiry(
+                            row as SponsorEnquiryRow,
+                        ),
+                    );
 
-                    return {
-                        id: sponsor.id,
-                        type:
-                            'sponsorship' as const,
-                        createdAt:
-                        sponsor.created_at,
-                        organisation:
-                        sponsor.company_name,
-                        contactName:
-                        sponsor.contact_name,
-                        email:
-                        sponsor.email,
-                        phone:
-                        sponsor.phone,
-                        message:
-                        sponsor.message,
-                        status:
-                        sponsor.status,
-                        internalNotes:
-                        sponsor.internal_notes,
-                        sponsorshipInterest:
-                        sponsor.sponsorship_interest,
-                        estimatedBudget:
-                        sponsor.estimated_budget,
-                        competitionType:
-                            null,
-                        numberOfTeams:
-                            null,
-                    }
-                })
+                const demoRequests =
+                    (
+                        demoResponse.data ??
+                        []
+                    ).map((row) =>
+                        mapDemoRequest(
+                            row as DemoRequestRow,
+                        ),
+                    );
 
-            const demoEnquiries =
-                (
-                    demoResponse.data ??
-                    []
-                ).map((row) => {
-                    const demo =
-                        row as DemoRequestRow
+                setEnquiries(
+                    mergeEnquiries(
+                        sponsorEnquiries,
+                        demoRequests,
+                    ),
+                );
 
-                    return {
-                        id: demo.id,
-                        type: 'demo' as const,
-                        createdAt:
-                        demo.created_at,
-                        organisation:
-                        demo.organisation,
-                        contactName:
-                        demo.contact_name,
-                        email: demo.email,
-                        phone: demo.phone,
-                        message:
-                        demo.message,
-                        status:
-                        demo.status,
-                        internalNotes:
-                        demo.internal_notes,
-                        sponsorshipInterest:
-                            null,
-                        estimatedBudget:
-                            null,
-                        competitionType:
-                        demo.competition_type,
-                        numberOfTeams:
-                        demo.number_of_teams,
-                    }
-                })
+                if (errors.length) {
+                    setErrorMessage(
+                        `Unable to load ${errors.join(
+                            " and ",
+                        )}.`,
+                    );
+                }
+            } catch (error) {
+                console.error(
+                    "Unexpected error while loading enquiries:",
+                    error,
+                );
 
-            const merged = [
-                ...sponsorEnquiries,
-                ...demoEnquiries,
-            ].sort(
-                (first, second) =>
-                    new Date(
-                        second.createdAt
-                    ).getTime() -
-                    new Date(
-                        first.createdAt
-                    ).getTime()
-            )
-
-            setEnquiries(merged)
-
-            if (errors.length) {
+                setEnquiries([]);
                 setErrorMessage(
-                    `Unable to load ${errors.join(
-                        ' and '
-                    )}.`
-                )
+                    error instanceof Error
+                        ? error.message
+                        : "Unable to load enquiries.",
+                );
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false)
-        }, [])
+        }, [organisationId]);
 
     useEffect(() => {
-        void loadEnquiries()
-    }, [loadEnquiries])
+        setEnquiries([]);
+        setSelectedEnquiry(null);
+        setEnquiryToDelete(null);
+        setInternalNotes("");
+        setActiveFilter("all");
+        setMessage(null);
+        setErrorMessage(null);
+
+        void loadEnquiries();
+    }, [
+        loadEnquiries,
+        organisationId,
+    ]);
 
     const filteredEnquiries =
         useMemo(
             () =>
-                activeFilter === 'all'
+                activeFilter === "all"
                     ? enquiries
                     : enquiries.filter(
                         (enquiry) =>
                             enquiry.type ===
-                            activeFilter
+                            activeFilter,
                     ),
             [
                 activeFilter,
                 enquiries,
-            ]
-        )
+            ],
+        );
 
-    const stats = useMemo(() => {
-        return [
-            {
-                label: 'All',
-                value:
-                enquiries.length,
-            },
-            {
-                label: 'New',
-                value:
-                enquiries.filter(
-                    (enquiry) =>
-                        enquiry.status ===
-                        'new'
-                ).length,
-            },
-            {
-                label: 'Sponsorship',
-                value:
-                enquiries.filter(
-                    (enquiry) =>
-                        enquiry.type ===
-                        'sponsorship'
-                ).length,
-            },
-            {
-                label: 'Demo Requests',
-                value:
-                enquiries.filter(
-                    (enquiry) =>
-                        enquiry.type ===
-                        'demo'
-                ).length,
-            },
-        ]
-    }, [enquiries])
+    const stats = useMemo(
+        () =>
+            getEnquiryStats(
+                enquiries,
+            ),
+        [enquiries],
+    );
 
-    function openEnquiry(
-        enquiry: CommercialEnquiry
-    ) {
-        setSelectedEnquiry(enquiry)
-        setInternalNotes(
-            enquiry.internalNotes ?? ''
-        )
-        setMessage(null)
-        setErrorMessage(null)
-    }
+    const openEnquiry =
+        useCallback(
+            (
+                enquiry: CommercialEnquiry,
+            ) => {
+                setSelectedEnquiry(
+                    enquiry,
+                );
+                setInternalNotes(
+                    enquiry.internalNotes ??
+                    "",
+                );
+                setMessage(null);
+                setErrorMessage(null);
+            },
+            [],
+        );
 
-    function closeEnquiry() {
-        if (saving) {
-            return
-        }
+    const closeEnquiry =
+        useCallback(() => {
+            if (saving) {
+                return;
+            }
 
-        setSelectedEnquiry(null)
-        setInternalNotes('')
-        setMessage(null)
-        setErrorMessage(null)
-    }
+            setSelectedEnquiry(null);
+            setInternalNotes("");
+            setMessage(null);
+            setErrorMessage(null);
+        }, [saving]);
 
     async function updateStatus(
         enquiry: CommercialEnquiry,
-        status: CommercialEnquiryStatus
+        status: CommercialEnquiryStatus,
     ) {
-        const allowedStatuses =
-            getStatusOptions(enquiry)
+        const validationError =
+            validateStatusUpdate(
+                enquiry,
+                status,
+            );
+
+        if (validationError) {
+            setErrorMessage(
+                validationError,
+            );
+            setMessage(null);
+            return;
+        }
 
         if (
-            !allowedStatuses.includes(
-                status as never
+            !isStatusAllowed(
+                enquiry,
+                status,
             )
         ) {
             setErrorMessage(
-                'The selected status is not valid for this enquiry type.'
-            )
-            return
+                "The selected status is not valid for this enquiry type.",
+            );
+            setMessage(null);
+            return;
         }
 
-        setSaving(true)
-        setMessage(null)
-        setErrorMessage(null)
+        setSaving(true);
+        setMessage(null);
+        setErrorMessage(null);
 
-        const table =
-            getSourceTable(enquiry)
+        try {
+            const table =
+                getSourceTable(
+                    enquiry,
+                );
 
-        const { error } = await supabase
-            .from(table)
-            .update({ status })
-            .eq('id', enquiry.id)
+            const { error } =
+                await supabase
+                    .from(table)
+                    .update({ status })
+                    .eq(
+                        "id",
+                        enquiry.id,
+                    );
 
-        if (error) {
-            console.error(
-                'Failed to update enquiry status:',
-                error
-            )
+            if (error) {
+                console.error(
+                    "Failed to update enquiry status:",
+                    error,
+                );
 
-            setErrorMessage(
-                'Unable to update the enquiry status.'
-            )
-            setSaving(false)
-            return
+                setErrorMessage(
+                    "Unable to update the enquiry status.",
+                );
+                return;
+            }
+
+            setSelectedEnquiry(
+                (current) =>
+                    current &&
+                    current.id ===
+                    enquiry.id &&
+                    current.type ===
+                    enquiry.type
+                        ? {
+                            ...current,
+                            status,
+                        }
+                        : current,
+            );
+
+            setMessage(
+                `Enquiry status changed to ${formatStatus(
+                    status,
+                )}.`,
+            );
+
+            await loadEnquiries();
+        } finally {
+            setSaving(false);
         }
-
-        setSelectedEnquiry(
-            (current) =>
-                current
-                    ? {
-                        ...current,
-                        status,
-                    }
-                    : current
-        )
-
-        setMessage(
-            `Enquiry status changed to ${formatStatus(
-                status
-            )}.`
-        )
-
-        await loadEnquiries()
-        setSaving(false)
     }
 
     async function saveNotes() {
-        if (!selectedEnquiry) {
-            return
-        }
+        const validationError =
+            validateInternalNotes(
+                selectedEnquiry,
+                internalNotes,
+            );
 
-        setSaving(true)
-        setMessage(null)
-        setErrorMessage(null)
-
-        const table =
-            getSourceTable(
-                selectedEnquiry
-            )
-
-        const notes =
-            internalNotes.trim() ||
-            null
-
-        const { error } = await supabase
-            .from(table)
-            .update({
-                internal_notes: notes,
-            })
-            .eq(
-                'id',
-                selectedEnquiry.id
-            )
-
-        if (error) {
-            console.error(
-                'Failed to save enquiry notes:',
-                error
-            )
-
+        if (validationError) {
             setErrorMessage(
-                'Unable to save internal notes.'
-            )
-            setSaving(false)
-            return
+                validationError,
+            );
+            setMessage(null);
+            return;
         }
 
-        setSelectedEnquiry(
-            (current) =>
-                current
-                    ? {
-                        ...current,
-                        internalNotes:
+        if (!selectedEnquiry) {
+            return;
+        }
+
+        setSaving(true);
+        setMessage(null);
+        setErrorMessage(null);
+
+        try {
+            const notes =
+                normaliseInternalNotes(
+                    internalNotes,
+                );
+
+            const table =
+                getSourceTable(
+                    selectedEnquiry,
+                );
+
+            const { error } =
+                await supabase
+                    .from(table)
+                    .update({
+                        internal_notes:
                         notes,
-                    }
-                    : current
-        )
+                    })
+                    .eq(
+                        "id",
+                        selectedEnquiry.id,
+                    );
 
-        setMessage(
-            'Internal notes saved successfully.'
-        )
+            if (error) {
+                console.error(
+                    "Failed to save enquiry notes:",
+                    error,
+                );
 
-        await loadEnquiries()
-        setSaving(false)
+                setErrorMessage(
+                    "Unable to save internal notes.",
+                );
+                return;
+            }
+
+            setSelectedEnquiry(
+                (current) =>
+                    current
+                        ? {
+                            ...current,
+                            internalNotes:
+                            notes,
+                        }
+                        : current,
+            );
+
+            setMessage(
+                "Internal notes saved successfully.",
+            );
+
+            await loadEnquiries();
+        } finally {
+            setSaving(false);
+        }
     }
 
-    async function confirmDeleteEnquiry() {
-        if (!enquiryToDelete) {
-            return
+    async function deleteEnquiry() {
+        if (
+            !enquiryToDelete ||
+            saving
+        ) {
+            return;
         }
 
         const enquiry =
-            enquiryToDelete
+            enquiryToDelete;
 
-        setSaving(true)
-        setMessage(null)
-        setErrorMessage(null)
+        setSaving(true);
+        setMessage(null);
+        setErrorMessage(null);
 
-        const table =
-            getSourceTable(enquiry)
+        try {
+            const table =
+                getSourceTable(
+                    enquiry,
+                );
 
-        const { error } = await supabase
-            .from(table)
-            .delete()
-            .eq('id', enquiry.id)
+            const { error } =
+                await supabase
+                    .from(table)
+                    .delete()
+                    .eq(
+                        "id",
+                        enquiry.id,
+                    );
 
-        if (error) {
-            console.error(
-                'Failed to delete enquiry:',
-                error
-            )
+            if (error) {
+                console.error(
+                    "Failed to delete enquiry:",
+                    error,
+                );
 
-            setErrorMessage(
-                'Unable to delete the enquiry.'
-            )
-            setSaving(false)
-            return
+                setErrorMessage(
+                    "Unable to delete the enquiry.",
+                );
+                return;
+            }
+
+            if (
+                selectedEnquiry?.id ===
+                enquiry.id &&
+                selectedEnquiry.type ===
+                enquiry.type
+            ) {
+                setSelectedEnquiry(
+                    null,
+                );
+                setInternalNotes("");
+            }
+
+            setEnquiryToDelete(null);
+            setMessage(
+                "Enquiry deleted successfully.",
+            );
+
+            await loadEnquiries();
+        } finally {
+            setSaving(false);
         }
+    }
 
-        if (
-            selectedEnquiry?.id ===
-            enquiry.id &&
-            selectedEnquiry.type ===
-            enquiry.type
-        ) {
-            setSelectedEnquiry(null)
-            setInternalNotes('')
-        }
+    if (!currentOrganisation) {
+        return (
+            <div className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-8 text-center">
+                <h3 className="text-xl font-bold text-white">
+                    No organisation selected
+                </h3>
 
-        setEnquiryToDelete(null)
-
-        setMessage(
-            'Enquiry deleted successfully.'
-        )
-
-        await loadEnquiries()
-        setSaving(false)
+                <p className="mt-2 text-slate-400">
+                    Select an organisation before managing enquiries.
+                </p>
+            </div>
+        );
     }
 
     return (
-        <div>
-            <div className="adminWorkspaceHeader">
-                <div>
-                    <h3>
-                        Commercial Enquiries
-                    </h3>
+        <div className="space-y-6">
+            <header className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-6">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                    Commercial Management
+                </p>
 
-                    <p className="muted">
-                        Review sponsorship
-                        opportunities and platform
-                        demonstration requests from one
-                        central inbox.
+                <h3 className="mt-1 text-3xl font-black text-white">
+                    Manage Enquiries
+                </h3>
+
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                    Review sponsorship opportunities and platform demonstration requests for{" "}
+                    <strong className="text-white">
+                        {
+                            currentOrganisation.name
+                        }
+                    </strong>{" "}
+                    from one central workspace.
+                </p>
+            </header>
+
+            {message &&
+                !selectedEnquiry && (
+                    <p className="rounded-xl border border-emerald-700/50 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
+                        {message}
                     </p>
-                </div>
-            </div>
+                )}
 
-            {message && (
-                <p className="adminSuccessMessage">
-                    {message}
-                </p>
-            )}
+            {errorMessage &&
+                !selectedEnquiry && (
+                    <p className="rounded-xl border border-red-800/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+                        {
+                            errorMessage
+                        }
+                    </p>
+                )}
 
-            {errorMessage && (
-                <p className="adminErrorMessage">
-                    {errorMessage}
-                </p>
-            )}
-
-            <div className="statGrid adminStats enquiriesStats">
-                {stats.map((stat) => (
-                    <div key={stat.label}>
-                        <strong>
-                            {stat.value}
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                    {
+                        label: "All",
+                        value:
+                        stats.all,
+                    },
+                    {
+                        label: "New",
+                        value:
+                        stats.new,
+                    },
+                    {
+                        label:
+                            "Sponsorship",
+                        value:
+                        stats.sponsorship,
+                    },
+                    {
+                        label:
+                            "Demo Requests",
+                        value:
+                        stats.demos,
+                    },
+                ].map((stat) => (
+                    <article
+                        key={
+                            stat.label
+                        }
+                        className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-5"
+                    >
+                        <strong className="block text-3xl font-black text-white">
+                            {
+                                stat.value
+                            }
                         </strong>
 
-                        <span>
-                            {stat.label}
+                        <span className="mt-1 block text-sm font-semibold text-slate-400">
+                            {
+                                stat.label
+                            }
                         </span>
-                    </div>
+                    </article>
                 ))}
-            </div>
+            </section>
 
-            <div className="adminTabList">
-                {(
-                    [
-                        [
-                            'all',
-                            'All',
-                        ],
-                        [
-                            'sponsorship',
-                            'Sponsorship',
-                        ],
-                        [
-                            'demo',
-                            'Demo Requests',
-                        ],
-                    ] as const
-                ).map(
-                    ([
-                         value,
-                         label,
-                     ]) => (
-                        <button
-                            key={value}
-                            type="button"
-                            className={
-                                activeFilter ===
-                                value
-                                    ? 'active'
-                                    : ''
-                            }
-                            onClick={() =>
-                                setActiveFilter(
-                                    value
-                                )
-                            }
-                        >
-                            {label}
-                        </button>
+            <EnquiriesTable
+                enquiries={
+                    filteredEnquiries
+                }
+                loading={loading}
+                activeFilter={
+                    activeFilter
+                }
+                organisationName={
+                    currentOrganisation.name
+                }
+                saving={saving}
+                onFilterChange={
+                    setActiveFilter
+                }
+                onView={
+                    openEnquiry
+                }
+                onMarkContacted={(
+                    enquiry,
+                ) =>
+                    void updateStatus(
+                        enquiry,
+                        "contacted",
                     )
-                )}
-            </div>
+                }
+                onDelete={
+                    setEnquiryToDelete
+                }
+            />
 
-            {loading ? (
-                <p className="muted">
-                    Loading enquiries...
-                </p>
-            ) : filteredEnquiries.length ? (
-                <div className="enquiriesGrid">
-                    {filteredEnquiries.map(
-                        (enquiry) => (
-                            <article
-                                className="enquiryCard"
-                                key={`${enquiry.type}-${enquiry.id}`}
-                            >
-                                <div className="enquiryCardHeader">
-                                    <div>
-                                        <div className="teamAdminBadges">
-                                            <span
-                                                className={`enquiryStatusBadge enquiryStatus-${enquiry.status}`}
-                                            >
-                                                {formatStatus(
-                                                    enquiry.status
-                                                )}
-                                            </span>
-
-                                            <span className="teamVisibilityBadge teamVisibilityPublished">
-                                                {formatEnquiryType(
-                                                    enquiry.type
-                                                )}
-                                            </span>
-                                        </div>
-
-                                        <h4>
-                                            {
-                                                enquiry.organisation
-                                            }
-                                        </h4>
-                                    </div>
-
-                                    <span className="muted enquiryDate">
-                                        {formatDate(
-                                            enquiry.createdAt
-                                        )}
-                                    </span>
-                                </div>
-
-                                <div className="enquirySummaryGrid">
-                                    <div>
-                                        <span className="teamAdminFieldLabel">
-                                            Contact
-                                        </span>
-
-                                        <strong>
-                                            {
-                                                enquiry.contactName
-                                            }
-                                        </strong>
-                                    </div>
-
-                                    {enquiry.type ===
-                                    'sponsorship' ? (
-                                        <>
-                                            <div>
-                                                <span className="teamAdminFieldLabel">
-                                                    Interest
-                                                </span>
-
-                                                <span>
-                                                    {enquiry.sponsorshipInterest ??
-                                                        'Not specified'}
-                                                </span>
-                                            </div>
-
-                                            <div>
-                                                <span className="teamAdminFieldLabel">
-                                                    Budget
-                                                </span>
-
-                                                <span>
-                                                    {enquiry.estimatedBudget ??
-                                                        'Not specified'}
-                                                </span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div>
-                                                <span className="teamAdminFieldLabel">
-                                                    Competition
-                                                </span>
-
-                                                <span>
-                                                    {formatCompetitionType(
-                                                        enquiry.competitionType
-                                                    )}
-                                                </span>
-                                            </div>
-
-                                            <div>
-                                                <span className="teamAdminFieldLabel">
-                                                    Teams
-                                                </span>
-
-                                                <span>
-                                                    {enquiry.numberOfTeams ??
-                                                        'Not specified'}
-                                                </span>
-                                            </div>
-                                        </>
-                                    )}
-
-                                    <div>
-                                        <span className="teamAdminFieldLabel">
-                                            Email
-                                        </span>
-
-                                        <a
-                                            href={`mailto:${enquiry.email}`}
-                                        >
-                                            {
-                                                enquiry.email
-                                            }
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <p className="enquiryMessagePreview">
-                                    {
-                                        enquiry.message
-                                    }
-                                </p>
-
-                                <div className="teamAdminCardActions">
-                                    <button
-                                        className="btn secondary small"
-                                        type="button"
-                                        onClick={() =>
-                                            openEnquiry(
-                                                enquiry
-                                            )
-                                        }
-                                    >
-                                        View
-                                    </button>
-
-                                    {enquiry.status !==
-                                        'contacted' && (
-                                            <button
-                                                className="btn secondary small"
-                                                type="button"
-                                                disabled={
-                                                    saving
-                                                }
-                                                onClick={() =>
-                                                    void updateStatus(
-                                                        enquiry,
-                                                        'contacted'
-                                                    )
-                                                }
-                                            >
-                                                Mark Contacted
-                                            </button>
-                                        )}
-
-                                    <button
-                                        className="btn secondary small dangerButton"
-                                        type="button"
-                                        disabled={
-                                            saving
-                                        }
-                                        onClick={() =>
-                                            setEnquiryToDelete(
-                                                enquiry
-                                            )
-                                        }
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </article>
-                        )
-                    )}
-                </div>
-            ) : (
-                <div className="teamsEmptyState">
-                    <h3>
-                        No enquiries found
-                    </h3>
-
-                    <p>
-                        New sponsorship and demo
-                        requests will appear here.
-                    </p>
-                </div>
-            )}
-
-            {selectedEnquiry && (
-                <div
-                    className="sponsorEnquiryOverlay"
-                    role="presentation"
-                    onMouseDown={(event) => {
-                        if (
-                            event.target ===
-                            event.currentTarget
-                        ) {
-                            closeEnquiry()
-                        }
-                    }}
-                >
-                    <section
-                        className="sponsorEnquiryModal enquiryAdminModal"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="enquiry-admin-title"
-                    >
-                        <div className="sponsorEnquiryHeader">
-                            <div>
-                                <div className="teamAdminBadges">
-                                    <span className="eyebrow">
-                                        Commercial
-                                        Enquiry
-                                    </span>
-
-                                    <span className="teamVisibilityBadge teamVisibilityPublished">
-                                        {formatEnquiryType(
-                                            selectedEnquiry.type
-                                        )}
-                                    </span>
-                                </div>
-
-                                <h2 id="enquiry-admin-title">
-                                    {
-                                        selectedEnquiry.organisation
-                                    }
-                                </h2>
-
-                                <p className="muted">
-                                    Submitted{' '}
-                                    {formatDate(
-                                        selectedEnquiry.createdAt
-                                    )}
-                                </p>
-                            </div>
-
-                            <button
-                                className="btn secondary small"
-                                type="button"
-                                disabled={saving}
-                                onClick={
-                                    closeEnquiry
-                                }
-                            >
-                                Close
-                            </button>
-                        </div>
-
-                        <div className="enquiryDetailGrid">
-                            <div>
-                                <span className="teamAdminFieldLabel">
-                                    Contact
-                                </span>
-
-                                <strong>
-                                    {
-                                        selectedEnquiry.contactName
-                                    }
-                                </strong>
-                            </div>
-
-                            <div>
-                                <span className="teamAdminFieldLabel">
-                                    Email
-                                </span>
-
-                                <a
-                                    href={`mailto:${selectedEnquiry.email}`}
-                                >
-                                    {
-                                        selectedEnquiry.email
-                                    }
-                                </a>
-                            </div>
-
-                            <div>
-                                <span className="teamAdminFieldLabel">
-                                    Phone
-                                </span>
-
-                                {selectedEnquiry.phone ? (
-                                    <a
-                                        href={`tel:${selectedEnquiry.phone}`}
-                                    >
-                                        {
-                                            selectedEnquiry.phone
-                                        }
-                                    </a>
-                                ) : (
-                                    <span>
-                                        Not provided
-                                    </span>
-                                )}
-                            </div>
-
-                            {selectedEnquiry.type ===
-                            'sponsorship' ? (
-                                <>
-                                    <div>
-                                        <span className="teamAdminFieldLabel">
-                                            Interest
-                                        </span>
-
-                                        <span>
-                                            {selectedEnquiry.sponsorshipInterest ??
-                                                'Not specified'}
-                                        </span>
-                                    </div>
-
-                                    <div>
-                                        <span className="teamAdminFieldLabel">
-                                            Estimated
-                                            budget
-                                        </span>
-
-                                        <span>
-                                            {selectedEnquiry.estimatedBudget ??
-                                                'Not specified'}
-                                        </span>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div>
-                                        <span className="teamAdminFieldLabel">
-                                            Competition
-                                            type
-                                        </span>
-
-                                        <span>
-                                            {formatCompetitionType(
-                                                selectedEnquiry.competitionType
-                                            )}
-                                        </span>
-                                    </div>
-
-                                    <div>
-                                        <span className="teamAdminFieldLabel">
-                                            Approximate
-                                            teams
-                                        </span>
-
-                                        <span>
-                                            {selectedEnquiry.numberOfTeams ??
-                                                'Not specified'}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
-
-                            <label>
-                                <span>
-                                    Pipeline status
-                                </span>
-
-                                <select
-                                    value={
-                                        selectedEnquiry.status
-                                    }
-                                    disabled={
-                                        saving
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        void updateStatus(
-                                            selectedEnquiry,
-                                            event.target
-                                                .value as CommercialEnquiryStatus
-                                        )
-                                    }
-                                >
-                                    {getStatusOptions(
-                                        selectedEnquiry
-                                    ).map(
-                                        (
-                                            status
-                                        ) => (
-                                            <option
-                                                key={
-                                                    status
-                                                }
-                                                value={
-                                                    status
-                                                }
-                                            >
-                                                {formatStatus(
-                                                    status
-                                                )}
-                                            </option>
-                                        )
-                                    )}
-                                </select>
-                            </label>
-                        </div>
-
-                        <div className="enquiryMessagePanel">
-                            <span className="teamAdminFieldLabel">
-                                Enquiry message
-                            </span>
-
-                            <p>
-                                {
-                                    selectedEnquiry.message
-                                }
-                            </p>
-                        </div>
-
-                        <label className="adminFormFullWidth enquiryNotesField">
-                            <span>
-                                Internal notes
-                            </span>
-
-                            <textarea
-                                value={
-                                    internalNotes
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    setInternalNotes(
-                                        event.target
-                                            .value
-                                    )
-                                }
-                                placeholder="Record calls, meetings, proposals and follow-up actions."
-                                rows={6}
-                            />
-                        </label>
-
-                        <div className="adminFormActions">
-                            <button
-                                className="btn primary"
-                                type="button"
-                                disabled={saving}
-                                onClick={() =>
-                                    void saveNotes()
-                                }
-                            >
-                                {saving
-                                    ? 'Saving...'
-                                    : 'Save Notes'}
-                            </button>
-
-                            <a
-                                className="btn secondary"
-                                href={`mailto:${selectedEnquiry.email}?subject=${encodeURIComponent(
-                                    selectedEnquiry.type ===
-                                    'sponsorship'
-                                        ? 'CKEFA Partnership Enquiry'
-                                        : 'CKEFA Competition Platform Demo'
-                                )}`}
-                            >
-                                Email Contact
-                            </a>
-
-                            <button
-                                className="btn secondary dangerButton"
-                                type="button"
-                                disabled={saving}
-                                onClick={() =>
-                                    setEnquiryToDelete(
-                                        selectedEnquiry
-                                    )
-                                }
-                            >
-                                Delete Enquiry
-                            </button>
-                        </div>
-                    </section>
-                </div>
-            )}
+            <EnquiryModal
+                open={
+                    Boolean(
+                        selectedEnquiry,
+                    )
+                }
+                enquiry={
+                    selectedEnquiry
+                }
+                internalNotes={
+                    internalNotes
+                }
+                saving={saving}
+                message={message}
+                errorMessage={
+                    errorMessage
+                }
+                onNotesChange={
+                    setInternalNotes
+                }
+                onStatusChange={(
+                    status,
+                ) => {
+                    if (
+                        selectedEnquiry
+                    ) {
+                        void updateStatus(
+                            selectedEnquiry,
+                            status,
+                        );
+                    }
+                }}
+                onSaveNotes={() =>
+                    void saveNotes()
+                }
+                onDelete={
+                    setEnquiryToDelete
+                }
+                onClose={
+                    closeEnquiry
+                }
+            />
 
             {enquiryToDelete && (
                 <ConfirmDialog
                     title="Delete Enquiry"
                     message={`Are you sure you want to delete the ${formatEnquiryType(
-                        enquiryToDelete.type
+                        enquiryToDelete.type,
                     ).toLowerCase()} from ${enquiryToDelete.organisation}? This action cannot be undone.`}
                     confirmText={
                         saving
-                            ? 'Deleting...'
-                            : 'Delete'
+                            ? "Deleting..."
+                            : "Delete"
                     }
                     cancelText="Cancel"
                     onCancel={() => {
                         if (!saving) {
                             setEnquiryToDelete(
-                                null
-                            )
+                                null,
+                            );
                         }
                     }}
                     onConfirm={() => {
                         if (!saving) {
-                            void confirmDeleteEnquiry()
+                            void deleteEnquiry();
                         }
                     }}
                 />
             )}
         </div>
-    )
+    );
 }

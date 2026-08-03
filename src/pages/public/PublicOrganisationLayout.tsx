@@ -2,15 +2,60 @@ import {
     useEffect,
     useMemo,
     useState,
-} from 'react'
-import { useLocation } from 'react-router-dom'
-import { PublicCompetitionsPage } from './PublicCompetitionsPage'
-import type { Organisation } from '../../components/admin/Organisations/organisationTypes'
+} from "react";
+
+import {
+    useLocation,
+} from "react-router-dom";
+
 import {
     organisationPublicService,
     type PublicOrganisationData,
-} from '../../services/public/organisationPublicService'
-import { PublicHomePage } from './PublicHomePage'
+} from "../../services/public/organisationPublicService";
+
+import {
+    PublicOrganisationProvider,
+} from "../../context/PublicOrganisationContext";
+
+import {
+    PublicHomePage,
+} from "./PublicHomePage";
+
+import {
+    PublicCompetitionsPage,
+} from "./PublicCompetitionsPage";
+
+import {
+    PublicSponsorsPage,
+} from "./PublicSponsorsPage";
+
+import {
+    PublicContactPage,
+} from "./PublicContactPage";
+
+import {
+    PublicNewsPage,
+} from "./PublicNewsPage";
+
+import {
+    PublicMediaPage,
+} from "./PublicMediaPage";
+
+import {
+    PublicTeamsPage,
+} from "./PublicTeamsPage";
+
+import {
+    PublicFixturesPage,
+} from "./PublicFixturesPage";
+
+import {
+    PublicResultsPage,
+} from "./PublicResultsPage";
+
+import {
+    PublicTablesPage,
+} from "./PublicTablesPage";
 
 function getOrganisationSlug(
     pathname: string,
@@ -18,11 +63,13 @@ function getOrganisationSlug(
     const match =
         pathname.match(
             /^\/o\/([^/]+)(?:\/.*)?$/,
-        )
+        );
 
     return match
-        ? decodeURIComponent(match[1])
-        : ''
+        ? decodeURIComponent(
+            match[1],
+        )
+        : "";
 }
 
 function createReadableTextColour(
@@ -30,44 +77,45 @@ function createReadableTextColour(
 ) {
     const colour =
         backgroundColour.replace(
-            '#',
-            '',
-        )
+            "#",
+            "",
+        );
 
     if (colour.length !== 6) {
-        return '#ffffff'
+        return "#ffffff";
     }
 
     const red =
         parseInt(
             colour.substring(0, 2),
             16,
-        )
+        );
 
     const green =
         parseInt(
             colour.substring(2, 4),
             16,
-        )
+        );
 
     const blue =
         parseInt(
             colour.substring(4, 6),
             16,
-        )
+        );
 
     const brightness =
         red * 0.299 +
         green * 0.587 +
-        blue * 0.114
+        blue * 0.114;
 
     return brightness > 160
-        ? '#071006'
-        : '#ffffff'
+        ? "#071006"
+        : "#ffffff";
 }
 
 export function PublicOrganisationLayout() {
-    const location = useLocation()
+    const location =
+        useLocation();
 
     const [
         publicData,
@@ -75,99 +123,99 @@ export function PublicOrganisationLayout() {
     ] =
         useState<PublicOrganisationData | null>(
             null,
-        )
+        );
 
     const [
         loading,
         setLoading,
     ] =
-        useState(true)
+        useState(true);
 
-    const [
-        error,
-        setError,
-    ] =
-        useState('')
+    const [error, setError] =
+        useState("");
 
     useEffect(() => {
         async function loadOrganisation() {
             const slug =
                 getOrganisationSlug(
                     location.pathname,
-                )
+                );
 
             if (!slug) {
-                setPublicData(null)
+                setPublicData(null);
                 setError(
-                    'The organisation link is invalid.',
-                )
-                setLoading(false)
-                return
+                    "The organisation link is invalid.",
+                );
+                setLoading(false);
+                return;
             }
 
             try {
-                setLoading(true)
-                setError('')
+                setLoading(true);
+                setError("");
 
                 const result =
                     await organisationPublicService
                         .getPublicOrganisationData(
                             slug,
-                        )
+                        );
 
-                setPublicData(result)
+                setPublicData(
+                    result,
+                );
             } catch (loadError) {
                 console.error(
-                    'Unable to load the public organisation:',
+                    "Unable to load the public organisation:",
                     loadError,
-                )
+                );
 
-                setPublicData(null)
+                setPublicData(null);
                 setError(
-                    'We could not load this organisation right now.',
-                )
+                    "We could not load this organisation right now.",
+                );
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
         }
 
-        void loadOrganisation()
-    }, [location.pathname])
+        void loadOrganisation();
+    }, [location.pathname]);
 
     const organisation =
-        publicData?.organisation ?? null
+        publicData?.organisation ??
+        null;
 
     const theme =
         useMemo(() => {
             const backgroundColour =
                 organisation
                     ?.background_colour ||
-                '#071006'
+                "#071006";
 
             const surfaceColour =
                 organisation
                     ?.surface_colour ||
-                '#10190f'
+                "#10190f";
 
             const textColour =
                 organisation
                     ?.text_colour ||
-                '#ffffff'
+                "#ffffff";
 
             const primaryColour =
                 organisation
                     ?.primary_colour ||
-                '#84cc16'
+                "#84cc16";
 
             const secondaryColour =
                 organisation
                     ?.secondary_colour ||
-                '#0f172a'
+                "#0f172a";
 
             const accentColour =
                 organisation
                     ?.accent_colour ||
-                primaryColour
+                primaryColour;
 
             return {
                 backgroundColour,
@@ -180,436 +228,513 @@ export function PublicOrganisationLayout() {
                     createReadableTextColour(
                         accentColour,
                     ),
-            }
-        }, [organisation])
+            };
+        }, [organisation]);
 
     if (loading) {
         return (
-            <main
-                style={{
-                    minHeight: '100vh',
-                    display: 'grid',
-                    placeItems: 'center',
-                    background: '#071006',
-                    color: '#ffffff',
-                    padding: '2rem',
-                }}
-            >
+            <main className="grid min-h-screen place-items-center bg-[#071006] p-8 text-white">
                 <p>
                     Loading organisation...
                 </p>
             </main>
-        )
+        );
     }
 
     if (error) {
         return (
-            <main
-                style={{
-                    minHeight: '100vh',
-                    display: 'grid',
-                    placeItems: 'center',
-                    background: '#071006',
-                    color: '#ffffff',
-                    padding: '2rem',
-                    textAlign: 'center',
-                }}
-            >
+            <main className="grid min-h-screen place-items-center bg-[#071006] p-8 text-center text-white">
                 <div>
-                    <h1>
+                    <h1 className="text-3xl font-black">
                         Public site unavailable
                     </h1>
 
-                    <p>{error}</p>
-                </div>
-            </main>
-        )
-    }
-
-    if (!organisation || !publicData) {
-        return (
-            <main
-                style={{
-                    minHeight: '100vh',
-                    display: 'grid',
-                    placeItems: 'center',
-                    background: '#071006',
-                    color: '#ffffff',
-                    padding: '2rem',
-                    textAlign: 'center',
-                }}
-            >
-                <div>
-                    <h1>
-                        Organisation not found
-                    </h1>
-
-                    <p>
-                        This public organisation site
-                        does not exist or is not
-                        currently published.
+                    <p className="mt-3 text-slate-400">
+                        {error}
                     </p>
                 </div>
             </main>
-        )
+        );
     }
+
+    if (
+        !organisation ||
+        !publicData
+    ) {
+        return (
+            <main className="grid min-h-screen place-items-center bg-[#071006] p-8 text-center text-white">
+                <div>
+                    <h1 className="text-3xl font-black">
+                        Organisation not found
+                    </h1>
+
+                    <p className="mt-3 text-slate-400">
+                        This public organisation
+                        site does not exist or is
+                        not currently published.
+                    </p>
+                </div>
+            </main>
+        );
+    }
+
+    const resolvedOrganisation = organisation;
+    const resolvedPublicData = publicData;
 
     const basePath =
         `/o/${encodeURIComponent(
-            organisation.slug,
-        )}`
+            resolvedOrganisation.slug,
+        )}`;
 
     const navigationItems = [
         {
-            label: 'Home',
+            label: "Home",
             href: basePath,
         },
         {
-            label: 'Competitions',
-            href: `${basePath}/competitions`,
+            label: "Competitions",
+            href:
+                `${basePath}/competitions`,
         },
         {
-            label: 'Fixtures',
-            href: `${basePath}/fixtures`,
+            label: "Fixtures",
+            href:
+                `${basePath}/fixtures`,
         },
         {
-            label: 'Results',
-            href: `${basePath}/results`,
+            label: "Results",
+            href:
+                `${basePath}/results`,
         },
         {
-            label: 'Tables',
-            href: `${basePath}/tables`,
+            label: "Tables",
+            href:
+                `${basePath}/tables`,
         },
         {
-            label: 'Teams',
-            href: `${basePath}/teams`,
+            label: "Teams",
+            href:
+                `${basePath}/teams`,
         },
         {
-            label: 'News',
-            href: `${basePath}/news`,
+            label: "News",
+            href:
+                `${basePath}/news`,
         },
         {
-            label: 'Sponsors',
-            href: `${basePath}/sponsors`,
+            label: "Media",
+            href:
+                `${basePath}/media`,
         },
         {
-            label: 'Contact',
-            href: `${basePath}/contact`,
+            label: "Sponsors",
+            href:
+                `${basePath}/sponsors`,
         },
         {
-            label: 'Admin Portal',
-            href: '/admin',
+            label: "Contact",
+            href:
+                `${basePath}/contact`,
         },
-    ]
+        {
+            label: "Admin Portal",
+            href: "/admin",
+        },
+    ];
+
+    const commonPageProps = {
+        backgroundColour:
+        theme.backgroundColour,
+        surfaceColour:
+        theme.surfaceColour,
+        textColour:
+        theme.textColour,
+        accentColour:
+        theme.accentColour,
+        accentTextColour:
+        theme.accentTextColour,
+        basePath,
+    };
+
+    function renderCurrentPage() {
+        switch (
+            location.pathname
+            ) {
+            case basePath:
+            case `${basePath}/`:
+                return (
+                    <PublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        competitions={
+                            resolvedPublicData.competitions
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/competitions`:
+                return (
+                    <PublicCompetitionsPage
+                        organisationId={
+                            resolvedOrganisation.id
+                        }
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        surfaceColour={
+                            theme.surfaceColour
+                        }
+                        textColour={
+                            theme.textColour
+                        }
+                        accentColour={
+                            theme.accentColour
+                        }
+                        basePath={
+                            basePath
+                        }
+                    />
+                );
+
+            case `${basePath}/fixtures`:
+                return (
+                    <PublicFixturesPage
+                        organisationId={
+                            resolvedOrganisation.id
+                        }
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        competitions={
+                            resolvedPublicData.competitions
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/results`:
+                return (
+                    <PublicResultsPage
+                        organisationId={
+                            resolvedOrganisation.id
+                        }
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        competitions={
+                            resolvedPublicData.competitions
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/tables`:
+                return (
+                    <PublicTablesPage
+                        organisationId={
+                            resolvedOrganisation.id
+                        }
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        competitions={
+                            resolvedPublicData.competitions
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/teams`:
+                return (
+                    <PublicTeamsPage
+                        organisationId={
+                            resolvedOrganisation.id
+                        }
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/news`:
+                return (
+                    <PublicNewsPage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/media`:
+                return (
+                    <PublicMediaPage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/sponsors`:
+                return (
+                    <PublicSponsorsPage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            case `${basePath}/contact`:
+                return (
+                    <PublicContactPage
+                        organisationId={
+                            resolvedOrganisation.id
+                        }
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        competitions={
+                            resolvedPublicData.competitions
+                        }
+                        {...commonPageProps}
+                    />
+                );
+
+            default:
+                return (
+                    <PublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        competitions={
+                            resolvedPublicData.competitions
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                );
+        }
+    }
 
     return (
-        <main
-            style={{
-                minHeight: '100vh',
-                background:
-                theme.backgroundColour,
-                color:
-                theme.textColour,
-            }}
+        <PublicOrganisationProvider
+            organisation={
+                resolvedOrganisation
+            }
+            basePath={
+                basePath
+            }
+            publicData={
+                resolvedPublicData
+            }
         >
-            <header
+            <main
+                className="min-h-screen"
                 style={{
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 20,
                     background:
-                        `${theme.backgroundColour}f2`,
-                    borderBottom:
-                        `1px solid ${theme.accentColour}30`,
-                    backdropFilter:
-                        'blur(16px)',
+                    theme.backgroundColour,
+                    color:
+                    theme.textColour,
                 }}
             >
-                <div
+                <header
+                    className="sticky top-0 z-20 border-b backdrop-blur-xl"
                     style={{
-                        width:
-                            'min(1240px, calc(100% - 2rem))',
-                        margin: '0 auto',
-                        minHeight: '76px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent:
-                            'space-between',
-                        gap: '1.5rem',
-                        flexWrap: 'wrap',
-                        padding: '0.75rem 0',
+                        background:
+                            `${theme.backgroundColour}f2`,
+                        borderColor:
+                            `${theme.accentColour}30`,
                     }}
                 >
-                    <a
-                        href={basePath}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.875rem',
-                            color:
-                            theme.textColour,
-                            textDecoration: 'none',
-                        }}
-                    >
-                        {organisation.logo_url ? (
-                            <img
-                                src={
-                                    organisation.logo_url
-                                }
-                                alt={`${organisation.name} logo`}
-                                style={{
-                                    width: '48px',
-                                    height: '48px',
-                                    objectFit:
-                                        'contain',
-                                    borderRadius:
-                                        '12px',
-                                }}
-                            />
-                        ) : (
-                            <div
-                                style={{
-                                    width: '48px',
-                                    height: '48px',
-                                    borderRadius:
-                                        '12px',
-                                    display: 'grid',
-                                    placeItems: 'center',
-                                    background:
-                                    theme.accentColour,
-                                    color:
-                                    theme.accentTextColour,
-                                    fontWeight: 900,
-                                }}
-                            >
-                                {organisation.name
-                                    .charAt(0)
-                                    .toUpperCase()}
-                            </div>
-                        )}
-
-                        <div>
-                            <strong
-                                style={{
-                                    display: 'block',
-                                    fontSize: '1rem',
-                                }}
-                            >
-                                {organisation.name}
-                            </strong>
-
-                            <span
-                                style={{
-                                    display: 'block',
-                                    marginTop:
-                                        '0.125rem',
-                                    fontSize:
-                                        '0.75rem',
-                                    opacity: 0.65,
-                                    textTransform:
-                                        'uppercase',
-                                    letterSpacing:
-                                        '0.08em',
-                                }}
-                            >
-                                Powered by
-                                TournamentHQ
-                            </span>
-                        </div>
-                    </a>
-
-                    <a
-                        href="https://tournamenthq.co.uk"
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="Visit TournamentHQ"
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            textDecoration: 'none',
-                        }}
-                    >
-                        <img
-                            src="/assets/tournamenthq-logo.png"
-                            alt="TournamentHQ"
+                    <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-3">
+                        <a
+                            href={basePath}
+                            className="flex items-center gap-3 no-underline"
                             style={{
-                                display: 'block',
-                                width: 'clamp(130px, 12vw, 175px)',
-                                height: 'auto',
-                                maxHeight: '48px',
-                                objectFit: 'contain',
+                                color:
+                                theme.textColour,
                             }}
-                        />
-                    </a>
-
-                    <nav
-                        aria-label="Public site navigation"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent:
-                                'flex-end',
-                            gap: '0.35rem',
-                            flexWrap: 'wrap',
-                        }}
-                    >
-                        {navigationItems.map(
-                            ({
-                                 label,
-                                 href,
-                             }) => (
-                                <a
-                                    key={label}
-                                    href={href}
+                        >
+                            {resolvedOrganisation.logo_url ? (
+                                <img
+                                    src={
+                                        resolvedOrganisation.logo_url
+                                    }
+                                    alt={`${resolvedOrganisation.name} logo`}
+                                    className="h-12 w-12 rounded-xl object-contain"
+                                />
+                            ) : (
+                                <div
+                                    className="grid h-12 w-12 place-items-center rounded-xl font-black"
                                     style={{
-                                        display:
-                                            'inline-flex',
-                                        alignItems:
-                                            'center',
-                                        minHeight: '40px',
-                                        padding:
-                                            '0.55rem 0.75rem',
-                                        borderRadius:
-                                            '999px',
+                                        background:
+                                        theme.accentColour,
                                         color:
-                                        theme.textColour,
-                                        textDecoration:
-                                            'none',
-                                        fontSize:
-                                            '0.875rem',
-                                        fontWeight: 700,
-                                        opacity: 0.82,
+                                        theme.accentTextColour,
                                     }}
                                 >
-                                    {label}
-                                </a>
-                            ),
-                        )}
-                    </nav>
-                </div>
-            </header>
+                                    {resolvedOrganisation.name
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                </div>
+                            )}
 
-            {location.pathname === basePath ? (
-                <PublicHomePage
-                    organisationName={organisation.name}
-                    backgroundColour={theme.backgroundColour}
-                    surfaceColour={theme.surfaceColour}
-                    textColour={theme.textColour}
-                    accentColour={theme.accentColour}
-                    accentTextColour={theme.accentTextColour}
-                    basePath={basePath}
-                    competitions={publicData.competitions}
-                    articles={publicData.articles}
-                    sponsors={publicData.sponsors}
-                    media={publicData.media}
-                />
-            ) : location.pathname === `${basePath}/competitions` ? (
-                <PublicCompetitionsPage
-                    organisationId={organisation.id}
-                    organisationName={organisation.name}
-                    surfaceColour={theme.surfaceColour}
-                    textColour={theme.textColour}
-                    accentColour={theme.accentColour}
-                    basePath={basePath}
-                />
-            ) : (
-                <PublicHomePage
-                    organisationName={organisation.name}
-                    backgroundColour={theme.backgroundColour}
-                    surfaceColour={theme.surfaceColour}
-                    textColour={theme.textColour}
-                    accentColour={theme.accentColour}
-                    accentTextColour={theme.accentTextColour}
-                    basePath={basePath}
-                    competitions={publicData.competitions}
-                    articles={publicData.articles}
-                    sponsors={publicData.sponsors}
-                    media={publicData.media}
-                />
-            )}
+                            <div>
+                                <strong className="block text-base">
+                                    {
+                                        resolvedOrganisation.name
+                                    }
+                                </strong>
 
-            <footer
-                style={{
-                    borderTop:
-                        `1px solid ${theme.accentColour}20`,
-                    background:
-                    theme.surfaceColour,
-                }}
-            >
-                <div
+                                <span className="mt-0.5 block text-xs font-bold uppercase tracking-wider opacity-60">
+                                    Powered by
+                                    TournamentHQ
+                                </span>
+                            </div>
+                        </a>
+
+                        <a
+                            href="https://tournamenthq.co.uk"
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Visit TournamentHQ"
+                            className="inline-flex shrink-0 items-center justify-center no-underline"
+                        >
+                            <img
+                                src="/assets/tournamenthq-logo.png"
+                                alt="TournamentHQ"
+                                className="block h-auto max-h-12 w-[clamp(130px,12vw,175px)] object-contain"
+                            />
+                        </a>
+
+                        <nav
+                            aria-label="Public site navigation"
+                            className="flex flex-wrap items-center justify-end gap-1"
+                        >
+                            {navigationItems.map(
+                                ({
+                                     label,
+                                     href,
+                                 }) => {
+                                    const active =
+                                        location.pathname ===
+                                        href;
+
+                                    return (
+                                        <a
+                                            key={
+                                                label
+                                            }
+                                            href={
+                                                href
+                                            }
+                                            className="inline-flex min-h-10 items-center rounded-full px-3 py-2 text-sm font-bold no-underline transition"
+                                            style={{
+                                                color:
+                                                    active
+                                                        ? theme.accentTextColour
+                                                        : theme.textColour,
+                                                background:
+                                                    active
+                                                        ? theme.accentColour
+                                                        : "transparent",
+                                                opacity:
+                                                    active
+                                                        ? 1
+                                                        : 0.82,
+                                            }}
+                                        >
+                                            {
+                                                label
+                                            }
+                                        </a>
+                                    );
+                                },
+                            )}
+                        </nav>
+                    </div>
+                </header>
+
+                {renderCurrentPage()}
+
+                <footer
+                    className="border-t"
                     style={{
-                        width:
-                            'min(1240px, calc(100% - 2rem))',
-                        margin: '0 auto',
-                        minHeight: '150px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent:
-                            'space-between',
-                        gap: '1.5rem',
-                        flexWrap: 'wrap',
-                        padding: '2rem 0',
+                        borderColor:
+                            `${theme.accentColour}20`,
+                        background:
+                        theme.surfaceColour,
                     }}
                 >
-                    <div>
-                        <strong>
-                            {organisation.name}
-                        </strong>
+                    <div className="mx-auto flex min-h-[150px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-8">
+                        <div>
+                            <strong>
+                                {
+                                    resolvedOrganisation.name
+                                }
+                            </strong>
 
-                        <p
+                            <p className="mt-2 opacity-60">
+                                Official competition
+                                website
+                            </p>
+                        </div>
+
+                        <a
+                            href="https://tournamenthq.co.uk"
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Visit TournamentHQ"
+                            className="inline-flex flex-col items-end gap-2 no-underline"
                             style={{
-                                margin:
-                                    '0.5rem 0 0',
-                                opacity: 0.65,
+                                color:
+                                theme.textColour,
                             }}
                         >
-                            Official competition
-                            website
-                        </p>
+                            <span className="text-xs font-bold uppercase tracking-wider opacity-60">
+                                Powered by
+                            </span>
+
+                            <img
+                                src="/assets/tournamenthq-logo.png"
+                                alt="TournamentHQ"
+                                className="block h-auto max-h-[52px] w-[180px] max-w-full object-contain"
+                            />
+                        </a>
                     </div>
-
-                    <a
-                        href="https://tournamenthq.co.uk"
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="Visit TournamentHQ"
-                        style={{
-                            display: 'inline-flex',
-                            flexDirection: 'column',
-                            alignItems: 'flex-end',
-                            gap: '0.45rem',
-                            color: theme.textColour,
-                            textDecoration: 'none',
-                        }}
-                    >
-                        <span
-                            style={{
-                                fontSize: '0.75rem',
-                                opacity: 0.65,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.08em',
-                            }}
-                        >
-                            Powered by
-                        </span>
-
-                        <img
-                            src="/assets/tournamenthq-logo.png"
-                            alt="TournamentHQ"
-                            style={{
-                                display: 'block',
-                                width: '180px',
-                                maxWidth: '100%',
-                                height: 'auto',
-                                maxHeight: '52px',
-                                objectFit: 'contain',
-                            }}
-                        />
-                    </a>
-                </div>
-            </footer>
-        </main>
-    )
+                </footer>
+            </main>
+        </PublicOrganisationProvider>
+    );
 }

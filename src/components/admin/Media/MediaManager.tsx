@@ -1,67 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
+
 import { supabase } from "../../../lib/supabaseClient";
 import { useOrganisation } from "../../../context/OrganisationContext";
 import { useCompetition } from "../../../contexts/CompetitionContext";
 import { ConfirmDialog } from "../../common/ConfirmDialog";
 
-const mediaCategories = [
-    "Match Highlights",
-    "Full Match Replay",
-    "Player Interview",
-    "Coach Interview",
-    "Livestream",
-    "Competition Trailer",
-    "Behind the Scenes",
-    "Photo Gallery",
-    "Podcast",
-    "Sponsor Feature",
-] as const;
+import MediaModal from "./MediaModal";
+import MediaTable, {
+    type DbMedia,
+} from "./MediaTable";
 
-const mediaStatuses = [
-    "draft",
-    "review",
-    "scheduled",
-    "published",
-    "archived",
-] as const;
+import {
+    createEmbedUrl,
+    createSlug,
+    createThumbnailUrl,
+    toDateTimeLocal,
+    type MediaStatus,
+} from "./mediaHelpers";
 
-type MediaCategory = (typeof mediaCategories)[number];
-
-type MediaStatus = (typeof mediaStatuses)[number];
-
-type DbMedia = {
-    id: string;
-    organisation_id: string;
-    competition_id: string;
-    title: string;
-    slug: string;
-    category: MediaCategory;
-    status: MediaStatus;
-    description: string;
-    youtube_url: string | null;
-    embed_url: string | null;
-    thumbnail_url: string | null;
-    thumbnail_alt: string | null;
-    featured: boolean;
-    fixture_id: string | null;
-    published_at: string | null;
-    created_at: string;
-    updated_at: string;
-};
-
-type MediaFormState = {
-    title: string;
-    slug: string;
-    category: MediaCategory;
-    status: MediaStatus;
-    description: string;
-    youtubeUrl: string;
-    embedUrl: string;
-    thumbnailUrl: string;
-    thumbnailAlt: string;
-    featured: boolean;
-    publishedAt: string;
-};
+import {
+    validateMedia,
+    type MediaFormState,
+} from "./mediaValidation";
 
 const initialFormState: MediaFormState = {
     title: "",
@@ -77,126 +42,86 @@ const initialFormState: MediaFormState = {
     publishedAt: "",
 };
 
-function createSlug(value: string) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replace(/['’]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-}
-
-function extractYouTubeId(value: string) {
-    const trimmedValue = value.trim();
-
-    if (!trimmedValue) {
-        return null;
-    }
-
-    try {
-        const url = new URL(trimmedValue);
-
-        if (url.hostname.includes("youtu.be")) {
-            return url.pathname.replace("/", "").split("/")[0] || null;
-        }
-
-        if (url.hostname.includes("youtube.com")) {
-            if (url.pathname.startsWith("/embed/")) {
-                return url.pathname.split("/embed/")[1]?.split("/")[0] ?? null;
-            }
-
-            if (url.pathname.startsWith("/shorts/")) {
-                return url.pathname.split("/shorts/")[1]?.split("/")[0] ?? null;
-            }
-
-            return url.searchParams.get("v");
-        }
-    } catch {
-        return null;
-    }
-
-    return null;
-}
-
-function createEmbedUrl(youtubeUrl: string) {
-    const videoId = extractYouTubeId(youtubeUrl);
-
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
-}
-
-function createThumbnailUrl(youtubeUrl: string) {
-    const videoId = extractYouTubeId(youtubeUrl);
-
-    return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : "";
-}
-
-function toDateTimeLocal(value: string | null) {
-    if (!value) {
-        return "";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "";
-    }
-
-    const offset = date.getTimezoneOffset();
-
-    const localDate = new Date(date.getTime() - offset * 60_000);
-
-    return localDate.toISOString().slice(0, 16);
-}
-
 export function MediaManager() {
-    const { currentOrganisation } = useOrganisation();
+    const { currentOrganisation } =
+        useOrganisation();
 
     const {
         currentCompetition,
         currentCompetitionId,
     } = useCompetition();
 
-    const [mediaItems, setMediaItems] = useState<DbMedia[]>([]);
+    const organisationId =
+        currentOrganisation?.id ?? null;
 
-    const [form, setForm] = useState<MediaFormState>(initialFormState);
+    const [mediaItems, setMediaItems] =
+        useState<DbMedia[]>([]);
 
-    const [editingId, setEditingId] = useState<string | null>(null);
+    const [form, setForm] =
+        useState<MediaFormState>(
+            initialFormState,
+        );
 
-    const [mediaToDelete, setMediaToDelete] =
-        useState<DbMedia | null>(null);
+    const [editingId, setEditingId] =
+        useState<string | null>(null);
 
-    const [showMediaForm, setShowMediaForm] = useState(false);
+    const [
+        mediaToDelete,
+        setMediaToDelete,
+    ] = useState<DbMedia | null>(null);
 
-    const [loading, setLoading] = useState(true);
+    const [
+        showMediaModal,
+        setShowMediaModal,
+    ] = useState(false);
 
-    const [saving, setSaving] = useState(false);
+    const [loading, setLoading] =
+        useState(true);
 
-    const [message, setMessage] = useState<string | null>(null);
+    const [saving, setSaving] =
+        useState(false);
 
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [message, setMessage] =
+        useState<string | null>(null);
+
+    const [
+        errorMessage,
+        setErrorMessage,
+    ] = useState<string | null>(null);
 
     const editingMediaItem = useMemo(
-        () => mediaItems.find((item) => item.id === editingId) ?? null,
+        () =>
+            mediaItems.find(
+                (item) =>
+                    item.id === editingId,
+            ) ?? null,
         [mediaItems, editingId],
     );
 
-    const loadMedia = useCallback(async () => {
-        setLoading(true);
-        setErrorMessage(null);
+    const resetForm = useCallback(() => {
+        setForm(initialFormState);
+        setEditingId(null);
+        setShowMediaModal(false);
+    }, []);
 
-        if (
-            !currentOrganisation?.id ||
-            !currentCompetitionId
-        ) {
-            setMediaItems([]);
-            setLoading(false);
-            return;
-        }
+    const loadMedia =
+        useCallback(async () => {
+            setLoading(true);
+            setErrorMessage(null);
 
-        const { data, error } = await supabase
-            .from("media")
-            .select(
-                `
+            if (
+                !organisationId ||
+                !currentCompetitionId
+            ) {
+                setMediaItems([]);
+                setLoading(false);
+                return;
+            }
+
+            const { data, error } =
+                await supabase
+                    .from("media")
+                    .select(`
                         id,
                         organisation_id,
                         competition_id,
@@ -214,43 +139,55 @@ export function MediaManager() {
                         published_at,
                         created_at,
                         updated_at
-                    `,
-            )
-            .eq(
-                "organisation_id",
-                currentOrganisation.id,
-            )
-            .eq(
-                "competition_id",
-                currentCompetitionId,
-            )
-            .order("created_at", {
-                ascending: false,
-            });
+                    `)
+                    .eq(
+                        "organisation_id",
+                        organisationId,
+                    )
+                    .eq(
+                        "competition_id",
+                        currentCompetitionId,
+                    )
+                    .order("created_at", {
+                        ascending: false,
+                    });
 
-        if (error) {
-            console.error("Failed to load media:", error);
+            if (error) {
+                console.error(
+                    "Failed to load media:",
+                    error,
+                );
 
-            setErrorMessage("Unable to load media records.");
+                setMediaItems([]);
+                setErrorMessage(
+                    "Unable to load media records.",
+                );
+                setLoading(false);
+                return;
+            }
 
-            setMediaItems([]);
+            setMediaItems(
+                (data ?? []) as DbMedia[],
+            );
             setLoading(false);
-            return;
-        }
-
-        setMediaItems((data ?? []) as DbMedia[]);
-
-        setLoading(false);
-    }, [
-        currentCompetitionId,
-        currentOrganisation?.id,
-    ]);
+        }, [
+            currentCompetitionId,
+            organisationId,
+        ]);
 
     useEffect(() => {
+        setMediaItems([]);
+        setMediaToDelete(null);
+        resetForm();
         void loadMedia();
-    }, [loadMedia]);
+    }, [
+        loadMedia,
+        resetForm,
+    ]);
 
-    function updateForm<Key extends keyof MediaFormState>(
+    function updateForm<
+        Key extends keyof MediaFormState,
+    >(
         key: Key,
         value: MediaFormState[Key],
     ) {
@@ -260,20 +197,36 @@ export function MediaManager() {
         }));
     }
 
-    function handleTitleChange(title: string) {
+    function handleTitleChange(
+        title: string,
+    ) {
+        const shouldPreserveSlug =
+            editingMediaItem?.status ===
+            "published" ||
+            editingMediaItem?.status ===
+            "archived";
+
         setForm((current) => ({
             ...current,
             title,
-            slug: editingId || current.slug ? current.slug : createSlug(title),
+            slug: shouldPreserveSlug
+                ? current.slug
+                : createSlug(title),
         }));
     }
 
-    function handleYouTubeUrlChange(youtubeUrl: string) {
+    function handleYouTubeUrlChange(
+        youtubeUrl: string,
+    ) {
         setForm((current) => {
-            const embedUrl = createEmbedUrl(youtubeUrl);
+            const embedUrl =
+                createEmbedUrl(youtubeUrl);
 
             const thumbnailUrl =
-                current.thumbnailUrl || createThumbnailUrl(youtubeUrl);
+                current.thumbnailUrl ||
+                createThumbnailUrl(
+                    youtubeUrl,
+                );
 
             return {
                 ...current,
@@ -284,87 +237,91 @@ export function MediaManager() {
         });
     }
 
-    function resetForm() {
+    function openCreateMediaModal() {
+        if (
+            !organisationId ||
+            !currentCompetitionId
+        ) {
+            setErrorMessage(
+                "Select an organisation and competition before adding media.",
+            );
+            return;
+        }
+
         setForm(initialFormState);
         setEditingId(null);
-        setShowMediaForm(false);
         setMessage(null);
         setErrorMessage(null);
+        setShowMediaModal(true);
     }
 
-    function openCreateMediaForm() {
-        setForm(initialFormState);
-        setEditingId(null);
-        setShowMediaForm(true);
-        setMessage(null);
-        setErrorMessage(null);
-    }
+    function openEditMediaModal(
+        item: DbMedia,
+    ) {
+        if (
+            !organisationId ||
+            !currentCompetitionId ||
+            item.organisation_id !==
+            organisationId ||
+            item.competition_id !==
+            currentCompetitionId
+        ) {
+            setErrorMessage(
+                "This media item does not belong to the selected organisation and competition.",
+            );
+            return;
+        }
 
-    function startEditing(item: DbMedia) {
         setEditingId(item.id);
-        setShowMediaForm(true);
 
         setForm({
             title: item.title,
             slug: item.slug,
             category: item.category,
             status: item.status,
-            description: item.description,
-            youtubeUrl: item.youtube_url ?? "",
-            embedUrl: item.embed_url ?? "",
-            thumbnailUrl: item.thumbnail_url ?? "",
-            thumbnailAlt: item.thumbnail_alt ?? "",
-            featured: item.featured,
-            publishedAt: toDateTimeLocal(item.published_at),
+            description:
+                item.description ?? "",
+            youtubeUrl:
+                item.youtube_url ?? "",
+            embedUrl:
+                item.embed_url ?? "",
+            thumbnailUrl:
+                item.thumbnail_url ?? "",
+            thumbnailAlt:
+                item.thumbnail_alt ?? "",
+            featured:
+                item.featured ?? false,
+            publishedAt:
+                toDateTimeLocal(
+                    item.published_at,
+                ),
         });
 
         setMessage(null);
         setErrorMessage(null);
-
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth",
-        });
-    }
-
-    function validateForm() {
-        if (!currentOrganisation?.id) {
-            return "Select an organisation before adding media.";
-        }
-
-        if (!currentCompetitionId) {
-            return "Select a competition before adding media.";
-        }
-
-        if (!form.title.trim()) {
-            return "Media title is required.";
-        }
-
-        if (!form.slug.trim()) {
-            return "Media slug is required.";
-        }
-
-        if (
-            form.category !== "Photo Gallery" &&
-            form.category !== "Podcast" &&
-            !form.youtubeUrl.trim()
-        ) {
-            return "A YouTube URL is required for this media category.";
-        }
-
-        if (form.youtubeUrl.trim() && !extractYouTubeId(form.youtubeUrl)) {
-            return "Enter a valid YouTube URL.";
-        }
-
-        return null;
+        setShowMediaModal(true);
     }
 
     async function saveMedia() {
-        const validationError = validateForm();
+        const validationError =
+            validateMedia(
+                form,
+                organisationId,
+                currentCompetitionId,
+            );
 
         if (validationError) {
-            setErrorMessage(validationError);
+            setErrorMessage(
+                validationError,
+            );
             setMessage(null);
+            return;
+        }
+
+        if (
+            !organisationId ||
+            !currentCompetitionId
+        ) {
             return;
         }
 
@@ -372,90 +329,134 @@ export function MediaManager() {
         setMessage(null);
         setErrorMessage(null);
 
-        const youtubeUrl = form.youtubeUrl.trim();
+        try {
+            const youtubeUrl =
+                form.youtubeUrl.trim();
 
-        const embedUrl = youtubeUrl
-            ? createEmbedUrl(youtubeUrl)
-            : form.embedUrl.trim();
-
-        const thumbnailUrl =
-            form.thumbnailUrl.trim() || createThumbnailUrl(youtubeUrl);
-
-        const publishedAt =
-            form.status === "published"
-                ? form.publishedAt
-                    ? new Date(form.publishedAt).toISOString()
-                    : (editingMediaItem?.published_at ?? new Date().toISOString())
-                : form.publishedAt
-                    ? new Date(form.publishedAt).toISOString()
-                    : null;
-
-        const payload = {
-            organisation_id:
-            currentOrganisation.id,
-            competition_id:
-            currentCompetitionId,
-            title: form.title.trim(),
-            slug: createSlug(form.slug),
-            category: form.category,
-            status: form.status,
-            description: form.description.trim(),
-            youtube_url: youtubeUrl || null,
-            embed_url: embedUrl || null,
-            thumbnail_url: thumbnailUrl || null,
-            thumbnail_alt: form.thumbnailAlt.trim() || form.title.trim() || null,
-            featured: form.featured,
-            published_at: publishedAt,
-        };
-
-        const response = editingId
-            ? await supabase
-                .from("media")
-                .update(payload)
-                .eq("id", editingId)
-                .eq(
-                    "organisation_id",
-                    currentOrganisation.id,
+            const embedUrl = youtubeUrl
+                ? createEmbedUrl(
+                    youtubeUrl,
                 )
-                .eq(
-                    "competition_id",
-                    currentCompetitionId,
-                )
-            : await supabase
-                .from("media")
-                .insert(payload);
+                : form.embedUrl.trim();
 
-        if (response.error) {
-            console.error("Failed to save media:", response.error);
+            const thumbnailUrl =
+                form.thumbnailUrl.trim() ||
+                createThumbnailUrl(
+                    youtubeUrl,
+                );
 
-            setErrorMessage(
-                response.error.code === "23505"
-                    ? "A media record with this slug already exists."
-                    : response.error.message,
+            const publishedAt =
+                form.status ===
+                "published"
+                    ? form.publishedAt
+                        ? new Date(
+                            form.publishedAt,
+                        ).toISOString()
+                        : editingMediaItem
+                            ?.published_at ??
+                        new Date().toISOString()
+                    : form.publishedAt
+                        ? new Date(
+                            form.publishedAt,
+                        ).toISOString()
+                        : null;
+
+            const payload = {
+                organisation_id:
+                organisationId,
+                competition_id:
+                currentCompetitionId,
+                title:
+                    form.title.trim(),
+                slug: createSlug(
+                    form.slug ||
+                    form.title,
+                ),
+                category: form.category,
+                status: form.status,
+                description:
+                    form.description.trim(),
+                youtube_url:
+                    youtubeUrl || null,
+                embed_url:
+                    embedUrl || null,
+                thumbnail_url:
+                    thumbnailUrl || null,
+                thumbnail_alt:
+                    form.thumbnailAlt.trim() ||
+                    form.title.trim() ||
+                    null,
+                featured: form.featured,
+                published_at:
+                publishedAt,
+            };
+
+            const response = editingId
+                ? await supabase
+                    .from("media")
+                    .update(payload)
+                    .eq("id", editingId)
+                    .eq(
+                        "organisation_id",
+                        organisationId,
+                    )
+                    .eq(
+                        "competition_id",
+                        currentCompetitionId,
+                    )
+                : await supabase
+                    .from("media")
+                    .insert(payload);
+
+            if (response.error) {
+                console.error(
+                    "Failed to save media:",
+                    response.error,
+                );
+
+                setErrorMessage(
+                    response.error.code ===
+                    "23505"
+                        ? "A media record with this URL already exists."
+                        : response.error.message,
+                );
+                return;
+            }
+
+            const wasEditing =
+                Boolean(editingId);
+
+            resetForm();
+
+            await loadMedia();
+
+            setMessage(
+                wasEditing
+                    ? "Media record updated successfully."
+                    : "Media record created successfully.",
+            );
+        } catch (error) {
+            console.error(
+                "Unexpected error while saving media:",
+                error,
             );
 
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Unable to save this media item.",
+            );
+        } finally {
             setSaving(false);
-            return;
         }
-
-        setMessage(
-            editingId
-                ? "Media record updated successfully."
-                : "Media record created successfully.",
-        );
-
-        setForm(initialFormState);
-        setEditingId(null);
-        setShowMediaForm(false);
-
-        await loadMedia();
-
-        setSaving(false);
     }
 
-    async function updateStatus(item: DbMedia, status: MediaStatus) {
+    async function updateStatus(
+        item: DbMedia,
+        status: MediaStatus,
+    ) {
         if (
-            !currentOrganisation?.id ||
+            !organisationId ||
             !currentCompetitionId
         ) {
             setErrorMessage(
@@ -469,33 +470,43 @@ export function MediaManager() {
 
         const publishedAt =
             status === "published"
-                ? (item.published_at ?? new Date().toISOString())
+                ? item.published_at ??
+                new Date().toISOString()
                 : item.published_at;
 
-        const { error } = await supabase
-            .from("media")
-            .update({
-                status,
-                published_at: publishedAt,
-            })
-            .eq("id", item.id)
-            .eq(
-                "organisation_id",
-                currentOrganisation.id,
-            )
-            .eq(
-                "competition_id",
-                currentCompetitionId,
-            );
+        const { error } =
+            await supabase
+                .from("media")
+                .update({
+                    status,
+                    published_at:
+                    publishedAt,
+                })
+                .eq("id", item.id)
+                .eq(
+                    "organisation_id",
+                    organisationId,
+                )
+                .eq(
+                    "competition_id",
+                    currentCompetitionId,
+                );
 
         if (error) {
-            console.error("Failed to update media status:", error);
+            console.error(
+                "Failed to update media status:",
+                error,
+            );
 
-            setErrorMessage("Unable to update media status.");
+            setErrorMessage(
+                "Unable to update media status.",
+            );
             return;
         }
 
-        setMessage(`Media status changed to ${status}.`);
+        setMessage(
+            `Media status changed to ${status}.`,
+        );
 
         await loadMedia();
     }
@@ -504,7 +515,7 @@ export function MediaManager() {
         if (
             !mediaToDelete ||
             saving ||
-            !currentOrganisation?.id ||
+            !organisationId ||
             !currentCompetitionId
         ) {
             return;
@@ -516,347 +527,173 @@ export function MediaManager() {
         setMessage(null);
         setErrorMessage(null);
 
-        const { error } = await supabase
-            .from("media")
-            .delete()
-            .eq("id", item.id)
-            .eq(
-                "organisation_id",
-                currentOrganisation.id,
-            )
-            .eq(
-                "competition_id",
-                currentCompetitionId,
+        try {
+            const { error } =
+                await supabase
+                    .from("media")
+                    .delete()
+                    .eq("id", item.id)
+                    .eq(
+                        "organisation_id",
+                        organisationId,
+                    )
+                    .eq(
+                        "competition_id",
+                        currentCompetitionId,
+                    );
+
+            if (error) {
+                console.error(
+                    "Failed to delete media:",
+                    error,
+                );
+
+                setErrorMessage(
+                    "Unable to delete this media record.",
+                );
+                return;
+            }
+
+            if (
+                editingId === item.id
+            ) {
+                resetForm();
+            }
+
+            setMediaToDelete(null);
+
+            await loadMedia();
+
+            setMessage(
+                "Media record deleted successfully.",
             );
-
-        if (error) {
-            console.error("Failed to delete media:", error);
-
-            setErrorMessage("Unable to delete this media record.");
+        } finally {
             setSaving(false);
-            return;
         }
+    }
 
-        if (editingId === item.id) {
-            resetForm();
-        }
+    if (
+        !currentOrganisation ||
+        !currentCompetition
+    ) {
+        return (
+            <div className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-8 text-center">
+                <h3 className="text-xl font-bold text-white">
+                    Select an organisation and competition
+                </h3>
 
-        setMediaToDelete(null);
-        setMessage("Media record deleted successfully.");
-
-        await loadMedia();
-
-        setSaving(false);
+                <p className="mt-2 text-slate-400">
+                    Choose the context you want to manage before opening the media library.
+                </p>
+            </div>
+        );
     }
 
     return (
-        <div>
-            <div className="adminWorkspaceHeader">
+        <div className="space-y-6">
+            <div className="flex flex-col gap-4 rounded-2xl border border-lime-900/50 bg-[#0b150a] p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h3>Media Library</h3>
-
-                    <p className="muted">
-                        Manage competition media including highlights, full matches,
-                        interviews, livestreams, podcasts and promotional content.
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                        Content Management
                     </p>
 
-                    {currentCompetition && (
-                        <p className="muted">
-                            Managing media for{" "}
-                            <strong>
-                                {currentCompetition.name}
-                            </strong>
-                        </p>
-                    )}
+                    <h3 className="mt-1 text-3xl font-black text-white">
+                        Media Library
+                    </h3>
+
+                    <p className="mt-2 text-sm text-slate-400">
+                        Manage highlights, full matches, interviews, livestreams, podcasts and promotional content for{" "}
+                        <strong className="text-white">
+                            {currentCompetition.name}
+                        </strong>
+                        .
+                    </p>
                 </div>
 
-                {!showMediaForm ? (
-                    <button
-                        className="btn primary"
-                        type="button"
-                        onClick={openCreateMediaForm}
-                    >
-                        + Add Media
-                    </button>
-                ) : (
-                    <button
-                        className="btn secondary"
-                        type="button"
-                        disabled={saving}
-                        onClick={resetForm}
-                    >
-                        Cancel
-                    </button>
-                )}
+                <button
+                    type="button"
+                    onClick={
+                        openCreateMediaModal
+                    }
+                    className="rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
+                >
+                    + Add Media
+                </button>
             </div>
 
-            {message && <p className="adminSuccessMessage">{message}</p>}
-
-            {errorMessage && <p className="adminErrorMessage">{errorMessage}</p>}
-
-            {showMediaForm && (
-                <div className="articleAdminForm">
-                    <div className="adminFormGrid">
-                        <label>
-                            <span>Media title</span>
-
-                            <input
-                                value={form.title}
-                                onChange={(event) => handleTitleChange(event.target.value)}
-                                placeholder="Enter media title"
-                            />
-                        </label>
-
-                        <label>
-                            <span>URL slug</span>
-
-                            <input
-                                value={form.slug}
-                                onChange={(event) => updateForm("slug", event.target.value)}
-                                placeholder="media-url-slug"
-                            />
-                        </label>
-
-                        <label>
-                            <span>Category</span>
-
-                            <select
-                                value={form.category}
-                                onChange={(event) =>
-                                    updateForm("category", event.target.value as MediaCategory)
-                                }
-                            >
-                                {mediaCategories.map((category) => (
-                                    <option key={category} value={category}>
-                                        {category}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label>
-                            <span>Status</span>
-
-                            <select
-                                value={form.status}
-                                onChange={(event) =>
-                                    updateForm("status", event.target.value as MediaStatus)
-                                }
-                            >
-                                {mediaStatuses.map((status) => (
-                                    <option key={status} value={status}>
-                                        {status}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label>
-                            <span>Publication date</span>
-
-                            <input
-                                type="datetime-local"
-                                value={form.publishedAt}
-                                onChange={(event) =>
-                                    updateForm("publishedAt", event.target.value)
-                                }
-                            />
-                        </label>
-
-                        <label className="adminCheckboxLabel">
-                            <input
-                                type="checkbox"
-                                checked={form.featured}
-                                onChange={(event) =>
-                                    updateForm("featured", event.target.checked)
-                                }
-                            />
-
-                            <span>Featured media</span>
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>Description</span>
-
-                            <textarea
-                                value={form.description}
-                                onChange={(event) =>
-                                    updateForm("description", event.target.value)
-                                }
-                                placeholder="Describe this media item"
-                                rows={4}
-                            />
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>YouTube URL</span>
-
-                            <input
-                                type="url"
-                                value={form.youtubeUrl}
-                                onChange={(event) => handleYouTubeUrlChange(event.target.value)}
-                                placeholder="https://www.youtube.com/watch?v=..."
-                            />
-                        </label>
-
-                        <label>
-                            <span>Embed URL</span>
-
-                            <input
-                                type="url"
-                                value={form.embedUrl}
-                                onChange={(event) => updateForm("embedUrl", event.target.value)}
-                                placeholder="Generated automatically"
-                            />
-                        </label>
-
-                        <label>
-                            <span>Thumbnail URL</span>
-
-                            <input
-                                type="url"
-                                value={form.thumbnailUrl}
-                                onChange={(event) =>
-                                    updateForm("thumbnailUrl", event.target.value)
-                                }
-                                placeholder="Generated automatically"
-                            />
-                        </label>
-
-                        <label className="adminFormFullWidth">
-                            <span>Thumbnail alt text</span>
-
-                            <input
-                                value={form.thumbnailAlt}
-                                onChange={(event) =>
-                                    updateForm("thumbnailAlt", event.target.value)
-                                }
-                                placeholder="Describe the thumbnail"
-                            />
-                        </label>
-                    </div>
-
-                    {form.embedUrl && (
-                        <div className="mediaAdminPreview">
-                            <iframe
-                                src={form.embedUrl}
-                                title={form.title || "Media preview"}
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
-                        </div>
-                    )}
-
-                    <div className="adminFormActions">
-                        <button
-                            className="btn primary"
-                            type="button"
-                            disabled={saving}
-                            onClick={() => void saveMedia()}
-                        >
-                            {saving
-                                ? "Saving..."
-                                : editingId
-                                    ? "Update Media"
-                                    : "Save Media"}
-                        </button>
-
-                        <button
-                            className="btn secondary"
-                            type="button"
-                            disabled={saving}
-                            onClick={resetForm}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
+            {message && (
+                <p className="rounded-xl border border-emerald-700/50 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
+                    {message}
+                </p>
             )}
 
-            <div className="adminRecordList">
-                <h4>Current media</h4>
+            {errorMessage && (
+                <p className="rounded-xl border border-red-800/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+                    {errorMessage}
+                </p>
+            )}
 
-                {loading ? (
-                    <p className="muted">Loading media...</p>
-                ) : mediaItems.length ? (
-                    mediaItems.map((item) => (
-                        <article className="adminRecord articleAdminRecord" key={item.id}>
-                            {item.thumbnail_url && (
-                                <img
-                                    className="articleAdminThumbnail"
-                                    src={item.thumbnail_url}
-                                    alt={item.thumbnail_alt ?? item.title}
-                                />
-                            )}
+            <MediaTable
+                loading={loading}
+                mediaItems={mediaItems}
+                competitionName={
+                    currentCompetition.name
+                }
+                onEdit={
+                    openEditMediaModal
+                }
+                onPublish={(item) =>
+                    void updateStatus(
+                        item,
+                        "published",
+                    )
+                }
+                onUnpublish={(item) =>
+                    void updateStatus(
+                        item,
+                        "draft",
+                    )
+                }
+                onArchive={(item) =>
+                    void updateStatus(
+                        item,
+                        "archived",
+                    )
+                }
+                onDelete={
+                    setMediaToDelete
+                }
+            />
 
-                            <div className="articleAdminRecordDetails">
-                                <div className="articleAdminRecordBadges">
-                                    <span className="badge">{item.category}</span>
-
-                                    <span
-                                        className={`articleStatusBadge articleStatus-${item.status}`}
-                                    >
-                    {item.status}
-                  </span>
-
-                                    {item.featured && (
-                                        <span className="featuredBadge">Featured Content</span>
-                                    )}
-                                </div>
-
-                                <strong>{item.title}</strong>
-
-                                <span className="muted">/{item.slug}</span>
-
-                                <p>{item.description}</p>
-                            </div>
-
-                            <div className="articleAdminRecordActions">
-                                <button type="button" onClick={() => startEditing(item)}>
-                                    Edit
-                                </button>
-
-                                {item.status !== "published" && (
-                                    <button
-                                        type="button"
-                                        onClick={() => void updateStatus(item, "published")}
-                                    >
-                                        Publish
-                                    </button>
-                                )}
-
-                                {item.status === "published" && (
-                                    <button
-                                        type="button"
-                                        onClick={() => void updateStatus(item, "draft")}
-                                    >
-                                        Unpublish
-                                    </button>
-                                )}
-
-                                {item.status !== "archived" && (
-                                    <button
-                                        type="button"
-                                        onClick={() => void updateStatus(item, "archived")}
-                                    >
-                                        Archive
-                                    </button>
-                                )}
-
-                                <button
-                                    type="button"
-                                    className="dangerButton"
-                                    onClick={() => setMediaToDelete(item)}
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </article>
-                    ))
-                ) : (
-                    <p className="muted">No competition media has been added yet.</p>
-                )}
-            </div>
+            <MediaModal
+                open={showMediaModal}
+                mode={
+                    editingId
+                        ? "edit"
+                        : "create"
+                }
+                values={form}
+                organisationName={
+                    currentOrganisation.name
+                }
+                competitionName={
+                    currentCompetition.name
+                }
+                saving={saving}
+                message={message}
+                errorMessage={errorMessage}
+                onChange={updateForm}
+                onTitleChange={
+                    handleTitleChange
+                }
+                onYouTubeUrlChange={
+                    handleYouTubeUrlChange
+                }
+                onSave={() =>
+                    void saveMedia()
+                }
+                onCancel={resetForm}
+            />
 
             {mediaToDelete && (
                 <ConfirmDialog
@@ -870,7 +707,9 @@ export function MediaManager() {
                     cancelText="Cancel"
                     onCancel={() => {
                         if (!saving) {
-                            setMediaToDelete(null);
+                            setMediaToDelete(
+                                null,
+                            );
                         }
                     }}
                     onConfirm={() => {
