@@ -1385,16 +1385,26 @@ function App() {
                                 label: "FCFS",
                                 href: "https://fcfs.app",
                                 image: "/assets/fcfs-logo.png",
+                                fallbackImages: [],
+                                crop: false,
                             },
                             {
                                 label: "CKEFA Media",
                                 href: "https://www.youtube.com/@CKEFAMedia",
                                 image: "/assets/ckefa-media-logo.jpg",
+                                fallbackImages: [
+                                    "/assets/ckefa-media-logo.jpeg",
+                                    "/assets/ckefa-media-logo.JPG",
+                                    "/assets/ckefa-media-logo.png",
+                                ],
+                                crop: true,
                             },
                             {
                                 label: "CKEFA Software",
                                 href: "https://www.ckefa.co.uk",
                                 image: "/assets/ckefa-software-logo.png",
+                                fallbackImages: [],
+                                crop: false,
                             },
                         ].map((brand) => (
                             <a
@@ -1402,19 +1412,49 @@ function App() {
                                 href={brand.href}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="group grid min-h-16 min-w-36 place-items-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 no-underline transition hover:border-lime-500/60 hover:bg-white/10"
+                                className="group grid min-h-16 min-w-36 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5 px-4 py-3 no-underline transition hover:border-lime-500/60 hover:bg-white/10"
                             >
                                 <img
                                     src={brand.image}
                                     alt={brand.label}
-                                    className="max-h-10 max-w-32 object-contain"
+                                    data-fallback-index="0"
+                                    className={
+                                        brand.crop
+                                            ? "h-12 w-32 scale-[1.55] object-cover"
+                                            : "max-h-10 max-w-32 object-contain"
+                                    }
                                     onError={(event) => {
-                                        event.currentTarget.style.display =
+                                        const image =
+                                            event.currentTarget;
+
+                                        const fallbackIndex =
+                                            Number(
+                                                image.dataset
+                                                    .fallbackIndex ??
+                                                "0",
+                                            );
+
+                                        const nextSource =
+                                            brand.fallbackImages[
+                                                fallbackIndex
+                                                ];
+
+                                        if (nextSource) {
+                                            image.dataset.fallbackIndex =
+                                                String(
+                                                    fallbackIndex +
+                                                    1,
+                                                );
+                                            image.src =
+                                                nextSource;
+                                            return;
+                                        }
+
+                                        image.style.display =
                                             "none";
 
                                         const fallback =
-                                            event.currentTarget
-                                                .nextElementSibling as
+                                            image.nextElementSibling as
                                                 | HTMLElement
                                                 | null;
 

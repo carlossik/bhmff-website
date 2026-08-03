@@ -44,6 +44,86 @@ const initialEnquiryForm: SponsorEnquiryForm = {
     message: "",
 };
 
+
+function getSponsorLogoUrl(
+    sponsor: PublicSponsor,
+) {
+    if (
+        sponsor.logo_url?.trim()
+    ) {
+        return sponsor.logo_url.trim();
+    }
+
+    const normalisedName =
+        sponsor.name
+            .trim()
+            .toLowerCase();
+
+    if (
+        normalisedName.includes(
+            "ckefa software",
+        )
+    ) {
+        return "/assets/ckefa-software-logo.png";
+    }
+
+    if (
+        normalisedName.includes(
+            "ckefa media",
+        )
+    ) {
+        return "/assets/ckefa-media-logo.jpg";
+    }
+
+    if (
+        normalisedName.includes(
+            "fcfs",
+        )
+    ) {
+        return "/assets/fcfs-logo.png";
+    }
+
+    if (
+        normalisedName.includes(
+            "tournamenthq",
+        ) ||
+        normalisedName.includes(
+            "tournament hq",
+        )
+    ) {
+        return "/assets/tournamenthq-logo.png";
+    }
+
+    return "";
+}
+
+function getSponsorLogoImageClass(
+    sponsor: PublicSponsor,
+) {
+    const normalisedName =
+        sponsor.name
+            .trim()
+            .toLowerCase();
+
+    if (
+        normalisedName.includes(
+            "ckefa media",
+        )
+    ) {
+        return "h-full w-full scale-[1.7] object-cover";
+    }
+
+    if (
+        normalisedName.includes(
+            "ckefa software",
+        )
+    ) {
+        return "h-full w-full scale-[1.32] object-cover";
+    }
+
+    return "max-h-24 max-w-full object-contain";
+}
+
 function isValidPhoneNumber(value: string) {
     const trimmedValue =
         value.trim();
@@ -95,6 +175,13 @@ export function PublicSponsors() {
 
     const [sponsors, setSponsors] =
         useState<PublicSponsor[]>([]);
+
+    const [
+        expandedSponsorIds,
+        setExpandedSponsorIds,
+    ] = useState<Set<string>>(
+        new Set(),
+    );
 
     const [isLoading, setIsLoading] =
         useState(true);
@@ -357,6 +444,25 @@ export function PublicSponsors() {
         );
     }
 
+    function toggleSponsorDescription(
+        sponsorId: string,
+    ) {
+        setExpandedSponsorIds(
+            (current) => {
+                const next =
+                    new Set(current);
+
+                if (next.has(sponsorId)) {
+                    next.delete(sponsorId);
+                } else {
+                    next.add(sponsorId);
+                }
+
+                return next;
+            },
+        );
+    }
+
     function openEnquiryForm() {
         setSubmissionMessage(
             null,
@@ -548,59 +654,97 @@ export function PublicSponsors() {
         <>
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {sponsors.map(
-                    (sponsor) => (
-                        <article
-                            key={
-                                sponsor.id
-                            }
-                            className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-5"
-                        >
-                            {sponsor.logo_url && (
-                                <div className="grid min-h-32 place-items-center rounded-xl bg-white p-4">
-                                    <img
-                                        src={
-                                            sponsor.logo_url
-                                        }
-                                        alt={`${sponsor.name} logo`}
-                                        loading="lazy"
-                                        className="max-h-24 max-w-full object-contain"
-                                    />
-                                </div>
-                            )}
+                    (sponsor) => {
+                        const sponsorLogoUrl =
+                            getSponsorLogoUrl(
+                                sponsor,
+                            );
 
-                            <span className="mt-4 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
+                        return (
+                            <article
+                                key={
+                                    sponsor.id
+                                }
+                                className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-5"
+                            >
+                                {sponsorLogoUrl && (
+                                    <div className="grid h-36 overflow-hidden rounded-xl bg-black">
+                                        <img
+                                            src={
+                                                sponsorLogoUrl
+                                            }
+                                            alt={`${sponsor.name} logo`}
+                                            loading="lazy"
+                                            className={getSponsorLogoImageClass(
+                                                sponsor,
+                                            )}
+                                        />
+                                    </div>
+                                )}
+
+                                <span className="mt-4 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
                                 {sponsor.tier ??
                                     "Festival Partner"}
                             </span>
 
-                            <h3 className="mt-4 text-xl font-black text-white">
-                                {
-                                    sponsor.name
-                                }
-                            </h3>
-
-                            {sponsor.description && (
-                                <p className="mt-3 text-sm leading-6 text-slate-400">
+                                <h3 className="mt-4 text-xl font-black text-white">
                                     {
-                                        sponsor.description
+                                        sponsor.name
                                     }
-                                </p>
-                            )}
+                                </h3>
 
-                            {sponsor.website_url && (
-                                <a
-                                    href={
-                                        sponsor.website_url
-                                    }
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="mt-5 inline-flex rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white no-underline transition hover:border-lime-500 hover:text-lime-300"
-                                >
-                                    Visit Partner
-                                </a>
-                            )}
-                        </article>
-                    ),
+                                {sponsor.description && (
+                                    <div className="mt-3">
+                                        <p
+                                            className={`text-sm leading-6 text-slate-400 ${
+                                                expandedSponsorIds.has(
+                                                    sponsor.id,
+                                                )
+                                                    ? ""
+                                                    : "line-clamp-4"
+                                            }`}
+                                        >
+                                            {
+                                                sponsor.description
+                                            }
+                                        </p>
+
+                                        {sponsor.description.length >
+                                            180 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        toggleSponsorDescription(
+                                                            sponsor.id,
+                                                        )
+                                                    }
+                                                    className="mt-3 text-sm font-black text-lime-300 transition hover:text-lime-200"
+                                                >
+                                                    {expandedSponsorIds.has(
+                                                        sponsor.id,
+                                                    )
+                                                        ? "Show less"
+                                                        : "Read more"}
+                                                </button>
+                                            )}
+                                    </div>
+                                )}
+
+                                {sponsor.website_url && (
+                                    <a
+                                        href={
+                                            sponsor.website_url
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-5 inline-flex rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white no-underline transition hover:border-lime-500 hover:text-lime-300"
+                                    >
+                                        Visit Partner
+                                    </a>
+                                )}
+                            </article>
+                        );
+                    },
                 )}
 
                 <article className="rounded-2xl border border-lime-700/50 bg-gradient-to-br from-lime-400/10 to-[#0b150a] p-6">
