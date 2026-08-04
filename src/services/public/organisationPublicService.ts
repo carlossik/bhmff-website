@@ -6,7 +6,6 @@ import type { Competition } from "../../types/competitionTypes";
 export type PublicArticle = {
     id: string;
     organisation_id?: string | null;
-    competition_id?: string | null;
     slug?: string | null;
     title?: string | null;
     category?: string | null;
@@ -125,7 +124,6 @@ async function getPublishedArticles(
         .select(`
             id,
             organisation_id,
-            competition_id,
             slug,
             title,
             category,

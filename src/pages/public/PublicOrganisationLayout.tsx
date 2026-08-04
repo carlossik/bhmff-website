@@ -331,6 +331,11 @@ export function PublicOrganisationLayout() {
             resolvedOrganisation.slug,
         )}`;
 
+    const isBhmff =
+        resolvedOrganisation.slug
+            .trim()
+            .toLowerCase() === "bhmff";
+
     const navigationItems = [
         {
             label: "Home",
@@ -338,7 +343,9 @@ export function PublicOrganisationLayout() {
             sectionId: "",
         },
         {
-            label: "Festival",
+            label: isBhmff
+                ? "Festival"
+                : "Overview",
             href:
                 `${basePath}#festival`,
             sectionId: "festival",
@@ -374,7 +381,9 @@ export function PublicOrganisationLayout() {
             sectionId: "media",
         },
         {
-            label: "Black History",
+            label: isBhmff
+                ? "Black History"
+                : "News",
             href:
                 `${basePath}#history`,
             sectionId: "history",

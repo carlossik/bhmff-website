@@ -54,6 +54,10 @@ import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTea
 import { TournamentHQBrand } from './common/TournamentHQBrand'
 
 import {
+    getOrganisationPublicSiteUrl,
+} from '../config/organisationContent'
+
+import {
     canAccessModule,
     formatAdminRole,
     type AdminModule,
@@ -83,15 +87,6 @@ type NavigationSection = {
     icon: LucideIcon
     items: readonly NavigationItem[]
 }
-
-const PUBLIC_SITE_URL =
-    (
-        import.meta.env
-            .VITE_PUBLIC_SITE_URL as
-            | string
-            | undefined
-    )?.replace(/\/$/, '') ||
-    window.location.origin
 
 const navigationSections: readonly NavigationSection[] = [
     {
@@ -290,6 +285,11 @@ export function AdminPortal({
         useState<AdminModule>('Dashboard')
 
     const [
+        articleCreateRequestKey,
+        setArticleCreateRequestKey,
+    ] = useState(0)
+
+    const [
         expandedSections,
         setExpandedSections,
     ] = useState(defaultExpandedSections)
@@ -348,6 +348,12 @@ export function AdminPortal({
 
     const activeRole =
         effectiveProfile.role
+
+    const publicSiteUrl =
+        getOrganisationPublicSiteUrl(
+            window.location.origin,
+            effectiveProfile.currentOrganisation.slug,
+        )
 
     const visibleTabs = useMemo(
         () =>
@@ -426,6 +432,7 @@ export function AdminPortal({
             emptyCompetitionStats
         )
         setEnquiryCount(0)
+        setArticleCreateRequestKey(0)
     }, [currentOrganisation?.id])
 
     useEffect(() => {
@@ -1272,6 +1279,25 @@ export function AdminPortal({
                                     .
                                 </p>
                             </div>
+
+                            {canAccessModule(
+                                activeRole,
+                                'Articles'
+                            ) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setArticleCreateRequestKey(
+                                            (current) =>
+                                                current + 1
+                                        )
+                                        setActiveTab('Articles')
+                                    }}
+                                    className="inline-flex items-center justify-center rounded-xl bg-lime-400 px-5 py-3 text-sm font-black text-black transition hover:bg-lime-300"
+                                >
+                                    + Add Article
+                                </button>
+                            )}
                         </div>
 
                         <section>
@@ -1441,6 +1467,9 @@ export function AdminPortal({
                         onArticlesChanged={
                             loadOrganisationStats
                         }
+                        createRequestKey={
+                            articleCreateRequestKey
+                        }
                     />
                 )
 
@@ -1524,7 +1553,7 @@ export function AdminPortal({
                     </div>
 
                     <a
-                        href={PUBLIC_SITE_URL}
+                        href={publicSiteUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 text-sm font-black text-black transition hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-300 focus:ring-offset-2 focus:ring-offset-[#071006]"

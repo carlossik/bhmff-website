@@ -18,6 +18,14 @@ import {
     TournamentHQBrand,
 } from "../../common/TournamentHQBrand";
 
+import {
+    useOrganisation,
+} from "../../../context/OrganisationContext";
+
+import {
+    getOrganisationContentConfig,
+} from "../../../config/organisationContent";
+
 import type {
     ArticleCategory,
     ArticleStatus,
@@ -26,19 +34,6 @@ import type {
 import type {
     ArticleFormState,
 } from "./articleValidation";
-
-const articleCategories: ArticleCategory[] = [
-    "Black Football History",
-    "Player Stories",
-    "Coach & Volunteer Spotlights",
-    "Club & Community Features",
-    "Festival News",
-    "Match Reports",
-    "Careers in Football",
-    "Opinion & Education",
-    "Sponsor & Partner Stories",
-    "Youth Voices",
-];
 
 const articleStatuses: ArticleStatus[] = [
     "draft",
@@ -103,6 +98,20 @@ export default function ArticleModal({
                                          onSave,
                                          onCancel,
                                      }: ArticleModalProps) {
+    const { currentOrganisation } =
+        useOrganisation();
+
+    const contentConfig = useMemo(
+        () =>
+            getOrganisationContentConfig(
+                currentOrganisation?.slug,
+            ),
+        [currentOrganisation?.slug],
+    );
+
+    const articleCategories =
+        contentConfig.articleCategories;
+
     const currentYear =
         new Date().getFullYear();
 
@@ -959,7 +968,9 @@ export default function ArticleModal({
                                                 event.target.value,
                                             )
                                         }
-                                        placeholder="Football history, Community, Festival"
+                                        placeholder={
+                                            contentConfig.articleTagsPlaceholder
+                                        }
                                     />
                                 </label>
 

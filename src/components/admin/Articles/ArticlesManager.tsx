@@ -9,6 +9,10 @@ import { supabase } from "../../../lib/supabaseClient";
 import { useOrganisation } from "../../../context/OrganisationContext";
 import { ConfirmDialog } from "../../common/ConfirmDialog";
 
+import {
+    getOrganisationContentConfig,
+} from "../../../config/organisationContent";
+
 import ArticleModal from "./ArticleModal";
 import ArticlesTable, {
     type DbArticle,
@@ -40,12 +44,13 @@ import type {
 
 type ArticlesManagerProps = {
     onArticlesChanged?: () => void;
+    createRequestKey?: number;
 };
 
-const initialFormState: ArticleFormState = {
+const baseInitialFormState: ArticleFormState = {
     title: "",
     slug: "",
-    category: "Festival News",
+    category: "Competition News" as ArticleFormState["category"],
     status: "draft",
     summary: "",
     hero: "",
@@ -172,12 +177,31 @@ function normaliseArticleTags(
 
 export function ArticlesManager({
                                     onArticlesChanged,
+                                    createRequestKey = 0,
                                 }: ArticlesManagerProps) {
     const { currentOrganisation } =
         useOrganisation();
 
     const organisationId =
         currentOrganisation?.id ?? null;
+
+    const contentConfig = useMemo(
+        () =>
+            getOrganisationContentConfig(
+                currentOrganisation?.slug,
+            ),
+        [currentOrganisation?.slug],
+    );
+
+    const initialFormState =
+        useMemo<ArticleFormState>(
+            () => ({
+                ...baseInitialFormState,
+                category:
+                    contentConfig.defaultArticleCategory as ArticleFormState["category"],
+            }),
+            [contentConfig.defaultArticleCategory],
+        );
 
     const [articles, setArticles] =
         useState<DbArticle[]>([]);
@@ -199,6 +223,12 @@ export function ArticlesManager({
         articleToDelete,
         setArticleToDelete,
     ] = useState<DbArticle | null>(null);
+
+    useEffect(() => {
+        if (createRequestKey > 0) {
+            openCreateArticleModal();
+        }
+    }, [createRequestKey]);
 
     const [loading, setLoading] =
         useState(false);
@@ -375,7 +405,7 @@ export function ArticlesManager({
             slug: article.slug ?? "",
             category:
                 article.category ??
-                "Festival News",
+                (contentConfig.defaultArticleCategory as ArticleFormState["category"]),
             status:
                 article.status ?? "draft",
             summary: article.summary ?? "",

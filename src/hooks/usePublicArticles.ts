@@ -1,232 +1,357 @@
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import {
+    useEffect,
+    useState,
+} from "react";
+
+import { supabase } from "../lib/supabaseClient";
+
 import {
     articles as fallbackArticles,
     type Article,
     type ArticleAction,
     type ArticleCategory,
     type ArticleStatus,
-} from '../data/festivalData'
+} from "../data/festivalData";
+
+import {
+    useOptionalPublicOrganisation,
+} from "../context/PublicOrganisationContext";
 
 type DbArticle = {
-    id: string
-    slug: string | null
-    title: string | null
-    category: string | null
-    status: string | null
-    summary: string | null
-    hero: string | null
-    read_time: string | null
-    body: unknown
-    author: string | null
-    published_at: string | null
-    featured: boolean | null
-    image_url: string | null
-    image_alt: string | null
-    tags: unknown
-    actions: unknown
-}
+    id: string;
+    organisation_id: string | null;
+    slug: string | null;
+    title: string | null;
+    category: string | null;
+    status: string | null;
+    summary: string | null;
+    hero: string | null;
+    read_time: string | null;
+    body: unknown;
+    author: string | null;
+    published_at: string | null;
+    featured: boolean | null;
+    image_url: string | null;
+    image_alt: string | null;
+    tags: unknown;
+    actions: unknown;
+};
 
 type UsePublicArticlesResult = {
-    articles: Article[]
-    loading: boolean
-    error: string | null
-}
+    articles: Article[];
+    loading: boolean;
+    error: string | null;
+};
 
-function normaliseStringArray(value: unknown): string[] {
+function normaliseStringArray(
+    value: unknown,
+): string[] {
     if (Array.isArray(value)) {
         return value
             .filter(
-                (item): item is string =>
-                    typeof item === 'string'
+                (
+                    item,
+                ): item is string =>
+                    typeof item ===
+                    "string",
             )
-            .map((item) => item.trim())
-            .filter(Boolean)
+            .map((item) =>
+                item.trim(),
+            )
+            .filter(Boolean);
     }
 
-    if (typeof value !== 'string') {
-        return []
+    if (
+        typeof value !==
+        "string"
+    ) {
+        return [];
     }
 
-    const trimmedValue = value.trim()
+    const trimmedValue =
+        value.trim();
 
     if (!trimmedValue) {
-        return []
+        return [];
     }
 
-    /*
-     * Handles JSON arrays stored as strings:
-     * ["Paragraph one", "Paragraph two"]
-     */
     try {
         const parsedValue: unknown =
-            JSON.parse(trimmedValue)
+            JSON.parse(
+                trimmedValue,
+            );
 
-        if (Array.isArray(parsedValue)) {
+        if (
+            Array.isArray(
+                parsedValue,
+            )
+        ) {
             return parsedValue
                 .filter(
-                    (item): item is string =>
-                        typeof item === 'string'
+                    (
+                        item,
+                    ): item is string =>
+                        typeof item ===
+                        "string",
                 )
-                .map((item) => item.trim())
-                .filter(Boolean)
+                .map((item) =>
+                    item.trim(),
+                )
+                .filter(Boolean);
         }
     } catch {
         // Continue with plain-text parsing.
     }
 
-    /*
-     * Handles PostgreSQL-style array strings:
-     * {"Paragraph one","Paragraph two"}
-     */
     if (
-        trimmedValue.startsWith('{') &&
-        trimmedValue.endsWith('}')
+        trimmedValue.startsWith(
+            "{",
+        ) &&
+        trimmedValue.endsWith(
+            "}",
+        )
     ) {
-        const innerValue = trimmedValue.slice(1, -1)
+        const innerValue =
+            trimmedValue.slice(
+                1,
+                -1,
+            );
 
-        if (!innerValue.trim()) {
-            return []
+        if (
+            !innerValue.trim()
+        ) {
+            return [];
         }
 
         return innerValue
-            .split(/","|',\s*'|,\s*/)
+            .split(
+                /","|',\s*'|,\s*/,
+            )
             .map((item) =>
                 item
-                    .replace(/^["']|["']$/g, '')
-                    .replace(/\\"/g, '"')
-                    .trim()
+                    .replace(
+                        /^["']|["']$/g,
+                        "",
+                    )
+                    .replace(
+                        /\\"/g,
+                        '"',
+                    )
+                    .trim(),
             )
-            .filter(Boolean)
+            .filter(Boolean);
     }
 
-    /*
-     * Normal article text entered through the admin form.
-     * Blank lines define separate paragraphs.
-     */
     return trimmedValue
         .split(/\n\s*\n/)
-        .map((paragraph) => paragraph.trim())
-        .filter(Boolean)
+        .map((paragraph) =>
+            paragraph.trim(),
+        )
+        .filter(Boolean);
 }
 
 function normaliseActions(
-    value: unknown
+    value: unknown,
 ): ArticleAction[] {
     if (Array.isArray(value)) {
         return value
             .map((item) => {
                 if (
-                    typeof item !== 'object' ||
+                    typeof item !==
+                    "object" ||
                     item === null
                 ) {
-                    return null
+                    return null;
                 }
 
                 const record =
-                    item as Record<string, unknown>
+                    item as Record<
+                        string,
+                        unknown
+                    >;
 
                 if (
-                    typeof record.label !== 'string' ||
-                    typeof record.href !== 'string'
+                    typeof record.label !==
+                    "string" ||
+                    typeof record.href !==
+                    "string"
                 ) {
-                    return null
+                    return null;
                 }
 
                 return {
-                    label: record.label,
-                    href: record.href,
-                }
+                    label:
+                    record.label,
+                    href:
+                    record.href,
+                };
             })
             .filter(
                 (
-                    action
+                    action,
                 ): action is ArticleAction =>
-                    action !== null
-            )
+                    action !== null,
+            );
     }
 
-    if (typeof value === 'string') {
+    if (
+        typeof value ===
+        "string"
+    ) {
         try {
             return normaliseActions(
-                JSON.parse(value)
-            )
+                JSON.parse(value),
+            );
         } catch {
-            return []
+            return [];
         }
     }
 
-    return []
+    return [];
 }
 
 function mapDbArticle(
-    article: DbArticle
+    article: DbArticle,
 ): Article {
     return {
         id: article.id,
-        slug: article.slug ?? article.id,
+        slug:
+            article.slug ??
+            article.id,
         title:
-            article.title ?? 'Untitled article',
+            article.title ??
+            "Untitled article",
         category:
-            (article.category ??
-                'Festival News') as ArticleCategory,
+            (
+                article.category ??
+                "Competition News"
+            ) as ArticleCategory,
         status:
-            (article.status ??
-                'draft') as ArticleStatus,
-        summary: article.summary ?? '',
-        hero: article.hero ?? '',
+            (
+                article.status ??
+                "draft"
+            ) as ArticleStatus,
+        summary:
+            article.summary ??
+            "",
+        hero:
+            article.hero ??
+            "",
         readTime:
-            article.read_time ?? '3 min read',
-        body: normaliseStringArray(
-            article.body
-        ),
+            article.read_time ??
+            "3 min read",
+        body:
+            normaliseStringArray(
+                article.body,
+            ),
         author:
             article.author ??
-            'CKEFA Media Editorial Team',
-        publishedAt: article.published_at,
-        featured: article.featured ?? false,
+            "Editorial Team",
+        publishedAt:
+        article.published_at,
+        featured:
+            article.featured ??
+            false,
         imageUrl:
-            article.image_url ?? undefined,
+            article.image_url ??
+            undefined,
         imageAlt:
-            article.image_alt ?? undefined,
-        tags: normaliseStringArray(
-            article.tags
-        ),
-        actions: normaliseActions(
-            article.actions
-        ),
-    }
+            article.image_alt ??
+            undefined,
+        tags:
+            normaliseStringArray(
+                article.tags,
+            ),
+        actions:
+            normaliseActions(
+                article.actions,
+            ),
+    };
 }
 
-export function usePublicArticles(): UsePublicArticlesResult {
-    const [articles, setArticles] =
+export function usePublicArticles():
+    UsePublicArticlesResult {
+    const publicOrganisation =
+        useOptionalPublicOrganisation();
+
+    const organisationId =
+        publicOrganisation
+            ?.organisationId ??
+        null;
+
+    const organisationSlug =
+        publicOrganisation
+            ?.organisationSlug
+            .trim()
+            .toLowerCase() ??
+        "";
+
+    const isBhmff =
+        organisationSlug ===
+        "bhmff";
+
+    const [
+        articles,
+        setArticles,
+    ] =
         useState<Article[]>(
-            fallbackArticles.filter(
-                (article) =>
-                    article.status === 'published'
-            )
-        )
+            isBhmff
+                ? fallbackArticles.filter(
+                    (article) =>
+                        article.status ===
+                        "published",
+                )
+                : [],
+        );
 
-    const [loading, setLoading] =
-        useState(true)
+    const [
+        loading,
+        setLoading,
+    ] =
+        useState(true);
 
-    const [error, setError] =
-        useState<string | null>(null)
+    const [
+        error,
+        setError,
+    ] =
+        useState<string | null>(
+            null,
+        );
 
     useEffect(() => {
-        let isMounted = true
+        let isMounted = true;
 
         async function loadArticles() {
-            setLoading(true)
-            setError(null)
+            if (!organisationId) {
+                if (isMounted) {
+                    setArticles(
+                        isBhmff
+                            ? fallbackArticles.filter(
+                                (
+                                    article,
+                                ) =>
+                                    article.status ===
+                                    "published",
+                            )
+                            : [],
+                    );
+                    setLoading(false);
+                }
+
+                return;
+            }
+
+            setLoading(true);
+            setError(null);
 
             const {
                 data,
                 error: queryError,
             } = await supabase
-                .from('articles')
+                .from("articles")
                 .select(`
                     id,
+                    organisation_id,
                     slug,
                     title,
                     category,
@@ -243,51 +368,90 @@ export function usePublicArticles(): UsePublicArticlesResult {
                     tags,
                     actions
                 `)
-                .eq('status', 'published')
-                .order('featured', {
-                    ascending: false,
-                })
-                .order('published_at', {
-                    ascending: false,
-                    nullsFirst: false,
-                })
+                .eq(
+                    "organisation_id",
+                    organisationId,
+                )
+                .eq(
+                    "status",
+                    "published",
+                )
+                .order(
+                    "featured",
+                    {
+                        ascending:
+                            false,
+                    },
+                )
+                .order(
+                    "published_at",
+                    {
+                        ascending:
+                            false,
+                        nullsFirst:
+                            false,
+                    },
+                );
 
             if (!isMounted) {
-                return
+                return;
             }
 
             if (queryError) {
                 console.error(
-                    'Failed to load public articles:',
-                    queryError
-                )
+                    "Failed to load public articles:",
+                    queryError,
+                );
 
                 setError(
-                    'Unable to load the latest articles.'
-                )
+                    "Unable to load the latest articles.",
+                );
 
-                setLoading(false)
-                return
+                setArticles(
+                    isBhmff
+                        ? fallbackArticles.filter(
+                            (
+                                article,
+                            ) =>
+                                article.status ===
+                                "published",
+                        )
+                        : [],
+                );
+
+                setLoading(false);
+                return;
             }
 
-            const mappedArticles = (
-                (data ?? []) as DbArticle[]
-            ).map(mapDbArticle)
+            const mappedArticles =
+                (
+                    data ??
+                    []
+                ).map((row) =>
+                    mapDbArticle(
+                        row as DbArticle,
+                    ),
+                );
 
-            setArticles(mappedArticles)
-            setLoading(false)
+            setArticles(
+                mappedArticles,
+            );
+            setLoading(false);
         }
 
-        void loadArticles()
+        void loadArticles();
 
         return () => {
-            isMounted = false
-        }
-    }, [])
+            isMounted = false;
+        };
+    }, [
+        isBhmff,
+        organisationId,
+    ]);
 
     return {
         articles,
         loading,
         error,
-    }
+    };
 }

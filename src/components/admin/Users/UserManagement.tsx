@@ -2,107 +2,233 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
-} from 'react'
+    type ReactNode,
+} from "react";
 
-import { ConfirmDialog } from '../../common/ConfirmDialog'
-import { Modal } from '../../common/Modal'
-import { Toast } from '../../common/Toast'
+import {
+    Mail,
+    ShieldCheck,
+    UserPlus,
+    Users,
+    X,
+} from "lucide-react";
+
+import { ConfirmDialog } from "../../common/ConfirmDialog";
+import { Toast } from "../../common/Toast";
 
 import {
     formatAdminRole,
     type AdminProfile,
     type AdminRole,
-} from '../../../services/accessControl'
+} from "../../../services/accessControl";
 
-import { userService } from './userService'
-
-import '../../../styles/userManagement.css'
+import { userService } from "./userService";
 
 import type {
     AdminUser,
     InviteUserFormValues,
     UserAccessFormValues,
-} from './userTypes'
-
-const roleOptions: Array<{
-    value: AdminRole
-    label: string
-    description: string
-}> = [
-    {
-        value: 'content_editor',
-        label: 'Content Editor',
-        description:
-            'Can create, edit, preview, publish, unpublish and archive articles for this organisation. Cannot access any other operational modules.',
-    },
-    {
-        value: 'match_official',
-        label: 'Match Official',
-        description:
-            'Can manage match results, goals and permitted match media.',
-    },
-    {
-        value: 'competition_manager',
-        label: 'Competition Manager',
-        description:
-            'Can manage competitions, teams, fixtures, venues, results and other competition operations.',
-    },
-    {
-        value: 'super_admin',
-        label: 'Super Admin',
-        description:
-            'Full organisation administration, commercial content and user-access control.',
-    },
-]
-
-const initialInviteForm: InviteUserFormValues = {
-    fullName: '',
-    email: '',
-    role: 'content_editor',
-}
+} from "./userTypes";
 
 type UserManagementProps = {
-    currentProfile: AdminProfile
+    currentProfile: AdminProfile;
+};
+
+type RoleOption = {
+    value: AdminRole;
+    label: string;
+    description: string;
+};
+
+type BrandedModalProps = {
+    title: string;
+    eyebrow: string;
+    children: ReactNode;
+    onClose: () => void;
+    disabled?: boolean;
+};
+
+const roleOptions: readonly RoleOption[] = [
+    {
+        value: "content_editor",
+        label: "Content Editor",
+        description:
+            "Can create, edit, preview, publish, unpublish and archive articles for this organisation. Cannot access any other operational modules.",
+    },
+    {
+        value: "match_official",
+        label: "Match Official",
+        description:
+            "Can manage match results, goals and permitted match media.",
+    },
+    {
+        value: "competition_manager",
+        label: "Competition Manager",
+        description:
+            "Can manage competitions, clubs, teams, fixtures, venues, results and competition operations.",
+    },
+    {
+        value: "super_admin",
+        label: "Super Admin",
+        description:
+            "Full organisation administration, commercial content and user-access control.",
+    },
+];
+
+const initialInviteForm: InviteUserFormValues = {
+    fullName: "",
+    email: "",
+    role: "content_editor",
+};
+
+function BrandedModal({
+                          title,
+                          eyebrow,
+                          children,
+                          onClose,
+                          disabled = false,
+                      }: BrandedModalProps) {
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
+    useEffect(() => {
+        const previousOverflow =
+            document.body.style.overflow;
+
+        document.body.style.overflow =
+            "hidden";
+
+        function handleKeyDown(
+            event: KeyboardEvent,
+        ) {
+            if (
+                event.key === "Escape" &&
+                !disabled
+            ) {
+                onCloseRef.current();
+            }
+        }
+
+        window.addEventListener(
+            "keydown",
+            handleKeyDown,
+        );
+
+        return () => {
+            document.body.style.overflow =
+                previousOverflow;
+
+            window.removeEventListener(
+                "keydown",
+                handleKeyDown,
+            );
+        };
+    }, [disabled]);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            role="presentation"
+            onMouseDown={(event) => {
+                if (
+                    event.target ===
+                    event.currentTarget &&
+                    !disabled
+                ) {
+                    onClose();
+                }
+            }}
+        >
+            <section
+                className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-lime-800/50 bg-[#0b150a] shadow-2xl shadow-black/50"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="user-access-modal-title"
+            >
+                <header className="sticky top-0 z-10 flex items-start justify-between gap-6 border-b border-lime-900/50 bg-[#0b150a]/95 px-6 py-5 backdrop-blur sm:px-8">
+                    <div>
+                        <img
+                            src="/assets/tournamenthq-logo.png"
+                            alt="TournamentHQ"
+                            className="mb-4 h-auto max-h-10 w-[175px] object-contain"
+                        />
+
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-400">
+                            {eyebrow}
+                        </p>
+
+                        <h2
+                            id="user-access-modal-title"
+                            className="mt-2 text-3xl font-black leading-tight text-white sm:text-4xl"
+                        >
+                            {title}
+                        </h2>
+                    </div>
+
+                    <button
+                        type="button"
+                        aria-label={`Close ${title}`}
+                        disabled={disabled}
+                        onClick={onClose}
+                        className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-lime-800/60 text-white transition hover:border-lime-400 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <X size={22} />
+                    </button>
+                </header>
+
+                <div className="px-6 py-6 sm:px-8 sm:py-8">
+                    {children}
+                </div>
+            </section>
+        </div>
+    );
 }
 
 function formatDate(value: string) {
-    return new Date(value).toLocaleString(
-        'en-GB',
-        {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        },
-    )
+    return new Date(
+        value,
+    ).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
 
 function isValidEmail(value: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
         value.trim(),
-    )
+    );
 }
 
-function getUserDisplayName(user: AdminUser) {
+function getUserDisplayName(
+    user: AdminUser,
+) {
     return (
         user.full_name?.trim() ||
         user.email?.trim() ||
-        'this user'
-    )
+        "this user"
+    );
 }
 
-function getRoleClass(role: AdminRole) {
+function getRoleBadgeClass(
+    role: AdminRole,
+) {
     switch (role) {
-        case 'super_admin':
-            return 'role-super'
-        case 'competition_manager':
-            return 'role-manager'
-        case 'content_editor':
-            return 'role-editor'
-        case 'match_official':
-            return 'role-official'
+        case "super_admin":
+            return "border-fuchsia-700/50 bg-fuchsia-500/10 text-fuchsia-300";
+        case "competition_manager":
+            return "border-sky-700/50 bg-sky-500/10 text-sky-300";
+        case "content_editor":
+            return "border-amber-700/50 bg-amber-500/10 text-amber-300";
+        case "match_official":
+            return "border-emerald-700/50 bg-emerald-500/10 text-emerald-300";
     }
 }
 
@@ -110,37 +236,41 @@ export function UserManagement({
                                    currentProfile,
                                }: UserManagementProps) {
     const organisationId =
-        currentProfile.currentOrganisation.id
+        currentProfile.currentOrganisation.id;
 
     const organisationName =
-        currentProfile.currentOrganisation.name
+        currentProfile.currentOrganisation.name;
 
     const [users, setUsers] =
-        useState<AdminUser[]>([])
+        useState<AdminUser[]>([]);
 
     const [
         editingUser,
         setEditingUser,
-    ] = useState<AdminUser | null>(null)
+    ] =
+        useState<AdminUser | null>(null);
 
     const [
         userPendingDelete,
         setUserPendingDelete,
-    ] = useState<AdminUser | null>(null)
+    ] =
+        useState<AdminUser | null>(null);
 
     const [
         showInviteModal,
         setShowInviteModal,
-    ] = useState(false)
+    ] =
+        useState(false);
 
     const [
         formValues,
         setFormValues,
-    ] = useState<UserAccessFormValues>({
-        fullName: '',
-        role: 'content_editor',
-        active: false,
-    })
+    ] =
+        useState<UserAccessFormValues>({
+            fullName: "",
+            role: "content_editor",
+            active: false,
+        });
 
     const [
         inviteValues,
@@ -148,146 +278,146 @@ export function UserManagement({
     ] =
         useState<InviteUserFormValues>(
             initialInviteForm,
-        )
+        );
 
     const [loading, setLoading] =
-        useState(true)
+        useState(true);
 
     const [saving, setSaving] =
-        useState(false)
+        useState(false);
 
     const [deleting, setDeleting] =
-        useState(false)
+        useState(false);
 
     const [
         toastMessage,
         setToastMessage,
-    ] = useState('')
+    ] =
+        useState("");
 
     const [
         toastType,
         setToastType,
-    ] = useState<
-        'success' | 'error' | 'info'
-    >('success')
+    ] =
+        useState<
+            "success" | "error" | "info"
+        >("success");
 
     const loadUsers =
         useCallback(async () => {
-            setLoading(true)
+            setLoading(true);
 
             try {
                 const data =
                     await userService.getUsers(
                         organisationId,
-                    )
+                    );
 
-                setUsers(data)
+                setUsers(data);
             } catch (error) {
-                setUsers([])
-
-                setToastType('error')
-
+                setUsers([]);
+                setToastType("error");
                 setToastMessage(
                     error instanceof Error
                         ? error.message
-                        : 'Failed to load users.',
-                )
+                        : "Failed to load users.",
+                );
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
-        }, [organisationId])
+        }, [organisationId]);
 
     useEffect(() => {
-        setEditingUser(null)
-        setUserPendingDelete(null)
-        setShowInviteModal(false)
+        setEditingUser(null);
+        setUserPendingDelete(null);
+        setShowInviteModal(false);
         setInviteValues(
             initialInviteForm,
-        )
+        );
 
-        void loadUsers()
-    }, [loadUsers])
+        void loadUsers();
+    }, [loadUsers]);
 
     const stats = useMemo(
         () => [
             {
-                label: 'Administrators',
+                label: "Administrators",
                 value: users.length,
+                icon: Users,
             },
             {
-                label: 'Active',
+                label: "Active",
                 value: users.filter(
                     (user) => user.active,
                 ).length,
+                icon: ShieldCheck,
             },
             {
-                label: 'Content Editors',
+                label: "Content Editors",
                 value: users.filter(
                     (user) =>
                         user.role ===
-                        'content_editor',
+                        "content_editor",
                 ).length,
-            },
-            {
-                label:
-                    'Competition Managers',
-                value: users.filter(
-                    (user) =>
-                        user.role ===
-                        'competition_manager',
-                ).length,
-            },
-            {
-                label: 'Match Officials',
-                value: users.filter(
-                    (user) =>
-                        user.role ===
-                        'match_official',
-                ).length,
+                icon: Mail,
             },
         ],
         [users],
-    )
+    );
+
+    const selectedInviteRole =
+        roleOptions.find(
+            (role) =>
+                role.value ===
+                inviteValues.role,
+        ) ?? roleOptions[0];
+
+    const selectedEditRole =
+        roleOptions.find(
+            (role) =>
+                role.value ===
+                formValues.role,
+        ) ?? roleOptions[0];
+
+    const openInviteModal =
+        useCallback(() => {
+            setInviteValues(
+                initialInviteForm,
+            );
+            setShowInviteModal(true);
+        }, []);
+
+    const closeInviteModal =
+        useCallback(() => {
+            if (saving) {
+                return;
+            }
+
+            setShowInviteModal(false);
+            setInviteValues(
+                initialInviteForm,
+            );
+        }, [saving]);
+
+    const closeEditModal =
+        useCallback(() => {
+            if (saving) {
+                return;
+            }
+
+            setEditingUser(null);
+        }, [saving]);
 
     function openEditUser(
         user: AdminUser,
     ) {
-        setEditingUser(user)
-
+        setEditingUser(user);
         setFormValues({
             fullName:
-                user.full_name ?? '',
+                user.full_name ?? "",
             role: user.role,
             active: user.active,
-        })
-    }
-
-    function closeEditModal() {
-        if (saving) {
-            return
-        }
-
-        setEditingUser(null)
-    }
-
-    function openInviteModal() {
-        setInviteValues(
-            initialInviteForm,
-        )
-
-        setShowInviteModal(true)
-    }
-
-    function closeInviteModal() {
-        if (saving) {
-            return
-        }
-
-        setShowInviteModal(false)
-
-        setInviteValues(
-            initialInviteForm,
-        )
+        });
     }
 
     function requestUserRemoval(
@@ -297,49 +427,39 @@ export function UserManagement({
             user.user_id ===
             currentProfile.id
         ) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
-                'You cannot remove your own account.',
-            )
-
-            return
+                "You cannot remove your own account.",
+            );
+            return;
         }
 
-        setUserPendingDelete(user)
-    }
-
-    function closeDeleteDialog() {
-        if (deleting) {
-            return
-        }
-
-        setUserPendingDelete(null)
+        setUserPendingDelete(user);
     }
 
     async function inviteUser() {
         const fullName =
-            inviteValues.fullName.trim()
+            inviteValues.fullName.trim();
 
         const email =
             inviteValues.email
                 .trim()
-                .toLowerCase()
+                .toLowerCase();
 
         if (!fullName) {
-            setToastType('error')
+            setToastType("error");
             setToastMessage(
-                'Full name is required.',
-            )
-            return
+                "Full name is required.",
+            );
+            return;
         }
 
         if (!isValidEmail(email)) {
-            setToastType('error')
+            setToastType("error");
             setToastMessage(
-                'Enter a valid email address.',
-            )
-            return
+                "Enter a valid email address.",
+            );
+            return;
         }
 
         if (
@@ -351,14 +471,14 @@ export function UserManagement({
                     email,
             )
         ) {
-            setToastType('error')
+            setToastType("error");
             setToastMessage(
                 `This user already has access to ${organisationName}.`,
-            )
-            return
+            );
+            return;
         }
 
-        setSaving(true)
+        setSaving(true);
 
         try {
             await userService.inviteUser({
@@ -368,53 +488,48 @@ export function UserManagement({
                 role: inviteValues.role,
                 redirectUrl:
                     `${import.meta.env.VITE_ADMIN_URL}/admin/set-password?invitation=true`,
-            })
+            });
 
-            setShowInviteModal(false)
-
+            setShowInviteModal(false);
             setInviteValues(
                 initialInviteForm,
-            )
+            );
 
-            await loadUsers()
+            await loadUsers();
 
-            setToastType('success')
-
+            setToastType("success");
             setToastMessage(
                 `Invitation sent to ${email} for ${organisationName}.`,
-            )
+            );
         } catch (error) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
                 error instanceof Error
                     ? error.message
-                    : 'Failed to invite the user.',
-            )
+                    : "Failed to invite the user.",
+            );
         } finally {
-            setSaving(false)
+            setSaving(false);
         }
     }
 
     async function saveUser() {
         if (!editingUser) {
-            return
+            return;
         }
 
         if (
             editingUser.user_id ===
             currentProfile.id
         ) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
-                'You cannot change your own role or access status from this screen.',
-            )
-
-            return
+                "You cannot change your own role or access status from this screen.",
+            );
+            return;
         }
 
-        setSaving(true)
+        setSaving(true);
 
         try {
             await userService.updateUser(
@@ -422,27 +537,24 @@ export function UserManagement({
                 editingUser.user_id,
                 organisationId,
                 formValues,
-            )
+            );
 
-            setEditingUser(null)
+            setEditingUser(null);
+            await loadUsers();
 
-            await loadUsers()
-
-            setToastType('success')
-
+            setToastType("success");
             setToastMessage(
-                'Organisation access updated successfully.',
-            )
+                "Organisation access updated successfully.",
+            );
         } catch (error) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
                 error instanceof Error
                     ? error.message
-                    : 'Failed to update user access.',
-            )
+                    : "Failed to update user access.",
+            );
         } finally {
-            setSaving(false)
+            setSaving(false);
         }
     }
 
@@ -453,13 +565,11 @@ export function UserManagement({
             user.user_id ===
             currentProfile.id
         ) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
-                'You cannot deactivate your own organisation access.',
-            )
-
-            return
+                "You cannot deactivate your own organisation access.",
+            );
+            return;
         }
 
         try {
@@ -469,29 +579,27 @@ export function UserManagement({
                 organisationId,
                 {
                     fullName:
-                        user.full_name ?? '',
+                        user.full_name ?? "",
                     role: user.role,
                     active: !user.active,
                 },
-            )
+            );
 
-            await loadUsers()
+            await loadUsers();
 
-            setToastType('success')
-
+            setToastType("success");
             setToastMessage(
                 user.active
-                    ? 'User access deactivated successfully.'
-                    : 'User access activated successfully.',
-            )
+                    ? "User access deactivated successfully."
+                    : "User access activated successfully.",
+            );
         } catch (error) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
                 error instanceof Error
                     ? error.message
-                    : 'Unable to update the user.',
-            )
+                    : "Unable to update the user.",
+            );
         }
     }
 
@@ -499,7 +607,7 @@ export function UserManagement({
         user: AdminUser,
     ) {
         if (!user.email) {
-            return
+            return;
         }
 
         try {
@@ -507,28 +615,26 @@ export function UserManagement({
                 {
                     organisationId,
                     fullName:
-                        user.full_name ?? '',
+                        user.full_name ?? "",
                     email: user.email,
                     role: user.role,
                     redirectUrl:
                         `${import.meta.env.VITE_ADMIN_URL}/admin/set-password?invitation=true`,
                 },
-                'resend_setup',
-            )
+                "resend_setup",
+            );
 
-            setToastType('success')
-
+            setToastType("success");
             setToastMessage(
                 `Password reset email sent to ${user.email}.`,
-            )
+            );
         } catch (error) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
                 error instanceof Error
                     ? error.message
-                    : 'Unable to send the password reset email.',
-            )
+                    : "Unable to send the password reset email.",
+            );
         }
     }
 
@@ -537,75 +643,63 @@ export function UserManagement({
             !userPendingDelete ||
             deleting
         ) {
-            return
+            return;
         }
 
-        if (
-            userPendingDelete.user_id ===
-            currentProfile.id
-        ) {
-            setUserPendingDelete(null)
-
-            setToastType('error')
-
-            setToastMessage(
-                'You cannot remove your own account.',
-            )
-
-            return
-        }
-
-        setDeleting(true)
+        setDeleting(true);
 
         try {
             const result =
                 await userService.removeUser(
                     organisationId,
                     userPendingDelete.user_id,
-                )
+                );
 
-            setUserPendingDelete(null)
+            setUserPendingDelete(null);
+            await loadUsers();
 
-            await loadUsers()
-
-            setToastType('success')
-            setToastMessage(result.message)
+            setToastType("success");
+            setToastMessage(
+                result.message,
+            );
         } catch (error) {
-            setToastType('error')
-
+            setToastType("error");
             setToastMessage(
                 error instanceof Error
                     ? error.message
-                    : 'Unable to remove the user.',
-            )
+                    : "Unable to remove the user.",
+            );
         } finally {
-            setDeleting(false)
+            setDeleting(false);
         }
     }
 
+    const inputClassName =
+        "mt-2 w-full rounded-xl border border-lime-900/70 bg-[#071006] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-lime-400 focus:ring-2 focus:ring-lime-400/20 disabled:cursor-not-allowed disabled:opacity-60";
+
     return (
-        <div className="userManagementPage">
+        <div className="space-y-6">
             <Toast
                 message={toastMessage}
                 type={toastType}
                 onClose={() =>
-                    setToastMessage('')
+                    setToastMessage("")
                 }
             />
 
-            <div className="userManagementHeader">
+            <section className="flex flex-col gap-5 rounded-3xl border border-lime-900/50 bg-[#0b150a] p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <span className="eyebrow">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-lime-400">
                         Administration
-                    </span>
+                    </p>
 
-                    <h2>User Access</h2>
+                    <h2 className="mt-2 text-3xl font-black text-white">
+                        User Access
+                    </h2>
 
-                    <p>
-                        Manage users and
-                        organisation-specific
-                        permissions for{' '}
-                        <strong>
+                    <p className="mt-2 text-sm text-slate-400">
+                        Manage organisation-specific access for{" "}
+                        <strong className="text-white">
                             {organisationName}
                         </strong>
                         .
@@ -613,61 +707,66 @@ export function UserManagement({
                 </div>
 
                 <button
-                    className="btn primary"
                     type="button"
-                    onClick={
-                        openInviteModal
-                    }
+                    onClick={openInviteModal}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
                 >
-                    + Invite User
+                    <UserPlus size={18} />
+                    Invite User
                 </button>
-            </div>
+            </section>
 
-            <div className="userStatsGrid">
-                {stats.map((stat) => (
-                    <div
-                        className="userStatCard"
-                        key={stat.label}
-                    >
-                        <span className="userStatLabel">
-                            {stat.label}
-                        </span>
+            <div className="grid gap-4 sm:grid-cols-3">
+                {stats.map((stat) => {
+                    const Icon = stat.icon;
 
-                        <strong className="userStatValue">
-                            {stat.value}
-                        </strong>
-                    </div>
-                ))}
+                    return (
+                        <article
+                            key={stat.label}
+                            className="rounded-2xl border border-lime-900/50 bg-[#10190f] p-5"
+                        >
+                            <Icon
+                                size={22}
+                                className="text-lime-400"
+                            />
+
+                            <p className="mt-4 text-sm font-semibold text-slate-400">
+                                {stat.label}
+                            </p>
+
+                            <strong className="mt-1 block text-3xl font-black text-white">
+                                {stat.value}
+                            </strong>
+                        </article>
+                    );
+                })}
             </div>
 
             {loading ? (
-                <p className="muted">
-                    Loading users for{' '}
-                    {organisationName}...
-                </p>
+                <div className="rounded-2xl border border-lime-900/50 bg-[#10190f] px-6 py-12 text-center text-slate-400">
+                    Loading users for {organisationName}...
+                </div>
             ) : users.length ? (
-                <div className="userCardGrid">
+                <div className="grid gap-4 xl:grid-cols-2">
                     {users.map((user) => {
                         const isCurrentUser =
                             user.user_id ===
-                            currentProfile.id
+                            currentProfile.id;
 
                         const isSuperAdmin =
                             user.role ===
-                            'super_admin'
+                            "super_admin";
 
                         return (
                             <article
-                                className="userCard"
-                                key={
-                                    user.membership_id
-                                }
+                                key={user.membership_id}
+                                className="rounded-2xl border border-lime-900/50 bg-[#10190f] p-5"
                             >
-                                <div className="userCardTop">
+                                <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div>
-                                        <div className="teamAdminBadges">
+                                        <div className="flex flex-wrap gap-2">
                                             <span
-                                                className={`roleBadge ${getRoleClass(
+                                                className={`rounded-full border px-3 py-1 text-xs font-black ${getRoleBadgeClass(
                                                     user.role,
                                                 )}`}
                                             >
@@ -677,540 +776,379 @@ export function UserManagement({
                                             </span>
 
                                             <span
-                                                className={`statusBadge ${
+                                                className={`rounded-full border px-3 py-1 text-xs font-black ${
                                                     user.active
-                                                        ? 'status-active'
-                                                        : 'status-inactive'
+                                                        ? "border-emerald-700/50 bg-emerald-500/10 text-emerald-300"
+                                                        : "border-slate-700 bg-slate-500/10 text-slate-400"
                                                 }`}
                                             >
                                                 {user.active
-                                                    ? 'Active'
-                                                    : 'Inactive'}
+                                                    ? "Active"
+                                                    : "Inactive"}
                                             </span>
 
-                                            {!user.profile_active && (
-                                                <span className="statusBadge status-inactive">
-                                                    Platform
-                                                    Disabled
-                                                </span>
-                                            )}
-
                                             {isCurrentUser && (
-                                                <span className="badge">
+                                                <span className="rounded-full border border-lime-700/50 bg-lime-500/10 px-3 py-1 text-xs font-black text-lime-300">
                                                     You
                                                 </span>
                                             )}
                                         </div>
 
-                                        <div className="userName">
+                                        <h3 className="mt-4 text-xl font-black text-white">
                                             {user.full_name ??
-                                                'Unnamed administrator'}
-                                        </div>
+                                                "Unnamed administrator"}
+                                        </h3>
 
-                                        <div className="userEmail">
+                                        <p className="mt-1 text-sm text-slate-400">
                                             {user.email ??
-                                                'Email not available'}
-                                        </div>
+                                                "Email not available"}
+                                        </p>
                                     </div>
 
-                                    <div className="userAccessDetails">
-                                        <div>
-                                            <span className="teamAdminFieldLabel">
-                                                Access
-                                                Created
-                                            </span>
-
-                                            <span>
-                                                {formatDate(
-                                                    user.created_at,
-                                                )}
-                                            </span>
-                                        </div>
-
-                                        <div>
-                                            <span className="teamAdminFieldLabel">
-                                                Access
-                                                Updated
-                                            </span>
-
-                                            <span>
-                                                {formatDate(
-                                                    user.updated_at,
-                                                )}
-                                            </span>
-                                        </div>
+                                    <div className="text-right text-xs text-slate-500">
+                                        <p>
+                                            Created{" "}
+                                            {formatDate(
+                                                user.created_at,
+                                            )}
+                                        </p>
+                                        <p className="mt-1">
+                                            Updated{" "}
+                                            {formatDate(
+                                                user.updated_at,
+                                            )}
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="userCardFooter">
-                                    <span className="muted">
-                                        {user.active
-                                            ? `Access to ${organisationName} is enabled.`
-                                            : `Access to ${organisationName} is disabled.`}
-                                    </span>
-
-                                    {!isCurrentUser && (
-                                        <div className="userActions">
-                                            {!isSuperAdmin && (
-                                                <button
-                                                    className="btn secondary small"
-                                                    type="button"
-                                                    onClick={() =>
-                                                        openEditUser(
-                                                            user,
-                                                        )
-                                                    }
-                                                >
-                                                    Edit Access
-                                                </button>
-                                            )}
-
+                                {!isCurrentUser && (
+                                    <div className="mt-5 flex flex-wrap gap-2 border-t border-lime-900/40 pt-4">
+                                        {!isSuperAdmin && (
                                             <button
-                                                className="btn secondary small"
                                                 type="button"
-                                                disabled={
-                                                    !user.email
-                                                }
                                                 onClick={() =>
-                                                    void resendSetupEmail(
+                                                    openEditUser(
                                                         user,
                                                     )
                                                 }
+                                                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white transition hover:border-lime-500 hover:text-lime-300"
                                             >
-                                                Reset Password
+                                                Edit Access
                                             </button>
+                                        )}
 
-                                            {!isSuperAdmin && (
-                                                <>
-                                                    <button
-                                                        className={`btn small ${
-                                                            user.active
-                                                                ? 'danger'
-                                                                : 'secondary'
-                                                        }`}
-                                                        type="button"
-                                                        onClick={() =>
-                                                            void toggleUserAccess(
-                                                                user,
-                                                            )
-                                                        }
-                                                    >
-                                                        {user.active
-                                                            ? 'Deactivate'
-                                                            : 'Activate'}
-                                                    </button>
+                                        <button
+                                            type="button"
+                                            disabled={!user.email}
+                                            onClick={() =>
+                                                void resendSetupEmail(
+                                                    user,
+                                                )
+                                            }
+                                            className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white transition hover:border-lime-500 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            Reset Password
+                                        </button>
 
-                                                    <button
-                                                        className="btn danger small"
-                                                        type="button"
-                                                        disabled={
-                                                            deleting
-                                                        }
-                                                        title={`Remove this user from ${organisationName}.`}
-                                                        onClick={() =>
-                                                            requestUserRemoval(
-                                                                user,
-                                                            )
-                                                        }
-                                                    >
-                                                        Remove User
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                        {!isSuperAdmin && (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        void toggleUserAccess(
+                                                            user,
+                                                        )
+                                                    }
+                                                    className="rounded-xl border border-amber-700/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-500/10"
+                                                >
+                                                    {user.active
+                                                        ? "Deactivate"
+                                                        : "Activate"}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        requestUserRemoval(
+                                                            user,
+                                                        )
+                                                    }
+                                                    className="rounded-xl border border-red-800/60 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/10"
+                                                >
+                                                    Remove User
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </article>
-                        )
+                        );
                     })}
                 </div>
             ) : (
-                <div className="teamsEmptyState">
-                    <h3>
+                <div className="rounded-2xl border border-dashed border-lime-800/60 bg-[#10190f] px-6 py-12 text-center">
+                    <h3 className="text-xl font-black text-white">
                         No users assigned
                     </h3>
 
-                    <p>
-                        Invite the first user
-                        to {organisationName}.
+                    <p className="mt-2 text-sm text-slate-400">
+                        Invite the first user to {organisationName}.
                     </p>
                 </div>
             )}
 
             {showInviteModal && (
-                <Modal
+                <BrandedModal
                     title={`Invite User to ${organisationName}`}
-                    onClose={
-                        closeInviteModal
-                    }
+                    eyebrow="TournamentHQ User Access"
+                    disabled={saving}
+                    onClose={closeInviteModal}
                 >
-                    <p className="muted">
-                        The user will receive
-                        access specifically to{' '}
-                        {organisationName}.
+                    <p className="text-sm leading-6 text-slate-400">
+                        The user will receive access specifically to{" "}
+                        <strong className="text-white">
+                            {organisationName}
+                        </strong>
+                        .
                     </p>
 
-                    <div className="adminFormGrid">
-                        <label>
-                            <span>
-                                Full Name *
-                            </span>
-
+                    <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                        <label className="block text-sm font-bold text-lime-200">
+                            Full Name *
                             <input
-                                value={
-                                    inviteValues.fullName
-                                }
-                                maxLength={
-                                    150
-                                }
+                                value={inviteValues.fullName}
+                                maxLength={150}
                                 autoComplete="name"
-                                onChange={(
-                                    event,
-                                ) =>
+                                autoFocus
+                                disabled={saving}
+                                onChange={(event) =>
                                     setInviteValues(
-                                        (
-                                            current,
-                                        ) => ({
+                                        (current) => ({
                                             ...current,
                                             fullName:
-                                            event
-                                                .target
-                                                .value,
+                                            event.target.value,
                                         }),
                                     )
                                 }
+                                className={inputClassName}
                             />
                         </label>
 
-                        <label>
-                            <span>
-                                Email *
-                            </span>
-
+                        <label className="block text-sm font-bold text-lime-200">
+                            Email *
                             <input
                                 type="email"
-                                value={
-                                    inviteValues.email
-                                }
-                                maxLength={
-                                    254
-                                }
+                                value={inviteValues.email}
+                                maxLength={254}
                                 autoComplete="email"
-                                onChange={(
-                                    event,
-                                ) =>
+                                disabled={saving}
+                                onChange={(event) =>
                                     setInviteValues(
-                                        (
-                                            current,
-                                        ) => ({
+                                        (current) => ({
                                             ...current,
                                             email:
-                                            event
-                                                .target
-                                                .value,
+                                            event.target.value,
                                         }),
                                     )
                                 }
+                                className={inputClassName}
                             />
                         </label>
 
-                        <label className="adminFormFullWidth">
-                            <span>
-                                Organisation
-                            </span>
-
+                        <label className="block text-sm font-bold text-lime-200 sm:col-span-2">
+                            Organisation
                             <input
-                                value={
-                                    organisationName
-                                }
+                                value={organisationName}
                                 disabled
+                                className={inputClassName}
                             />
                         </label>
 
-                        <label className="adminFormFullWidth">
-                            <span>
-                                Role *
-                            </span>
-
+                        <label className="block text-sm font-bold text-lime-200 sm:col-span-2">
+                            Role *
                             <select
-                                value={
-                                    inviteValues.role
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
+                                value={inviteValues.role}
+                                disabled={saving}
+                                onChange={(event) =>
                                     setInviteValues(
-                                        (
-                                            current,
-                                        ) => ({
+                                        (current) => ({
                                             ...current,
-                                            role: event
-                                                .target
+                                            role: event.target
                                                 .value as AdminRole,
                                         }),
                                     )
                                 }
+                                className={inputClassName}
                             >
                                 {roleOptions.map(
                                     (role) => (
                                         <option
-                                            key={
-                                                role.value
-                                            }
-                                            value={
-                                                role.value
-                                            }
+                                            key={role.value}
+                                            value={role.value}
                                         >
-                                            {
-                                                role.label
-                                            }
+                                            {role.label}
                                         </option>
                                     ),
                                 )}
                             </select>
                         </label>
-
-                        <div className="adminFormFullWidth">
-                            <span className="teamAdminFieldLabel">
-                                Role
-                                Description
-                            </span>
-
-                            <p className="muted">
-                                {
-                                    roleOptions.find(
-                                        (
-                                            role,
-                                        ) =>
-                                            role.value ===
-                                            inviteValues.role,
-                                    )
-                                        ?.description
-                                }
-                            </p>
-                        </div>
                     </div>
 
-                    <div className="modalActions">
+                    <div className="mt-5 rounded-2xl border border-lime-900/50 bg-black/20 p-4">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-lime-400">
+                            Role Description
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                            {selectedInviteRole.description}
+                        </p>
+                    </div>
+
+                    <div className="mt-7 flex flex-wrap justify-end gap-3 border-t border-lime-900/50 pt-6">
                         <button
-                            className="btn secondary"
                             type="button"
-                            disabled={
-                                saving
-                            }
-                            onClick={
-                                closeInviteModal
-                            }
+                            disabled={saving}
+                            onClick={closeInviteModal}
+                            className="rounded-xl border border-slate-700 px-5 py-3 font-bold text-white transition hover:border-lime-500 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Cancel
                         </button>
 
                         <button
-                            className="btn primary"
                             type="button"
-                            disabled={
-                                saving
-                            }
+                            disabled={saving}
                             onClick={() =>
                                 void inviteUser()
                             }
+                            className="rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {saving
-                                ? 'Sending...'
-                                : 'Send Invitation'}
+                                ? "Sending..."
+                                : "Send Invitation"}
                         </button>
                     </div>
-                </Modal>
+                </BrandedModal>
             )}
 
             {editingUser && (
-                <Modal
+                <BrandedModal
                     title={`Edit Access for ${organisationName}`}
-                    onClose={
-                        closeEditModal
-                    }
+                    eyebrow="TournamentHQ User Access"
+                    disabled={saving}
+                    onClose={closeEditModal}
                 >
-                    <div className="adminFormGrid">
-                        <label>
-                            <span>
-                                Full Name
-                            </span>
-
+                    <div className="grid gap-5 sm:grid-cols-2">
+                        <label className="block text-sm font-bold text-lime-200">
+                            Full Name
                             <input
-                                value={
-                                    formValues.fullName
-                                }
-                                maxLength={
-                                    150
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
+                                value={formValues.fullName}
+                                maxLength={150}
+                                disabled={saving}
+                                onChange={(event) =>
                                     setFormValues(
-                                        (
-                                            current,
-                                        ) => ({
+                                        (current) => ({
                                             ...current,
                                             fullName:
-                                            event
-                                                .target
-                                                .value,
+                                            event.target.value,
                                         }),
                                     )
                                 }
+                                className={inputClassName}
                             />
                         </label>
 
-                        <label>
-                            <span>
-                                Email
-                            </span>
-
+                        <label className="block text-sm font-bold text-lime-200">
+                            Email
                             <input
-                                value={
-                                    editingUser.email ??
-                                    ''
-                                }
+                                value={editingUser.email ?? ""}
                                 disabled
+                                className={inputClassName}
                             />
                         </label>
 
-                        <label>
-                            <span>
-                                Organisation
-                            </span>
-
-                            <input
-                                value={
-                                    organisationName
-                                }
-                                disabled
-                            />
-                        </label>
-
-                        <label>
-                            <span>
-                                Role
-                            </span>
-
+                        <label className="block text-sm font-bold text-lime-200">
+                            Role
                             <select
-                                value={
-                                    formValues.role
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
+                                value={formValues.role}
+                                disabled={saving}
+                                onChange={(event) =>
                                     setFormValues(
-                                        (
-                                            current,
-                                        ) => ({
+                                        (current) => ({
                                             ...current,
-                                            role: event
-                                                .target
+                                            role: event.target
                                                 .value as AdminRole,
                                         }),
                                     )
                                 }
+                                className={inputClassName}
                             >
                                 {roleOptions.map(
                                     (role) => (
                                         <option
-                                            key={
-                                                role.value
-                                            }
-                                            value={
-                                                role.value
-                                            }
+                                            key={role.value}
+                                            value={role.value}
                                         >
-                                            {
-                                                role.label
-                                            }
+                                            {role.label}
                                         </option>
                                     ),
                                 )}
                             </select>
                         </label>
 
-                        <label className="adminCheckboxLabel">
+                        <label className="flex items-center gap-3 rounded-xl border border-lime-900/60 bg-[#071006] px-4 py-3 text-sm font-bold text-white">
                             <input
                                 type="checkbox"
-                                checked={
-                                    formValues.active
-                                }
-                                onChange={(
-                                    event,
-                                ) =>
+                                checked={formValues.active}
+                                disabled={saving}
+                                onChange={(event) =>
                                     setFormValues(
-                                        (
-                                            current,
-                                        ) => ({
+                                        (current) => ({
                                             ...current,
                                             active:
-                                            event
-                                                .target
-                                                .checked,
+                                            event.target.checked,
                                         }),
                                     )
                                 }
+                                className="h-4 w-4 accent-lime-400"
                             />
-
-                            <span>
-                                Organisation
-                                access is active
-                            </span>
+                            Organisation access is active
                         </label>
-
-                        <div className="adminFormFullWidth">
-                            <span className="teamAdminFieldLabel">
-                                Role
-                                Description
-                            </span>
-
-                            <p className="muted">
-                                {
-                                    roleOptions.find(
-                                        (
-                                            role,
-                                        ) =>
-                                            role.value ===
-                                            formValues.role,
-                                    )
-                                        ?.description
-                                }
-                            </p>
-                        </div>
                     </div>
 
-                    <div className="modalActions">
+                    <div className="mt-5 rounded-2xl border border-lime-900/50 bg-black/20 p-4">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-lime-400">
+                            Role Description
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                            {selectedEditRole.description}
+                        </p>
+                    </div>
+
+                    <div className="mt-7 flex flex-wrap justify-end gap-3 border-t border-lime-900/50 pt-6">
                         <button
-                            className="btn secondary"
                             type="button"
-                            disabled={
-                                saving
-                            }
-                            onClick={
-                                closeEditModal
-                            }
+                            disabled={saving}
+                            onClick={closeEditModal}
+                            className="rounded-xl border border-slate-700 px-5 py-3 font-bold text-white transition hover:border-lime-500 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Cancel
                         </button>
 
                         <button
-                            className="btn primary"
                             type="button"
-                            disabled={
-                                saving
-                            }
+                            disabled={saving}
                             onClick={() =>
                                 void saveUser()
                             }
+                            className="rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {saving
-                                ? 'Saving...'
-                                : 'Save Access'}
+                                ? "Saving..."
+                                : "Save Access"}
                         </button>
                     </div>
-                </Modal>
+                </BrandedModal>
             )}
 
             {userPendingDelete && (
@@ -1223,18 +1161,22 @@ export function UserManagement({
                     )} will be removed from ${organisationName}. If this is their only organisation, their TournamentHQ account, login access and profile will also be permanently deleted. This action cannot be undone.`}
                     confirmText={
                         deleting
-                            ? 'Deleting...'
-                            : 'Delete User'
+                            ? "Deleting..."
+                            : "Delete User"
                     }
                     cancelText="Cancel"
-                    onCancel={
-                        closeDeleteDialog
-                    }
-                    onConfirm={
-                        confirmUserRemoval
+                    onCancel={() => {
+                        if (!deleting) {
+                            setUserPendingDelete(
+                                null,
+                            );
+                        }
+                    }}
+                    onConfirm={() =>
+                        void confirmUserRemoval()
                     }
                 />
             )}
         </div>
-    )
+    );
 }
