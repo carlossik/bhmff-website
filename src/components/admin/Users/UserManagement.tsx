@@ -481,14 +481,22 @@ export function UserManagement({
         setSaving(true);
 
         try {
+            const adminBaseUrl =
+                (
+                    import.meta.env.VITE_ADMIN_URL as
+                        | string
+                        | undefined
+                )?.replace(/\/$/, "") ??
+                window.location.origin;
+
             await userService.inviteUser({
                 organisationId,
                 fullName,
                 email,
                 role: inviteValues.role,
-                redirectUrl:
-                    `${import.meta.env.VITE_ADMIN_URL}/admin/set-password?invitation=true`,
+                redirectUrl: `${adminBaseUrl}/admin/set-password?invitation=true`,
             });
+
 
             setShowInviteModal(false);
             setInviteValues(
