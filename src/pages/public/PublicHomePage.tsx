@@ -1,19 +1,48 @@
+import { useEffect, useMemo, useState } from 'react'
 import {
     Calendar,
     Camera,
-    ExternalLink,
     Handshake,
-    Newspaper,
+    Scale,
     Shield,
     Trophy,
+    UserCheck,
     Users,
 } from 'lucide-react'
+
 import type { Competition } from '../../types/competitionTypes'
 import type {
     PublicArticle,
     PublicMediaItem,
     PublicSponsor,
 } from '../../services/public/organisationPublicService'
+
+import { supabase } from '../../lib/supabaseClient'
+import { useOptionalPublicOrganisation } from '../../context/PublicOrganisationContext'
+import { TournamentCountdown } from '../../components/public/TournamentCountdown'
+import { Hero } from '../../components/Hero'
+import { Section } from '../../components/Section'
+import { ArticleCard } from '../../components/ArticleCard'
+import { ArticlePage } from '../../components/ArticlePage'
+import { usePublicArticles } from '../../hooks/usePublicArticles'
+import {
+    FixtureList,
+    type PublicFixture,
+} from '../../components/FixtureList'
+import {
+    ResultsList,
+    type PublicResult,
+} from '../../components/ResultsList'
+import {
+    PublicTeams,
+    type PublicTeam,
+} from '../../components/public/PublicTeams'
+import { PublicGroupStandings } from '../../components/public/PublicGroupStandings'
+import {
+    GoldenBootTable,
+    type PublicGoal,
+} from '../../components/GoldenBootTable'
+import { PublicSponsors } from '../../components/public/PublicSponsors'
 
 type PublicHomePageProps = {
     organisationName: string
@@ -29,93 +58,175 @@ type PublicHomePageProps = {
     media?: PublicMediaItem[]
 }
 
-type LooseRecord = Record<string, unknown>
+function first<T>(value: T | T[] | null | undefined): T | null {
+    if (!value) return null
+    return Array.isArray(value) ? value[0] ?? null : value
+}
 
-function getString(
-    value: LooseRecord | undefined,
+function getPublicString(
+    value: Record<string, unknown>,
     keys: string[],
 ) {
-    if (!value) return ''
-
     for (const key of keys) {
-        const candidate = value[key]
+        const candidate = value[key];
 
         if (
-            typeof candidate === 'string' &&
+            typeof candidate === "string" &&
             candidate.trim()
         ) {
-            return candidate.trim()
+            return candidate.trim();
         }
     }
 
-    return ''
+    return "";
 }
 
-function getDate(
-    value: LooseRecord | undefined,
+function getPublicBoolean(
+    value: Record<string, unknown>,
     keys: string[],
 ) {
-    const raw = getString(value, keys)
+    for (const key of keys) {
+        const candidate = value[key];
 
-    if (!raw) return null
-
-    const date = new Date(raw)
-
-    return Number.isNaN(date.getTime())
-        ? null
-        : date
-}
-
-function formatDate(date: Date | null) {
-    if (!date) return ''
-
-    return new Intl.DateTimeFormat('en-GB', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    }).format(date)
-}
-
-function getCountdownParts(target: Date | null) {
-    if (!target) return null
-
-    const difference =
-        target.getTime() - Date.now()
-
-    if (difference <= 0) return null
-
-    const totalSeconds =
-        Math.floor(difference / 1000)
-
-    return {
-        days: Math.floor(
-            totalSeconds / 86400,
-        ),
-        hours: Math.floor(
-            (totalSeconds % 86400) / 3600,
-        ),
-        minutes: Math.floor(
-            (totalSeconds % 3600) / 60,
-        ),
-        seconds:
-            totalSeconds % 60,
+        if (typeof candidate === "boolean") {
+            return candidate;
+        }
     }
+
+    return false;
 }
 
-function sectionTitle(
-    organisationName: string,
-    suffix: string,
-) {
-    return organisationName
-        .toLowerCase()
-        .includes('festival')
-        ? suffix
-        : suffix.replace(
-            'Festival',
-            'Competition',
-        )
-}
+const benefits = [
+    [
+        'Competition Format',
+        'The tournament begins with group-stage football, where every team plays every other team in their group once. Group winners and runners-up qualify for the semi-finals, with the winners progressing to the Championship Final.',
+        Trophy,
+    ],
+    [
+        'Tournament Rules',
+        'Every fixture is played under the Laws of the Game and the published tournament regulations. Player eligibility, substitutions, disciplinary procedures, scheduling and competition decisions are applied consistently.',
+        Scale,
+    ],
+    [
+        'Match Officials',
+        'Qualified referees and supporting match officials will be appointed to fixtures. Officials will record match reports, disciplinary incidents and key match events through TournamentHQ.',
+        UserCheck,
+    ],
+    [
+        'Respect & Code of Conduct',
+        'We operate a zero-tolerance policy towards racism, discrimination, referee abuse, violence, intimidation and unsporting behaviour. Players, coaches and supporters must uphold the highest standards of respect.',
+        Shield,
+    ],
+    [
+        'Player Welfare',
+        'Fixtures are scheduled to provide sensible recovery time, reduce unnecessary congestion and create the safest possible competitive environment for every player.',
+        Calendar,
+    ],
+    [
+        'Professional Media Coverage',
+        'Match filming, highlights, interviews, reports and digital storytelling will showcase players, clubs, partners and the wider community throughout the tournament.',
+        Camera,
+    ],
+    [
+        'Community Legacy',
+        'The festival promotes education, Black History Month, community cohesion and opportunities for young people while building lasting relationships with businesses and public organisations.',
+        Users,
+    ],
+    [
+        'Partnership & Investment',
+        'The tournament offers a credible platform for sponsors and strategic partners to support grassroots football, youth development, inclusion and measurable community impact.',
+        Handshake,
+    ],
+] as const
+
+const timeline = [
+    [
+        'Group Stage',
+        'Opening Fixtures',
+        'Teams begin their group-stage campaigns, with each side playing every other team in its group once.',
+    ],
+    [
+        'Group Stage',
+        'Qualification Decided',
+        'The remaining group fixtures determine the group winners and runners-up who progress to the semi-finals.',
+    ],
+    [
+        'Semi Finals',
+        'Final Places at Stake',
+        'The four qualifying teams compete in two semi-finals, with both winners progressing to the Championship Final.',
+    ],
+    [
+        'Finals',
+        'Final & Third-Place Match',
+        'The semi-final winners compete for the Black History Month Football Festival title, while the remaining teams contest the third-place match before presentations and awards.',
+    ],
+] as const
+
+const genericBenefits = [
+    [
+        'Competition Format',
+        'Competition stages, team eligibility and progression are managed through TournamentHQ and published by the organiser.',
+        Trophy,
+    ],
+    [
+        'Competition Rules',
+        'Fixtures are played under the organiser’s published regulations, player eligibility requirements and applicable governing-body rules.',
+        Scale,
+    ],
+    [
+        'Match Officials',
+        'Referees and supporting officials can be assigned to fixtures, with availability and match responsibilities managed centrally.',
+        UserCheck,
+    ],
+    [
+        'Respect & Conduct',
+        'Players, coaches, officials and supporters are expected to uphold high standards of respect, safety and sporting behaviour.',
+        Shield,
+    ],
+    [
+        'Player Welfare',
+        'Scheduling, venues and recovery periods can be managed to support a safe and well-organised competition experience.',
+        Calendar,
+    ],
+    [
+        'Media & Updates',
+        'Published news, match coverage, highlights and organiser updates appear on this official competition website.',
+        Camera,
+    ],
+    [
+        'Community',
+        'The competition provides a platform for teams, participants, families and local communities to connect through sport.',
+        Users,
+    ],
+    [
+        'Partners',
+        'Sponsors and strategic partners can support the competition and gain visibility through its official public platform.',
+        Handshake,
+    ],
+] as const
+
+const genericTimeline = [
+    [
+        'Setup',
+        'Competition Preparation',
+        'The organiser confirms participating teams, venues, regulations and the competition schedule.',
+    ],
+    [
+        'Fixtures',
+        'Competition Begins',
+        'Published fixtures, kick-off times and venues become available to teams and supporters.',
+    ],
+    [
+        'Results',
+        'Competition Progress',
+        'Confirmed results, tables and statistics update as matches are completed and published.',
+    ],
+    [
+        'Completion',
+        'Awards & Recognition',
+        'The competition concludes with final standings, awards and official organiser updates.',
+    ],
+] as const
 
 export function PublicHomePage({
                                    organisationName,
@@ -127,1591 +238,854 @@ export function PublicHomePage({
                                    basePath,
                                    competitions = [],
                                    articles = [],
-                                   sponsors = [],
                                    media = [],
                                }: PublicHomePageProps) {
+    const publicOrganisation = useOptionalPublicOrganisation()
+    const organisationId = publicOrganisation?.organisationId ?? null
+
+    const isBhmff =
+        basePath.toLowerCase() ===
+        '/o/bhmff'
+
     const primaryCompetition =
         competitions[0] as
             | (Competition &
-            LooseRecord)
+            Record<string, unknown>)
             | undefined
 
     const competitionName =
-        getString(primaryCompetition, [
-            'name',
-            'title',
-        ]) || organisationName
+        primaryCompetition &&
+        typeof primaryCompetition.name ===
+        'string' &&
+        primaryCompetition.name.trim()
+            ? primaryCompetition.name.trim()
+            : organisationName
 
     const competitionDescription =
-        getString(primaryCompetition, [
-            'description',
-            'summary',
-        ]) ||
-        `Follow fixtures, results, teams, news and official updates from ${organisationName}.`
+        primaryCompetition &&
+        typeof primaryCompetition.description ===
+        'string' &&
+        primaryCompetition.description.trim()
+            ? primaryCompetition.description.trim()
+            : `Welcome to the official ${organisationName} competition website. Follow teams, fixtures, results, tables, news and media as they are published.`
 
-    const startDate = getDate(
-        primaryCompetition,
-        ['start_date'],
+    const competitionStartDate =
+        primaryCompetition &&
+        typeof primaryCompetition.start_date ===
+        'string'
+            ? primaryCompetition.start_date
+            : null
+
+    const genericFeaturedMedia =
+        media.find((item) =>
+            getPublicBoolean(item, [
+                'featured',
+            ]),
+        ) ?? media[0]
+
+    const {
+        articles: publicArticles,
+        loading: articlesLoading,
+        error: articlesError,
+    } = usePublicArticles()
+
+    const [activeArticleId, setActiveArticleId] =
+        useState<string | null>(null)
+
+    const activeArticle = useMemo(
+        () =>
+            publicArticles.find(
+                (article) =>
+                    article.id === activeArticleId,
+            ),
+        [activeArticleId, publicArticles],
     )
+    const [publicTeams, setPublicTeams] = useState<PublicTeam[]>([])
+    const [publicFixtures, setPublicFixtures] = useState<PublicFixture[]>([])
+    const [publicResults, setPublicResults] = useState<PublicResult[]>([])
+    const [publicGoals, setPublicGoals] = useState<PublicGoal[]>([])
+    const [loading, setLoading] = useState(true)
 
-    const countdown =
-        getCountdownParts(startDate)
+    useEffect(() => {
+        let disposed = false
 
-    const startDateLabel =
-        formatDate(startDate)
+        async function loadHomepageData() {
+            if (!organisationId) {
+                setLoading(false)
+                return
+            }
 
-    const benefits = [
-        {
-            title: 'Competition Format',
-            text:
-                'Teams compete in group stages, playing every other team in their group once. The group winners and runners-up progress to the semi-finals, with the two semi-final winners meeting in the final.',
-            icon: Trophy,
-        },
-        {
-            title: 'Tournament Rules',
-            text:
-                'All teams, coaches and players must respect the Laws of the Game, competition regulations, player eligibility requirements, match schedules and decisions made by appointed officials.',
-            icon: Shield,
-        },
-        {
-            title: 'Code of Conduct',
-            text:
-                'Abuse of referees, racism, discrimination, threatening behaviour and violence will not be tolerated. Everyone is expected to protect the spirit, safety and reputation of the tournament.',
-            icon: Users,
-        },
-        {
-            title: 'Match Officials',
-            text:
-                'Qualified referees and supporting match officials will be assigned to fixtures, with appointments, availability and match responsibilities managed through TournamentHQ.',
-            icon: Calendar,
-        },
-        {
-            title: 'Official Media Coverage',
-            text:
-                'Professional highlights, interviews, match reports and digital storytelling will showcase the players, clubs, sponsors and wider community throughout the tournament.',
-            icon: Camera,
-        },
-        {
-            title: 'Community & Investment',
-            text:
-                'The tournament provides a credible platform for community engagement, youth opportunity, commercial partnerships and long-term investment in grassroots football.',
-            icon: Handshake,
-        },
-    ]
+            setLoading(true)
 
-    const scheduleItems = [
-        {
-            label: 'Stage 1',
-            title: 'Opening Fixtures',
-            text:
-                'Competition opening, team welcome and the first published fixtures.',
-        },
-        {
-            label: 'Stage 2',
-            title: 'Competition Continues',
-            text:
-                'Further scheduled matches, results, sponsor activity and media coverage.',
-        },
-        {
-            label: 'Stage 3',
-            title: 'Knockout or Final Stages',
-            text:
-                'Qualifying teams progress through the decisive stages of the competition.',
-        },
-        {
-            label: 'Final',
-            title: 'Final and Awards',
-            text:
-                'The competition concludes with the final, recognition and celebration.',
-        },
-    ]
+            const { data: competition, error: competitionError } =
+                await supabase
+                    .from('competitions')
+                    .select('id')
+                    .eq('organisation_id', organisationId)
+                    .eq('status', 'ACTIVE')
+                    .eq('published', true)
+                    .order('start_date', {
+                        ascending: false,
+                        nullsFirst: false,
+                    })
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
 
-    const ecosystem = [
-        {
-            title: 'Fixtures',
-            text:
-                'View confirmed matches, dates, kick-off times and venues.',
-            href: `${basePath}/fixtures`,
-        },
-        {
-            title: 'Results',
-            text:
-                'Follow confirmed scores and published match reports.',
-            href: `${basePath}/results`,
-        },
-        {
-            title: 'Teams',
-            text:
-                'Explore participating clubs, teams and competition groups.',
-            href: `${basePath}/teams`,
-        },
-        {
-            title: 'TournamentHQ',
-            text:
-                'The competition management platform powering this public website.',
-            href: 'https://tournamenthq.co.uk',
-            external: true,
-        },
-    ]
+            if (disposed) return
 
-    const page = {
-        width:
-            'min(1280px, calc(100% - 2.5rem))',
-        border:
-            `1px solid ${accentColour}35`,
-        muted:
-            `${textColour}b8`,
-        card:
-            `linear-gradient(180deg, ${surfaceColour}f2, ${backgroundColour}f5)`,
+            if (competitionError || !competition) {
+                if (competitionError) {
+                    console.error(
+                        'Failed to load public competition:',
+                        competitionError,
+                    )
+                }
+
+                setPublicTeams([])
+                setPublicFixtures([])
+                setPublicResults([])
+                setPublicGoals([])
+                setLoading(false)
+                return
+            }
+
+            const [teamsResponse, fixturesResponse, resultsResponse] =
+                await Promise.all([
+                    supabase
+                        .from('competition_teams')
+                        .select(`
+                            id,
+                            team_id,
+                            team:teams!competition_teams_team_id_fkey (
+                                id,
+                                name,
+                                manager_name,
+                                logo_url,
+                                published,
+                                participation_status
+                            )
+                        `)
+                        .eq('competition_id', competition.id)
+                        .order('team_id', { ascending: true }),
+
+                    supabase
+                        .from('fixtures')
+                        .select(`
+                            id,
+                            stage,
+                            kickoff_time,
+                            status,
+                            home_competition_team:competition_teams!fixtures_home_competition_team_fkey (
+                                id,
+                                team_id,
+                                team:teams!competition_teams_team_id_fkey (
+                                    id,
+                                    name
+                                )
+                            ),
+                            away_competition_team:competition_teams!fixtures_away_competition_team_fkey (
+                                id,
+                                team_id,
+                                team:teams!competition_teams_team_id_fkey (
+                                    id,
+                                    name
+                                )
+                            ),
+                            venue:venues!fixtures_venue_id_fkey (
+                                name,
+                                address,
+                                postcode,
+                                notes
+                            )
+                        `)
+                        .eq('competition_id', competition.id)
+                        .neq('status', 'cancelled')
+                        .order('kickoff_time', {
+                            ascending: true,
+                            nullsFirst: false,
+                        }),
+
+                    supabase
+                        .from('results')
+                        .select(`
+                            id,
+                            fixture_id,
+                            home_score,
+                            away_score,
+                            player_of_match,
+                            match_report,
+                            fixture:fixtures!results_fixture_id_fkey!inner (
+                                id,
+                                competition_id,
+                                stage,
+                                kickoff_time,
+                                home_competition_team:competition_teams!fixtures_home_competition_team_fkey (
+                                    id,
+                                    team_id,
+                                    team:teams!competition_teams_team_id_fkey (
+                                        id,
+                                        name
+                                    )
+                                ),
+                                away_competition_team:competition_teams!fixtures_away_competition_team_fkey (
+                                    id,
+                                    team_id,
+                                    team:teams!competition_teams_team_id_fkey (
+                                        id,
+                                        name
+                                    )
+                                )
+                            )
+                        `)
+                        .eq('published', true)
+                        .eq('fixture.competition_id', competition.id),
+                ])
+
+            if (disposed) return
+
+            if (teamsResponse.error) {
+                console.error(
+                    'Failed to load public teams:',
+                    teamsResponse.error,
+                )
+                setPublicTeams([])
+            } else {
+                const mappedTeams = (teamsResponse.data ?? [])
+                    .map((row: any) => {
+                        const team = first(row.team)
+
+                        if (
+                            !team ||
+                            !team.published ||
+                            team.participation_status !== 'confirmed'
+                        ) {
+                            return null
+                        }
+
+                        return {
+                            id: team.id,
+                            name: team.name,
+                            manager_name: team.manager_name,
+                            logo_url: team.logo_url,
+                        }
+                    })
+                    .filter((team): team is PublicTeam => team !== null)
+                    .sort((firstTeam, secondTeam) =>
+                        firstTeam.name.localeCompare(secondTeam.name),
+                    )
+
+                setPublicTeams(mappedTeams)
+            }
+
+            if (fixturesResponse.error) {
+                console.error(
+                    'Failed to load public fixtures:',
+                    fixturesResponse.error,
+                )
+                setPublicFixtures([])
+            } else {
+                setPublicFixtures(
+                    (fixturesResponse.data ?? []).map((fixture: any) => {
+                        const homeCompetitionTeam = first(
+                            fixture.home_competition_team,
+                        )
+                        const awayCompetitionTeam = first(
+                            fixture.away_competition_team,
+                        )
+                        const homeTeam = first(homeCompetitionTeam?.team)
+                        const awayTeam = first(awayCompetitionTeam?.team)
+                        const venue = first(fixture.venue)
+
+                        return {
+                            id: fixture.id,
+                            stage: fixture.stage,
+                            kickoffTime: fixture.kickoff_time,
+                            status: fixture.status ?? 'scheduled',
+                            homeTeam: homeTeam?.name?.trim() ?? 'Home team TBC',
+                            awayTeam: awayTeam?.name?.trim() ?? 'Away team TBC',
+                            venueName: venue?.name ?? 'Venue to be confirmed',
+                            venueAddress: venue?.address ?? '',
+                            venuePostcode: venue?.postcode ?? '',
+                            venueNotes: venue?.notes ?? '',
+                        }
+                    }),
+                )
+            }
+
+            let mappedResults: PublicResult[] = []
+
+            if (resultsResponse.error) {
+                console.error(
+                    'Failed to load public results:',
+                    resultsResponse.error,
+                )
+                setPublicResults([])
+            } else {
+                mappedResults = (resultsResponse.data ?? [])
+                    .map((result: any) => {
+                        const fixture = first(result.fixture)
+                        if (!fixture) return null
+
+                        const homeCompetitionTeam = first(
+                            fixture.home_competition_team,
+                        )
+                        const awayCompetitionTeam = first(
+                            fixture.away_competition_team,
+                        )
+                        const homeTeam = first(homeCompetitionTeam?.team)
+                        const awayTeam = first(awayCompetitionTeam?.team)
+
+                        if (!homeTeam || !awayTeam) return null
+
+                        return {
+                            id: result.id,
+                            fixtureId: result.fixture_id,
+                            stage: fixture.stage,
+                            kickoffTime: fixture.kickoff_time,
+                            homeTeamId: homeTeam.id,
+                            awayTeamId: awayTeam.id,
+                            homeTeam: homeTeam.name.trim(),
+                            awayTeam: awayTeam.name.trim(),
+                            homeScore: result.home_score,
+                            awayScore: result.away_score,
+                            playerOfMatch: result.player_of_match ?? '',
+                            matchReport: result.match_report ?? '',
+                        }
+                    })
+                    .filter((result): result is PublicResult => result !== null)
+
+                setPublicResults(mappedResults)
+            }
+
+            const fixtureIds = mappedResults.map((result) => result.fixtureId)
+
+            if (!fixtureIds.length) {
+                setPublicGoals([])
+                setLoading(false)
+                return
+            }
+
+            const { data: goalsData, error: goalsError } = await supabase
+                .from('goals')
+                .select(`
+                    id,
+                    fixture_id,
+                    player_name,
+                    minute,
+                    video_timestamp,
+                    team:teams!goals_team_id_fkey (
+                        id,
+                        name,
+                        logo_url
+                    )
+                `)
+                .in('fixture_id', fixtureIds)
+                .order('created_at', { ascending: true })
+
+            if (disposed) return
+
+            if (goalsError) {
+                console.error('Failed to load public goals:', goalsError)
+                setPublicGoals([])
+            } else {
+                setPublicGoals(
+                    (goalsData ?? [])
+                        .map((goal: any) => {
+                            const team = first(goal.team)
+                            if (!team || !goal.fixture_id) return null
+
+                            return {
+                                id: goal.id,
+                                fixtureId: goal.fixture_id,
+                                teamId: team.id,
+                                teamName: team.name.trim(),
+                                teamLogoUrl: team.logo_url ?? '',
+                                playerName: goal.player_name.trim(),
+                                minute: goal.minute,
+                                videoTimestamp: goal.video_timestamp ?? '',
+                            }
+                        })
+                        .filter((goal): goal is PublicGoal => goal !== null),
+                )
+            }
+
+            setLoading(false)
+        }
+
+        void loadHomepageData()
+
+        return () => {
+            disposed = true
+        }
+    }, [organisationId])
+
+    const displayedBenefits =
+        isBhmff
+            ? benefits
+            : genericBenefits
+
+    const displayedTimeline =
+        isBhmff
+            ? timeline
+            : genericTimeline
+
+    const genericArticleTitle =
+        'News & Updates'
+
+    const genericArticleIntro =
+        `Latest news, announcements and community updates from ${organisationName}.`
+
+    const genericSponsorTitle =
+        'Competition Partners'
+
+    const genericSponsorIntro =
+        `Organisations supporting ${organisationName}, its teams and participants.`
+
+    if (activeArticle && isBhmff) {
+        return (
+            <ArticlePage
+                article={activeArticle}
+                onBack={() =>
+                    setActiveArticleId(null)
+                }
+            />
+        )
     }
 
     return (
-        <div
-            style={{
-                background:
-                    `radial-gradient(circle at 75% 28%, ${accentColour}18, transparent 28%), ${backgroundColour}`,
-                color: textColour,
-            }}
-        >
-            {countdown ? (
-                <section
-                    style={{
-                        padding: '2.25rem 0',
-                        textAlign: 'center',
-                        background:
-                            `linear-gradient(90deg, ${accentColour}20, ${accentColour}38, ${accentColour}20)`,
-                        borderBottom:
-                            `1px solid ${accentColour}45`,
-                    }}
-                >
-                    <div
+        <>
+            {isBhmff ? (
+                <>
+                    <TournamentCountdown />
+                    <Hero />
+                </>
+            ) : (
+                <>
+                    {competitionStartDate && (
+                        <section
+                            className="border-b py-10 text-center"
+                            style={{
+                                background: `linear-gradient(90deg, ${accentColour}18, ${accentColour}30, ${accentColour}18)`,
+                                borderColor: `${accentColour}35`,
+                            }}
+                        >
+                            <p
+                                className="text-xs font-black uppercase tracking-[0.2em]"
+                                style={{ color: accentColour }}
+                            >
+                                Upcoming competition
+                            </p>
+                            <h2 className="mt-3 text-3xl font-black uppercase sm:text-5xl">
+                                {competitionName}
+                            </h2>
+                            <p className="mt-3 text-sm opacity-75">
+                                Starts {new Intl.DateTimeFormat('en-GB', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                            }).format(new Date(competitionStartDate))}
+                            </p>
+                        </section>
+                    )}
+
+                    <section
+                        className="border-b py-16 sm:py-24"
                         style={{
-                            width: page.width,
-                            margin: '0 auto',
+                            background: `radial-gradient(circle at 78% 30%, ${accentColour}20, transparent 30%), ${backgroundColour}`,
+                            borderColor: `${accentColour}25`,
                         }}
                     >
-                        <p
-                            style={{
-                                margin:
-                                    '0 0 0.35rem',
-                                color:
-                                accentColour,
-                                fontSize:
-                                    '0.75rem',
-                                fontWeight: 900,
-                                textTransform:
-                                    'uppercase',
-                                letterSpacing:
-                                    '0.18em',
-                            }}
-                        >
-                            {competitionName}
-                        </p>
-
-                        <h2
-                            style={{
-                                margin:
-                                    '0 0 1.25rem',
-                                fontSize:
-                                    'clamp(1.8rem, 4vw, 3rem)',
-                                lineHeight: 0.95,
-                                textTransform:
-                                    'uppercase',
-                            }}
-                        >
-                            The competition begins in
-                        </h2>
-
-                        <div
-                            style={{
-                                display: 'flex',
-                                justifyContent:
-                                    'center',
-                                gap: '0.6rem',
-                                flexWrap: 'wrap',
-                            }}
-                        >
-                            {[
-                                [
-                                    countdown.days,
-                                    'Days',
-                                ],
-                                [
-                                    countdown.hours,
-                                    'Hours',
-                                ],
-                                [
-                                    countdown.minutes,
-                                    'Minutes',
-                                ],
-                                [
-                                    countdown.seconds,
-                                    'Seconds',
-                                ],
-                            ].map(
-                                ([value, label]) => (
-                                    <div
-                                        key={label}
-                                        style={{
-                                            width: '88px',
-                                            minHeight:
-                                                '86px',
-                                            display:
-                                                'grid',
-                                            placeItems:
-                                                'center',
-                                            padding:
-                                                '0.6rem',
-                                            borderRadius:
-                                                '12px',
-                                            background:
-                                            surfaceColour,
-                                            border:
-                                            page.border,
-                                        }}
-                                    >
-                                        <strong
-                                            style={{
-                                                display:
-                                                    'block',
-                                                color:
-                                                accentColour,
-                                                fontSize:
-                                                    '2rem',
-                                                lineHeight: 1,
-                                            }}
-                                        >
-                                            {String(
-                                                value,
-                                            ).padStart(
-                                                2,
-                                                '0',
-                                            )}
-                                        </strong>
-
-                                        <span
-                                            style={{
-                                                display:
-                                                    'block',
-                                                marginTop:
-                                                    '0.35rem',
-                                                fontSize:
-                                                    '0.62rem',
-                                                fontWeight: 900,
-                                                textTransform:
-                                                    'uppercase',
-                                                letterSpacing:
-                                                    '0.1em',
-                                            }}
-                                        >
-                                            {label}
-                                        </span>
-                                    </div>
-                                ),
-                            )}
-                        </div>
-
-                        {startDateLabel ? (
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent:
-                                        'center',
-                                    marginTop:
-                                        '1rem',
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        padding:
-                                            '0.55rem 1rem',
-                                        borderRadius:
-                                            '999px',
-                                        border:
-                                        page.border,
-                                        fontSize:
-                                            '0.75rem',
-                                        fontWeight: 800,
-                                    }}
-                                >
-                                    {startDateLabel}
-                                </span>
-                            </div>
-                        ) : null}
-                    </div>
-                </section>
-            ) : null}
-
-            <section
-                style={{
-                    minHeight: '690px',
-                    display: 'grid',
-                    alignItems: 'center',
-                    padding: '5rem 0',
-                    borderBottom:
-                        `1px solid ${accentColour}25`,
-                }}
-            >
-                <div
-                    style={{
-                        width: page.width,
-                        margin: '0 auto',
-                        display: 'grid',
-                        gridTemplateColumns:
-                            'repeat(auto-fit, minmax(360px, 1fr))',
-                        alignItems: 'center',
-                        gap: '3rem',
-                    }}
-                >
-                    <div>
-                        <div
-                            style={{
-                                width: '210px',
-                                minHeight: '92px',
-                                display: 'grid',
-                                placeItems: 'center',
-                                marginBottom:
-                                    '1.4rem',
-                                borderRadius:
-                                    '14px',
-                                background:
-                                    `linear-gradient(145deg, ${surfaceColour}, ${backgroundColour})`,
-                                border:
-                                    `1px solid ${accentColour}50`,
-                                boxShadow:
-                                    `0 18px 50px ${accentColour}12`,
-                            }}
-                        >
-                            <img
-                                src="/assets/tournamenthq-logo.png"
-                                alt="TournamentHQ"
-                                style={{
-                                    width: '178px',
-                                    maxWidth: '88%',
-                                    height: 'auto',
-                                    objectFit:
-                                        'contain',
-                                }}
-                            />
-                        </div>
-
-                        <p
-                            style={{
-                                margin: 0,
-                                color:
-                                accentColour,
-                                fontSize:
-                                    '0.72rem',
-                                fontWeight: 900,
-                                textTransform:
-                                    'uppercase',
-                                letterSpacing:
-                                    '0.18em',
-                            }}
-                        >
-                            Official competition website
-                        </p>
-
-                        <h1
-                            style={{
-                                margin:
-                                    '0.75rem 0',
-                                maxWidth: '720px',
-                                fontSize:
-                                    'clamp(3.6rem, 7vw, 7rem)',
-                                lineHeight: 0.87,
-                                letterSpacing:
-                                    '-0.055em',
-                                textTransform:
-                                    'uppercase',
-                            }}
-                        >
-                            {organisationName}
-                        </h1>
-
-                        <p
-                            style={{
-                                margin:
-                                    '0 0 0.9rem',
-                                color:
-                                accentColour,
-                                fontSize:
-                                    '0.75rem',
-                                fontWeight: 900,
-                                textTransform:
-                                    'uppercase',
-                                letterSpacing:
-                                    '0.18em',
-                            }}
-                        >
-                            Powered by TournamentHQ
-                        </p>
-
-                        <p
-                            style={{
-                                maxWidth: '680px',
-                                margin:
-                                    '0 0 1.5rem',
-                                color: page.muted,
-                                fontSize:
-                                    '1.12rem',
-                                lineHeight: 1.72,
-                            }}
-                        >
-                            {competitionDescription}
-                        </p>
-
-                        <div
-                            style={{
-                                display: 'flex',
-                                gap: '0.75rem',
-                                flexWrap: 'wrap',
-                            }}
-                        >
-                            <a
-                                href={`${basePath}/teams`}
-                                style={{
-                                    padding:
-                                        '0.75rem 1.2rem',
-                                    borderRadius:
-                                        '8px',
-                                    background:
-                                    accentColour,
-                                    color:
-                                    accentTextColour,
-                                    textDecoration:
-                                        'none',
-                                    fontSize:
-                                        '0.78rem',
-                                    fontWeight: 900,
-                                    textTransform:
-                                        'uppercase',
-                                }}
-                            >
-                                View teams
-                            </a>
-
-                            <a
-                                href={`${basePath}/fixtures`}
-                                style={{
-                                    padding:
-                                        '0.75rem 1.2rem',
-                                    borderRadius:
-                                        '8px',
-                                    border:
-                                    page.border,
-                                    color:
-                                    textColour,
-                                    textDecoration:
-                                        'none',
-                                    fontSize:
-                                        '0.78rem',
-                                    fontWeight: 900,
-                                    textTransform:
-                                        'uppercase',
-                                }}
-                            >
-                                Fixtures
-                            </a>
-
-                            <a
-                                href={`${basePath}/sponsors`}
-                                style={{
-                                    padding:
-                                        '0.75rem 1.2rem',
-                                    borderRadius:
-                                        '8px',
-                                    border:
-                                    page.border,
-                                    color:
-                                    textColour,
-                                    textDecoration:
-                                        'none',
-                                    fontSize:
-                                        '0.78rem',
-                                    fontWeight: 900,
-                                    textTransform:
-                                        'uppercase',
-                                }}
-                            >
-                                Become a sponsor
-                            </a>
-                        </div>
-                    </div>
-
-                    <article
-                        style={{
-                            overflow: 'hidden',
-                            borderRadius: '16px',
-                            background:
-                            page.card,
-                            border: page.border,
-                            padding: '0.85rem',
-                        }}
-                    >
-                        <div
-                            style={{
-                                minHeight: '290px',
-                                display: 'grid',
-                                placeItems: 'center',
-                                textAlign: 'center',
-                                borderRadius:
-                                    '12px',
-                                background:
-                                    `radial-gradient(circle at center, ${accentColour}30, transparent 35%), ${backgroundColour}`,
-                                border:
-                                    `1px solid ${accentColour}25`,
-                            }}
-                        >
+                        <div className="mx-auto grid w-[min(1180px,calc(100%-2rem))] items-center gap-10 lg:grid-cols-2">
                             <div>
-                                <Camera
-                                    size={44}
-                                    color={
-                                        accentColour
-                                    }
-                                />
-
                                 <p
-                                    style={{
-                                        margin:
-                                            '0.8rem 0 0',
-                                        color:
-                                        accentColour,
-                                        fontSize:
-                                            '0.72rem',
-                                        fontWeight: 900,
-                                        textTransform:
-                                            'uppercase',
-                                        letterSpacing:
-                                            '0.14em',
-                                    }}
+                                    className="text-xs font-black uppercase tracking-[0.2em]"
+                                    style={{ color: accentColour }}
                                 >
-                                    Featured match
+                                    Official competition website
                                 </p>
-
-                                <h3
-                                    style={{
-                                        maxWidth:
-                                            '320px',
-                                        margin:
-                                            '0.55rem auto 0',
-                                        fontSize:
-                                            '1.45rem',
-                                    }}
+                                <h1 className="mt-4 text-5xl font-black uppercase leading-[0.92] tracking-[-0.04em] sm:text-7xl">
+                                    {organisationName}
+                                </h1>
+                                <p
+                                    className="mt-4 text-xs font-black uppercase tracking-[0.2em]"
+                                    style={{ color: accentColour }}
                                 >
-                                    Official video coverage coming soon
-                                </h3>
+                                    Powered by TournamentHQ
+                                </p>
+                                <p className="mt-6 max-w-2xl text-base leading-7 opacity-75 sm:text-lg">
+                                    {competitionDescription}
+                                </p>
+                                <div className="mt-7 flex flex-wrap gap-3">
+                                    <a
+                                        href={`${basePath}#teams`}
+                                        className="rounded-xl px-5 py-3 text-sm font-black uppercase no-underline"
+                                        style={{
+                                            background: accentColour,
+                                            color: accentTextColour,
+                                        }}
+                                    >
+                                        View Teams
+                                    </a>
+                                    <a
+                                        href={`${basePath}#fixtures`}
+                                        className="rounded-xl border px-5 py-3 text-sm font-black uppercase no-underline"
+                                        style={{
+                                            borderColor: `${accentColour}55`,
+                                            color: textColour,
+                                        }}
+                                    >
+                                        Fixtures
+                                    </a>
+                                </div>
                             </div>
-                        </div>
 
-                        <a
-                            href={`${basePath}/news`}
-                            style={{
-                                display: 'flex',
-                                justifyContent:
-                                    'space-between',
-                                alignItems: 'center',
-                                padding:
-                                    '1rem 0.4rem 0.3rem',
-                                color:
-                                accentColour,
-                                textDecoration:
-                                    'none',
-                                fontSize:
-                                    '0.76rem',
-                                fontWeight: 900,
-                                textTransform:
-                                    'uppercase',
-                            }}
-                        >
-                            Latest competition updates
-                            <ExternalLink
-                                size={15}
-                            />
-                        </a>
-                    </article>
-                </div>
-            </section>
-
-            <section
-                style={{
-                    padding: '4.5rem 0',
-                    borderBottom:
-                        `1px solid ${accentColour}25`,
-                }}
-            >
-                <div
-                    style={{
-                        width: page.width,
-                        margin: '0 auto',
-                    }}
-                >
-                    <h2
-                        style={{
-                            margin:
-                                '0 0 0.75rem',
-                            color:
-                            accentColour,
-                            fontSize:
-                                'clamp(2rem, 4vw, 3rem)',
-                        }}
-                    >
-                        Tournament Structure, Standards & Vision
-                    </h2>
-
-                    <p
-                        style={{
-                            maxWidth: '850px',
-                            margin: 0,
-                            color: page.muted,
-                        }}
-                    >
-                        A professionally organised tournament with a clear competitive pathway, strong governance, qualified match officials, zero tolerance for discrimination and a platform capable of attracting credible partners and long-term investment.
-                    </p>
-
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns:
-                                'repeat(auto-fit, minmax(300px, 1fr))',
-                            gap: '1rem',
-                            marginTop: '2rem',
-                        }}
-                    >
-                        {benefits.map(
-                            ({
-                                 title,
-                                 text,
-                                 icon: Icon,
-                             }) => (
-                                <article
-                                    key={title}
-                                    style={{
-                                        minHeight:
-                                            '250px',
-                                        padding:
-                                            '1.65rem',
-                                        borderRadius:
-                                            '14px',
-                                        background:
-                                        page.card,
-                                        border:
-                                        page.border,
-                                    }}
-                                >
-                                    <Icon
-                                        size={25}
-                                        color={
-                                            accentColour
-                                        }
+                            <article
+                                className="overflow-hidden rounded-2xl border p-3"
+                                style={{
+                                    background: surfaceColour,
+                                    borderColor: `${accentColour}35`,
+                                }}
+                            >
+                                {genericFeaturedMedia &&
+                                getPublicString(genericFeaturedMedia, ['embed_url']) ? (
+                                    <iframe
+                                        className="aspect-video w-full rounded-xl"
+                                        src={getPublicString(genericFeaturedMedia, ['embed_url'])}
+                                        title={getPublicString(genericFeaturedMedia, ['title']) || `${organisationName} featured media`}
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
                                     />
-
-                                    <h3
-                                        style={{
-                                            margin:
-                                                '1rem 0 0.6rem',
-                                            fontSize:
-                                                '1.25rem',
-                                        }}
-                                    >
-                                        {title}
-                                    </h3>
-
-                                    <p
-                                        style={{
-                                            margin: 0,
-                                            color:
-                                            page.muted,
-                                            fontSize:
-                                                '1rem',
-                                            lineHeight: 1.7,
-                                        }}
-                                    >
-                                        {text}
-                                    </p>
-                                </article>
-                            ),
-                        )}
-                    </div>
-                </div>
-            </section>
-
-            <section
-                id="fixtures"
-                style={{
-                    padding: '4.5rem 0',
-                    borderBottom:
-                        `1px solid ${accentColour}25`,
-                }}
-            >
-                <div
-                    style={{
-                        width: page.width,
-                        margin: '0 auto',
-                    }}
-                >
-                    <h2
-                        style={{
-                            margin:
-                                '0 0 0.75rem',
-                            color:
-                            accentColour,
-                            fontSize:
-                                'clamp(2rem, 4vw, 3rem)',
-                        }}
-                    >
-                        Competition Schedule
-                    </h2>
-
-                    <p
-                        style={{
-                            maxWidth: '850px',
-                            margin:
-                                '0 0 1.75rem',
-                            color: page.muted,
-                        }}
-                    >
-                        Published fixtures and stages will appear here as they are confirmed by the organiser.
-                    </p>
-
-                    <div
-                        style={{
-                            display: 'grid',
-                            gap: '0.85rem',
-                        }}
-                    >
-                        {scheduleItems.map(
-                            (item) => (
-                                <article
-                                    key={
-                                        item.label
-                                    }
-                                    style={{
-                                        display:
-                                            'grid',
-                                        gridTemplateColumns:
-                                            '72px 1fr',
-                                        alignItems:
-                                            'center',
-                                        gap: '1rem',
-                                        padding:
-                                            '1rem 1.2rem',
-                                        borderRadius:
-                                            '13px',
-                                        background:
-                                        page.card,
-                                        border:
-                                        page.border,
-                                    }}
-                                >
+                                ) : genericFeaturedMedia &&
+                                getPublicString(genericFeaturedMedia, ['thumbnail_url', 'image_url']) ? (
+                                    <img
+                                        className="aspect-video w-full rounded-xl object-cover"
+                                        src={getPublicString(genericFeaturedMedia, ['thumbnail_url', 'image_url'])}
+                                        alt={getPublicString(genericFeaturedMedia, ['title']) || `${organisationName} featured media`}
+                                    />
+                                ) : (
                                     <div
-                                        style={{
-                                            width: '58px',
-                                            height: '58px',
-                                            display:
-                                                'grid',
-                                            placeItems:
-                                                'center',
-                                            borderRadius:
-                                                '50%',
-                                            color:
-                                            accentColour,
-                                            border:
-                                            page.border,
-                                            fontSize:
-                                                '0.68rem',
-                                            fontWeight: 900,
-                                            textAlign:
-                                                'center',
-                                        }}
+                                        className="grid aspect-video place-items-center rounded-xl border text-center"
+                                        style={{ borderColor: `${accentColour}25` }}
                                     >
-                                        {
-                                            item.label
-                                        }
-                                    </div>
-
-                                    <div>
-                                        <h3
-                                            style={{
-                                                margin: 0,
-                                            }}
-                                        >
-                                            {
-                                                item.title
-                                            }
-                                        </h3>
-
-                                        <p
-                                            style={{
-                                                margin:
-                                                    '0.25rem 0 0',
-                                                color:
-                                                page.muted,
-                                                fontSize:
-                                                    '0.9rem',
-                                            }}
-                                        >
-                                            {
-                                                item.text
-                                            }
-                                        </p>
-                                    </div>
-                                </article>
-                            ),
-                        )}
-                    </div>
-
-                    <div
-                        style={{
-                            marginTop: '1.2rem',
-                            padding: '1.4rem',
-                            textAlign: 'center',
-                            borderRadius:
-                                '13px',
-                            border:
-                                `1px dashed ${accentColour}70`,
-                            color: page.muted,
-                        }}
-                    >
-                        Confirmed fixtures will appear here once published.
-                    </div>
-                </div>
-            </section>
-
-            {[
-                {
-                    id: 'results',
-                    title: 'Latest Results',
-                    intro:
-                        'Confirmed and published match results from this competition.',
-                    message:
-                        'No published results yet.',
-                },
-                {
-                    id: 'teams',
-                    title: 'Teams & Group Standings',
-                    intro:
-                        'Meet the confirmed participating teams and follow published competition tables.',
-                    message:
-                        'Confirmed teams and standings will appear here.',
-                },
-                {
-                    id: 'golden-boot',
-                    title: 'Golden Boot',
-                    intro:
-                        'The leading goalscorers from published competition matches.',
-                    message:
-                        'Goalscorer statistics will appear here.',
-                },
-            ].map((section) => (
-                <section
-                    id={section.id}
-                    key={section.id}
-                    style={{
-                        padding: '4.5rem 0',
-                        borderBottom:
-                            `1px solid ${accentColour}25`,
-                    }}
-                >
-                    <div
-                        style={{
-                            width: page.width,
-                            margin: '0 auto',
-                        }}
-                    >
-                        <h2
-                            style={{
-                                margin:
-                                    '0 0 0.75rem',
-                                color:
-                                accentColour,
-                                fontSize:
-                                    'clamp(2rem, 4vw, 3rem)',
-                            }}
-                        >
-                            {section.title}
-                        </h2>
-
-                        <p
-                            style={{
-                                maxWidth:
-                                    '850px',
-                                margin:
-                                    '0 0 1.5rem',
-                                color:
-                                page.muted,
-                            }}
-                        >
-                            {section.intro}
-                        </p>
-
-                        <div
-                            style={{
-                                padding:
-                                    '1.6rem',
-                                textAlign:
-                                    'center',
-                                borderRadius:
-                                    '13px',
-                                background:
-                                page.card,
-                                border:
-                                    `1px dashed ${accentColour}70`,
-                                color:
-                                page.muted,
-                            }}
-                        >
-                            {section.message}
-                        </div>
-                    </div>
-                </section>
-            ))}
-
-            <section
-                id="media"
-                style={{
-                    padding: '4.5rem 0',
-                    borderBottom:
-                        `1px solid ${accentColour}25`,
-                }}
-            >
-                <div
-                    style={{
-                        width: page.width,
-                        margin: '0 auto',
-                    }}
-                >
-                    <h2
-                        style={{
-                            margin:
-                                '0 0 0.75rem',
-                            color:
-                            accentColour,
-                            fontSize:
-                                'clamp(2rem, 4vw, 3rem)',
-                        }}
-                    >
-                        Official Media Coverage
-                    </h2>
-
-                    <p
-                        style={{
-                            maxWidth: '850px',
-                            margin:
-                                '0 0 1.75rem',
-                            color: page.muted,
-                        }}
-                    >
-                        Featured matches, highlights, interviews and official competition coverage.
-                    </p>
-
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns:
-                                'repeat(auto-fit, minmax(230px, 1fr))',
-                            gap: '1rem',
-                        }}
-                    >
-                        {[
-                            {
-                                title:
-                                    'Competition Highlights',
-                                text:
-                                    'Watch featured matches, finals and official tournament highlights.',
-                            },
-                            {
-                                title:
-                                    'Match Highlights',
-                                text:
-                                    'Catch goals, saves, celebrations and important match moments.',
-                            },
-                            {
-                                title:
-                                    'Live Coverage & Interviews',
-                                text:
-                                    'Follow interviews, reactions, player stories and behind-the-scenes coverage.',
-                            },
-                        ].map(
-                            (item, index) => {
-                                const mediaItem =
-                                    media[index]
-
-                                const image =
-                                    mediaItem
-                                        ?.image_url ||
-                                    mediaItem
-                                        ?.thumbnail_url ||
-                                    mediaItem
-                                        ?.media_url ||
-                                    mediaItem?.url
-
-                                return (
-                                    <article
-                                        key={
-                                            item.title
-                                        }
-                                        style={{
-                                            overflow:
-                                                'hidden',
-                                            borderRadius:
-                                                '14px',
-                                            background:
-                                            page.card,
-                                            border:
-                                            page.border,
-                                        }}
-                                    >
-                                        {image ? (
-                                            <img
-                                                src={
-                                                    image
-                                                }
-                                                alt={
-                                                    mediaItem?.title ||
-                                                    item.title
-                                                }
-                                                style={{
-                                                    display:
-                                                        'block',
-                                                    width: '100%',
-                                                    height: '190px',
-                                                    objectFit:
-                                                        'cover',
-                                                }}
+                                        <div>
+                                            <Camera
+                                                className="mx-auto"
+                                                style={{ color: accentColour }}
                                             />
-                                        ) : (
-                                            <div
-                                                style={{
-                                                    minHeight:
-                                                        '190px',
-                                                    display:
-                                                        'grid',
-                                                    placeItems:
-                                                        'center',
-                                                    color:
-                                                    accentColour,
-                                                    background:
-                                                        `radial-gradient(circle, ${accentColour}25, transparent 45%)`,
-                                                    fontSize:
-                                                        '0.78rem',
-                                                    fontWeight: 900,
-                                                    textTransform:
-                                                        'uppercase',
-                                                    letterSpacing:
-                                                        '0.08em',
-                                                    textAlign:
-                                                        'center',
-                                                    padding:
-                                                        '1rem',
-                                                }}
-                                            >
-                                                {
-                                                    item.title
-                                                }
-                                            </div>
-                                        )}
-
-                                        <div
-                                            style={{
-                                                padding:
-                                                    '1.15rem',
-                                            }}
-                                        >
-                                            <h3
-                                                style={{
-                                                    margin:
-                                                        '0 0 0.45rem',
-                                                }}
-                                            >
-                                                {mediaItem?.title ||
-                                                    item.title}
-                                            </h3>
-
-                                            <p
-                                                style={{
-                                                    margin: 0,
-                                                    color:
-                                                    page.muted,
-                                                    fontSize:
-                                                        '0.9rem',
-                                                }}
-                                            >
-                                                {mediaItem?.description ||
-                                                    item.text}
+                                            <p className="mt-3 font-bold">
+                                                Published competition media will appear here.
                                             </p>
                                         </div>
-                                    </article>
-                                )
-                            },
-                        )}
-                    </div>
-                </div>
-            </section>
-
-            <section
-                id="news"
-                style={{
-                    padding: '4.5rem 0',
-                    borderBottom:
-                        `1px solid ${accentColour}25`,
-                }}
-            >
-                <div
-                    style={{
-                        width: page.width,
-                        margin: '0 auto',
-                    }}
-                >
-                    <h2
-                        style={{
-                            margin:
-                                '0 0 0.75rem',
-                            color:
-                            accentColour,
-                            fontSize:
-                                'clamp(2rem, 4vw, 3rem)',
-                        }}
-                    >
-                        Competition News
-                    </h2>
-
-                    <p
-                        style={{
-                            maxWidth: '850px',
-                            margin:
-                                '0 0 1.75rem',
-                            color: page.muted,
-                        }}
-                    >
-                        News, community stories, announcements and official competition updates.
-                    </p>
-
-                    {articles.length ? (
-                        <div
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns:
-                                    'repeat(auto-fit, minmax(230px, 1fr))',
-                                gap: '1rem',
-                            }}
-                        >
-                            {articles
-                                .slice(0, 4)
-                                .map(
-                                    (article) => (
-                                        <article
-                                            key={
-                                                article.id
-                                            }
-                                            style={{
-                                                minHeight:
-                                                    '290px',
-                                                display:
-                                                    'flex',
-                                                flexDirection:
-                                                    'column',
-                                                padding:
-                                                    '1.25rem',
-                                                borderRadius:
-                                                    '14px',
-                                                background:
-                                                page.card,
-                                                border:
-                                                page.border,
-                                            }}
-                                        >
-                                            <span
-                                                style={{
-                                                    display:
-                                                        'inline-flex',
-                                                    alignSelf:
-                                                        'flex-start',
-                                                    padding:
-                                                        '0.3rem 0.55rem',
-                                                    borderRadius:
-                                                        '999px',
-                                                    background:
-                                                        `${accentColour}20`,
-                                                    color:
-                                                    accentColour,
-                                                    fontSize:
-                                                        '0.65rem',
-                                                    fontWeight: 900,
-                                                    textTransform:
-                                                        'uppercase',
-                                                }}
-                                            >
-                                                Published
-                                            </span>
-
-                                            <h3
-                                                style={{
-                                                    margin:
-                                                        '1rem 0 0.65rem',
-                                                }}
-                                            >
-                                                {article.title ||
-                                                    'Competition update'}
-                                            </h3>
-
-                                            <p
-                                                style={{
-                                                    margin: 0,
-                                                    color:
-                                                    page.muted,
-                                                    fontSize:
-                                                        '0.9rem',
-                                                    lineHeight: 1.6,
-                                                }}
-                                            >
-                                                {article.excerpt ||
-                                                    article.summary ||
-                                                    'Read the latest update from the organiser.'}
-                                            </p>
-
-                                            <a
-                                                href={`${basePath}/news`}
-                                                style={{
-                                                    marginTop:
-                                                        'auto',
-                                                    paddingTop:
-                                                        '1rem',
-                                                    color:
-                                                    accentColour,
-                                                    textDecoration:
-                                                        'none',
-                                                    fontSize:
-                                                        '0.72rem',
-                                                    fontWeight: 900,
-                                                    textTransform:
-                                                        'uppercase',
-                                                }}
-                                            >
-                                                Read article →
-                                            </a>
-                                        </article>
-                                    ),
+                                    </div>
                                 )}
+                            </article>
                         </div>
-                    ) : (
-                        <div
-                            style={{
-                                padding:
-                                    '1.6rem',
-                                textAlign:
-                                    'center',
-                                borderRadius:
-                                    '13px',
-                                border:
-                                    `1px dashed ${accentColour}70`,
-                                color:
-                                page.muted,
-                            }}
-                        >
-                            Published news and articles will appear here.
-                        </div>
-                    )}
-                </div>
-            </section>
+                    </section>
+                </>
+            )}
 
-            <section
-                id="sponsors"
-                style={{
-                    padding: '4.5rem 0',
-                    borderBottom:
-                        `1px solid ${accentColour}25`,
-                }}
+            <Section
+                id="festival"
+                title={
+                    isBhmff
+                        ? 'Tournament Standards & Governance'
+                        : 'Competition Standards & Governance'
+                }
+                intro={
+                    isBhmff
+                        ? 'A professionally organised tournament with a clear competitive pathway, qualified match officials, strong safeguarding standards, zero tolerance for discrimination and a platform designed to attract credible partners and long-term investment.'
+                        : `Key standards, operating principles and participant expectations for ${organisationName}.`
+                }
             >
-                <div
-                    style={{
-                        width: page.width,
-                        margin: '0 auto',
-                    }}
-                >
-                    <h2
-                        style={{
-                            margin:
-                                '0 0 0.75rem',
-                            color:
-                            accentColour,
-                            fontSize:
-                                'clamp(2rem, 4vw, 3rem)',
-                        }}
-                    >
-                        Competition Partners
-                    </h2>
-
-                    <p
-                        style={{
-                            maxWidth: '850px',
-                            margin:
-                                '0 0 1.75rem',
-                            color: page.muted,
-                        }}
-                    >
-                        Organisations supporting grassroots sport, community development and opportunities for participants.
-                    </p>
-
-                    {sponsors.length ? (
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems:
-                                    'stretch',
-                                gap: '1rem',
-                                flexWrap: 'wrap',
-                            }}
-                        >
-                            {sponsors.map(
-                                (sponsor) => (
-                                    <a
-                                        key={
-                                            sponsor.id
-                                        }
-                                        href={
-                                            sponsor.website_url ||
-                                            `${basePath}/sponsors`
-                                        }
-                                        target={
-                                            sponsor.website_url
-                                                ? '_blank'
-                                                : undefined
-                                        }
-                                        rel={
-                                            sponsor.website_url
-                                                ? 'noreferrer'
-                                                : undefined
-                                        }
-                                        style={{
-                                            width: '220px',
-                                            minHeight:
-                                                '140px',
-                                            display:
-                                                'grid',
-                                            placeItems:
-                                                'center',
-                                            padding:
-                                                '1.25rem',
-                                            borderRadius:
-                                                '14px',
-                                            background:
-                                            page.card,
-                                            border:
-                                            page.border,
-                                            color:
-                                            textColour,
-                                            textDecoration:
-                                                'none',
-                                            textAlign:
-                                                'center',
-                                        }}
-                                    >
-                                        {sponsor.logo_url ? (
-                                            <img
-                                                src={
-                                                    sponsor.logo_url
-                                                }
-                                                alt={
-                                                    sponsor.name ||
-                                                    'Sponsor'
-                                                }
-                                                style={{
-                                                    maxWidth:
-                                                        '165px',
-                                                    maxHeight:
-                                                        '82px',
-                                                    objectFit:
-                                                        'contain',
-                                                }}
-                                            />
-                                        ) : (
-                                            <strong>
-                                                {
-                                                    sponsor.name
-                                                }
-                                            </strong>
-                                        )}
-                                    </a>
-                                ),
-                            )}
-                        </div>
-                    ) : (
-                        <article
-                            style={{
-                                maxWidth: '360px',
-                                padding:
-                                    '1.25rem',
-                                borderRadius:
-                                    '14px',
-                                background:
-                                page.card,
-                                border:
-                                page.border,
-                            }}
-                        >
-                            <Handshake
-                                size={26}
-                                color={
-                                    accentColour
-                                }
-                            />
-
-                            <h3>
-                                Partnership opportunities
-                            </h3>
-
-                            <p
-                                style={{
-                                    color:
-                                    page.muted,
-                                }}
-                            >
-                                Sponsor this competition and support its teams, players and community.
-                            </p>
-
-                            <a
-                                href={`${basePath}/contact`}
-                                style={{
-                                    color:
-                                    accentColour,
-                                    fontWeight: 900,
-                                    textDecoration:
-                                        'none',
-                                    fontSize:
-                                        '0.75rem',
-                                    textTransform:
-                                        'uppercase',
-                                }}
-                            >
-                                Become a partner
-                            </a>
+                <div className="cardGrid four tournamentStandardsGrid">
+                    {displayedBenefits.map(([title, text, Icon]) => (
+                        <article className="card" key={title}>
+                            <Icon className="icon" />
+                            <h3>{title}</h3>
+                            <p>{text}</p>
                         </article>
-                    )}
+                    ))}
                 </div>
-            </section>
+            </Section>
 
-            <section
-                style={{
-                    padding: '4.5rem 0',
-                }}
+            <Section
+                id="fixtures"
+                title={
+                    isBhmff
+                        ? 'Tournament Pathway'
+                        : 'Competition Journey'
+                }
+                intro={
+                    isBhmff
+                        ? 'The competition progresses from a single round-robin group stage to the semi-finals, followed by the final and third-place match, with fixtures scheduled to give every game proper focus.'
+                        : `Follow the setup, fixtures, results and completion of ${competitionName}.`
+                }
             >
-                <div
+                <div className="timeline">
+                    {displayedTimeline.map(([stage, title, detail]) => (
+                        <article
+                            className="timelineItem"
+                            key={`${stage}-${title}`}
+                        >
+                            <div className="timelineIcon">
+                                <span>{stage}</span>
+                            </div>
+
+                            <div className="timelineContent">
+                                <h3>{title}</h3>
+                                <p>{detail}</p>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+
+                <h3 className="subheading">Confirmed Fixtures</h3>
+
+                {loading ? (
+                    <p className="muted">Loading fixtures...</p>
+                ) : (
+                    <FixtureList fixtures={publicFixtures} />
+                )}
+            </Section>
+
+            <Section
+                id="results"
+                title="Latest Results"
+                intro={`Confirmed and published match results from ${organisationName}.`}
+            >
+                <ResultsList results={publicResults} />
+            </Section>
+
+            <Section
+                id="teams"
+                title="Teams & Group Standings"
+                intro="Meet the confirmed participating clubs and follow live group tables calculated automatically from published group-stage results."
+            >
+                <PublicTeams teams={publicTeams} />
+                {isBhmff ? (
+                    <PublicGroupStandings />
+                ) : (
+                    <div className="teamsEmptyState">
+                        <h3>Competition tables</h3>
+                        <p>
+                            Published standings will appear when results are available.
+                        </p>
+                    </div>
+                )}
+            </Section>
+
+            <Section
+                id="statistics"
+                title="Statistics Centre"
+                intro="Official tournament statistics calculated from published match data."
+            >
+                <h3 className="subheading">Top Scorers</h3>
+
+                <p
                     style={{
-                        width: page.width,
-                        margin: '0 auto',
+                        marginTop: '-0.35rem',
+                        marginBottom: '1.25rem',
+                        opacity: 0.78,
                     }}
                 >
-                    <h2
-                        style={{
-                            margin:
-                                '0 0 0.75rem',
-                            color:
-                            accentColour,
-                            fontSize:
-                                'clamp(2rem, 4vw, 3rem)',
-                        }}
-                    >
-                        Competition Centre
-                    </h2>
+                    Live goalscoring leaderboard from confirmed tournament
+                    matches. The leading scorer at the end of the competition
+                    will receive the Golden Boot Award.
+                </p>
 
-                    <p
-                        style={{
-                            maxWidth: '850px',
-                            margin:
-                                '0 0 1.75rem',
-                            color: page.muted,
-                        }}
-                    >
-                        Explore the connected areas of this TournamentHQ-powered public website.
-                    </p>
+                <GoldenBootTable goals={publicGoals} />
+            </Section>
 
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns:
-                                'repeat(auto-fit, minmax(210px, 1fr))',
-                            gap: '1rem',
-                        }}
-                    >
-                        {ecosystem.map(
-                            (item) => (
-                                <a
-                                    key={
-                                        item.title
-                                    }
-                                    href={
-                                        item.href
-                                    }
-                                    target={
-                                        item.external
-                                            ? '_blank'
-                                            : undefined
-                                    }
-                                    rel={
-                                        item.external
-                                            ? 'noreferrer'
-                                            : undefined
-                                    }
-                                    style={{
-                                        minHeight:
-                                            '180px',
-                                        padding:
-                                            '1.25rem',
-                                        borderRadius:
-                                            '14px',
-                                        background:
-                                        page.card,
-                                        border:
-                                        page.border,
-                                        color:
-                                        textColour,
-                                        textDecoration:
-                                            'none',
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            display:
-                                                'inline-flex',
-                                            padding:
-                                                '0.3rem 0.55rem',
-                                            borderRadius:
-                                                '999px',
-                                            background:
-                                                `${accentColour}20`,
-                                            color:
-                                            accentColour,
-                                            fontSize:
-                                                '0.65rem',
-                                            fontWeight: 900,
-                                            textTransform:
-                                                'uppercase',
-                                        }}
-                                    >
-                                        TournamentHQ
+            <Section
+                id="media"
+                title="Official Media Coverage"
+                intro="Featured matches are professionally filmed, with highlights, interviews and exclusive coverage presented through the official TournamentHQ-powered competition website."
+            >
+                {media.length ? (
+                    <div className="cardGrid three">
+                        {media.map((item) => (
+                            <article
+                                className={`videoCard ${
+                                    getPublicBoolean(item, ['featured']) ? 'featuredVideo' : ''
+                                }`}
+                                key={item.id}
+                            >
+                                {getPublicString(item, ['embed_url']) ? (
+                                    <iframe
+                                        className="mediaIframe"
+                                        src={getPublicString(item, ['embed_url'])}
+                                        title={getPublicString(item, ['title']) || 'Competition media'}
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                    />
+                                ) : getPublicString(item, ['thumbnail_url', 'image_url']) ? (
+                                    <img
+                                        className="mediaIframe"
+                                        src={getPublicString(item, ['thumbnail_url', 'image_url'])}
+                                        alt={getPublicString(item, ['title']) || 'Competition media'}
+                                        loading="lazy"
+                                    />
+                                ) : (
+                                    <div className="videoPlaceholder">
+                                        {getPublicString(item, ['media_type', 'category']) || 'Media'}
+                                    </div>
+                                )}
+
+                                <div className="articleAdminRecordBadges">
+                                    <span className="badge">
+                                        {getPublicString(item, ['media_type', 'category']) || 'Media'}
                                     </span>
 
-                                    <h3>
-                                        {item.title}
-                                    </h3>
+                                    {getPublicBoolean(item, ['featured']) && (
+                                        <span className="featuredBadge">
+                                            Featured
+                                        </span>
+                                    )}
+                                </div>
 
-                                    <p
-                                        style={{
-                                            color:
-                                            page.muted,
-                                            fontSize:
-                                                '0.9rem',
-                                        }}
+                                <h3>{getPublicString(item, ['title']) || 'Competition media'}</h3>
+                                <p>
+                                    {getPublicString(item, ['description']) ||
+                                        'Official tournament media coverage.'}
+                                </p>
+
+                                {getPublicString(item, ['media_url', 'url', 'youtube_url']) && (
+                                    <a
+                                        className="btn secondary small"
+                                        href={getPublicString(item, ['media_url', 'url', 'youtube_url'])}
+                                        target="_blank"
+                                        rel="noreferrer"
                                     >
-                                        {item.text}
-                                    </p>
-                                </a>
-                            ),
-                        )}
+                                        Watch Media
+                                    </a>
+                                )}
+                            </article>
+                        ))}
                     </div>
-                </div>
-            </section>
-        </div>
+                ) : (
+                    <div className="teamsEmptyState">
+                        <h3>Media coverage coming soon</h3>
+                        <p>
+                            Published highlights, interviews and livestreams
+                            will appear here.
+                        </p>
+                    </div>
+                )}
+            </Section>
+
+            <Section
+                id="history"
+                title={
+                    isBhmff
+                        ? 'Black History Hub'
+                        : genericArticleTitle
+                }
+                intro={
+                    isBhmff
+                        ? 'Connecting the football festival to Black History Month through articles, community stories and learning content.'
+                        : genericArticleIntro
+                }
+            >
+                {isBhmff ? (
+                    <>
+                        {articlesLoading && (
+                            <p>Loading articles...</p>
+                        )}
+
+                        {articlesError && (
+                            <p className="formError">
+                                {articlesError}
+                            </p>
+                        )}
+
+                        {!articlesLoading && (
+                            <div className="cardGrid four">
+                                {publicArticles.map(
+                                    (article) => (
+                                        <ArticleCard
+                                            key={article.id}
+                                            article={article}
+                                            onRead={
+                                                setActiveArticleId
+                                            }
+                                        />
+                                    ),
+                                )}
+                            </div>
+                        )}
+                    </>
+                ) : articles.length ? (
+                    <div className="cardGrid four">
+                        {articles.map((article) => {
+                            const title =
+                                getPublicString(article, ['title']) ||
+                                'Competition update'
+                            const summary =
+                                getPublicString(article, ['summary', 'excerpt']) ||
+                                'Read the latest update from the organiser.'
+                            const category =
+                                getPublicString(article, ['category']) ||
+                                'News'
+                            const image =
+                                getPublicString(article, ['image_url', 'hero'])
+
+                            return (
+                                <article
+                                    className="articleCard"
+                                    key={article.id}
+                                >
+                                    {image && (
+                                        <img
+                                            src={image}
+                                            alt={
+                                                getPublicString(article, ['image_alt']) ||
+                                                title
+                                            }
+                                            className="articleImage"
+                                        />
+                                    )}
+                                    <span className="badge">
+                                        {category}
+                                    </span>
+                                    <h3>{title}</h3>
+                                    <p>{summary}</p>
+                                    <a
+                                        className="textButton"
+                                        href={`${basePath}/news`}
+                                    >
+                                        Read article →
+                                    </a>
+                                </article>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="teamsEmptyState">
+                        <h3>News coming soon</h3>
+                        <p>
+                            Published articles and organiser updates will appear here.
+                        </p>
+                    </div>
+                )}
+            </Section>
+
+            <Section
+                id="sponsors"
+                title={
+                    isBhmff
+                        ? 'Festival Partners'
+                        : genericSponsorTitle
+                }
+                intro={
+                    isBhmff
+                        ? 'The festival is supported by organisations committed to grassroots football, community development and creating opportunities for young people. Additional partners are welcome.'
+                        : genericSponsorIntro
+                }
+            >
+                <PublicSponsors />
+            </Section>
+        </>
     )
 }

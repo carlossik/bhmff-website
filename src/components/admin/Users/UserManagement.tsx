@@ -31,29 +31,35 @@ const roleOptions: Array<{
     description: string
 }> = [
     {
+        value: 'content_editor',
+        label: 'Content Editor',
+        description:
+            'Can create, edit, preview, publish, unpublish and archive articles for this organisation. Cannot access any other operational modules.',
+    },
+    {
         value: 'match_official',
         label: 'Match Official',
         description:
-            'Can manage match results and goals.',
+            'Can manage match results, goals and permitted match media.',
     },
     {
         value: 'competition_manager',
         label: 'Competition Manager',
         description:
-            'Can manage competitions, fixtures and media.',
+            'Can manage competitions, teams, fixtures, venues, results and other competition operations.',
     },
     {
         value: 'super_admin',
         label: 'Super Admin',
         description:
-            'Full organisation administration and user-access control.',
+            'Full organisation administration, commercial content and user-access control.',
     },
 ]
 
 const initialInviteForm: InviteUserFormValues = {
     fullName: '',
     email: '',
-    role: 'match_official',
+    role: 'content_editor',
 }
 
 type UserManagementProps = {
@@ -87,6 +93,19 @@ function getUserDisplayName(user: AdminUser) {
     )
 }
 
+function getRoleClass(role: AdminRole) {
+    switch (role) {
+        case 'super_admin':
+            return 'role-super'
+        case 'competition_manager':
+            return 'role-manager'
+        case 'content_editor':
+            return 'role-editor'
+        case 'match_official':
+            return 'role-official'
+    }
+}
+
 export function UserManagement({
                                    currentProfile,
                                }: UserManagementProps) {
@@ -96,9 +115,8 @@ export function UserManagement({
     const organisationName =
         currentProfile.currentOrganisation.name
 
-    const [users, setUsers] = useState<
-        AdminUser[]
-    >([])
+    const [users, setUsers] =
+        useState<AdminUser[]>([])
 
     const [
         editingUser,
@@ -120,7 +138,7 @@ export function UserManagement({
         setFormValues,
     ] = useState<UserAccessFormValues>({
         fullName: '',
-        role: 'match_official',
+        role: 'content_editor',
         active: false,
     })
 
@@ -200,6 +218,14 @@ export function UserManagement({
                 label: 'Active',
                 value: users.filter(
                     (user) => user.active,
+                ).length,
+            },
+            {
+                label: 'Content Editors',
+                value: users.filter(
+                    (user) =>
+                        user.role ===
+                        'content_editor',
                 ).length,
             },
             {
@@ -630,14 +656,6 @@ export function UserManagement({
                             user.role ===
                             'super_admin'
 
-                        const roleClass =
-                            isSuperAdmin
-                                ? 'role-super'
-                                : user.role ===
-                                'competition_manager'
-                                    ? 'role-manager'
-                                    : 'role-official'
-
                         return (
                             <article
                                 className="userCard"
@@ -649,7 +667,9 @@ export function UserManagement({
                                     <div>
                                         <div className="teamAdminBadges">
                                             <span
-                                                className={`roleBadge ${roleClass}`}
+                                                className={`roleBadge ${getRoleClass(
+                                                    user.role,
+                                                )}`}
                                             >
                                                 {formatAdminRole(
                                                     user.role,

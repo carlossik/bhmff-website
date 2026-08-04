@@ -181,6 +181,51 @@ export function PublicOrganisationLayout() {
         void loadOrganisation();
     }, [location.pathname]);
 
+    useEffect(() => {
+        if (!location.hash) {
+            return;
+        }
+
+        const sectionId =
+            decodeURIComponent(
+                location.hash.slice(1),
+            );
+
+        const timeoutId =
+            window.setTimeout(() => {
+                const section =
+                    document.getElementById(
+                        sectionId,
+                    );
+
+                if (!section) {
+                    return;
+                }
+
+                const headerOffset = 96;
+                const sectionTop =
+                    section.getBoundingClientRect()
+                        .top +
+                    window.scrollY -
+                    headerOffset;
+
+                window.scrollTo({
+                    top: sectionTop,
+                    behavior: "smooth",
+                });
+            }, 80);
+
+        return () => {
+            window.clearTimeout(
+                timeoutId,
+            );
+        };
+    }, [
+        location.hash,
+        location.pathname,
+        publicData,
+    ]);
+
     const organisation =
         publicData?.organisation ??
         null;
@@ -290,55 +335,60 @@ export function PublicOrganisationLayout() {
         {
             label: "Home",
             href: basePath,
+            sectionId: "",
         },
         {
-            label: "Competitions",
+            label: "Festival",
             href:
-                `${basePath}/competitions`,
+                `${basePath}#festival`,
+            sectionId: "festival",
         },
         {
             label: "Fixtures",
             href:
-                `${basePath}/fixtures`,
+                `${basePath}#fixtures`,
+            sectionId: "fixtures",
         },
         {
             label: "Results",
             href:
-                `${basePath}/results`,
-        },
-        {
-            label: "Tables",
-            href:
-                `${basePath}/tables`,
+                `${basePath}#results`,
+            sectionId: "results",
         },
         {
             label: "Teams",
             href:
-                `${basePath}/teams`,
+                `${basePath}#teams`,
+            sectionId: "teams",
         },
         {
-            label: "News",
+            label: "Statistics",
             href:
-                `${basePath}/news`,
+                `${basePath}#statistics`,
+            sectionId: "statistics",
         },
         {
             label: "Media",
             href:
-                `${basePath}/media`,
+                `${basePath}#media`,
+            sectionId: "media",
+        },
+        {
+            label: "Black History",
+            href:
+                `${basePath}#history`,
+            sectionId: "history",
         },
         {
             label: "Sponsors",
             href:
-                `${basePath}/sponsors`,
-        },
-        {
-            label: "Contact",
-            href:
-                `${basePath}/contact`,
+                `${basePath}#sponsors`,
+            sectionId: "sponsors",
         },
         {
             label: "Admin Portal",
             href: "/admin",
+            sectionId: "",
         },
     ];
 
@@ -560,6 +610,7 @@ export function PublicOrganisationLayout() {
             }
         >
             <main
+                id="top"
                 className="min-h-screen"
                 style={{
                     background:
@@ -646,10 +697,25 @@ export function PublicOrganisationLayout() {
                                 ({
                                      label,
                                      href,
+                                     sectionId,
                                  }) => {
-                                    const active =
+                                    const isHomePage =
                                         location.pathname ===
-                                        href;
+                                        basePath ||
+                                        location.pathname ===
+                                        `${basePath}/`;
+
+                                    const active =
+                                        label ===
+                                        "Home"
+                                            ? isHomePage &&
+                                            !location.hash
+                                            : sectionId
+                                                ? isHomePage &&
+                                                location.hash ===
+                                                `#${sectionId}`
+                                                : location.pathname ===
+                                                href;
 
                                     return (
                                         <a
@@ -659,6 +725,53 @@ export function PublicOrganisationLayout() {
                                             href={
                                                 href
                                             }
+                                            aria-current={
+                                                active
+                                                    ? "page"
+                                                    : undefined
+                                            }
+                                            onClick={(
+                                                event,
+                                            ) => {
+                                                if (
+                                                    !sectionId ||
+                                                    !isHomePage
+                                                ) {
+                                                    return;
+                                                }
+
+                                                const section =
+                                                    document.getElementById(
+                                                        sectionId,
+                                                    );
+
+                                                if (!section) {
+                                                    return;
+                                                }
+
+                                                event.preventDefault();
+
+                                                window.history.pushState(
+                                                    null,
+                                                    "",
+                                                    `${basePath}#${sectionId}`,
+                                                );
+
+                                                const headerOffset =
+                                                    96;
+
+                                                const sectionTop =
+                                                    section.getBoundingClientRect()
+                                                        .top +
+                                                    window.scrollY -
+                                                    headerOffset;
+
+                                                window.scrollTo({
+                                                    top: sectionTop,
+                                                    behavior:
+                                                        "smooth",
+                                                });
+                                            }}
                                             className="inline-flex min-h-10 items-center rounded-full px-3 py-2 text-sm font-bold no-underline transition"
                                             style={{
                                                 color:

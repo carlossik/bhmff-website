@@ -5,8 +5,8 @@ const corsHeaders = {
     'Access-Control-Allow-Headers':
         'authorization, x-client-info, apikey, content-type',
 }
-
 type AdminRole =
+    | 'content_editor'
     | 'match_official'
     | 'competition_manager'
     | 'super_admin'
@@ -35,6 +35,7 @@ function isValidRole(
     value: string,
 ): value is AdminRole {
     return [
+        'content_editor',
         'match_official',
         'competition_manager',
         'super_admin',

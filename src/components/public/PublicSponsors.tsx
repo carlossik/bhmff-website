@@ -34,6 +34,62 @@ type SponsorEnquiryForm = {
     message: string;
 };
 
+type SponsorshipContent = {
+    loadingLabel: string;
+    defaultTierLabel: string;
+    opportunityLabel: string;
+    callToActionTitle: string;
+    callToActionDescription: string;
+    callToActionButton: string;
+    modalEyebrow: string;
+    modalTitle: string;
+    modalDescription: string;
+    successMessage: string;
+    primaryInterestValue: string;
+    primaryInterestLabel: string;
+    messagePlaceholder: string;
+};
+
+const BHMFF_SPONSORSHIP_CONTENT: SponsorshipContent = {
+    loadingLabel: "Loading festival partners...",
+    defaultTierLabel: "Festival Partner",
+    opportunityLabel: "Partnership Opportunities",
+    callToActionTitle: "Become a Festival Partner",
+    callToActionDescription:
+        "Support grassroots football, community development and Black History Month while promoting your organisation to players, families and the wider community.",
+    callToActionButton: "Discuss Partnership",
+    modalEyebrow: "Festival Partnership",
+    modalTitle: "Discuss Sponsorship",
+    modalDescription:
+        "Tell us about your organisation and how you would like to support the festival.",
+    successMessage:
+        "Thank you. Your partnership enquiry has been received and a member of the festival team will contact you shortly.",
+    primaryInterestValue: "Festival sponsorship",
+    primaryInterestLabel: "Festival sponsorship",
+    messagePlaceholder:
+        "Tell us how your organisation would like to support the festival.",
+};
+
+const GENERIC_SPONSORSHIP_CONTENT: SponsorshipContent = {
+    loadingLabel: "Loading competition sponsors...",
+    defaultTierLabel: "Competition Sponsor",
+    opportunityLabel: "Sponsorship Opportunities",
+    callToActionTitle: "Become a Competition Sponsor",
+    callToActionDescription:
+        "Support this competition while promoting your organisation to players, coaches, officials and supporters. Sponsorship opportunities are available for organisations looking to increase their visibility and support grassroots sport.",
+    callToActionButton: "Discuss Sponsorship",
+    modalEyebrow: "Competition Sponsorship",
+    modalTitle: "Discuss Sponsorship",
+    modalDescription:
+        "Tell us about your organisation and how you would like to support this competition.",
+    successMessage:
+        "Thank you. Your sponsorship enquiry has been received and a member of the competition team will contact you shortly.",
+    primaryInterestValue: "Competition sponsorship",
+    primaryInterestLabel: "Competition sponsorship",
+    messagePlaceholder:
+        "Tell us how your organisation would like to support this competition.",
+};
+
 const initialEnquiryForm: SponsorEnquiryForm = {
     companyName: "",
     contactName: "",
@@ -172,6 +228,30 @@ function isValidPhoneNumber(value: string) {
 export function PublicSponsors() {
     const publicOrganisation =
         useOptionalPublicOrganisation();
+
+    const configuredOrganisationSlug =
+        (
+            import.meta.env
+                .VITE_PUBLIC_ORGANISATION_SLUG as
+                | string
+                | undefined
+        )
+            ?.trim()
+            .toLowerCase() ??
+        "";
+
+    const organisationSlug =
+        publicOrganisation
+            ?.organisationSlug
+            .trim()
+            .toLowerCase() ||
+        configuredOrganisationSlug ||
+        "bhmff";
+
+    const sponsorshipContent: SponsorshipContent =
+        organisationSlug === "bhmff"
+            ? BHMFF_SPONSORSHIP_CONTENT
+            : GENERIC_SPONSORSHIP_CONTENT;
 
     const [sponsors, setSponsors] =
         useState<PublicSponsor[]>([]);
@@ -630,7 +710,7 @@ export function PublicSponsors() {
         }
 
         setSubmissionMessage(
-            "Thank you. Your partnership enquiry has been received and a member of the festival team will contact you shortly.",
+            sponsorshipContent.successMessage,
         );
 
         setForm(
@@ -642,7 +722,7 @@ export function PublicSponsors() {
     if (isLoading) {
         return (
             <p className="text-sm font-semibold text-slate-400">
-                Loading festival partners...
+                {sponsorshipContent.loadingLabel}
             </p>
         );
     }
@@ -684,7 +764,7 @@ export function PublicSponsors() {
 
                                 <span className="mt-4 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
                                 {sponsor.tier ??
-                                    "Festival Partner"}
+                                    sponsorshipContent.defaultTierLabel}
                             </span>
 
                                 <h3 className="mt-4 text-xl font-black text-white">
@@ -754,20 +834,15 @@ export function PublicSponsors() {
                     />
 
                     <span className="mt-5 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
-                        Partnership Opportunities
+                        {sponsorshipContent.opportunityLabel}
                     </span>
 
                     <h3 className="mt-4 text-2xl font-black text-white">
-                        Become a Festival Partner
+                        {sponsorshipContent.callToActionTitle}
                     </h3>
 
                     <p className="mt-3 text-sm leading-6 text-slate-400">
-                        Support grassroots football,
-                        community development and Black
-                        History Month while promoting
-                        your organisation to players,
-                        families and the wider
-                        community.
+                        {sponsorshipContent.callToActionDescription}
                     </p>
 
                     <button
@@ -777,7 +852,7 @@ export function PublicSponsors() {
                         }
                         className="mt-6 rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
                     >
-                        Discuss Partnership
+                        {sponsorshipContent.callToActionButton}
                     </button>
                 </article>
             </div>
@@ -812,21 +887,18 @@ export function PublicSponsors() {
                                 />
 
                                 <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-400">
-                                    Festival Partnership
+                                    {sponsorshipContent.modalEyebrow}
                                 </p>
 
                                 <h2
                                     id="sponsor-enquiry-title"
                                     className="mt-2 text-4xl font-black text-white"
                                 >
-                                    Discuss Sponsorship
+                                    {sponsorshipContent.modalTitle}
                                 </h2>
 
                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-                                    Tell us about your
-                                    organisation and how
-                                    you would like to
-                                    support the festival.
+                                    {sponsorshipContent.modalDescription}
                                 </p>
                             </div>
 
@@ -1064,8 +1136,14 @@ export function PublicSponsors() {
                                                 <option value="">
                                                     Select an option
                                                 </option>
-                                                <option value="Festival sponsorship">
-                                                    Festival sponsorship
+                                                <option
+                                                    value={
+                                                        sponsorshipContent.primaryInterestValue
+                                                    }
+                                                >
+                                                    {
+                                                        sponsorshipContent.primaryInterestLabel
+                                                    }
                                                 </option>
                                                 <option value="Match sponsorship">
                                                     Match sponsorship
@@ -1153,7 +1231,9 @@ export function PublicSponsors() {
                                                             .value,
                                                     )
                                                 }
-                                                placeholder="Tell us how your organisation would like to support the festival."
+                                                placeholder={
+                                                    sponsorshipContent.messagePlaceholder
+                                                }
                                                 rows={6}
                                                 disabled={
                                                     isSubmitting

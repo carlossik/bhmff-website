@@ -1,33 +1,27 @@
 import { supabase } from "../../lib/supabaseClient";
 
-import type {
-    Organisation,
-} from "../../components/admin/Organisations/organisationTypes";
-
-import type {
-    Competition,
-} from "../../types/competitionTypes";
+import type { Organisation } from "../../components/admin/Organisations/organisationTypes";
+import type { Competition } from "../../types/competitionTypes";
 
 export type PublicArticle = {
     id: string;
     organisation_id?: string | null;
     competition_id?: string | null;
-    title?: string | null;
     slug?: string | null;
+    title?: string | null;
     category?: string | null;
-    excerpt?: string | null;
+    status?: string | null;
     summary?: string | null;
     hero?: string | null;
-    content?: string | null;
+    read_time?: string | null;
     body?: unknown;
     author?: string | null;
+    published_at?: string | null;
     featured?: boolean | null;
-    featured_image_url?: string | null;
     image_url?: string | null;
     image_alt?: string | null;
-    published?: boolean | null;
-    status?: string | null;
-    published_at?: string | null;
+    tags?: unknown;
+    actions?: unknown;
     created_at?: string | null;
     updated_at?: string | null;
     [key: string]: unknown;
@@ -53,14 +47,16 @@ export type PublicMediaItem = {
     organisation_id?: string | null;
     competition_id?: string | null;
     title?: string | null;
+    slug?: string | null;
+    category?: string | null;
     description?: string | null;
-    media_type?: string | null;
-    url?: string | null;
-    media_url?: string | null;
-    image_url?: string | null;
+    youtube_url?: string | null;
+    embed_url?: string | null;
     thumbnail_url?: string | null;
-    published?: boolean | null;
+    thumbnail_alt?: string | null;
     featured?: boolean | null;
+    status?: string | null;
+    published_at?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
     [key: string]: unknown;
@@ -74,66 +70,14 @@ export type PublicOrganisationData = {
     media: PublicMediaItem[];
 };
 
-type SupabaseErrorLike = {
-    code?: string;
-    message?: string;
-} | null;
-
-function isMissingRelationError(
-    error: SupabaseErrorLike,
-) {
-    if (!error) {
-        return false;
-    }
-
-    const message =
-        error.message?.toLowerCase() ??
-        "";
-
-    return (
-        error.code === "42P01" ||
-        message.includes(
-            "does not exist",
-        )
-    );
-}
-
-function isMissingColumnError(
-    error: SupabaseErrorLike,
-) {
-    if (!error) {
-        return false;
-    }
-
-    const message =
-        error.message?.toLowerCase() ??
-        "";
-
-    return (
-        error.code === "42703" ||
-        message.includes(
-            "column",
-        ) &&
-        message.includes(
-            "does not exist",
-        )
-    );
-}
-
 function logOptionalSectionError(
     section: string,
-    error: SupabaseErrorLike,
+    error: {
+        code?: string;
+        message?: string;
+    } | null,
 ) {
     if (!error) {
-        return;
-    }
-
-    if (
-        isMissingRelationError(error)
-    ) {
-        console.warn(
-            `Public ${section} table is not available yet.`,
-        );
         return;
     }
 
@@ -146,33 +90,21 @@ function logOptionalSectionError(
 async function getPublishedCompetitions(
     organisationId: string,
 ): Promise<Competition[]> {
-    const {
-        data,
-        error,
-    } = await supabase
+    const { data, error } = await supabase
         .from("competitions")
         .select("*")
         .eq(
             "organisation_id",
             organisationId,
         )
-        .eq(
-            "published",
-            true,
-        )
-        .order(
-            "start_date",
-            {
-                ascending: true,
-                nullsFirst: false,
-            },
-        )
-        .order(
-            "created_at",
-            {
-                ascending: true,
-            },
-        );
+        .eq("published", true)
+        .order("start_date", {
+            ascending: false,
+            nullsFirst: false,
+        })
+        .order("created_at", {
+            ascending: false,
+        });
 
     if (error) {
         console.error(
@@ -182,99 +114,129 @@ async function getPublishedCompetitions(
         throw error;
     }
 
-    return (
-        data ?? []
-    ) as Competition[];
+    return (data ?? []) as Competition[];
 }
 
 async function getPublishedArticles(
     organisationId: string,
 ): Promise<PublicArticle[]> {
-    const publishedResponse =
-        await supabase
-            .from("articles")
-            .select("*")
-            .eq(
-                "organisation_id",
-                organisationId,
-            )
-            .eq(
-                "published",
-                true,
-            )
-            .order(
-                "published_at",
-                {
-                    ascending: false,
-                    nullsFirst: false,
-                },
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false,
-                },
-            );
-
-    if (
-        !publishedResponse.error
-    ) {
-        return (
-            publishedResponse.data ??
-            []
-        ) as PublicArticle[];
-    }
-
-    if (
-        !isMissingColumnError(
-            publishedResponse.error,
+    const { data, error } = await supabase
+        .from("articles")
+        .select(`
+            id,
+            organisation_id,
+            competition_id,
+            slug,
+            title,
+            category,
+            status,
+            summary,
+            hero,
+            read_time,
+            body,
+            author,
+            published_at,
+            featured,
+            image_url,
+            image_alt,
+            tags,
+            actions,
+            created_at,
+            updated_at
+        `)
+        .eq(
+            "organisation_id",
+            organisationId,
         )
+        .eq("status", "published")
+        .order("featured", {
+            ascending: false,
+        })
+        .order("published_at", {
+            ascending: false,
+            nullsFirst: false,
+        })
+        .order("created_at", {
+            ascending: false,
+        });
+
+    if (error) {
+        logOptionalSectionError(
+            "articles",
+            error,
+        );
+        return [];
+    }
+
+    return (data ?? []) as PublicArticle[];
+}
+
+async function getPublishedMedia(
+    organisationId: string,
+    competitionIds: string[],
+): Promise<PublicMediaItem[]> {
+    let query = supabase
+        .from("media")
+        .select(`
+            id,
+            organisation_id,
+            competition_id,
+            title,
+            slug,
+            category,
+            description,
+            youtube_url,
+            embed_url,
+            thumbnail_url,
+            thumbnail_alt,
+            featured,
+            status,
+            published_at,
+            created_at,
+            updated_at
+        `)
+        .eq(
+            "organisation_id",
+            organisationId,
+        )
+        .eq("status", "published")
+        .order("featured", {
+            ascending: false,
+        })
+        .order("published_at", {
+            ascending: false,
+            nullsFirst: false,
+        })
+        .order("created_at", {
+            ascending: false,
+        });
+
+    if (competitionIds.length === 1) {
+        query = query.eq(
+            "competition_id",
+            competitionIds[0],
+        );
+    } else if (
+        competitionIds.length > 1
     ) {
+        query = query.in(
+            "competition_id",
+            competitionIds,
+        );
+    }
+
+    const { data, error } =
+        await query;
+
+    if (error) {
         logOptionalSectionError(
-            "articles",
-            publishedResponse.error,
+            "media",
+            error,
         );
         return [];
     }
 
-    const statusResponse =
-        await supabase
-            .from("articles")
-            .select("*")
-            .eq(
-                "organisation_id",
-                organisationId,
-            )
-            .eq(
-                "status",
-                "published",
-            )
-            .order(
-                "published_at",
-                {
-                    ascending: false,
-                    nullsFirst: false,
-                },
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false,
-                },
-            );
-
-    if (statusResponse.error) {
-        logOptionalSectionError(
-            "articles",
-            statusResponse.error,
-        );
-        return [];
-    }
-
-    return (
-        statusResponse.data ??
-        []
-    ) as PublicArticle[];
+    return (data ?? []) as PublicMediaItem[];
 }
 
 async function getActiveSponsors(
@@ -289,16 +251,10 @@ async function getActiveSponsors(
                 "organisation_id",
                 organisationId,
             )
-            .eq(
-                "active",
-                true,
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false,
-                },
-            );
+            .eq("active", true)
+            .order("created_at", {
+                ascending: true,
+            });
 
     if (
         !organisationResponse.error
@@ -328,16 +284,10 @@ async function getActiveSponsors(
                 "competition_id",
                 competitionIds,
             )
-            .eq(
-                "active",
-                true,
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false,
-                },
-            );
+            .eq("active", true)
+            .order("created_at", {
+                ascending: true,
+            });
 
     if (
         competitionResponse.error
@@ -355,96 +305,6 @@ async function getActiveSponsors(
     ) as PublicSponsor[];
 }
 
-async function getPublishedMedia(
-    organisationId: string,
-    competitionIds: string[],
-): Promise<PublicMediaItem[]> {
-    const organisationResponse =
-        await supabase
-            .from("media")
-            .select("*")
-            .eq(
-                "organisation_id",
-                organisationId,
-            )
-            .eq(
-                "published",
-                true,
-            )
-            .order(
-                "featured",
-                {
-                    ascending: false,
-                },
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false,
-                },
-            );
-
-    if (
-        !organisationResponse.error
-    ) {
-        return (
-            organisationResponse.data ??
-            []
-        ) as PublicMediaItem[];
-    }
-
-    if (
-        competitionIds.length ===
-        0
-    ) {
-        logOptionalSectionError(
-            "media",
-            organisationResponse.error,
-        );
-        return [];
-    }
-
-    const competitionResponse =
-        await supabase
-            .from("media")
-            .select("*")
-            .in(
-                "competition_id",
-                competitionIds,
-            )
-            .eq(
-                "published",
-                true,
-            )
-            .order(
-                "featured",
-                {
-                    ascending: false,
-                },
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false,
-                },
-            );
-
-    if (
-        competitionResponse.error
-    ) {
-        logOptionalSectionError(
-            "media",
-            competitionResponse.error,
-        );
-        return [];
-    }
-
-    return (
-        competitionResponse.data ??
-        []
-    ) as PublicMediaItem[];
-}
-
 export const organisationPublicService = {
     async getOrganisationBySlug(
         slug: string,
@@ -456,25 +316,23 @@ export const organisationPublicService = {
             return null;
         }
 
-        const {
-            data,
-            error,
-        } = await supabase
-            .from("organisations")
-            .select("*")
-            .eq(
-                "slug",
-                normalisedSlug,
-            )
-            .eq(
-                "public_site_enabled",
-                true,
-            )
-            .eq(
-                "status",
-                "active",
-            )
-            .maybeSingle();
+        const { data, error } =
+            await supabase
+                .from("organisations")
+                .select("*")
+                .eq(
+                    "slug",
+                    normalisedSlug,
+                )
+                .eq(
+                    "public_site_enabled",
+                    true,
+                )
+                .eq(
+                    "status",
+                    "active",
+                )
+                .maybeSingle();
 
         if (error) {
             console.error(
