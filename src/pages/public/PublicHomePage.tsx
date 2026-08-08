@@ -86,20 +86,24 @@ function getBoolean(
 }
 
 export function PublicHomePage({
-    organisationName,
-    backgroundColour,
-    surfaceColour,
-    textColour,
-    accentColour,
-    accentTextColour,
-    basePath,
-    competitions = [],
-    articles = [],
-    media = [],
-}: PublicHomePageProps) {
+                                   organisationName,
+                                   backgroundColour,
+                                   surfaceColour,
+                                   textColour,
+                                   accentColour,
+                                   accentTextColour,
+                                   basePath,
+                                   competitions = [],
+                                   articles = [],
+                                   media = [],
+                               }: PublicHomePageProps) {
     const publicOrganisation = useOptionalPublicOrganisation()
     const organisationId = publicOrganisation?.organisationId ?? null
-    const isBhmff = basePath.toLowerCase() === '/o/bhmff'
+    const organisationSlug =
+        publicOrganisation?.organisationSlug
+            ?.trim()
+            .toLowerCase() ?? ''
+    const isBhmff = organisationSlug === 'bhmff'
 
     const primaryCompetition = competitions[0]
     const competitionName =
@@ -297,7 +301,7 @@ export function PublicHomePage({
                             !team ||
                             !getBoolean(team, 'published') ||
                             getString(team, 'participation_status') !==
-                                'confirmed'
+                            'confirmed'
                         ) {
                             return null
                         }
@@ -674,6 +678,9 @@ export function PublicHomePage({
             <ResultsSection
                 organisationName={organisationName}
                 results={publicResults}
+                surfaceColour={surfaceColour}
+                textColour={textColour}
+                accentColour={accentColour}
             />
 
             <TeamsSection
@@ -688,6 +695,9 @@ export function PublicHomePage({
                 goals={publicGoals}
                 organisationName={organisationName}
                 isBhmff={isBhmff}
+                surfaceColour={surfaceColour}
+                textColour={textColour}
+                accentColour={accentColour}
             />
 
             <MediaSection
@@ -715,6 +725,10 @@ export function PublicHomePage({
             <SponsorsSection
                 organisationName={organisationName}
                 isBhmff={isBhmff}
+                surfaceColour={surfaceColour}
+                textColour={textColour}
+                accentColour={accentColour}
+                accentTextColour={accentTextColour}
             />
         </>
     )

@@ -57,17 +57,33 @@ import {
     PublicTablesPage,
 } from "./PublicTablesPage";
 
-function getOrganisationSlug(
+import {
+    applyOrganisationBrowserBranding,
+    resetTournamentHQBrowserBranding,
+} from "../../services/publicBrandingService";
+
+function getOrganisationSlugFromPath(
     pathname: string,
 ) {
-    const match =
+    const legacyMatch =
         pathname.match(
             /^\/o\/([^/]+)(?:\/.*)?$/,
         );
 
-    return match
+    if (legacyMatch) {
+        return decodeURIComponent(
+            legacyMatch[1],
+        );
+    }
+
+    const cleanMatch =
+        pathname.match(
+            /^\/([^/]+)(?:\/.*)?$/,
+        );
+
+    return cleanMatch
         ? decodeURIComponent(
-            match[1],
+            cleanMatch[1],
         )
         : "";
 }
@@ -113,7 +129,15 @@ function createReadableTextColour(
         : "#ffffff";
 }
 
-export function PublicOrganisationLayout() {
+type PublicOrganisationLayoutProps = {
+    organisationSlugOverride?: string
+    useRootPath?: boolean
+}
+
+export function PublicOrganisationLayout({
+    organisationSlugOverride,
+    useRootPath = false,
+}: PublicOrganisationLayoutProps) {
     const location =
         useLocation();
 
@@ -137,7 +161,10 @@ export function PublicOrganisationLayout() {
     useEffect(() => {
         async function loadOrganisation() {
             const slug =
-                getOrganisationSlug(
+                organisationSlugOverride
+                    ?.trim()
+                    .toLowerCase() ||
+                getOrganisationSlugFromPath(
                     location.pathname,
                 );
 
@@ -179,7 +206,10 @@ export function PublicOrganisationLayout() {
         }
 
         void loadOrganisation();
-    }, [location.pathname]);
+    }, [
+        location.pathname,
+        organisationSlugOverride,
+    ]);
 
     useEffect(() => {
         if (!location.hash) {
@@ -276,6 +306,17 @@ export function PublicOrganisationLayout() {
             };
         }, [organisation]);
 
+    useEffect(() => {
+        if (!organisation) {
+            resetTournamentHQBrowserBranding();
+            return;
+        }
+
+        return applyOrganisationBrowserBranding(
+            organisation,
+        );
+    }, [organisation]);
+
     if (loading) {
         return (
             <main className="grid min-h-screen place-items-center bg-[#071006] p-8 text-white">
@@ -327,9 +368,11 @@ export function PublicOrganisationLayout() {
     const resolvedPublicData = publicData;
 
     const basePath =
-        `/o/${encodeURIComponent(
-            resolvedOrganisation.slug,
-        )}`;
+        useRootPath
+            ? ""
+            : `/${encodeURIComponent(
+                  resolvedOrganisation.slug,
+              )}`;
 
     const isBhmff =
         resolvedOrganisation.slug
@@ -339,7 +382,8 @@ export function PublicOrganisationLayout() {
     const navigationItems = [
         {
             label: "Home",
-            href: basePath,
+            href:
+                basePath || "/",
             sectionId: "",
         },
         {
@@ -421,6 +465,7 @@ export function PublicOrganisationLayout() {
             ) {
             case basePath:
             case `${basePath}/`:
+            case "/":
                 return (
                     <PublicHomePage
                         organisationName={
@@ -639,7 +684,9 @@ export function PublicOrganisationLayout() {
                 >
                     <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-3">
                         <a
-                            href={basePath}
+                            href={
+                                basePath || "/"
+                            }
                             className="flex items-center gap-3 no-underline"
                             style={{
                                 color:
@@ -710,20 +757,20 @@ export function PublicOrganisationLayout() {
                                  }) => {
                                     const isHomePage =
                                         location.pathname ===
-                                        basePath ||
+                                            basePath ||
                                         location.pathname ===
-                                        `${basePath}/`;
+                                            `${basePath}/`;
 
                                     const active =
                                         label ===
-                                        "Home"
+                                            "Home"
                                             ? isHomePage &&
-                                            !location.hash
+                                              !location.hash
                                             : sectionId
-                                                ? isHomePage &&
+                                              ? isHomePage &&
                                                 location.hash ===
-                                                `#${sectionId}`
-                                                : location.pathname ===
+                                                    `#${sectionId}`
+                                              : location.pathname ===
                                                 href;
 
                                     return (

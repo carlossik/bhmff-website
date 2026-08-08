@@ -7,7 +7,7 @@ import {
 import { useOrganisation } from '../../../context/OrganisationContext'
 import { useCompetition } from '../../../contexts/CompetitionContext'
 
-import { Toast } from '../../../components/common/Toast'
+import { Toast } from '../../common/Toast'
 import { competitionTeamService } from './competitionTeamService'
 
 import {

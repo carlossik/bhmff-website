@@ -5,6 +5,7 @@ import type { Competition } from '../../../types/competitionTypes'
 import type { PublicMediaItem } from '../../../services/public/organisationPublicService'
 import { Hero } from '../../Hero'
 import { TournamentCountdown } from '../TournamentCountdown'
+import { useOptionalPublicOrganisation } from '../../../context/PublicOrganisationContext'
 
 type HeroSectionProps = {
     organisationName: string
@@ -74,7 +75,13 @@ export function HeroSection({
                                 competitions = [],
                                 media = [],
                             }: HeroSectionProps) {
-    const isBhmff = basePath.toLowerCase() === '/o/bhmff'
+    const publicOrganisation =
+        useOptionalPublicOrganisation()
+    const organisationSlug =
+        publicOrganisation?.organisationSlug
+            ?.trim()
+            .toLowerCase() ?? ''
+    const isBhmff = organisationSlug === 'bhmff'
 
     if (isBhmff) {
         return (
