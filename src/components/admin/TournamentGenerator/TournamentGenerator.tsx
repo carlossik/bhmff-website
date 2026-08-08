@@ -17,7 +17,6 @@ import {
     Save,
     Settings2,
     ShieldCheck,
-    Shuffle,
     Sparkles,
     Trophy,
     Users,
@@ -41,6 +40,11 @@ import { tournamentGeneratorService } from './tournamentGeneratorService'
 import {
     TournamentAnalysisService,
 } from '../../../services/tournamentAnalysisService'
+import { FootballRulesEngine } from
+        '../../../services/footballRulesEngine'
+import { officialService } from '../../../services/officialService'
+
+import type { Official } from '../../../types/officialTypes'
 
 import type {
     RecommendedGeneratorConfig,
@@ -57,30 +61,9 @@ import type {
     GeneratorVenue,
 } from './tournamentGeneratorTypes'
 
-function formatDateTimeLocal(
-    date: Date
-) {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-function createDefaultStartDateTime() {
-    const tomorrow = new Date()
-
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(10, 0, 0, 0)
-
-    return formatDateTimeLocal(tomorrow)
-}
-
 const initialConfig: GeneratorConfig = {
     mode: 'group_full',
-    startDateTime: createDefaultStartDateTime(),
+    startDateTime: '',
     daysBetweenRounds: 7,
     venueAssignmentMode: 'home_team',
     venueId: '',
@@ -97,7 +80,7 @@ const competitionModeOptions: Array<{
 }> = [
     {
         value: 'group_full',
-        label: 'Group stage – every team plays each other once',
+        label: 'Group Full Round Robin',
         description:
             'Every eligible team plays every other team in its group once.',
     },
@@ -115,13 +98,13 @@ const competitionModeOptions: Array<{
     },
     {
         value: 'league_double',
-        label: 'League – teams play home and away',
+        label: 'League Double Round Robin',
         description:
             'Every eligible competition team plays every other team home and away.',
     },
     {
         value: 'knockout',
-        label: 'Knockout competition Draw',
+        label: 'Knockout Draw',
         description:
             'Generate the opening knockout round, including automatic byes.',
     },
@@ -141,6 +124,17 @@ const selectClassName =
 
 const labelClassName =
     'text-sm font-semibold text-slate-300'
+
+
+function toCompetitionStartDateTime(
+    startDate: string | null | undefined
+) {
+    if (!startDate) {
+        return ''
+    }
+
+    return `${startDate}T10:00`
+}
 
 function formatKickoff(value: string) {
     return new Intl.DateTimeFormat('en-GB', {
@@ -240,6 +234,9 @@ export function TournamentGenerator() {
     const [venues, setVenues] =
         useState<GeneratorVenue[]>([])
 
+    const [officials, setOfficials] =
+        useState<Official[]>([])
+
     const [
         existingFixtures,
         setExistingFixtures,
@@ -249,6 +246,18 @@ export function TournamentGenerator() {
         useState<GeneratorConfig>(
             initialConfig
         )
+
+    const activeFootballRules = useMemo(
+        () =>
+            FootballRulesEngine.resolveScheduleRules(
+                FootballRulesEngine.getProfileForFormat(
+                    config.mode === 'knockout'
+                        ? 'knockout'
+                        : 'league'
+                )
+            ),
+        [config.mode]
+    )
 
     const [
         aiRecommendation,
@@ -274,6 +283,11 @@ export function TournamentGenerator() {
 
     const appliedRecommendationCompetitionId =
         useRef<string | null>(null)
+
+    const [
+        intervalMinutes,
+        setIntervalMinutes,
+    ] = useState(90)
 
     const [
         preview,
@@ -319,8 +333,7 @@ export function TournamentGenerator() {
     const mapAiRecommendationToGeneratorConfig =
         useCallback(
             (
-                recommendation: RecommendedGeneratorConfig,
-                _availableVenues: GeneratorVenue[]
+                recommendation: RecommendedGeneratorConfig
             ): Partial<GeneratorConfig> => {
                 const recommendedMode: CompetitionMode =
                     recommendation.competitionMode ===
@@ -328,16 +341,20 @@ export function TournamentGenerator() {
                         ? 'group_full'
                         : 'league_single'
 
-
                 return {
                     mode: recommendedMode,
-                    daysBetweenRounds: 7,
-                    venueAssignmentMode: 'home_team',
+                    daysBetweenRounds:
+                        Math.max(
+                            7,
+                            recommendation.daysBetweenRounds
+                        ),
+                    venueAssignmentMode:
+                        'home_team',
                     venueId: '',
                     publishImmediately:
-                    recommendation.publishImmediately,
+                        recommendation.publishImmediately,
                     confirmedOnly:
-                    recommendation.confirmedTeamsOnly,
+                        recommendation.confirmedTeamsOnly,
                 }
             },
             []
@@ -347,26 +364,64 @@ export function TournamentGenerator() {
         useCallback(
             (
                 recommendation: RecommendedGeneratorConfig,
-                availableVenues: GeneratorVenue[],
                 notify = true
             ) => {
                 const mappedConfig =
                     mapAiRecommendationToGeneratorConfig(
-                        recommendation,
-                        availableVenues
+                        recommendation
                     )
+
+                const recommendedRules =
+                    FootballRulesEngine.resolveScheduleRules(
+                        FootballRulesEngine.getProfileForFormat(
+                            mappedConfig.mode === 'knockout'
+                                ? 'knockout'
+                                : 'league'
+                        )
+                    )
+
+                const minimumSafeInterval =
+                    Math.max(
+                        recommendation.minutesBetweenFixtures,
+                        recommendation.minimumSafeFixtureIntervalMinutes,
+                        recommendedRules.minimumSameVenueStartIntervalMinutes
+                    )
+
+                if (
+                    recommendation.recommendationStatus !==
+                    'validated'
+                ) {
+                    setAiRecommendationApplied(false)
+
+                    if (notify) {
+                        showToast(
+                            recommendation.validationMessages[0] ??
+                            'The AI recommendation is not safe to apply yet. Resolve the tournament readiness issues first.',
+                            'error'
+                        )
+                    }
+
+                    return
+                }
 
                 setConfig((current) => ({
                     ...current,
                     ...mappedConfig,
                 }))
 
+                setIntervalMinutes((currentInterval) =>
+                    Math.max(
+                        currentInterval,
+                        minimumSafeInterval
+                    )
+                )
+
                 setPreview([])
                 setAiRecommendationApplied(true)
 
                 if (notify) {
                     showToast(
-                        'AI scheduling recommendations applied. Fixtures use home-team venues and rounds default to seven days apart.',
+                        `Validated AI recommendations applied using ${recommendedRules.label}. Weekly rounds, automatic home venues and safe clash resolution are enabled.`,
                         'success'
                     )
                 }
@@ -381,6 +436,7 @@ export function TournamentGenerator() {
                 setTeams([])
                 setMemberships([])
                 setVenues([])
+                setOfficials([])
                 setExistingFixtures([])
                 setPreview([])
                 setAiRecommendation(null)
@@ -404,6 +460,7 @@ export function TournamentGenerator() {
                     teamRows,
                     venueRows,
                     existingFixtureRows,
+                    officialRows,
                     analysisReport,
                 ] = await Promise.all([
                     tournamentGeneratorService.getGroups(
@@ -418,6 +475,11 @@ export function TournamentGenerator() {
                     tournamentGeneratorService.getExistingFixtures(
                         currentCompetition.id
                     ),
+                    currentOrganisation?.id
+                        ? officialService.getAll(
+                            currentOrganisation.id
+                        )
+                        : Promise.resolve([]),
                     currentOrganisation?.id
                         ? TournamentAnalysisService.analyseTournament(
                             {
@@ -455,11 +517,32 @@ export function TournamentGenerator() {
                 setExistingFixtures(
                     existingFixtureRows
                 )
+                setOfficials(
+                    officialRows.filter(
+                        (official) =>
+                            official.status === 'active' &&
+                            (
+                                !currentCompetition?.sport_id ||
+                                official.sport_id === currentCompetition.sport_id
+                            )
+                    )
+                )
                 setPreview([])
 
-                const recommendation =
+                const rawRecommendation =
                     analysisReport?.recommendedGeneratorConfig ??
                     null
+
+                const recommendation =
+                    rawRecommendation
+                        ? {
+                            ...rawRecommendation,
+                            daysBetweenRounds: Math.max(
+                                7,
+                                rawRecommendation.daysBetweenRounds
+                            ),
+                        }
+                        : null
 
                 setAiRecommendation(
                     recommendation
@@ -472,7 +555,6 @@ export function TournamentGenerator() {
                 ) {
                     applyAiRecommendation(
                         recommendation,
-                        venueRows,
                         false
                     )
 
@@ -484,6 +566,7 @@ export function TournamentGenerator() {
                 setTeams([])
                 setMemberships([])
                 setVenues([])
+                setOfficials([])
                 setExistingFixtures([])
                 setPreview([])
 
@@ -509,6 +592,26 @@ export function TournamentGenerator() {
     useEffect(() => {
         void loadData()
     }, [loadData])
+
+    useEffect(() => {
+        if (!currentCompetition?.id) {
+            return
+        }
+
+        setConfig((current) => ({
+            ...current,
+            startDateTime:
+                toCompetitionStartDateTime(
+                    currentCompetition.start_date
+                ),
+            daysBetweenRounds: 7,
+            venueAssignmentMode: 'home_team',
+            venueId: '',
+        }))
+    }, [
+        currentCompetition?.id,
+        currentCompetition?.start_date,
+    ])
 
     const eligibleTeams = useMemo(
         () =>
@@ -666,47 +769,21 @@ export function TournamentGenerator() {
             | GeneratorCompetitionTeam
             | undefined
     ) {
-        if (
-            config.venueAssignmentMode ===
-            'unassigned'
-        ) {
-            return {
-                venueId: null,
-                venueName: 'Venue TBC',
-            }
-        }
+        const homeVenueId =
+            homeTeam?.primary_home_venue_id ??
+            null
 
-        if (
-            config.venueAssignmentMode ===
-            'home_team'
-        ) {
-            const homeVenueId =
-                homeTeam?.primary_home_venue_id ??
-                null
-
-            const homeVenue =
-                homeVenueId
-                    ? venueById.get(homeVenueId)
-                    : undefined
-
-            return {
-                venueId:
-                    homeVenue?.id ?? null,
-                venueName:
-                    homeVenue?.name ??
-                    'Home venue TBC',
-            }
-        }
-
-        const selectedVenue =
-            venueById.get(config.venueId)
+        const homeVenue =
+            homeVenueId
+                ? venueById.get(homeVenueId)
+                : undefined
 
         return {
             venueId:
-                selectedVenue?.id ?? null,
+                homeVenue?.id ?? null,
             venueName:
-                selectedVenue?.name ??
-                'Venue TBC',
+                homeVenue?.name ??
+                'Home venue TBC',
         }
     }
 
@@ -760,10 +837,17 @@ export function TournamentGenerator() {
             )
 
         const kickoff =
-            new Date(roundStart)
+            new Date(
+                roundStart.getTime() +
+                params.roundFixtureIndex *
+                intervalMinutes *
+                60_000
+            )
 
         const venue =
-            resolveVenue(homeTeam)
+            resolveVenue(
+                homeTeam
+            )
 
         return {
             previewId: [
@@ -1069,8 +1153,17 @@ export function TournamentGenerator() {
             return 'Manual mode does not automatically generate fixtures.'
         }
 
-        if (!config.startDateTime) {
-            return 'Select the first kick-off date and time.'
+        if (!currentCompetition.start_date) {
+            return 'The selected competition does not have a start date configured.'
+        }
+
+        if (
+            !Number.isFinite(
+                intervalMinutes
+            ) ||
+            intervalMinutes < 1
+        ) {
+            return 'The fixture interval must be at least 1 minute.'
         }
 
 
@@ -1083,23 +1176,23 @@ export function TournamentGenerator() {
             return 'Days between rounds cannot be negative.'
         }
 
+        if (
+            aiRecommendationApplied &&
+            aiRecommendation
+        ) {
+            const minimumSafeInterval =
+                Math.max(
+                    aiRecommendation.minimumSafeFixtureIntervalMinutes,
+                    activeFootballRules.minimumSameVenueStartIntervalMinutes
+                )
+
+        }
+
 
         if (
             eligibleTeams.length < 2
         ) {
             return 'At least two eligible teams are required.'
-        }
-
-        const teamsWithoutHomeVenues =
-            eligibleTeams.filter(
-                (team) =>
-                    !team.primary_home_venue_id
-            )
-
-        if (teamsWithoutHomeVenues.length > 0) {
-            return `Every eligible team must have a primary home venue. Missing: ${teamsWithoutHomeVenues
-                .map((team) => team.name)
-                .join(', ')}.`
         }
 
         if (
@@ -1117,6 +1210,319 @@ export function TournamentGenerator() {
         }
 
         return null
+    }
+
+    function repairGeneratedSchedule(
+        fixtures: GeneratedFixturePreview[]
+    ) {
+        const durationMs =
+            activeFootballRules
+                .scheduledFixtureDurationMinutes *
+            60_000
+
+        const stepMs = Math.max(
+            1,
+            intervalMinutes
+        ) * 60_000
+
+        const teamBookings =
+            new Map<string, Array<{
+                start: number
+                end: number
+            }>>()
+
+        const venueBookings =
+            new Map<string, Array<{
+                start: number
+                end: number
+            }>>()
+
+        const overlaps = (
+            bookings: Array<{
+                start: number
+                end: number
+            }> | undefined,
+            start: number,
+            end: number
+        ) =>
+            Boolean(
+                bookings?.some(
+                    (booking) =>
+                        start < booking.end &&
+                        booking.start < end
+                )
+            )
+
+        const addBooking = (
+            bookings: Map<
+                string,
+                Array<{
+                    start: number
+                    end: number
+                }>
+            >,
+            key: string,
+            start: number,
+            end: number
+        ) => {
+            const existing =
+                bookings.get(key) ?? []
+
+            existing.push({
+                start,
+                end,
+            })
+
+            bookings.set(
+                key,
+                existing
+            )
+        }
+
+        return [...fixtures]
+            .sort(
+                (first, second) =>
+                    new Date(
+                        first.kickoffTime
+                    ).getTime() -
+                    new Date(
+                        second.kickoffTime
+                    ).getTime()
+            )
+            .map((fixture) => {
+                let start = new Date(
+                    fixture.kickoffTime
+                ).getTime()
+
+                if (!Number.isFinite(start)) {
+                    return fixture
+                }
+
+                let attempts = 0
+
+                while (attempts < 10_000) {
+                    const end =
+                        start + durationMs
+
+                    const homeConflict =
+                        overlaps(
+                            teamBookings.get(
+                                fixture
+                                    .homeCompetitionTeamId
+                            ),
+                            start,
+                            end
+                        )
+
+                    const awayConflict =
+                        overlaps(
+                            teamBookings.get(
+                                fixture
+                                    .awayCompetitionTeamId
+                            ),
+                            start,
+                            end
+                        )
+
+                    const venueConflict =
+                        fixture.venueId
+                            ? overlaps(
+                                venueBookings.get(
+                                    fixture.venueId
+                                ),
+                                start,
+                                end
+                            )
+                            : false
+
+                    if (
+                        !homeConflict &&
+                        !awayConflict &&
+                        !venueConflict
+                    ) {
+                        addBooking(
+                            teamBookings,
+                            fixture
+                                .homeCompetitionTeamId,
+                            start,
+                            end
+                        )
+
+                        addBooking(
+                            teamBookings,
+                            fixture
+                                .awayCompetitionTeamId,
+                            start,
+                            end
+                        )
+
+                        if (fixture.venueId) {
+                            addBooking(
+                                venueBookings,
+                                fixture.venueId,
+                                start,
+                                end
+                            )
+                        }
+
+                        return {
+                            ...fixture,
+                            kickoffTime:
+                                new Date(
+                                    start
+                                ).toISOString(),
+                        }
+                    }
+
+                    start += stepMs
+                    attempts += 1
+                }
+
+                return fixture
+            })
+    }
+
+    function assignPreviewOfficials(
+        fixtures: GeneratedFixturePreview[]
+    ) {
+        const refereePool =
+            officials
+                .filter(
+                    (official) =>
+                        official.role === 'referee'
+                )
+                .sort(
+                    (left, right) =>
+                        (left.completed_matches ?? 0) -
+                        (right.completed_matches ?? 0)
+                )
+
+        if (!refereePool.length) {
+            return fixtures.map(
+                (fixture) => ({
+                    ...fixture,
+                    refereeOfficialId: null,
+                    refereeName:
+                        'To Be Appointed',
+                })
+            )
+        }
+
+        const bookingMap =
+            new Map<
+                string,
+                Array<{
+                    start: number
+                    end: number
+                }>
+            >()
+
+        const allocationCount =
+            new Map<string, number>()
+
+        const overlaps = (
+            bookings:
+                | Array<{
+                    start: number
+                    end: number
+                }>
+                | undefined,
+            start: number,
+            end: number
+        ) =>
+            Boolean(
+                bookings?.some(
+                    (booking) =>
+                        start < booking.end &&
+                        booking.start < end
+                )
+            )
+
+        const durationMs =
+            activeFootballRules
+                .scheduledFixtureDurationMinutes *
+            60_000
+
+        return fixtures.map((fixture) => {
+            const start =
+                new Date(
+                    fixture.kickoffTime
+                ).getTime()
+
+            const end =
+                start + durationMs
+
+            const availableReferees =
+                refereePool
+                    .filter(
+                        (official) =>
+                            !overlaps(
+                                bookingMap.get(
+                                    official.id
+                                ),
+                                start,
+                                end
+                            )
+                    )
+                    .sort(
+                        (left, right) =>
+                            (
+                                allocationCount.get(
+                                    left.id
+                                ) ?? 0
+                            ) -
+                            (
+                                allocationCount.get(
+                                    right.id
+                                ) ?? 0
+                            )
+                    )
+
+            const selectedOfficial =
+                availableReferees[0]
+
+            if (!selectedOfficial) {
+                return {
+                    ...fixture,
+                    refereeOfficialId: null,
+                    refereeName:
+                        'To Be Appointed',
+                }
+            }
+
+            const bookings =
+                bookingMap.get(
+                    selectedOfficial.id
+                ) ?? []
+
+            bookings.push({
+                start,
+                end,
+            })
+
+            bookingMap.set(
+                selectedOfficial.id,
+                bookings
+            )
+
+            allocationCount.set(
+                selectedOfficial.id,
+                (
+                    allocationCount.get(
+                        selectedOfficial.id
+                    ) ?? 0
+                ) + 1
+            )
+
+            return {
+                ...fixture,
+                refereeOfficialId:
+                    selectedOfficial.id,
+                refereeName:
+                    selectedOfficial.full_name ||
+                    `${selectedOfficial.first_name} ${selectedOfficial.last_name}`.trim(),
+            }
+        })
     }
 
     function validatePreview(
@@ -1219,6 +1625,69 @@ export function TournamentGenerator() {
             }
         }
 
+        const fixtureDurationMinutes =
+            activeFootballRules.scheduledFixtureDurationMinutes
+
+        const scheduledVenueFixtures =
+            fixtures.filter(
+                (fixture) =>
+                    Boolean(fixture.venueId)
+            )
+
+        for (
+            let firstIndex = 0;
+            firstIndex < scheduledVenueFixtures.length;
+            firstIndex += 1
+        ) {
+            const firstFixture =
+                scheduledVenueFixtures[firstIndex]
+
+            const firstStart =
+                new Date(
+                    firstFixture.kickoffTime
+                ).getTime()
+
+            const firstEnd =
+                firstStart +
+                fixtureDurationMinutes *
+                60_000
+
+            for (
+                let secondIndex = firstIndex + 1;
+                secondIndex < scheduledVenueFixtures.length;
+                secondIndex += 1
+            ) {
+                const secondFixture =
+                    scheduledVenueFixtures[secondIndex]
+
+                if (
+                    firstFixture.venueId !==
+                    secondFixture.venueId
+                ) {
+                    continue
+                }
+
+                const secondStart =
+                    new Date(
+                        secondFixture.kickoffTime
+                    ).getTime()
+
+                const secondEnd =
+                    secondStart +
+                    fixtureDurationMinutes *
+                    60_000
+
+                if (
+                    firstStart < secondEnd &&
+                    secondStart < firstEnd
+                ) {
+                    issues.push(
+                        `${firstFixture.venueName} has overlapping fixtures: ${firstFixture.homeTeamName} vs ${firstFixture.awayTeamName} and ${secondFixture.homeTeamName} vs ${secondFixture.awayTeamName}.`
+                    )
+                }
+            }
+        }
+
         return Array.from(
             new Set(issues)
         )
@@ -1236,9 +1705,13 @@ export function TournamentGenerator() {
             return
         }
 
+        const kickoffTime =
+            config.startDateTime.slice(11, 16) ||
+            '10:00'
+
         const startDate =
             new Date(
-                config.startDateTime
+                `${currentCompetition.start_date}T${kickoffTime}`
             )
 
         if (
@@ -1311,6 +1784,32 @@ export function TournamentGenerator() {
                 return
             }
 
+            const originalKickoffByPreviewId =
+                new Map(
+                    generated.map((fixture) => [
+                        fixture.previewId,
+                        fixture.kickoffTime,
+                    ])
+                )
+
+            generated =
+                repairGeneratedSchedule(
+                    generated
+                )
+
+            generated =
+                assignPreviewOfficials(
+                    generated
+                )
+
+            const automaticallyAdjustedFixtures =
+                generated.filter(
+                    (fixture) =>
+                        originalKickoffByPreviewId.get(
+                            fixture.previewId
+                        ) !== fixture.kickoffTime
+                ).length
+
             const previewIssues =
                 validatePreview(
                     generated
@@ -1329,7 +1828,9 @@ export function TournamentGenerator() {
             setPreview(generated)
 
             showToast(
-                `${generated.length} fixtures generated for preview.`,
+                automaticallyAdjustedFixtures > 0
+                    ? `${generated.length} fixtures generated for preview. ${automaticallyAdjustedFixtures} fixture${automaticallyAdjustedFixtures === 1 ? '' : 's'} automatically rescheduled to resolve team or venue clashes.`
+                    : `${generated.length} fixtures generated for preview.`,
                 'success'
             )
         } catch (error) {
@@ -1370,11 +1871,81 @@ export function TournamentGenerator() {
         setIsSaving(true)
 
         try {
-            await tournamentGeneratorService.createFixtures(
-                currentCompetition.id,
-                preview,
-                config.publishImmediately
-            )
+            const createdFixtures =
+                await tournamentGeneratorService.createFixtures(
+                    currentCompetition.id,
+                    preview,
+                    config.publishImmediately
+                )
+
+            if (
+                currentOrganisation?.id
+            ) {
+                const previewByKey =
+                    new Map(
+                        preview.map(
+                            (fixture) => [
+                                [
+                                    fixture.homeCompetitionTeamId,
+                                    fixture.awayCompetitionTeamId,
+                                    fixture.kickoffTime,
+                                ].join('::'),
+                                fixture,
+                            ]
+                        )
+                    )
+
+                await Promise.all(
+                    createdFixtures.map(
+                        async (fixture) => {
+                            const previewFixture =
+                                previewByKey.get(
+                                    [
+                                        fixture.home_competition_team_id,
+                                        fixture.away_competition_team_id,
+                                        fixture.kickoff_time,
+                                    ].join('::')
+                                )
+
+                            if (
+                                !previewFixture
+                                    ?.refereeOfficialId
+                            ) {
+                                return
+                            }
+
+                            await officialService.assignOfficial({
+                                organisation_id:
+                                    currentOrganisation.id,
+                                official_id:
+                                    previewFixture.refereeOfficialId,
+                                competition_id:
+                                    currentCompetition.id,
+                                fixture_id:
+                                    fixture.id,
+                                venue_id:
+                                    fixture.venue_id,
+                                sport_id:
+                                    currentCompetition.sport_id ??
+                                    null,
+                                role: 'referee',
+                                source: 'ai',
+                                status: 'proposed',
+                                assignment_score: null,
+                                travel_distance_km: null,
+                                travel_duration_minutes: null,
+                                assigned_fee: 0,
+                                assigned_expenses: 0,
+                                assigned_by: null,
+                                assigned_at: null,
+                                accepted_at: null,
+                                notes:
+                                    'Automatically assigned by the TournamentHQ Intelligent Fixture Generator.',
+                            })
+                        }
+                    )
+                )
+            }
 
             setShowSaveConfirmation(
                 false
@@ -1410,7 +1981,7 @@ export function TournamentGenerator() {
 
                     <div>
                         <h3 className="text-xl font-bold text-white">
-                            Loading Auto Fixture Generator
+                            Loading Intelligent Fixture Generator
                         </h3>
 
                         <p className="mt-2 text-slate-400">
@@ -1445,11 +2016,11 @@ export function TournamentGenerator() {
                             </p>
 
                             <h2 className="mt-2 text-3xl font-bold text-white">
-                                Auto Fixture Generator
+                                Intelligent Fixture Generator
                             </h2>
 
                             <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-                                Generate, validate and preview tournament fixtures before saving or publishing.
+                                Generate an intelligent, conflict-aware fixture schedule using competition dates, home venues and available officials before saving or publishing.
                             </p>
                         </div>
                     </div>
@@ -1509,8 +2080,12 @@ export function TournamentGenerator() {
 
                             {aiRecommendation && (
                                 <button
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-400/30 bg-lime-400/10 px-5 py-3 font-semibold text-lime-200 transition hover:border-lime-300/50 hover:bg-lime-400/15"
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-400/30 bg-lime-400/10 px-5 py-3 font-semibold text-lime-200 transition hover:border-lime-300/50 hover:bg-lime-400/15 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800/40 disabled:text-slate-500"
                                     type="button"
+                                    disabled={
+                                        aiRecommendation.recommendationStatus !==
+                                        'validated'
+                                    }
                                     onClick={() => {
                                         applyAiRecommendation(
                                             aiRecommendation,
@@ -1575,16 +2150,19 @@ export function TournamentGenerator() {
                                         Round spacing
                                     </p>
                                     <p className="mt-2 font-semibold text-white">
-                                        {aiRecommendation.daysBetweenRounds} day{aiRecommendation.daysBetweenRounds === 1 ? '' : 's'}
+                                        {Math.max(7, aiRecommendation.daysBetweenRounds)} days
                                     </p>
                                 </div>
 
                                 <div className="rounded-2xl border border-lime-900/40 bg-black/20 p-4">
                                     <p className="text-xs uppercase tracking-wider text-slate-500">
-                                        Venue assignment
+                                        Fixture interval
                                     </p>
                                     <p className="mt-2 font-semibold text-white">
-                                        Home venues
+                                        {Math.max(
+                                            aiRecommendation.minutesBetweenFixtures,
+                                            aiRecommendation.minimumSafeFixtureIntervalMinutes
+                                        )} minutes ({aiRecommendation.rulesProfileId === 'adult-knockout' ? 'adult knockout' : 'adult league'})
                                     </p>
                                 </div>
                             </div>
@@ -1597,7 +2175,7 @@ export function TournamentGenerator() {
                         {aiRecommendationApplied && aiRecommendation && (
                             <div className="mt-4 flex items-center gap-2 text-sm text-lime-300">
                                 <CheckCircle2 className="h-4 w-4" />
-                                AI recommendations are applied. Weekly round spacing and home-team venues remain protected.
+                                AI defaults are validated and applied. Unsafe timing reductions will be rejected before preview generation.
                             </div>
                         )}
                     </section>
@@ -1608,23 +2186,27 @@ export function TournamentGenerator() {
 
                             <div>
                                 <h3 className="text-xl font-semibold text-white">
-                                    Competition setup
+                                    Generator configuration
                                 </h3>
 
                                 <p className="mt-1 text-sm text-slate-400">
-                                    Choose the competition format and when each round should be played.
+                                    Configure the competition structure, timing and venue rules.
                                 </p>
                             </div>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+                        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                             <label className={labelClassName}>
-                                Competition format
+                                Generator mode
 
                                 <select
                                     className={selectClassName}
-                                    value={config.mode}
-                                    onChange={(event) =>
+                                    value={
+                                        config.mode
+                                    }
+                                    onChange={(
+                                        event
+                                    ) =>
                                         updateConfig(
                                             'mode',
                                             event.target.value as CompetitionMode
@@ -1634,34 +2216,67 @@ export function TournamentGenerator() {
                                     {competitionModeOptions.map(
                                         (option) => (
                                             <option
-                                                key={option.value}
-                                                value={option.value}
+                                                key={
+                                                    option.value
+                                                }
+                                                value={
+                                                    option.value
+                                                }
                                             >
-                                                {option.label}
+                                                {
+                                                    option.label
+                                                }
                                             </option>
                                         )
                                     )}
                                 </select>
                             </label>
 
+                            <div>
+                                <p className={labelClassName}>
+                                    Competition start date
+                                </p>
+
+                                <div className="mt-2 rounded-xl border border-[color:var(--organisation-border)] bg-black/20 px-4 py-3 text-white">
+                                    {currentCompetition.start_date
+                                        ? new Intl.DateTimeFormat('en-GB', {
+                                            dateStyle: 'full',
+                                        }).format(
+                                            new Date(`${currentCompetition.start_date}T00:00:00`)
+                                        )
+                                        : 'Start date not configured'}
+                                </div>
+
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Automatically inherited from the selected competition.
+                                </p>
+                            </div>
+
                             <label className={labelClassName}>
-                                First kick-off
+                                First kick-off time
 
                                 <input
                                     className={inputClassName}
-                                    type="datetime-local"
-                                    value={config.startDateTime}
-                                    onChange={(event) =>
+                                    type="time"
+                                    value={
+                                        config.startDateTime.slice(11, 16) || '10:00'
+                                    }
+                                    onChange={(event) => {
+                                        if (!currentCompetition.start_date) {
+                                            return
+                                        }
+
                                         updateConfig(
                                             'startDateTime',
-                                            event.target.value
+                                            `${currentCompetition.start_date}T${event.target.value}`
                                         )
-                                    }
+                                    }}
+                                    disabled={!currentCompetition.start_date}
                                 />
 
-                                <span className="mt-2 block text-xs font-normal text-slate-500">
-                                    Defaults to tomorrow at 10:00 and remains editable.
-                                </span>
+                                <p className="mt-2 text-xs text-slate-500">
+                                    The date is automatic; only the kick-off time is editable.
+                                </p>
                             </label>
 
                             <label className={labelClassName}>
@@ -1672,67 +2287,370 @@ export function TournamentGenerator() {
                                     type="number"
                                     min="1"
                                     step="1"
-                                    value={config.daysBetweenRounds}
-                                    onChange={(event) =>
+                                    value={
+                                        config.daysBetweenRounds
+                                    }
+                                    onChange={(
+                                        event
+                                    ) =>
                                         updateConfig(
                                             'daysBetweenRounds',
-                                            Number(event.target.value)
+                                            Number(
+                                                event.target.value
+                                            )
                                         )
                                     }
                                 />
 
-                                <span className="mt-2 block text-xs font-normal text-slate-500">
-                                    Weekly scheduling defaults to seven days.
-                                </span>
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Defaults to 7 days and remains editable for exceptional schedules.
+                                </p>
+                            </label>
+
+                            <label className={labelClassName}>
+                                Minutes between fixtures
+
+                                <input
+                                    className={inputClassName}
+                                    type="number"
+                                    min="15"
+                                    step="5"
+                                    value={
+                                        intervalMinutes
+                                    }
+                                    onChange={(
+                                        event
+                                    ) => {
+                                        setIntervalMinutes(
+                                            Number(
+                                                event.target.value
+                                            )
+                                        )
+
+                                        setPreview([])
+                                    }}
+                                />
+                            </label>
+
+
+                            {config.mode ===
+                                'group_limited' && (
+                                    <label className={labelClassName}>
+                                        Matches per team
+
+                                        <input
+                                            className={inputClassName}
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={
+                                                config.matchesPerTeam
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                updateConfig(
+                                                    'matchesPerTeam',
+                                                    Number(
+                                                        event.target.value
+                                                    )
+                                                )
+                                            }
+                                        />
+                                    </label>
+                                )}
+                        </div>
+
+                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                            {config.mode ===
+                                'knockout' && (
+                                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                        <input
+                                            className="h-4 w-4 accent-lime-400"
+                                            type="checkbox"
+                                            checked={
+                                                config.randomiseCupDraw
+                                            }
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                updateConfig(
+                                                    'randomiseCupDraw',
+                                                    event.target.checked
+                                                )
+                                            }
+                                        />
+
+                                        <div>
+                                        <span className="font-semibold text-white">
+                                            Randomise knockout draw
+                                        </span>
+
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                Shuffle eligible teams before creating the first round.
+                                            </p>
+                                        </div>
+                                    </label>
+                                )}
+
+                            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                <input
+                                    className="h-4 w-4 accent-lime-400"
+                                    type="checkbox"
+                                    checked={
+                                        config.confirmedOnly
+                                    }
+                                    onChange={(
+                                        event
+                                    ) =>
+                                        updateConfig(
+                                            'confirmedOnly',
+                                            event.target.checked
+                                        )
+                                    }
+                                />
+
+                                <div>
+                                    <span className="font-semibold text-white">
+                                        Use confirmed teams only
+                                    </span>
+
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Exclude invited, interested and withdrawn teams.
+                                    </p>
+                                </div>
+                            </label>
+
+                            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                <input
+                                    className="h-4 w-4 accent-lime-400"
+                                    type="checkbox"
+                                    checked={
+                                        config.publishImmediately
+                                    }
+                                    onChange={(
+                                        event
+                                    ) =>
+                                        updateConfig(
+                                            'publishImmediately',
+                                            event.target.checked
+                                        )
+                                    }
+                                />
+
+                                <div>
+                                    <span className="font-semibold text-white">
+                                        Publish immediately
+                                    </span>
+
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Make saved fixtures publicly visible.
+                                    </p>
+                                </div>
                             </label>
                         </div>
 
-                        <div className="mt-5 rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                        <div className="mt-6 rounded-2xl border border-lime-800/40 bg-lime-400/5 p-5">
                             <div className="flex items-start gap-3">
-                                <MapPin className="mt-0.5 h-5 w-5 text-lime-400" />
+                                <Sparkles className="mt-0.5 h-5 w-5 flex-shrink-0 text-lime-400" />
 
                                 <div>
                                     <p className="font-semibold text-white">
-                                        Home venues are assigned automatically
+                                        {selectedMode?.label}
                                     </p>
 
-                                    <p className="mt-1 text-sm leading-6 text-slate-400">
-                                        Every generated fixture uses the linked primary home venue or pitch of the selected home team. Venue controls are therefore no longer required in the generator.
+                                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                                        {selectedMode?.description}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                    </section>
 
-                    <section className="rounded-3xl border border-lime-700/50 bg-gradient-to-br from-lime-400/10 to-transparent p-6">
-                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <h3 className="text-xl font-semibold text-white">
-                                    Generate fixture preview
-                                </h3>
-
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                                    Create the proposed fixtures using the selected competition format, seven-day round spacing and each home team's linked venue or pitch. Nothing is saved until you review and confirm the preview.
-                                </p>
-
-                            </div>
-
+                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                             <button
-                                className="inline-flex min-w-[230px] items-center justify-center gap-2 rounded-xl bg-lime-400 px-6 py-4 text-base font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-6 py-3 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                                 type="button"
-                                onClick={generatePreview}
-                                disabled={isSaving}
+                                onClick={
+                                    generatePreview
+                                }
+                                disabled={
+                                    config.mode ===
+                                    'manual'
+                                }
                             >
                                 <WandSparkles className="h-5 w-5" />
-                                {preview.length > 0
-                                    ? 'Regenerate Fixtures'
-                                    : 'Generate Fixtures'}
+                                Generate Preview
                             </button>
+
+                            {preview.length >
+                                0 && (
+                                    <button
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/50 bg-black/20 px-6 py-3 font-semibold text-white transition hover:border-lime-500/60 hover:bg-lime-500/5"
+                                        type="button"
+                                        onClick={() =>
+                                            setPreview([])
+                                        }
+                                    >
+                                        <RefreshCw className="h-5 w-5" />
+                                        Clear Preview
+                                    </button>
+                                )}
                         </div>
                     </section>
 
+                    <section className="rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6">
+                        <div className="flex items-center gap-3">
+                            <ShieldCheck className="h-6 w-6 text-lime-400" />
 
+                            <div>
+                                <h3 className="text-xl font-semibold text-white">
+                                    Tournament readiness
+                                </h3>
 
+                                <p className="mt-1 text-sm text-slate-400">
+                                    Current data available to the generator.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <ReadinessCard
+                                label="Eligible teams"
+                                value={
+                                    eligibleTeams.length
+                                }
+                                status={
+                                    eligibleTeams.length >=
+                                    2
+                                        ? 'ready'
+                                        : 'warning'
+                                }
+                                icon={Users}
+                                detail={
+                                    eligibleTeams.length >=
+                                    2
+                                        ? 'Minimum reached'
+                                        : 'At least 2 required'
+                                }
+                            />
+
+                            <ReadinessCard
+                                label="Groups"
+                                value={
+                                    groups.length
+                                }
+                                status={
+                                    groups.length >
+                                    0
+                                        ? 'ready'
+                                        : 'warning'
+                                }
+                                icon={Trophy}
+                                detail={
+                                    groups.length >
+                                    0
+                                        ? 'Available'
+                                        : 'None configured'
+                                }
+                            />
+
+                            <ReadinessCard
+                                label="Venues"
+                                value={
+                                    venues.length
+                                }
+                                status={
+                                    venues.length >
+                                    0
+                                        ? 'ready'
+                                        : 'warning'
+                                }
+                                icon={MapPin}
+                                detail={
+                                    venues.length >
+                                    0
+                                        ? 'Available'
+                                        : 'None configured'
+                                }
+                            />
+
+                            <ReadinessCard
+                                label="Existing fixtures"
+                                value={
+                                    existingFixtures.length
+                                }
+                                status="protected"
+                                icon={ShieldCheck}
+                                detail="Will not be changed"
+                            />
+                        </div>
+                    </section>
+
+                    {(config.mode ===
+                        'group_full' ||
+                        config.mode ===
+                        'group_limited') && (
+                        <section className="rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6">
+                            <div className="flex items-center gap-3">
+                                <Users className="h-6 w-6 text-lime-400" />
+
+                                <div>
+                                    <h3 className="text-xl font-semibold text-white">
+                                        Group readiness
+                                    </h3>
+
+                                    <p className="mt-1 text-sm text-slate-400">
+                                        Eligible teams and existing fixture coverage for each group.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                {groupSummaries.map(
+                                    (group) => (
+                                        <article
+                                            className="rounded-2xl border border-lime-900/40 bg-black/20 p-5"
+                                            key={
+                                                group.id
+                                            }
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <span className="rounded-full border border-lime-800/50 bg-lime-500/10 px-3 py-1 text-xs font-bold text-lime-300">
+                                                        {
+                                                            group.teams.length
+                                                        }{' '}
+                                                        eligible teams
+                                                    </span>
+
+                                                    <h4 className="mt-4 text-lg font-bold text-white">
+                                                        {
+                                                            group.name
+                                                        }
+                                                    </h4>
+                                                </div>
+
+                                                {group.hasExistingFixtures ? (
+                                                    <span className="rounded-full border border-amber-800/50 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
+                                                        Existing fixtures
+                                                    </span>
+                                                ) : group.teams.length <
+                                                2 ? (
+                                                    <span className="rounded-full border border-red-800/50 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
+                                                        Not ready
+                                                    </span>
+                                                ) : (
+                                                    <span className="rounded-full border border-lime-800/50 bg-lime-500/10 px-3 py-1 text-xs font-bold text-lime-300">
+                                                        Ready
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </article>
+                                    )
+                                )}
+                            </div>
+                        </section>
+                    )}
 
                     {preview.length >
                         0 && (
@@ -1799,6 +2717,10 @@ export function TournamentGenerator() {
 
                                             <th className="px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-400">
                                                 Venue
+                                            </th>
+
+                                            <th className="px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                Referee
                                             </th>
                                         </tr>
                                         </thead>
@@ -1871,6 +2793,24 @@ export function TournamentGenerator() {
                                                             }
                                                         </div>
                                                     </td>
+
+                                                    <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-300">
+                                                        <div className="flex items-center gap-2">
+                                                            <Users className="h-4 w-4 text-lime-400" />
+                                                            <span
+                                                                className={
+                                                                    fixture.refereeOfficialId
+                                                                        ? 'text-white'
+                                                                        : 'text-amber-300'
+                                                                }
+                                                            >
+                                                                {
+                                                                    fixture.refereeName ??
+                                                                    'To Be Appointed'
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             )
                                         )}
@@ -1903,12 +2843,14 @@ export function TournamentGenerator() {
 
                                             <div>
                                                 <p className="text-xs uppercase tracking-wider text-slate-500">
-                                                    Round spacing
+                                                    Interval
                                                 </p>
 
                                                 <p className="mt-1 text-xl font-bold text-white">
-                                                    {config.daysBetweenRounds}{' '}
-                                                    days
+                                                    {
+                                                        intervalMinutes
+                                                    }{' '}
+                                                    minutes
                                                 </p>
                                             </div>
                                         </div>

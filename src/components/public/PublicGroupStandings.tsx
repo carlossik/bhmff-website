@@ -106,7 +106,13 @@ function formatGoalDifference(value: number) {
     return value > 0 ? `+${value}` : String(value)
 }
 
-export function PublicGroupStandings() {
+type PublicGroupStandingsProps = {
+    competitionId: string | null
+}
+
+export function PublicGroupStandings({
+    competitionId,
+}: PublicGroupStandingsProps) {
     const [blocks, setBlocks] =
         useState<GroupStandingBlock[]>([])
 
@@ -118,21 +124,7 @@ export function PublicGroupStandings() {
             setIsLoading(true)
 
             try {
-                const {
-                    data: competition,
-                    error: competitionError,
-                } = await supabase
-                    .from('competitions')
-                    .select('id')
-                    .eq('status', 'ACTIVE')
-                    .limit(1)
-                    .maybeSingle()
-
-                if (competitionError) {
-                    throw competitionError
-                }
-
-                if (!competition) {
+                if (!competitionId) {
                     setBlocks([])
                     return
                 }
@@ -150,7 +142,7 @@ export function PublicGroupStandings() {
                         )
                         .eq(
                             'competition_id',
-                            competition.id
+                            competitionId
                         )
                         .eq('published', true)
                         .order('sort_order', {
@@ -173,7 +165,7 @@ export function PublicGroupStandings() {
                         `)
                         .eq(
                             'competition_id',
-                            competition.id
+                            competitionId
                         ),
 
                     supabase
@@ -200,7 +192,7 @@ export function PublicGroupStandings() {
                         .eq('published', true)
                         .eq(
                             'fixture.competition_id',
-                            competition.id
+                            competitionId
                         )
                         .eq(
                             'fixture.stage',
@@ -386,7 +378,7 @@ export function PublicGroupStandings() {
         }
 
         void loadStandings()
-    }, [])
+    }, [competitionId])
 
     if (isLoading) {
         return (

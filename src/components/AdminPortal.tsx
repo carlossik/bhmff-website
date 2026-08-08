@@ -4,6 +4,7 @@ import {
     useMemo,
     useState,
 } from 'react'
+import type { CSSProperties } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { Gavel } from 'lucide-react'
 import OfficialsPage from '../pages/OfficialsPage'
@@ -30,7 +31,6 @@ import {
     Users,
 } from 'lucide-react'
 
-import MetricCard from './ui/MetricCard/MetricCard'
 import { AITournamentDirector } from './admin/AITournamentDirector/AITournamentDirector'
 import CompetitionManager from './admin/Competitions/CompetitionManager'
 import { MediaManager } from './admin/Media/MediaManager'
@@ -266,6 +266,51 @@ const emptyCompetitionStats: CompetitionDashboardStats = {
     goals: 0,
 }
 
+
+type OrganisationThemeStyle = CSSProperties & {
+    '--organisation-primary': string
+    '--organisation-secondary': string
+    '--organisation-accent': string
+    '--organisation-background': string
+    '--organisation-surface': string
+    '--organisation-text': string
+    '--organisation-muted': string
+    '--organisation-border': string
+    '--organisation-on-accent': string
+}
+
+function normaliseHexColour(
+    value: string | null | undefined,
+    fallback: string,
+): string {
+    const candidate = value?.trim() ?? ''
+
+    return /^#[0-9a-fA-F]{6}$/.test(candidate)
+        ? candidate.toUpperCase()
+        : fallback
+}
+
+function getContrastText(hexColour: string): string {
+    const red = Number.parseInt(hexColour.slice(1, 3), 16)
+    const green = Number.parseInt(hexColour.slice(3, 5), 16)
+    const blue = Number.parseInt(hexColour.slice(5, 7), 16)
+    const luminance =
+        (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
+
+    return luminance > 0.58 ? '#071006' : '#FFFFFF'
+}
+
+function hexToRgba(
+    hexColour: string,
+    alpha: number,
+): string {
+    const red = Number.parseInt(hexColour.slice(1, 3), 16)
+    const green = Number.parseInt(hexColour.slice(3, 5), 16)
+    const blue = Number.parseInt(hexColour.slice(5, 7), 16)
+
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
 export function AdminPortal({
                                 profile,
                                 onLogout,
@@ -349,6 +394,49 @@ export function AdminPortal({
     const activeRole =
         effectiveProfile.role
 
+    const organisationTheme =
+        useMemo<OrganisationThemeStyle>(() => {
+            const organisation =
+                effectiveProfile.currentOrganisation
+
+            const primary = normaliseHexColour(
+                organisation.primary_colour,
+                '#0F766E',
+            )
+            const secondary = normaliseHexColour(
+                organisation.secondary_colour,
+                '#0F172A',
+            )
+            const accent = normaliseHexColour(
+                organisation.accent_colour,
+                '#84CC16',
+            )
+            const background = normaliseHexColour(
+                organisation.background_colour,
+                '#071006',
+            )
+            const surface = normaliseHexColour(
+                organisation.surface_colour,
+                '#10190F',
+            )
+            const text = normaliseHexColour(
+                organisation.text_colour,
+                '#FFFFFF',
+            )
+
+            return {
+                '--organisation-primary': primary,
+                '--organisation-secondary': secondary,
+                '--organisation-accent': accent,
+                '--organisation-background': background,
+                '--organisation-surface': surface,
+                '--organisation-text': text,
+                '--organisation-muted': hexToRgba(text, 0.68),
+                '--organisation-border': hexToRgba(accent, 0.28),
+                '--organisation-on-accent': getContrastText(accent),
+            }
+        }, [effectiveProfile.currentOrganisation])
+
     const publicSiteUrl =
         getOrganisationPublicSiteUrl(
             window.location.origin,
@@ -360,10 +448,14 @@ export function AdminPortal({
             adminTabs.filter((tab) =>
                 canAccessModule(
                     activeRole,
-                    tab
+                    tab,
+                    effectiveProfile.isPlatformAdmin,
                 )
             ),
-        [activeRole]
+        [
+            activeRole,
+            effectiveProfile.isPlatformAdmin,
+        ]
     )
 
     const visibleNavigationSections =
@@ -447,7 +539,8 @@ export function AdminPortal({
                 !currentOrganisation ||
                 !canAccessModule(
                     activeRole,
-                    'Teams'
+                    'Teams',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 setDbTeams([])
@@ -813,7 +906,8 @@ export function AdminPortal({
                 !currentOrganisation?.id ||
                 !canAccessModule(
                     activeRole,
-                    'Enquiries'
+                    'Enquiries',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 setEnquiryCount(0)
@@ -882,7 +976,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Clubs'
+                    'Clubs',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -896,7 +991,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Teams'
+                    'Teams',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -910,7 +1006,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Venues'
+                    'Venues',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -924,7 +1021,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Sponsors'
+                    'Sponsors',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -938,7 +1036,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Articles'
+                    'Articles',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -952,7 +1051,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Media'
+                    'Media',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -966,7 +1066,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Enquiries'
+                    'Enquiries',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -994,7 +1095,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Competition Teams'
+                    'Competition Teams',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -1009,7 +1111,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Groups'
+                    'Groups',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -1023,7 +1126,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Fixtures'
+                    'Fixtures',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -1037,7 +1141,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Results'
+                    'Results',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -1051,7 +1156,8 @@ export function AdminPortal({
             if (
                 canAccessModule(
                     activeRole,
-                    'Goals'
+                    'Goals',
+                    effectiveProfile.isPlatformAdmin,
                 )
             ) {
                 items.push({
@@ -1180,14 +1286,14 @@ export function AdminPortal({
     ) {
         if (!items.length) {
             return (
-                <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-10 text-center">
-                    <Trophy className="mx-auto h-9 w-9 text-lime-400/70" />
+                <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-10 text-center">
+                    <Trophy className="mx-auto h-9 w-9 text-[var(--organisation-accent)] opacity-70" />
 
-                    <h4 className="mt-4 text-base font-semibold text-white">
+                    <h4 className="mt-4 text-base font-semibold text-[var(--organisation-text)]">
                         No statistics available
                     </h4>
 
-                    <p className="mt-2 text-sm text-slate-400">
+                    <p className="mt-2 text-sm text-[var(--organisation-muted)]">
                         No statistics are available for your current access
                         level.
                     </p>
@@ -1197,31 +1303,50 @@ export function AdminPortal({
 
         return (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {items.map((stat) => (
-                    <button
-                        key={stat.label}
-                        type="button"
-                        onClick={() =>
-                            setActiveTab(
-                                stat.module
-                            )
-                        }
-                        aria-label={`Open ${stat.module}`}
-                        className="group rounded-2xl text-left outline-none transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-lime-950/20 focus-visible:ring-2 focus-visible:ring-lime-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071006]"
-                    >
-                        <MetricCard
-                            title={stat.label}
-                            value={stat.value}
-                            icon={getStatisticIcon(
-                                stat.label
-                            )}
-                        />
+                {items.map((stat) => {
+                    const StatisticIcon =
+                        getStatisticIcon(stat.label)
 
-                        <span className="sr-only">
-                            Open {stat.module}
-                        </span>
-                    </button>
-                ))}
+                    return (
+                        <button
+                            key={stat.label}
+                            type="button"
+                            onClick={() =>
+                                setActiveTab(
+                                    stat.module
+                                )
+                            }
+                            aria-label={`Open ${stat.module}`}
+                            className="group rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-5 text-left text-[var(--organisation-text)] shadow-sm outline-none transition duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[var(--organisation-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--organisation-background)]"
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border"
+                                    style={{
+                                        backgroundColor:
+                                            'color-mix(in srgb, var(--organisation-accent) 12%, transparent)',
+                                        borderColor:
+                                            'color-mix(in srgb, var(--organisation-accent) 28%, transparent)',
+                                    }}
+                                >
+                                    <StatisticIcon className="h-6 w-6 text-[var(--organisation-accent)]" />
+                                </div>
+
+                                <strong className="text-3xl font-black leading-none text-[var(--organisation-text)]">
+                                    {stat.value}
+                                </strong>
+                            </div>
+
+                            <span className="mt-6 block text-base font-black text-[var(--organisation-text)]">
+                                {stat.label}
+                            </span>
+
+                            <span className="sr-only">
+                                Open {stat.module}
+                            </span>
+                        </button>
+                    )
+                })}
             </div>
         )
     }
@@ -1242,7 +1367,8 @@ export function AdminPortal({
         if (
             !canAccessModule(
                 activeRole,
-                activeTab
+                activeTab,
+                effectiveProfile.isPlatformAdmin,
             )
         ) {
             return (
@@ -1282,7 +1408,8 @@ export function AdminPortal({
 
                             {canAccessModule(
                                 activeRole,
-                                'Articles'
+                                'Articles',
+                                effectiveProfile.isPlatformAdmin,
                             ) && (
                                 <button
                                     type="button"
@@ -1293,7 +1420,7 @@ export function AdminPortal({
                                         )
                                         setActiveTab('Articles')
                                     }}
-                                    className="inline-flex items-center justify-center rounded-xl bg-lime-400 px-5 py-3 text-sm font-black text-black transition hover:bg-lime-300"
+                                    className="inline-flex items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-black text-[var(--organisation-on-accent)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--organisation-accent)] focus:ring-offset-2 focus:ring-offset-[var(--organisation-background)]"
                                 >
                                     + Add Article
                                 </button>
@@ -1365,7 +1492,8 @@ export function AdminPortal({
                                 Signed in as{' '}
                                 <strong>
                                     {formatAdminRole(
-                                        activeRole
+                                        activeRole,
+                                        effectiveProfile.isPlatformAdmin,
                                     )}
                                 </strong>{' '}
                                 for{' '}
@@ -1514,7 +1642,8 @@ export function AdminPortal({
     return (
         <section
             id="admin"
-            className="min-h-screen bg-[#071006] px-4 py-8 font-sans text-white sm:px-6 lg:px-8"
+            style={organisationTheme}
+            className="min-h-screen bg-[var(--organisation-background)] px-4 py-8 font-sans text-[var(--organisation-text)] sm:px-6 lg:px-8"
         >
             <div className="mx-auto w-full max-w-[1600px]">
                 <AdminHeader
@@ -1524,9 +1653,9 @@ export function AdminPortal({
                     onLogout={onLogout}
                 />
 
-                <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-lime-900/50 bg-[#0b140a] px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-400">
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--organisation-accent)]">
                             Public Website
                         </p>
 
@@ -1556,7 +1685,7 @@ export function AdminPortal({
                         href={publicSiteUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 text-sm font-black text-black transition hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-300 focus:ring-offset-2 focus:ring-offset-[#071006]"
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-black text-[var(--organisation-on-accent)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--organisation-accent)] focus:ring-offset-2 focus:ring-offset-[var(--organisation-background)]"
                         aria-label="Open the public website in a new tab"
                     >
                         <ExternalLink className="h-4 w-4" />
@@ -1564,15 +1693,15 @@ export function AdminPortal({
                     </a>
                 </div>
 
-                <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400 sm:text-base">
+                <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--organisation-muted)] sm:text-base">
                     Your portal access is limited
                     to the modules required for
                     your assigned operational role.
                 </p>
 
                 <div className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
-                    <aside className="w-full overflow-hidden rounded-3xl border border-lime-900/50 bg-[#0b140a] shadow-2xl shadow-black/20">
-                        <div className="border-b border-lime-900/50 px-5 py-5">
+                    <aside className="w-full overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] shadow-2xl shadow-black/20">
+                        <div className="border-b border-[color:var(--organisation-border)] px-5 py-5">
                             <TournamentHQBrand
                                 variant="compact"
                                 size="sm"
@@ -1585,7 +1714,8 @@ export function AdminPortal({
 
                             <span className="mt-2 block text-sm text-slate-400">
                                 {formatAdminRole(
-                                    activeRole
+                                    activeRole,
+                                    effectiveProfile.isPlatformAdmin,
                                 )}
                             </span>
                         </div>
@@ -1666,9 +1796,9 @@ export function AdminPortal({
                                                                     type="button"
                                                                     className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
                                                                         isActive
-                                                                            ? 'bg-lime-400 text-black shadow-lg shadow-lime-950/30'
+                                                                            ? 'bg-[var(--organisation-accent)] text-[var(--organisation-on-accent)] shadow-lg shadow-black/20'
                                                                             : isFeatured
-                                                                                ? 'border border-lime-700/60 bg-lime-400/10 text-lime-200 hover:border-lime-500 hover:bg-lime-400/15'
+                                                                                ? 'border border-[color:var(--organisation-border)] bg-[color:var(--organisation-border)] text-[var(--organisation-text)] hover:brightness-110'
                                                                                 : 'text-slate-300 hover:bg-white/5 hover:text-white'
                                                                     }`}
                                                                     onClick={() =>
@@ -1680,9 +1810,9 @@ export function AdminPortal({
                                                                     <ItemIcon
                                                                         className={`h-4.5 w-4.5 shrink-0 ${
                                                                             isActive
-                                                                                ? 'text-black'
+                                                                                ? 'text-[var(--organisation-on-accent)]'
                                                                                 : isFeatured
-                                                                                    ? 'text-lime-400'
+                                                                                    ? 'text-[var(--organisation-accent)]'
                                                                                     : 'text-slate-500'
                                                                         }`}
                                                                     />
@@ -1700,8 +1830,8 @@ export function AdminPortal({
                                                                             <span
                                                                                 className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold ${
                                                                                     isActive
-                                                                                        ? 'bg-black/15 text-black'
-                                                                                        : 'bg-lime-400 text-black'
+                                                                                        ? 'bg-black/15 text-[var(--organisation-on-accent)]'
+                                                                                        : 'bg-[var(--organisation-accent)] text-[var(--organisation-on-accent)]'
                                                                                 }`}
                                                                             >
                                                                                 {

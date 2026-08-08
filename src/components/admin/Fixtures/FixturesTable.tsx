@@ -4,7 +4,6 @@ import {
     MapPin,
     Shield,
     Trash2,
-    UserRoundCheck,
 } from 'lucide-react'
 import type {
     Fixture,
@@ -13,18 +12,12 @@ import type {
     FixtureTeam,
     FixtureVenue,
 } from './fixtureTypes'
-import type {
-    Official,
-    OfficialAssignment,
-} from '../../../types/officialTypes'
 
 type FixturesTableProps = {
     fixtures: Fixture[]
     teams: FixtureTeam[]
     venues: FixtureVenue[]
     groups: FixtureGroup[]
-    officials: Official[]
-    assignments: OfficialAssignment[]
     onEdit: (fixture: Fixture) => void
     onDelete: (fixture: Fixture) => void
 }
@@ -45,7 +38,7 @@ function getStatusClasses(
 ) {
     switch (status) {
         case 'completed':
-            return 'border-emerald-700/50 bg-emerald-500/10 text-emerald-300'
+            return 'border-[var(--organisation-accent)] bg-[var(--organisation-surface)] text-[var(--organisation-accent)]'
         case 'postponed':
             return 'border-amber-700/50 bg-amber-500/10 text-amber-300'
         case 'cancelled':
@@ -55,65 +48,11 @@ function getStatusClasses(
     }
 }
 
-
-function formatOfficialDisplayName(
-    official: Official | undefined
-) {
-    if (!official) {
-        return 'To be confirmed'
-    }
-
-    const fullName =
-        official.full_name?.trim()
-
-    if (fullName) {
-        return fullName
-    }
-
-    return [
-        official.first_name,
-        official.last_name,
-    ]
-        .filter(Boolean)
-        .join(' ')
-        .trim() || 'Unnamed official'
-}
-
-function getCurrentFixtureAssignments(
-    fixtureId: string,
-    assignments: OfficialAssignment[]
-) {
-    return assignments
-        .filter(
-            (assignment) =>
-                assignment.fixture_id ===
-                fixtureId &&
-                assignment.status !==
-                'cancelled' &&
-                assignment.status !==
-                'declined'
-        )
-        .sort(
-            (
-                firstAssignment,
-                secondAssignment
-            ) =>
-                new Date(
-                    firstAssignment.created_at
-                ).getTime() -
-                new Date(
-                    secondAssignment.created_at
-                ).getTime()
-        )
-}
-
 export function FixturesTable({
                                   fixtures,
                                   teams,
                                   venues,
                                   groups,
-                                  officials,
-                                  assignments,
                                   onEdit,
                                   onDelete,
                               }: FixturesTableProps) {
@@ -135,13 +74,6 @@ export function FixturesTable({
         groups.map((group) => [
             group.id,
             group.name,
-        ])
-    )
-
-    const officialMap = new Map(
-        officials.map((official) => [
-            official.id,
-            official,
         ])
     )
 
@@ -169,9 +101,9 @@ export function FixturesTable({
 
     if (!fixtures.length) {
         return (
-            <section className="rounded-3xl border border-dashed border-lime-900/60 bg-[#10190f] px-6 py-14 text-center font-sans">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400/10">
-                    <CalendarDays className="h-7 w-7 text-lime-400" />
+            <section className="rounded-3xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-14 text-center font-sans">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--organisation-surface)]">
+                    <CalendarDays className="h-7 w-7 text-[var(--organisation-accent)]" />
                 </div>
 
                 <h3 className="mt-5 text-xl font-bold text-white">
@@ -200,70 +132,15 @@ export function FixturesTable({
                         ''
                     )
 
-                const fixtureAssignments =
-                    getCurrentFixtureAssignments(
-                        fixture.id,
-                        assignments
-                    )
-
-                const refereeAssignment =
-                    fixtureAssignments.find(
-                        (assignment) =>
-                            assignment.role ===
-                            'referee'
-                    )
-
-                const assistantAssignments =
-                    fixtureAssignments.filter(
-                        (assignment) =>
-                            assignment.role ===
-                            'assistant_referee'
-                    )
-
-                const fourthOfficialAssignment =
-                    fixtureAssignments.find(
-                        (assignment) =>
-                            assignment.role ===
-                            'fourth_official'
-                    )
-
-                const referee =
-                    officialMap.get(
-                        refereeAssignment
-                            ?.official_id ??
-                        ''
-                    )
-
-                const assistantRefereeOne =
-                    officialMap.get(
-                        assistantAssignments[0]
-                            ?.official_id ??
-                        ''
-                    )
-
-                const assistantRefereeTwo =
-                    officialMap.get(
-                        assistantAssignments[1]
-                            ?.official_id ??
-                        ''
-                    )
-
-                const fourthOfficial =
-                    officialMap.get(
-                        fourthOfficialAssignment
-                            ?.official_id ??
-                        ''
-                    )
-
                 return (
                     <article
                         key={fixture.id}
-                        className="rounded-2xl border border-lime-900/50 bg-[#10190f] p-5 shadow-sm transition hover:border-lime-700/60"
+                        className="rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-5 shadow-sm transition hover:border-[var(--organisation-accent)]"
                     >
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                             <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-full border border-lime-800/50 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
+                                    <span className="rounded-full border border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-3 py-1 text-xs font-bold text-[var(--organisation-accent)]">
                                         {fixture.stage}
                                     </span>
 
@@ -286,7 +163,7 @@ export function FixturesTable({
                                 </div>
 
                                 <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                                    <div className="rounded-xl border border-lime-900/40 bg-black/20 p-4">
+                                    <div className="rounded-xl border border-[var(--organisation-border)] bg-black/20 p-4">
                                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
                                             Home
                                         </p>
@@ -299,11 +176,11 @@ export function FixturesTable({
                                         </p>
                                     </div>
 
-                                    <div className="text-center text-sm font-bold uppercase tracking-[0.2em] text-lime-400">
+                                    <div className="text-center text-sm font-bold uppercase tracking-[0.2em] text-[var(--organisation-accent)]">
                                         vs
                                     </div>
 
-                                    <div className="rounded-xl border border-lime-900/40 bg-black/20 p-4">
+                                    <div className="rounded-xl border border-[var(--organisation-border)] bg-black/20 p-4">
                                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
                                             Away
                                         </p>
@@ -318,8 +195,8 @@ export function FixturesTable({
                                 </div>
 
                                 <div className="mt-5 grid grid-cols-1 gap-3 text-sm text-slate-300 sm:grid-cols-2">
-                                    <div className="flex items-center gap-3 rounded-xl border border-lime-900/30 bg-black/10 px-4 py-3">
-                                        <CalendarDays className="h-4 w-4 shrink-0 text-lime-400" />
+                                    <div className="flex items-center gap-3 rounded-xl border border-[var(--organisation-border)] bg-black/10 px-4 py-3">
+                                        <CalendarDays className="h-4 w-4 shrink-0 text-[var(--organisation-accent)]" />
                                         <span>
                                             {formatKickoff(
                                                 fixture.kickoff_time
@@ -327,8 +204,8 @@ export function FixturesTable({
                                         </span>
                                     </div>
 
-                                    <div className="flex items-center gap-3 rounded-xl border border-lime-900/30 bg-black/10 px-4 py-3">
-                                        <MapPin className="h-4 w-4 shrink-0 text-lime-400" />
+                                    <div className="flex items-center gap-3 rounded-xl border border-[var(--organisation-border)] bg-black/10 px-4 py-3">
+                                        <MapPin className="h-4 w-4 shrink-0 text-[var(--organisation-accent)]" />
                                         <span>
                                             {venueNames.get(
                                                     fixture.venue_id ??
@@ -338,78 +215,11 @@ export function FixturesTable({
                                         </span>
                                     </div>
                                 </div>
-
-                                <section className="mt-5 rounded-2xl border border-lime-900/40 bg-black/15 p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="rounded-xl bg-lime-400/10 p-2.5">
-                                            <Shield className="h-4 w-4 text-lime-400" />
-                                        </div>
-
-                                        <div>
-                                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-400">
-                                                Match Officials
-                                            </p>
-
-                                            <p className="mt-1 text-xs text-slate-500">
-                                                Current non-cancelled appointments
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                        {[
-                                            {
-                                                label: 'Referee',
-                                                official: referee,
-                                            },
-                                            {
-                                                label: 'Assistant Referee 1',
-                                                official: assistantRefereeOne,
-                                            },
-                                            {
-                                                label: 'Assistant Referee 2',
-                                                official: assistantRefereeTwo,
-                                            },
-                                            {
-                                                label: 'Fourth Official',
-                                                official: fourthOfficial,
-                                            },
-                                        ].map(
-                                            ({
-                                                 label,
-                                                 official,
-                                             }) => (
-                                                <div
-                                                    key={label}
-                                                    className="rounded-xl border border-lime-900/30 bg-[#0c160b] px-4 py-3"
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <UserRoundCheck className="h-4 w-4 shrink-0 text-lime-400" />
-
-                                                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-                                                            {label}
-                                                        </p>
-                                                    </div>
-
-                                                    <p className={`mt-2 text-sm font-semibold ${
-                                                        official
-                                                            ? 'text-white'
-                                                            : 'text-slate-500'
-                                                    }`}>
-                                                        {formatOfficialDisplayName(
-                                                            official
-                                                        )}
-                                                    </p>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                </section>
                             </div>
 
                             <div className="flex shrink-0 flex-row gap-3 lg:flex-col">
                                 <button
-                                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-lime-800/60 bg-lime-400/10 px-4 py-2.5 text-sm font-bold text-lime-200 transition hover:bg-lime-400/15 lg:flex-none"
+                                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-4 py-2.5 text-sm font-bold text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-surface)] lg:flex-none"
                                     type="button"
                                     onClick={() =>
                                         onEdit(fixture)

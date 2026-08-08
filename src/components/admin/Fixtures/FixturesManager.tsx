@@ -4,7 +4,9 @@ import {
 } from 'react'
 import {
     CalendarDays,
+    FileSpreadsheet,
     Plus,
+    Trash2,
     Trophy,
 } from 'lucide-react'
 
@@ -19,6 +21,7 @@ import type {
 
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
+import { FixtureImportModal } from './FixtureImportModal'
 import { FixtureModal } from './FixtureModal'
 import { FixturesTable } from './FixturesTable'
 import { fixtureService } from './fixtureService'
@@ -210,6 +213,16 @@ export function FixturesManager() {
     const [isDeleting, setIsDeleting] =
         useState(false)
 
+    const [
+        showDeleteAllConfirm,
+        setShowDeleteAllConfirm,
+    ] = useState(false)
+
+    const [
+        isDeletingAll,
+        setIsDeletingAll,
+    ] = useState(false)
+
     const [showModal, setShowModal] =
         useState(false)
 
@@ -226,6 +239,16 @@ export function FixturesManager() {
     ] = useState<Fixture | null>(
         null
     )
+
+    const [
+        showImportModal,
+        setShowImportModal,
+    ] = useState(false)
+
+    const [
+        isImporting,
+        setIsImporting,
+    ] = useState(false)
 
     const [
         formValues,
@@ -359,6 +382,7 @@ export function FixturesManager() {
     useEffect(() => {
         closeModal()
         setFixtureToDelete(null)
+        setShowDeleteAllConfirm(false)
         setToastMessage('')
 
         if (!currentCompetitionId) {
@@ -813,6 +837,53 @@ export function FixturesManager() {
         }
     }
 
+    async function importFixtures(
+        rows: FixtureFormValues[]
+    ) {
+        if (
+            !currentCompetitionId ||
+            rows.length === 0
+        ) {
+            return
+        }
+
+        setIsImporting(true)
+
+        try {
+            for (const row of rows) {
+                await fixtureService
+                    .createFixture(
+                        currentCompetitionId,
+                        row
+                    )
+            }
+
+            setShowImportModal(false)
+
+            await loadData(
+                currentCompetitionId
+            )
+
+            showToast(
+                `${rows.length} fixture${
+                    rows.length === 1
+                        ? ''
+                        : 's'
+                } imported successfully.`,
+                'success'
+            )
+        } catch (error) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to import fixtures.',
+                'error'
+            )
+        } finally {
+            setIsImporting(false)
+        }
+    }
+
     async function deleteFixture() {
         if (
             !fixtureToDelete ||
@@ -870,6 +941,86 @@ export function FixturesManager() {
         }
     }
 
+
+    async function deleteAllFixtures() {
+        if (
+            !currentCompetitionId ||
+            fixtures.length === 0 ||
+            isDeletingAll
+        ) {
+            return
+        }
+
+        setIsDeletingAll(true)
+
+        const fixtureIds = new Set(
+            fixtures.map(
+                (fixture) => fixture.id
+            )
+        )
+
+        try {
+            const activeFixtureAssignments =
+                getActiveAssignments(
+                    assignments
+                ).filter(
+                    (assignment) =>
+                        Boolean(
+                            assignment.fixture_id &&
+                            fixtureIds.has(
+                                assignment.fixture_id
+                            )
+                        )
+                )
+
+            await Promise.all(
+                activeFixtureAssignments.map(
+                    (assignment) =>
+                        cancelAssignment(
+                            assignment,
+                            'All fixtures deleted from Fixture Administration.'
+                        )
+                )
+            )
+
+            for (const fixture of fixtures) {
+                await fixtureService
+                    .deleteFixture(
+                        fixture.id
+                    )
+            }
+
+            const deletedCount =
+                fixtures.length
+
+            setShowDeleteAllConfirm(
+                false
+            )
+
+            await loadData(
+                currentCompetitionId
+            )
+
+            showToast(
+                `${deletedCount} fixture${
+                    deletedCount === 1
+                        ? ''
+                        : 's'
+                } deleted successfully.`,
+                'success'
+            )
+        } catch (error) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to delete all fixtures.',
+                'error'
+            )
+        } finally {
+            setIsDeletingAll(false)
+        }
+    }
+
     return (
         <div className="space-y-6 font-sans">
             <Toast
@@ -910,21 +1061,66 @@ export function FixturesManager() {
                     </div>
                 </div>
 
-                <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-                    type="button"
-                    onClick={
-                        openCreateModal
-                    }
-                    disabled={
-                        !currentCompetitionId ||
-                        teams.length < 2 ||
-                        isLoading
-                    }
-                >
-                    <Plus className="h-5 w-5" />
-                    Add Fixture
-                </button>
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-3 text-sm font-bold text-red-300 transition hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+                        type="button"
+                        onClick={() =>
+                            setShowDeleteAllConfirm(
+                                true
+                            )
+                        }
+                        disabled={
+                            !currentCompetitionId ||
+                            fixtures.length === 0 ||
+                            isLoading ||
+                            isDeleting ||
+                            isDeletingAll
+                        }
+                        title={
+                            fixtures.length === 0
+                                ? 'There are no fixtures to delete.'
+                                : `Delete all ${fixtures.length} fixtures from this competition.`
+                        }
+                    >
+                        <Trash2 className="h-5 w-5" />
+                        Delete All Fixtures
+                    </button>
+
+                    <button
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/20 px-5 py-3 text-sm font-bold text-white transition hover:border-[var(--organisation-accent)] hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                        type="button"
+                        onClick={() =>
+                            setShowImportModal(
+                                true
+                            )
+                        }
+                        disabled={
+                            !currentCompetitionId ||
+                            teams.length < 2 ||
+                            isLoading
+                        }
+                    >
+                        <FileSpreadsheet className="h-5 w-5" />
+                        Import Fixtures
+                    </button>
+
+                    <button
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-bold text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        type="button"
+                        onClick={
+                            openCreateModal
+                        }
+                        disabled={
+                            !currentCompetitionId ||
+                            teams.length < 2 ||
+                            isLoading
+                        }
+                    >
+                        <Plus className="h-5 w-5" />
+                        Add Fixture
+                    </button>
+                </div>
             </section>
 
             {!currentCompetitionId ? (
@@ -968,6 +1164,29 @@ export function FixturesManager() {
                 />
             )}
 
+            {showImportModal &&
+                currentCompetitionId && (
+                    <FixtureImportModal
+                        teams={teams}
+                        venues={venues}
+                        groups={groups}
+                        groupMemberships={
+                            groupMemberships
+                        }
+                        isImporting={
+                            isImporting
+                        }
+                        onClose={() =>
+                            setShowImportModal(
+                                false
+                            )
+                        }
+                        onImport={
+                            importFixtures
+                        }
+                    />
+                )}
+
             {showModal &&
                 currentCompetitionId && (
                     <FixtureModal
@@ -995,6 +1214,30 @@ export function FixturesManager() {
                         }
                         onSave={
                             saveFixture
+                        }
+                    />
+                )}
+
+            {showDeleteAllConfirm &&
+                currentCompetitionId && (
+                    <ConfirmDialog
+                        title="Delete All Fixtures"
+                        message={`WARNING: You are about to permanently delete all ${fixtures.length} fixture${fixtures.length === 1 ? '' : 's'} from ${currentCompetition?.name ?? 'the selected competition'}. This action cannot be undone. Only continue if you intend to clear the entire fixture schedule.`}
+                        confirmText={
+                            isDeletingAll
+                                ? 'Deleting All...'
+                                : `Delete All ${fixtures.length}`
+                        }
+                        cancelText="Keep Fixtures"
+                        onCancel={() => {
+                            if (!isDeletingAll) {
+                                setShowDeleteAllConfirm(
+                                    false
+                                )
+                            }
+                        }}
+                        onConfirm={
+                            deleteAllFixtures
                         }
                     />
                 )}

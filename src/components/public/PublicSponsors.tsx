@@ -225,7 +225,19 @@ function isValidPhoneNumber(value: string) {
     );
 }
 
-export function PublicSponsors() {
+export type PublicSponsorsProps = {
+    surfaceColour: string
+    textColour: string
+    accentColour: string
+    accentTextColour?: string
+}
+
+export function PublicSponsors({
+                                   surfaceColour,
+                                   textColour,
+                                   accentColour,
+                                   accentTextColour = '#ffffff',
+                               }: PublicSponsorsProps) {
     const publicOrganisation =
         useOptionalPublicOrganisation();
 
@@ -745,7 +757,12 @@ export function PublicSponsors() {
                                 key={
                                     sponsor.id
                                 }
-                                className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-5"
+                                className="rounded-2xl border p-5 shadow-sm"
+                                style={{
+                                    backgroundColor: surfaceColour,
+                                    borderColor: `${accentColour}30`,
+                                    color: textColour,
+                                }}
                             >
                                 {sponsorLogoUrl && (
                                     <div className="grid h-36 overflow-hidden rounded-xl bg-black">
@@ -762,12 +779,17 @@ export function PublicSponsors() {
                                     </div>
                                 )}
 
-                                <span className="mt-4 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
+                                <span className="mt-4 inline-flex rounded-full border px-3 py-1 text-xs font-bold"
+                                      style={{
+                                          backgroundColor: `${accentColour}18`,
+                                          borderColor: `${accentColour}35`,
+                                          color: accentColour,
+                                      }}>
                                 {sponsor.tier ??
                                     sponsorshipContent.defaultTierLabel}
                             </span>
 
-                                <h3 className="mt-4 text-xl font-black text-white">
+                                <h3 className="mt-4 text-xl font-black">
                                     {
                                         sponsor.name
                                     }
@@ -776,7 +798,7 @@ export function PublicSponsors() {
                                 {sponsor.description && (
                                     <div className="mt-3">
                                         <p
-                                            className={`text-sm leading-6 text-slate-400 ${
+                                            className={`text-sm leading-6 opacity-75 ${
                                                 expandedSponsorIds.has(
                                                     sponsor.id,
                                                 )
@@ -798,7 +820,7 @@ export function PublicSponsors() {
                                                             sponsor.id,
                                                         )
                                                     }
-                                                    className="mt-3 text-sm font-black text-lime-300 transition hover:text-lime-200"
+                                                    className="mt-3 text-sm font-black transition-opacity hover:opacity-75" style={{ color: accentColour }}
                                                 >
                                                     {expandedSponsorIds.has(
                                                         sponsor.id,
@@ -817,7 +839,11 @@ export function PublicSponsors() {
                                         }
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="mt-5 inline-flex rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white no-underline transition hover:border-lime-500 hover:text-lime-300"
+                                        className="mt-5 inline-flex rounded-xl border px-4 py-2 text-sm font-bold no-underline transition-opacity hover:opacity-75"
+                                        style={{
+                                            borderColor: `${accentColour}40`,
+                                            color: accentColour,
+                                        }}
                                     >
                                         Visit Partner
                                     </a>
@@ -827,21 +853,33 @@ export function PublicSponsors() {
                     },
                 )}
 
-                <article className="rounded-2xl border border-lime-700/50 bg-gradient-to-br from-lime-400/10 to-[#0b150a] p-6">
+                <article
+                    className="rounded-2xl border p-6 shadow-sm"
+                    style={{
+                        background: `linear-gradient(135deg, ${accentColour}16, ${surfaceColour})`,
+                        borderColor: `${accentColour}40`,
+                        color: textColour,
+                    }}
+                >
                     <Handshake
                         size={30}
-                        className="text-lime-400"
+                        style={{ color: accentColour }}
                     />
 
-                    <span className="mt-5 inline-flex rounded-full border border-lime-800/60 bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
+                    <span className="mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-bold"
+                          style={{
+                              backgroundColor: `${accentColour}18`,
+                              borderColor: `${accentColour}35`,
+                              color: accentColour,
+                          }}>
                         {sponsorshipContent.opportunityLabel}
                     </span>
 
-                    <h3 className="mt-4 text-2xl font-black text-white">
+                    <h3 className="mt-4 text-2xl font-black">
                         {sponsorshipContent.callToActionTitle}
                     </h3>
 
-                    <p className="mt-3 text-sm leading-6 text-slate-400">
+                    <p className="mt-3 text-sm leading-6 opacity-75">
                         {sponsorshipContent.callToActionDescription}
                     </p>
 
@@ -850,7 +888,11 @@ export function PublicSponsors() {
                         onClick={
                             openEnquiryForm
                         }
-                        className="mt-6 rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
+                        className="mt-6 rounded-xl px-5 py-3 font-black transition-opacity hover:opacity-90"
+                        style={{
+                            backgroundColor: accentColour,
+                            color: accentTextColour,
+                        }}
                     >
                         {sponsorshipContent.callToActionButton}
                     </button>

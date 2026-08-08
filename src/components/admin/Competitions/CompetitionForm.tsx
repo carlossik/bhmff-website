@@ -1,20 +1,15 @@
 import React, {
     FormEvent,
     useEffect,
-    useMemo,
     useState,
 } from 'react'
 
 import {
-    ArrowLeft,
-    ArrowRight,
     CalendarDays,
     Save,
     Trophy,
     X,
 } from 'lucide-react'
-
-import { sportsService } from '../../../services/sportsService'
 
 import type {
     Competition,
@@ -22,10 +17,7 @@ import type {
     CompetitionStatus,
 } from '../../../types/competitionTypes'
 
-import type { Sport } from '../../../types/sportTypes'
-
 export interface CompetitionFormData {
-    sport_id: string
     name: string
     slug: string
     season: string | null
@@ -47,15 +39,12 @@ interface CompetitionFormProps {
 }
 
 interface CompetitionFormErrors {
-    sport_id?: string
     name?: string
     slug?: string
     season?: string
     start_date?: string
     end_date?: string
 }
-
-type WizardStep = 1 | 2
 
 const competitionFormats: Array<{
     value: CompetitionFormat
@@ -124,7 +113,6 @@ const createSlug = (value: string): string =>
 const getInitialFormData = (
     competition?: Competition
 ): CompetitionFormData => ({
-    sport_id: competition?.sport_id ?? '',
     name: competition?.name ?? '',
     slug: competition?.slug ?? '',
     season: competition?.season ?? '',
@@ -159,86 +147,8 @@ export const CompetitionForm: React.FC<
     const [errors, setErrors] =
         useState<CompetitionFormErrors>({})
 
-    const [step, setStep] =
-        useState<WizardStep>(1)
-
-    const [sports, setSports] =
-        useState<Sport[]>([])
-
-    const [sportsLoading, setSportsLoading] =
-        useState(true)
-
-    const [sportsError, setSportsError] =
-        useState<string | null>(null)
-
     const [slugManuallyEdited, setSlugManuallyEdited] =
         useState(Boolean(competition?.slug))
-
-    const selectedSport = useMemo(
-        () =>
-            sports.find(
-                sport =>
-                    sport.id === formData.sport_id
-            ) ?? competition?.sport,
-        [
-            sports,
-            formData.sport_id,
-            competition?.sport,
-        ]
-    )
-
-    useEffect(() => {
-        let active = true
-
-        const loadSports = async () => {
-            try {
-                setSportsLoading(true)
-                setSportsError(null)
-
-                const data =
-                    await sportsService.getActiveSports()
-
-                if (!active) {
-                    return
-                }
-
-                setSports(data)
-
-                setFormData(previous => {
-                    if (
-                        previous.sport_id ||
-                        data.length === 0
-                    ) {
-                        return previous
-                    }
-
-                    return {
-                        ...previous,
-                        sport_id: data[0].id,
-                    }
-                })
-            } catch (caughtError) {
-                console.error(caughtError)
-
-                if (active) {
-                    setSports([])
-                    setSportsError(
-                        'Unable to load sports. Please try again.'
-                    )
-                }
-            } finally {
-                if (active) {
-                    setSportsLoading(false)
-                }
-            }
-        }
-
-        loadSports()
-
-        return () => {
-            active = false
-        }
-    }, [])
 
     useEffect(() => {
         setFormData(
@@ -246,7 +156,6 @@ export const CompetitionForm: React.FC<
         )
 
         setErrors({})
-        setStep(1)
 
         setSlugManuallyEdited(
             Boolean(competition?.slug)
@@ -299,7 +208,7 @@ export const CompetitionForm: React.FC<
         )
     }
 
-    const validateStepOne = (): boolean => {
+    const validateForm = (): boolean => {
         const nextErrors:
             CompetitionFormErrors = {}
 
@@ -308,11 +217,6 @@ export const CompetitionForm: React.FC<
 
         const trimmedSlug =
             formData.slug.trim()
-
-        if (!formData.sport_id) {
-            nextErrors.sport_id =
-                'Please select a sport.'
-        }
 
         if (!trimmedName) {
             nextErrors.name =
@@ -331,22 +235,6 @@ export const CompetitionForm: React.FC<
                 'Use lowercase letters, numbers and hyphens only.'
         }
 
-        setErrors(previous => ({
-            ...previous,
-            sport_id: nextErrors.sport_id,
-            name: nextErrors.name,
-            slug: nextErrors.slug,
-        }))
-
-        return (
-            Object.keys(nextErrors).length === 0
-        )
-    }
-
-    const validateStepTwo = (): boolean => {
-        const nextErrors:
-            CompetitionFormErrors = {}
-
         if (
             formData.start_date &&
             formData.end_date &&
@@ -357,33 +245,11 @@ export const CompetitionForm: React.FC<
                 'The end date cannot be before the start date.'
         }
 
-        setErrors(previous => ({
-            ...previous,
-            start_date:
-            nextErrors.start_date,
-            end_date:
-            nextErrors.end_date,
-        }))
+        setErrors(nextErrors)
 
         return (
             Object.keys(nextErrors).length === 0
         )
-    }
-
-    const handleNext = () => {
-        if (saving || !validateStepOne()) {
-            return
-        }
-
-        setStep(2)
-    }
-
-    const handleBack = () => {
-        if (saving) {
-            return
-        }
-
-        setStep(1)
     }
 
     const handleSubmit = async (
@@ -391,32 +257,11 @@ export const CompetitionForm: React.FC<
     ) => {
         event.preventDefault()
 
-        if (saving) {
-            return
-        }
-
-        if (step === 1) {
-            handleNext()
-            return
-        }
-
-        const stepOneValid =
-            validateStepOne()
-
-        const stepTwoValid =
-            validateStepTwo()
-
-        if (!stepOneValid) {
-            setStep(1)
-            return
-        }
-
-        if (!stepTwoValid) {
+        if (saving || !validateForm()) {
             return
         }
 
         await onSave({
-            sport_id: formData.sport_id,
             name: formData.name.trim(),
             slug: formData.slug.trim(),
             season:
@@ -437,25 +282,24 @@ export const CompetitionForm: React.FC<
 
     return (
         <div
-            className="competition-modal-overlay"
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
             role="presentation"
             onMouseDown={event => {
                 if (
                     event.target ===
-                    event.currentTarget &&
-                    !saving
+                    event.currentTarget
                 ) {
                     onCancel()
                 }
             }}
         >
             <div
-                className="competition-modal"
+                className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] text-[var(--organisation-text)] shadow-2xl"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="competition-form-title"
             >
-                <div className="competition-modal-header">
+                <div className="flex items-start justify-between gap-4 border-b border-[var(--organisation-border)] px-6 py-5 sm:px-8">
                     <div>
                         <h3 id="competition-form-title">
                             <Trophy size={21} />
@@ -466,15 +310,15 @@ export const CompetitionForm: React.FC<
                         </h3>
 
                         <p>
-                            {step === 1
-                                ? 'Choose the sport and define the competition basics.'
-                                : 'Add scheduling, publishing and competition details.'}
+                            {competition
+                                ? 'Update the tournament details below.'
+                                : 'Create a new tournament for the selected organisation.'}
                         </p>
                     </div>
 
                     <button
                         type="button"
-                        className="competition-modal-close"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] disabled:opacity-50"
                         onClick={onCancel}
                         disabled={saving}
                         aria-label="Close competition form"
@@ -484,463 +328,345 @@ export const CompetitionForm: React.FC<
                 </div>
 
                 <form
-                    className="competition-form"
+                    className="flex max-h-[calc(100vh-9rem)] flex-col"
                     onSubmit={handleSubmit}
                     noValidate
                 >
-                    <div className="competition-form-body">
-                        <div
-                            className="competition-form-stepper"
-                            aria-label="Competition setup progress"
-                        >
-                            <button
-                                type="button"
-                                className={
-                                    step === 1
-                                        ? 'competition-form-step active'
-                                        : 'competition-form-step completed'
-                                }
-                                onClick={handleBack}
-                                disabled={saving}
-                            >
-                                <span>1</span>
-                                Basics
-                            </button>
+                    <div className="overflow-y-auto px-6 py-6 sm:px-8">
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <div className="md:col-span-2 flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-name">
+                                    Competition Name
+                                    <span aria-hidden="true">
+                                        *
+                                    </span>
+                                </label>
 
-                            <button
-                                type="button"
-                                className={
-                                    step === 2
-                                        ? 'competition-form-step active'
-                                        : 'competition-form-step'
-                                }
-                                onClick={handleNext}
-                                disabled={saving}
-                            >
-                                <span>2</span>
-                                Details
-                            </button>
-                        </div>
+                                <input
+                                    id="competition-name"
+                                    type="text"
+                                    value={formData.name}
+                                    onChange={event =>
+                                        handleNameChange(
+                                            event.target.value
+                                        )
+                                    }
+                                    placeholder="e.g. Black History Month Football Festival 2026"
+                                    autoFocus
+                                    disabled={saving}
+                                    className={
+                                        errors.name
+                                            ? 'has-error'
+                                            : ''
+                                    }
+                                />
 
-                        {step === 1 && (
-                            <div className="competition-form-grid">
-                                <div className="competition-form-field competition-form-field-full">
-                                    <label htmlFor="competition-sport">
-                                        Sport
-                                        <span aria-hidden="true">
-                                            *
-                                        </span>
-                                    </label>
+                                {errors.name && (
+                                    <span className="text-sm font-medium text-red-400">
+                                        {errors.name}
+                                    </span>
+                                )}
+                            </div>
 
-                                    <select
-                                        id="competition-sport"
-                                        value={formData.sport_id}
+                            <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-slug">
+                                    Slug
+                                    <span aria-hidden="true">
+                                        *
+                                    </span>
+                                </label>
+
+                                <input
+                                    id="competition-slug"
+                                    type="text"
+                                    value={formData.slug}
+                                    onChange={event =>
+                                        handleSlugChange(
+                                            event.target.value
+                                        )
+                                    }
+                                    placeholder="competition-name-2026"
+                                    disabled={saving}
+                                    className={
+                                        errors.slug
+                                            ? 'has-error'
+                                            : ''
+                                    }
+                                />
+
+                                {errors.slug && (
+                                    <span className="text-sm font-medium text-red-400">
+                                        {errors.slug}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-season">
+                                    Season
+                                </label>
+
+                                <input
+                                    id="competition-season"
+                                    type="text"
+                                    value={
+                                        formData.season ??
+                                        ''
+                                    }
+                                    onChange={event =>
+                                        updateField(
+                                            'season',
+                                            event.target.value
+                                        )
+                                    }
+                                    placeholder="e.g. 2026 or 2026/27"
+                                    disabled={saving}
+                                />
+
+                                {errors.season && (
+                                    <span className="text-sm font-medium text-red-400">
+                                        {errors.season}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-format">
+                                    Format
+                                </label>
+
+                                <select
+                                    id="competition-format"
+                                    value={formData.format}
+                                    onChange={event =>
+                                        updateField(
+                                            'format',
+                                            event.target
+                                                .value as CompetitionFormat
+                                        )
+                                    }
+                                    disabled={saving}
+                                >
+                                    {competitionFormats.map(
+                                        option => (
+                                            <option
+                                                key={
+                                                    option.value
+                                                }
+                                                value={
+                                                    option.value
+                                                }
+                                            >
+                                                {
+                                                    option.label
+                                                }
+                                            </option>
+                                        )
+                                    )}
+                                </select>
+                            </div>
+
+                            <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-status">
+                                    Status
+                                </label>
+
+                                <select
+                                    id="competition-status"
+                                    value={formData.status}
+                                    onChange={event =>
+                                        updateField(
+                                            'status',
+                                            event.target
+                                                .value as CompetitionStatus
+                                        )
+                                    }
+                                    disabled={saving}
+                                >
+                                    {competitionStatuses.map(
+                                        option => (
+                                            <option
+                                                key={
+                                                    option.value
+                                                }
+                                                value={
+                                                    option.value
+                                                }
+                                            >
+                                                {
+                                                    option.label
+                                                }
+                                            </option>
+                                        )
+                                    )}
+                                </select>
+                            </div>
+
+                            <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-start-date">
+                                    Start Date
+                                </label>
+
+                                <div className="w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-[var(--organisation-text)] outline-none focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)]">
+                                    <CalendarDays
+                                        size={17}
+                                    />
+
+                                    <input
+                                        id="competition-start-date"
+                                        type="date"
+                                        value={
+                                            formData.start_date ??
+                                            ''
+                                        }
                                         onChange={event =>
                                             updateField(
-                                                'sport_id',
-                                                event.target.value
+                                                'start_date',
+                                                event.target
+                                                    .value
                                             )
                                         }
-                                        disabled={
-                                            saving ||
-                                            sportsLoading
-                                        }
+                                        disabled={saving}
                                         className={
-                                            errors.sport_id
+                                            errors.start_date
                                                 ? 'has-error'
                                                 : ''
                                         }
-                                    >
-                                        <option value="">
-                                            {sportsLoading
-                                                ? 'Loading sports...'
-                                                : 'Select a sport'}
-                                        </option>
+                                    />
+                                </div>
 
-                                        {sports.map(
-                                            sport => (
-                                                <option
-                                                    key={sport.id}
-                                                    value={sport.id}
-                                                >
-                                                    {sport.name}
-                                                </option>
+                                {errors.start_date && (
+                                    <span className="text-sm font-medium text-red-400">
+                                        {
+                                            errors.start_date
+                                        }
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-end-date">
+                                    End Date
+                                </label>
+
+                                <div className="w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-[var(--organisation-text)] outline-none focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)]">
+                                    <CalendarDays
+                                        size={17}
+                                    />
+
+                                    <input
+                                        id="competition-end-date"
+                                        type="date"
+                                        value={
+                                            formData.end_date ??
+                                            ''
+                                        }
+                                        min={
+                                            formData.start_date ??
+                                            undefined
+                                        }
+                                        onChange={event =>
+                                            updateField(
+                                                'end_date',
+                                                event.target
+                                                    .value
                                             )
-                                        )}
-                                    </select>
+                                        }
+                                        disabled={saving}
+                                        className={
+                                            errors.end_date
+                                                ? 'has-error'
+                                                : ''
+                                        }
+                                    />
+                                </div>
 
-                                    {errors.sport_id && (
-                                        <span className="competition-field-error">
-                                            {errors.sport_id}
-                                        </span>
-                                    )}
+                                {errors.end_date && (
+                                    <span className="text-sm font-medium text-red-400">
+                                        {errors.end_date}
+                                    </span>
+                                )}
+                            </div>
 
-                                    {sportsError && (
-                                        <span className="competition-field-error">
-                                            {sportsError}
-                                        </span>
-                                    )}
+                            <div className="md:col-span-2 flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-description">
+                                    Description
+                                </label>
 
-                                    {selectedSport && (
+                                <textarea
+                                    id="competition-description"
+                                    value={
+                                        formData.description ??
+                                        ''
+                                    }
+                                    onChange={event =>
+                                        updateField(
+                                            'description',
+                                            event.target.value
+                                        )
+                                    }
+                                    placeholder="Add a short description of the competition..."
+                                    rows={4}
+                                    disabled={saving}
+                                />
+                            </div>
+
+                            <div className="md:col-span-2 flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label className="flex items-center gap-3 rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] p-4 md:col-span-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={
+                                            formData.published
+                                        }
+                                        onChange={event =>
+                                            updateField(
+                                                'published',
+                                                event.target
+                                                    .checked
+                                            )
+                                        }
+                                        disabled={saving}
+                                    />
+
+                                    <span>
+                                        <strong>
+                                            Publish competition
+                                        </strong>
+
                                         <small>
-                                            This competition will use{' '}
-                                            <strong>
-                                                {selectedSport.name}
-                                            </strong>{' '}
-                                            rules, officials and match settings.
+                                            Make this competition
+                                            available on its public
+                                            tournament pages.
                                         </small>
-                                    )}
-                                </div>
-
-                                <div className="competition-form-field competition-form-field-full">
-                                    <label htmlFor="competition-name">
-                                        Competition Name
-                                        <span aria-hidden="true">
-                                            *
-                                        </span>
-                                    </label>
-
-                                    <input
-                                        id="competition-name"
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={event =>
-                                            handleNameChange(
-                                                event.target.value
-                                            )
-                                        }
-                                        placeholder="e.g. Black History Month Football Festival 2026"
-                                        autoFocus
-                                        disabled={saving}
-                                        className={
-                                            errors.name
-                                                ? 'has-error'
-                                                : ''
-                                        }
-                                    />
-
-                                    {errors.name && (
-                                        <span className="competition-field-error">
-                                            {errors.name}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="competition-form-field">
-                                    <label htmlFor="competition-slug">
-                                        Slug
-                                        <span aria-hidden="true">
-                                            *
-                                        </span>
-                                    </label>
-
-                                    <input
-                                        id="competition-slug"
-                                        type="text"
-                                        value={formData.slug}
-                                        onChange={event =>
-                                            handleSlugChange(
-                                                event.target.value
-                                            )
-                                        }
-                                        placeholder="competition-name-2026"
-                                        disabled={saving}
-                                        className={
-                                            errors.slug
-                                                ? 'has-error'
-                                                : ''
-                                        }
-                                    />
-
-                                    {errors.slug && (
-                                        <span className="competition-field-error">
-                                            {errors.slug}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="competition-form-field">
-                                    <label htmlFor="competition-season">
-                                        Season
-                                    </label>
-
-                                    <input
-                                        id="competition-season"
-                                        type="text"
-                                        value={
-                                            formData.season ??
-                                            ''
-                                        }
-                                        onChange={event =>
-                                            updateField(
-                                                'season',
-                                                event.target.value
-                                            )
-                                        }
-                                        placeholder="e.g. 2026 or 2026/27"
-                                        disabled={saving}
-                                    />
-
-                                    {errors.season && (
-                                        <span className="competition-field-error">
-                                            {errors.season}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="competition-form-field competition-form-field-full">
-                                    <label htmlFor="competition-format">
-                                        Competition Type
-                                    </label>
-
-                                    <select
-                                        id="competition-format"
-                                        value={formData.format}
-                                        onChange={event =>
-                                            updateField(
-                                                'format',
-                                                event.target
-                                                    .value as CompetitionFormat
-                                            )
-                                        }
-                                        disabled={saving}
-                                    >
-                                        {competitionFormats.map(
-                                            option => (
-                                                <option
-                                                    key={option.value}
-                                                    value={option.value}
-                                                >
-                                                    {option.label}
-                                                </option>
-                                            )
-                                        )}
-                                    </select>
-                                </div>
+                                    </span>
+                                </label>
                             </div>
-                        )}
-
-                        {step === 2 && (
-                            <div className="competition-form-grid">
-                                <div className="competition-form-field">
-                                    <label htmlFor="competition-status">
-                                        Status
-                                    </label>
-
-                                    <select
-                                        id="competition-status"
-                                        value={formData.status}
-                                        onChange={event =>
-                                            updateField(
-                                                'status',
-                                                event.target
-                                                    .value as CompetitionStatus
-                                            )
-                                        }
-                                        disabled={saving}
-                                    >
-                                        {competitionStatuses.map(
-                                            option => (
-                                                <option
-                                                    key={option.value}
-                                                    value={option.value}
-                                                >
-                                                    {option.label}
-                                                </option>
-                                            )
-                                        )}
-                                    </select>
-                                </div>
-
-                                <div className="competition-form-field">
-                                    <label htmlFor="competition-start-date">
-                                        Start Date
-                                    </label>
-
-                                    <div className="competition-date-input">
-                                        <CalendarDays
-                                            size={17}
-                                        />
-
-                                        <input
-                                            id="competition-start-date"
-                                            type="date"
-                                            value={
-                                                formData.start_date ??
-                                                ''
-                                            }
-                                            onChange={event =>
-                                                updateField(
-                                                    'start_date',
-                                                    event.target.value
-                                                )
-                                            }
-                                            disabled={saving}
-                                            className={
-                                                errors.start_date
-                                                    ? 'has-error'
-                                                    : ''
-                                            }
-                                        />
-                                    </div>
-
-                                    {errors.start_date && (
-                                        <span className="competition-field-error">
-                                            {errors.start_date}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="competition-form-field">
-                                    <label htmlFor="competition-end-date">
-                                        End Date
-                                    </label>
-
-                                    <div className="competition-date-input">
-                                        <CalendarDays
-                                            size={17}
-                                        />
-
-                                        <input
-                                            id="competition-end-date"
-                                            type="date"
-                                            value={
-                                                formData.end_date ??
-                                                ''
-                                            }
-                                            min={
-                                                formData.start_date ??
-                                                undefined
-                                            }
-                                            onChange={event =>
-                                                updateField(
-                                                    'end_date',
-                                                    event.target.value
-                                                )
-                                            }
-                                            disabled={saving}
-                                            className={
-                                                errors.end_date
-                                                    ? 'has-error'
-                                                    : ''
-                                            }
-                                        />
-                                    </div>
-
-                                    {errors.end_date && (
-                                        <span className="competition-field-error">
-                                            {errors.end_date}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="competition-form-field competition-form-field-full">
-                                    <label htmlFor="competition-description">
-                                        Description
-                                    </label>
-
-                                    <textarea
-                                        id="competition-description"
-                                        value={
-                                            formData.description ??
-                                            ''
-                                        }
-                                        onChange={event =>
-                                            updateField(
-                                                'description',
-                                                event.target.value
-                                            )
-                                        }
-                                        placeholder="Add a short description of the competition..."
-                                        rows={4}
-                                        disabled={saving}
-                                    />
-                                </div>
-
-                                <div className="competition-form-field competition-form-field-full">
-                                    <label className="competition-checkbox-field">
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                formData.published
-                                            }
-                                            onChange={event =>
-                                                updateField(
-                                                    'published',
-                                                    event.target.checked
-                                                )
-                                            }
-                                            disabled={saving}
-                                        />
-
-                                        <span>
-                                            <strong>
-                                                Publish competition
-                                            </strong>
-
-                                            <small>
-                                                Make this competition
-                                                available on its public
-                                                tournament pages.
-                                            </small>
-                                        </span>
-                                    </label>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
 
-                    <div className="competition-form-actions">
-                        {step === 1 ? (
-                            <button
-                                type="button"
-                                className="secondary-button"
-                                onClick={onCancel}
-                                disabled={saving}
-                            >
-                                Cancel
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                className="secondary-button"
-                                onClick={handleBack}
-                                disabled={saving}
-                            >
-                                <ArrowLeft size={17} />
-                                Back
-                            </button>
-                        )}
+                    <div className="flex flex-col-reverse gap-3 border-t border-[var(--organisation-border)] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
+                        <button
+                            type="button"
+                            className="inline-flex items-center justify-center rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-5 py-3 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={onCancel}
+                            disabled={saving}
+                        >
+                            Cancel
+                        </button>
 
-                        {step === 1 ? (
-                            <button
-                                type="button"
-                                className="primary-button"
-                                onClick={handleNext}
-                                disabled={
-                                    saving ||
-                                    sportsLoading ||
-                                    Boolean(sportsError)
-                                }
-                            >
-                                Continue
-                                <ArrowRight size={17} />
-                            </button>
-                        ) : (
-                            <button
-                                type="submit"
-                                className="primary-button"
-                                disabled={saving}
-                            >
-                                <Save size={17} />
+                        <button
+                            type="submit"
+                            className="inline-flex items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-bold text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={saving}
+                        >
+                            <Save size={17} />
 
-                                {saving
-                                    ? 'Saving...'
-                                    : competition
-                                        ? 'Save Changes'
-                                        : 'Create Competition'}
-                            </button>
-                        )}
+                            {saving
+                                ? 'Saving...'
+                                : competition
+                                    ? 'Save Changes'
+                                    : 'Create Competition'}
+                        </button>
                     </div>
                 </form>
             </div>

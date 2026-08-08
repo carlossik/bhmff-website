@@ -15,8 +15,6 @@ import {
     Trophy,
 } from 'lucide-react'
 
-import './Competitions.css'
-
 import {
     CompetitionForm,
     type CompetitionFormData,
@@ -375,345 +373,237 @@ const CompetitionManager: React.FC = () => {
 
     if (!currentOrganisationId) {
         return (
-            <div className="competition-manager">
-                <div className="competition-empty-state">
-                    <Trophy size={42} />
-
-                    <h2>
-                        Select an organisation
-                    </h2>
-
-                    <p>
-                        Choose an organisation before
-                        managing its competitions.
-                    </p>
+            <section className="rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-14 text-center shadow-xl">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:var(--organisation-accent)]/10">
+                    <Trophy className="h-7 w-7 text-[var(--organisation-accent)]" />
                 </div>
-            </div>
+                <h2 className="mt-5 text-xl font-black tracking-tight text-[var(--organisation-text)]">
+                    Select an organisation
+                </h2>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[color:var(--organisation-text)]/70">
+                    Choose an organisation before managing its competitions.
+                </p>
+            </section>
         )
     }
 
     return (
-        <div className="competition-manager">
-            <div className="competition-header">
-                <div>
-                    <h2>
-                        <Trophy size={22} />
-                        Competitions
-                    </h2>
-
-                    <p>
-                        Manage tournaments for{' '}
-                        <strong>
-                            {currentOrganisation?.name ??
-                                'the selected organisation'}
-                        </strong>
-                        .
-                    </p>
+        <div className="space-y-6">
+            <section className="flex flex-col gap-5 rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-6 shadow-xl sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                    <div className="shrink-0 rounded-2xl bg-[color:var(--organisation-accent)]/10 p-3">
+                        <Trophy className="h-7 w-7 text-[var(--organisation-accent)]" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
+                            Competition Management
+                        </p>
+                        <h2 className="mt-1 text-2xl font-black tracking-tight text-[var(--organisation-text)]">
+                            Competitions
+                        </h2>
+                        <p className="mt-1 text-sm leading-6 text-[color:var(--organisation-text)]/70">
+                            Manage tournaments for{' '}
+                            <strong className="font-semibold text-[var(--organisation-text)]">
+                                {currentOrganisation?.name ?? 'the selected organisation'}
+                            </strong>.
+                        </p>
+                    </div>
                 </div>
 
                 <button
                     type="button"
-                    className="primary-button"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-bold text-[var(--organisation-on-accent)] shadow-lg transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color:var(--organisation-accent)]/40 disabled:cursor-not-allowed disabled:opacity-60"
                     onClick={handleAdd}
                 >
-                    <Plus size={18} />
+                    <Plus className="h-4 w-4" />
                     New Competition
                 </button>
-            </div>
+            </section>
 
             {error && (
                 <div
-                    className="competition-error-banner"
+                    className="rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-200"
                     role="alert"
                 >
                     {error}
                 </div>
             )}
 
-            <div className="competition-toolbar">
-                <div className="competition-search">
-                    <Search size={18} />
-
+            <section className="flex flex-col gap-3 rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-4 sm:flex-row sm:items-center">
+                <label className="flex min-h-11 flex-1 items-center gap-3 rounded-xl border border-[color:var(--organisation-border)] bg-black/20 px-4">
+                    <Search className="h-4 w-4 shrink-0 text-[var(--organisation-accent)]" />
+                    <span className="sr-only">Search competitions</span>
                     <input
                         type="text"
                         placeholder="Search competitions..."
                         value={search}
-                        onChange={event =>
-                            setSearch(
-                                event.target.value
-                            )
-                        }
+                        onChange={event => setSearch(event.target.value)}
+                        className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[var(--organisation-text)] outline-none placeholder:text-[color:var(--organisation-text)]/45"
                     />
-                </div>
+                </label>
 
                 <button
                     type="button"
-                    className="icon-button"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-black/20 text-[var(--organisation-accent)] transition hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={loadCompetitions}
                     disabled={loading}
                     aria-label="Refresh competitions"
                     title="Refresh competitions"
                 >
-                    <RefreshCw
-                        size={18}
-                        className={
-                            loading
-                                ? 'competition-spin'
-                                : ''
-                        }
-                    />
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 </button>
-            </div>
+            </section>
 
-            <div className="competition-table-container">
-                <table className="competition-table">
-                    <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Season</th>
-                        <th>Format</th>
-                        <th>Dates</th>
-                        <th>Status</th>
-                        <th>Published</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-
-                    <tbody>
-                    {loading && (
-                        <tr>
-                            <td
-                                colSpan={7}
-                                className="loading-cell"
-                            >
-                                Loading competitions...
-                            </td>
-                        </tr>
-                    )}
-
-                    {!loading &&
-                        filteredCompetitions.length ===
-                        0 && (
+            <section className="overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] shadow-xl">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-white/10 text-left text-sm">
+                        <thead className="bg-[color:var(--organisation-accent)]/5 text-xs font-bold uppercase tracking-[0.12em] text-[var(--organisation-accent)]">
                             <tr>
-                                <td
-                                    colSpan={7}
-                                    className="competition-empty-cell"
-                                >
-                                    <div className="competition-table-empty">
-                                        <Trophy
-                                            size={34}
-                                        />
-
-                                        <strong>
-                                            {search
-                                                ? 'No matching competitions found.'
-                                                : 'No competitions have been created.'}
-                                        </strong>
-
-                                        {!search && (
-                                            <button
-                                                type="button"
-                                                className="secondary-button"
-                                                onClick={
-                                                    handleAdd
-                                                }
-                                            >
-                                                <Plus
-                                                    size={
-                                                        17
-                                                    }
-                                                />
-                                                Create Competition
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
+                                <th className="px-5 py-4">Name</th>
+                                <th className="px-5 py-4">Season</th>
+                                <th className="px-5 py-4">Format</th>
+                                <th className="px-5 py-4">Dates</th>
+                                <th className="px-5 py-4">Status</th>
+                                <th className="px-5 py-4">Published</th>
+                                <th className="px-5 py-4 text-right">Actions</th>
                             </tr>
-                        )}
+                        </thead>
+                        <tbody className="divide-y divide-white/10">
+                            {loading && (
+                                <tr>
+                                    <td colSpan={7} className="px-5 py-12 text-center text-[color:var(--organisation-text)]/65">
+                                        Loading competitions...
+                                    </td>
+                                </tr>
+                            )}
 
-                    {!loading &&
-                        filteredCompetitions.map(
-                            competition => {
-                                const isSelected =
-                                    currentCompetition?.id ===
-                                    competition.id
+                            {!loading && filteredCompetitions.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="px-5 py-14 text-center">
+                                        <div className="mx-auto flex max-w-lg flex-col items-center">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--organisation-accent)]/10">
+                                                <Trophy className="h-6 w-6 text-[var(--organisation-accent)]" />
+                                            </div>
+                                            <strong className="mt-4 text-base text-[var(--organisation-text)]">
+                                                {search ? 'No matching competitions found.' : 'No competitions have been created.'}
+                                            </strong>
+                                            {!search && (
+                                                <button
+                                                    type="button"
+                                                    className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-4 py-2 text-sm font-bold text-[var(--organisation-accent)] transition hover:bg-[color:var(--organisation-accent)]/15"
+                                                    onClick={handleAdd}
+                                                >
+                                                    <Plus className="h-4 w-4" />
+                                                    Create Competition
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+
+                            {!loading && filteredCompetitions.map(competition => {
+                                const isSelected = currentCompetition?.id === competition.id
 
                                 return (
                                     <tr
-                                        key={
-                                            competition.id
-                                        }
-                                        className={
-                                            isSelected
-                                                ? 'competition-row-selected'
-                                                : ''
-                                        }
+                                        key={competition.id}
+                                        className={isSelected ? 'bg-[color:var(--organisation-accent)]/[0.07]' : 'transition hover:bg-white/[0.03]'}
                                     >
-                                        <td>
+                                        <td className="px-5 py-4 align-middle">
                                             <button
                                                 type="button"
-                                                className="competition-name-button"
-                                                onClick={() =>
-                                                    handleSelectCompetition(
-                                                        competition
-                                                    )
-                                                }
+                                                className="flex min-w-[220px] items-center gap-3 text-left"
+                                                onClick={() => handleSelectCompetition(competition)}
                                                 title="Select competition"
                                             >
-                                                    <span className="competition-icon">
-                                                        <Trophy
-                                                            size={
-                                                                18
-                                                            }
-                                                        />
+                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--organisation-accent)]/10 text-[var(--organisation-accent)]">
+                                                    <Trophy className="h-4 w-4" />
+                                                </span>
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate font-bold text-[var(--organisation-text)]">
+                                                        {competition.name}
                                                     </span>
-
-                                                <span className="competition-name-details">
-                                                        <strong>
-                                                            {
-                                                                competition.name
-                                                            }
-                                                        </strong>
-
-                                                        <code>
-                                                            {
-                                                                competition.slug
-                                                            }
-                                                        </code>
-                                                    </span>
-
+                                                    <code className="mt-0.5 block truncate text-xs text-[color:var(--organisation-text)]/50">
+                                                        {competition.slug}
+                                                    </code>
+                                                </span>
                                                 {isSelected && (
-                                                    <span className="competition-selected-label">
-                                                            <CheckCircle2
-                                                                size={
-                                                                    15
-                                                                }
-                                                            />
-                                                            Selected
-                                                        </span>
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--organisation-accent)]">
+                                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                                        Selected
+                                                    </span>
                                                 )}
                                             </button>
                                         </td>
-
-                                        <td>
-                                            {competition.season ??
-                                                '—'}
+                                        <td className="px-5 py-4 text-[color:var(--organisation-text)]/75">
+                                            {competition.season ?? '—'}
                                         </td>
-
-                                        <td>
-                                                <span className="competition-format-badge">
-                                                    {
-                                                        formatLabels[
-                                                            competition
-                                                                .format
-                                                            ]
-                                                    }
-                                                </span>
+                                        <td className="px-5 py-4">
+                                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-[color:var(--organisation-text)]/80">
+                                                {formatLabels[competition.format]}
+                                            </span>
                                         </td>
-
-                                        <td>
-                                            <div className="competition-date-range">
-                                                <CalendarDays
-                                                    size={
-                                                        16
-                                                    }
-                                                />
-
+                                        <td className="px-5 py-4">
+                                            <div className="flex min-w-[190px] items-center gap-2 text-[color:var(--organisation-text)]/70">
+                                                <CalendarDays className="h-4 w-4 shrink-0 text-[var(--organisation-accent)]" />
                                                 <span>
-                                                        {competition.start_date
-                                                            ? new Date(
-                                                                `${competition.start_date}T00:00:00`
-                                                            ).toLocaleDateString()
-                                                            : 'No start date'}
-
+                                                    {competition.start_date
+                                                        ? new Date(`${competition.start_date}T00:00:00`).toLocaleDateString()
+                                                        : 'No start date'}
                                                     {' – '}
-
                                                     {competition.end_date
-                                                        ? new Date(
-                                                            `${competition.end_date}T00:00:00`
-                                                        ).toLocaleDateString()
+                                                        ? new Date(`${competition.end_date}T00:00:00`).toLocaleDateString()
                                                         : 'No end date'}
-                                                    </span>
+                                                </span>
                                             </div>
                                         </td>
-
-                                        <td>
-                                                <span
-                                                    className={`competition-status-badge ${competition.status.toLowerCase()}`}
-                                                >
-                                                    {
-                                                        competition.status
-                                                    }
-                                                </span>
+                                        <td className="px-5 py-4">
+                                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-bold capitalize text-[color:var(--organisation-text)]/80">
+                                                {competition.status.toLowerCase().replace(/_/g, ' ')}
+                                            </span>
                                         </td>
-
-                                        <td>
-                                                <span
-                                                    className={`competition-published-badge ${
-                                                        competition.published
-                                                            ? 'published'
-                                                            : 'unpublished'
-                                                    }`}
-                                                >
-                                                    {competition.published
-                                                        ? 'Published'
-                                                        : 'Unpublished'}
-                                                </span>
+                                        <td className="px-5 py-4">
+                                            <span className={competition.published
+                                                ? 'inline-flex rounded-full border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-2.5 py-1 text-xs font-bold text-[var(--organisation-accent)]'
+                                                : 'inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-bold text-[color:var(--organisation-text)]/55'}
+                                            >
+                                                {competition.published ? 'Published' : 'Unpublished'}
+                                            </span>
                                         </td>
-
-                                        <td>
-                                            <div className="table-actions">
+                                        <td className="px-5 py-4">
+                                            <div className="flex justify-end gap-2">
                                                 <button
                                                     type="button"
-                                                    className="icon-button"
-                                                    onClick={() =>
-                                                        handleEdit(
-                                                            competition
-                                                        )
-                                                    }
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--organisation-border)] bg-black/20 text-[var(--organisation-accent)] transition hover:bg-[color:var(--organisation-accent)]/10"
+                                                    onClick={() => handleEdit(competition)}
                                                     aria-label={`Edit ${competition.name}`}
                                                     title="Edit competition"
                                                 >
-                                                    <Pencil
-                                                        size={
-                                                            16
-                                                        }
-                                                    />
+                                                    <Pencil className="h-4 w-4" />
                                                 </button>
-
                                                 <button
                                                     type="button"
-                                                    className="icon-button danger"
-                                                    onClick={() =>
-                                                        setCompetitionToDelete(
-                                                            competition
-                                                        )
-                                                    }
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-400/25 bg-red-500/10 text-red-300 transition hover:bg-red-500/15"
+                                                    onClick={() => setCompetitionToDelete(competition)}
                                                     aria-label={`Delete ${competition.name}`}
                                                     title="Delete competition"
                                                 >
-                                                    <Trash2
-                                                        size={
-                                                            16
-                                                        }
-                                                    />
+                                                    <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
                                 )
-                            }
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
             {showForm && (
                 <CompetitionForm
-                    competition={
-                        editingCompetition ??
-                        undefined
-                    }
+                    competition={editingCompetition ?? undefined}
                     saving={saving}
                     onSave={handleSave}
                     onCancel={handleCloseForm}
@@ -723,20 +613,16 @@ const CompetitionManager: React.FC = () => {
             <ConfirmDialog
                 open={!!competitionToDelete}
                 title="Delete Competition"
-                message={
-                    competitionToDelete
-                        ? `Are you sure you want to delete "${competitionToDelete.name}"? This may also affect records associated with this competition.`
-                        : ''
-                }
+                message={competitionToDelete
+                    ? `Are you sure you want to delete "${competitionToDelete.name}"? This may also affect records associated with this competition.`
+                    : ''}
                 confirmLabel="Delete"
                 cancelLabel="Cancel"
                 isProcessing={deleting}
                 onConfirm={confirmDelete}
                 onCancel={() => {
                     if (!deleting) {
-                        setCompetitionToDelete(
-                            null
-                        )
+                        setCompetitionToDelete(null)
                     }
                 }}
             />

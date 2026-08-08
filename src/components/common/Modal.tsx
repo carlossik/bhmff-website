@@ -6,7 +6,6 @@ import {
 } from 'react'
 import { X } from 'lucide-react'
 
-import './Modal.css'
 
 type ModalProps = {
     title: string
@@ -57,7 +56,7 @@ export function Modal({
 
     return (
         <div
-            className="modalOverlay"
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
             role="presentation"
             onMouseDown={(event) => {
                 if (
@@ -70,15 +69,15 @@ export function Modal({
         >
             <div
                 ref={dialogRef}
-                className="modalCard"
+                className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] text-[var(--organisation-text)] shadow-2xl"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
                 tabIndex={-1}
             >
-                <header className="modalHeader">
+                <header className="flex items-start justify-between gap-4 border-b border-[var(--organisation-border)] px-6 py-5 sm:px-8">
                     <div>
-                        <p className="modalEyebrow">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                             TournamentHQ
                         </p>
 
@@ -88,7 +87,7 @@ export function Modal({
                     </div>
 
                     <button
-                        className="modalCloseButton"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
                         type="button"
                         aria-label={`Close ${title}`}
                         onClick={onClose}
@@ -97,7 +96,7 @@ export function Modal({
                     </button>
                 </header>
 
-                <div className="modalBody">
+                <div className="max-h-[calc(100vh-8rem)] overflow-y-auto px-6 py-6 sm:px-8">
                     {children}
                 </div>
             </div>

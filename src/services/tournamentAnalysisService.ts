@@ -586,12 +586,7 @@ export class TournamentAnalysisService {
                     ? 'compact'
                     : 'balanced'
 
-        const daysBetweenRounds =
-            isLargeTournament
-                ? 7
-                : hasGroups
-                    ? 3
-                    : 7
+        const daysBetweenRounds = 7
 
         const minutesBetweenFixtures =
             hasMultipleVenues

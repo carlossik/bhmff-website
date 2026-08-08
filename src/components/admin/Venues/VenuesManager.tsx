@@ -342,7 +342,7 @@ export function VenuesManager() {
                 }
             />
 
-            <div className="adminWorkspaceHeader">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h3>Venues</h3>
 
@@ -362,7 +362,7 @@ export function VenuesManager() {
                 </div>
 
                 <button
-                    className="btn primary"
+                    className="inline-flex items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-bold text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                     type="button"
                     onClick={openCreateModal}
                     disabled={
@@ -375,7 +375,7 @@ export function VenuesManager() {
             </div>
 
             {!currentCompetition ? (
-                <div className="teamsEmptyState">
+                <div className="rounded-2xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[var(--organisation-text)] [&_h3]:text-xl [&_h3]:font-bold [&_h4]:text-lg [&_h4]:font-bold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-400">
                     <h3>
                         No competition selected
                     </h3>

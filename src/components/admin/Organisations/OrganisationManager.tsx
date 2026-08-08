@@ -22,11 +22,14 @@ import type {
 } from './organisationTypes'
 
 import {
-    createOrganisation,
     deleteOrganisation,
     getOrganisations,
     updateOrganisation,
 } from './organisationService'
+
+import {
+    onboardingService,
+} from '../../../services/onboardingService'
 
 const CURRENT_ORGANISATION_KEY =
     'tournamenthq-current-organisation'
@@ -253,11 +256,19 @@ const OrganisationManager = () => {
         let created: Organisation
 
         try {
-            created =
-                await createOrganisation(
-                    values,
-                    provisionalId
+            const result =
+                await onboardingService.createOrganisation({
+                    organisation: values,
+                    provisionalId,
+                })
+
+            created = result.organisation
+
+            if (result.warnings.length > 0) {
+                setMessage(
+                    result.warnings.join(' ')
                 )
+            }
         } catch (error) {
             const resolvedMessage =
                 getErrorMessage(error)
@@ -382,15 +393,15 @@ const OrganisationManager = () => {
 
     return (
         <div className="space-y-6">
-            <section className="overflow-hidden rounded-3xl border border-lime-900/50 bg-gradient-to-br from-[#1b2a15] via-[#14200f] to-[#0d140a] p-6 lg:p-8">
+            <section className="overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-gradient-to-br from-[var(--organisation-surface)] via-[var(--organisation-surface)] to-[var(--organisation-background)] p-6 lg:p-8">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-start gap-4">
-                        <div className="rounded-2xl bg-lime-400/10 p-3">
-                            <Building2 className="h-9 w-9 text-lime-400" />
+                        <div className="rounded-2xl bg-[color:var(--organisation-accent)]/10 p-3">
+                            <Building2 className="h-9 w-9 text-[var(--organisation-accent)]" />
                         </div>
 
                         <div>
-                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-lime-400">
+                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                                 Tenant administration
                             </p>
 
@@ -407,7 +418,7 @@ const OrganisationManager = () => {
                     <button
                         type="button"
                         onClick={openCreateForm}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 text-sm font-black text-[#071006] transition hover:bg-lime-300"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-black text-[var(--organisation-on-accent)] transition hover:opacity-90"
                     >
                         <Plus className="h-5 w-5" />
                         New organisation
@@ -418,7 +429,7 @@ const OrganisationManager = () => {
             {message && (
                 <div
                     role="status"
-                    className="rounded-2xl border border-lime-800/50 bg-lime-500/10 px-5 py-4 text-sm font-semibold text-lime-200"
+                    className="rounded-2xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-5 py-4 text-sm font-semibold text-[var(--organisation-accent)]"
                 >
                     {message}
                 </div>
@@ -434,9 +445,9 @@ const OrganisationManager = () => {
             )}
 
             {createdOrganisation && (
-                <section className="flex flex-col gap-5 rounded-3xl border border-lime-800/50 bg-[#10190f] p-6 lg:flex-row lg:items-center lg:justify-between">
+                <section className="flex flex-col gap-5 rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-400">
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--organisation-accent)]">
                             Organisation ready
                         </p>
 
@@ -459,7 +470,7 @@ const OrganisationManager = () => {
                                     null
                                 )
                             }
-                            className="rounded-xl border border-lime-900/60 bg-black/20 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-lime-500/50 disabled:opacity-60"
+                            className="rounded-xl border border-[color:var(--organisation-border)] bg-black/20 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-[color:var(--organisation-border)] disabled:opacity-60"
                         >
                             Stay here
                         </button>
@@ -470,7 +481,7 @@ const OrganisationManager = () => {
                             onClick={
                                 handleSwitchToCreated
                             }
-                            className="rounded-xl bg-lime-400 px-5 py-3 text-sm font-black text-[#071006] transition hover:bg-lime-300 disabled:opacity-60"
+                            className="rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-black text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:opacity-60"
                         >
                             {switching
                                 ? 'Switching...'
@@ -480,10 +491,10 @@ const OrganisationManager = () => {
                 </section>
             )}
 
-            <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-5">
+            <section className="rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className="flex flex-1 items-center gap-3 rounded-xl border border-lime-900/50 bg-black/20 px-4 py-3">
-                        <Search className="h-5 w-5 text-lime-400" />
+                    <div className="flex flex-1 items-center gap-3 rounded-xl border border-[color:var(--organisation-border)] bg-black/20 px-4 py-3">
+                        <Search className="h-5 w-5 text-[var(--organisation-accent)]" />
 
                         <input
                             type="text"
@@ -506,7 +517,7 @@ const OrganisationManager = () => {
                         onClick={() =>
                             void loadOrganisations()
                         }
-                        className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-lime-900/50 bg-black/20 text-lime-400 transition hover:border-lime-500/50 disabled:opacity-60"
+                        className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-black/20 text-[var(--organisation-accent)] transition hover:border-[color:var(--organisation-border)] disabled:opacity-60"
                     >
                         <RefreshCw
                             className={[
@@ -520,11 +531,11 @@ const OrganisationManager = () => {
                 </div>
             </section>
 
-            <section className="overflow-hidden rounded-3xl border border-lime-900/50 bg-[#10190f]">
+            <section className="overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)]">
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[760px] border-collapse">
                         <thead>
-                            <tr className="border-b border-lime-900/50 bg-lime-400/5 text-left text-sm text-lime-300">
+                            <tr className="border-b border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/5 text-left text-sm text-[var(--organisation-accent)]">
                                 <th className="px-5 py-4">
                                     Name
                                 </th>
@@ -579,11 +590,11 @@ const OrganisationManager = () => {
                                             key={
                                                 organisation.id
                                             }
-                                            className="border-b border-lime-900/30 last:border-b-0"
+                                            className="border-b border-[color:var(--organisation-border)] last:border-b-0"
                                         >
                                             <td className="px-5 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-lime-900/50 bg-black/20 p-1.5">
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--organisation-border)] bg-black/20 p-1.5">
                                                         {organisation.logo_url ? (
                                                             <img
                                                                 src={
@@ -593,7 +604,7 @@ const OrganisationManager = () => {
                                                                 className="h-full w-full object-contain"
                                                             />
                                                         ) : (
-                                                            <Building2 className="h-5 w-5 text-lime-400" />
+                                                            <Building2 className="h-5 w-5 text-[var(--organisation-accent)]" />
                                                         )}
                                                     </div>
 
@@ -617,7 +628,7 @@ const OrganisationManager = () => {
                                                         'inline-flex rounded-full border px-3 py-1 text-xs font-bold capitalize',
                                                         organisation.status ===
                                                         'active'
-                                                            ? 'border-lime-700/50 bg-lime-500/10 text-lime-300'
+                                                            ? 'border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 text-[var(--organisation-accent)]'
                                                             : organisation.status ===
                                                               'suspended'
                                                               ? 'border-red-800/50 bg-red-500/10 text-red-300'
@@ -649,7 +660,7 @@ const OrganisationManager = () => {
                                                                 organisation
                                                             )
                                                         }
-                                                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-lime-900/50 bg-lime-500/10 text-lime-300 transition hover:border-lime-500/60 hover:bg-lime-500/15"
+                                                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 text-[var(--organisation-accent)] transition hover:border-[color:var(--organisation-border)] hover:bg-[color:var(--organisation-accent)]/15"
                                                     >
                                                         <Pencil className="h-4 w-4" />
                                                     </button>

@@ -74,7 +74,7 @@ const createEmptyForm = (
 });
 
 const inputClass =
-    'block w-full rounded-xl border border-lime-900/60 bg-[#071006] px-3.5 py-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition placeholder:text-slate-500 focus:border-lime-400 focus:ring-2 focus:ring-lime-400/20 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-black/30 disabled:text-slate-500';
+    'block w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3.5 py-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition placeholder:text-slate-500 focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-black/30 disabled:text-slate-500';
 
 const labelClass =
     'mb-2 block text-sm font-semibold text-slate-200';
@@ -341,15 +341,7 @@ const OfficialModal: React.FC<Props> = ({
         ) {
             return;
         }
-        const email = form.email.trim()
-        const phone = form.phone.trim()
 
-        if (!email || !phone) {
-            setLoadError(
-                'Email and phone number are required.'
-            )
-            return
-        }
         await onSave({
             ...form,
             sport_id: form.sport_id,
@@ -383,11 +375,9 @@ const OfficialModal: React.FC<Props> = ({
     const formIsValid =
         Boolean(form.first_name.trim()) &&
         Boolean(form.last_name.trim()) &&
-        Boolean(form.email.trim()) &&
-        Boolean(form.phone.trim()) &&
         Boolean(form.sport_id) &&
         Boolean(form.role) &&
-        !loadingRoles
+        !loadingRoles;
 
     return (
         <div
@@ -409,12 +399,12 @@ const OfficialModal: React.FC<Props> = ({
                 onSubmit={event =>
                     void handleSubmit(event)
                 }
-                className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-lime-900/60 bg-[#0b140a] text-white shadow-2xl shadow-black/60"
+                className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] text-white shadow-2xl shadow-black/60"
                 style={{ maxHeight: '90vh' }}
             >
-                <div className="flex shrink-0 items-center justify-between border-b border-lime-900/50 bg-[#10190f] px-6 py-5">
+                <div className="flex shrink-0 items-center justify-between border-b border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-5">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                             Sports Officials
                         </p>
 
@@ -438,7 +428,7 @@ const OfficialModal: React.FC<Props> = ({
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="rounded-xl border border-lime-900/50 bg-black/20 p-2.5 text-slate-400 transition hover:border-lime-500 hover:bg-lime-400/10 hover:text-white disabled:opacity-50"
+                        className="rounded-xl border border-[var(--organisation-border)] bg-black/20 p-2.5 text-slate-400 transition hover:border-[var(--organisation-accent)] hover:bg-[var(--organisation-surface)] hover:text-white disabled:opacity-50"
                         aria-label="Close modal"
                     >
                         <X size={20} />
@@ -446,7 +436,7 @@ const OfficialModal: React.FC<Props> = ({
                 </div>
 
                 <div
-                    className="overflow-y-auto bg-[#0b140a] px-6 py-6"
+                    className="overflow-y-auto bg-[var(--organisation-surface)] px-6 py-6"
                     style={{ minHeight: 0 }}
                 >
                     {loadError && (
@@ -459,9 +449,9 @@ const OfficialModal: React.FC<Props> = ({
                         </div>
                     )}
 
-                    <div className="mb-6 rounded-2xl border border-lime-700/50 bg-lime-400/[0.06] p-4 shadow-inner shadow-black/20">
+                    <div className="mb-6 rounded-2xl border border-[var(--organisation-accent)] bg-[var(--organisation-surface)] p-4 shadow-inner shadow-black/20">
                         <div className="mb-4">
-                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-400">
+                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--organisation-accent)]">
                                 Competition Context
                             </p>
 
@@ -478,11 +468,11 @@ const OfficialModal: React.FC<Props> = ({
                                 </label>
 
                                 {sportIsInherited ? (
-                                    <div className="flex min-h-[46px] items-center justify-between rounded-xl border border-lime-500/60 bg-[#071006] px-3.5 py-3 text-sm text-white shadow-inner shadow-black/20">
+                                    <div className="flex min-h-[46px] items-center justify-between rounded-xl border border-[var(--organisation-accent)] bg-[var(--organisation-background)] px-3.5 py-3 text-sm text-white shadow-inner shadow-black/20">
                                         <div className="flex items-center gap-2.5">
                                             <CheckCircle2
                                                 size={18}
-                                                className="text-lime-400"
+                                                className="text-[var(--organisation-accent)]"
                                             />
 
                                             <span className="font-semibold">
@@ -576,7 +566,7 @@ const OfficialModal: React.FC<Props> = ({
                                     {loadingRoles && (
                                         <Loader2
                                             size={17}
-                                            className="pointer-events-none absolute right-9 top-3.5 animate-spin text-lime-400"
+                                            className="pointer-events-none absolute right-9 top-3.5 animate-spin text-[var(--organisation-accent)]"
                                         />
                                     )}
                                 </div>
@@ -596,41 +586,13 @@ const OfficialModal: React.FC<Props> = ({
                         </div>
 
                         <div>
-                            <label className={labelClass}>
-                                Email
-                                <span className="ml-1 text-red-400">*</span>
-                            </label>
-                            <input
-                                type="email"
-                                required
-                                value={form.email}
-                                onChange={event =>
-                                    updateField(
-                                        'email',
-                                        event.target.value
-                                    )
-                                }
-                                className={inputClass}
-                            />
+                            <label className={labelClass}>Email</label>
+                            <input type="email" value={form.email} onChange={event => updateField('email', event.target.value)} className={inputClass} />
                         </div>
 
                         <div>
-                            <label className={labelClass}>
-                                Phone
-                                <span className="ml-1 text-red-400">*</span>
-                            </label>
-                            <input
-                                type="tel"
-                                required
-                                value={form.phone}
-                                onChange={event =>
-                                    updateField(
-                                        'phone',
-                                        event.target.value
-                                    )
-                                }
-                                className={inputClass}
-                            />
+                            <label className={labelClass}>Phone</label>
+                            <input type="tel" value={form.phone} onChange={event => updateField('phone', event.target.value)} className={inputClass} />
                         </div>
 
                         <div>
@@ -691,12 +653,12 @@ const OfficialModal: React.FC<Props> = ({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 justify-end gap-3 border-t border-lime-900/50 bg-[#10190f] px-6 py-4">
+                <div className="flex shrink-0 justify-end gap-3 border-t border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-4">
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="rounded-xl border border-slate-700 bg-black/20 px-5 py-2.5 font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-white/5 disabled:opacity-50"
+                        className="rounded-xl border border-slate-700 bg-black/20 px-5 py-2.5 font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-[var(--organisation-surface)]/5 disabled:opacity-50"
                     >
                         Cancel
                     </button>
@@ -704,7 +666,7 @@ const OfficialModal: React.FC<Props> = ({
                     <button
                         type="submit"
                         disabled={saving || !formIsValid}
-                        className="rounded-xl bg-lime-400 px-6 py-2.5 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="rounded-xl bg-[var(--organisation-accent)] px-6 py-2.5 font-bold text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         {saving ? 'Saving...' : 'Save Official'}
                     </button>

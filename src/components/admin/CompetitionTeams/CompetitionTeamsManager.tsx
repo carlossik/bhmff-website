@@ -6,8 +6,8 @@ import {
 
 import { useOrganisation } from '../../../context/OrganisationContext'
 import { useCompetition } from '../../../contexts/CompetitionContext'
-import { Toast } from '../../common/Toast'
 
+import { Toast } from '../../../components/common/Toast'
 import { competitionTeamService } from './competitionTeamService'
 
 import {
@@ -604,7 +604,7 @@ export function CompetitionTeamsManager() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-56 items-center justify-center rounded-2xl border border-lime-900/40 bg-black/20">
+            <div className="flex min-h-56 items-center justify-center rounded-2xl border border-[color:var(--organisation-border)] bg-black/20">
                 <p className="text-sm text-slate-400">
                     Loading competition teams...
                 </p>
@@ -622,10 +622,10 @@ export function CompetitionTeamsManager() {
                 }
             />
 
-            <section className="rounded-2xl border border-lime-900/40 bg-black/20 p-5 shadow-xl sm:p-6">
+            <section className="rounded-2xl border border-[color:var(--organisation-border)] bg-black/20 p-5 shadow-xl sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                             Participant management
                         </p>
 
@@ -651,7 +651,7 @@ export function CompetitionTeamsManager() {
                     </div>
 
                     <button
-                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-lime-500 px-5 py-2.5 text-sm font-bold text-black shadow-lg transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-bold text-[var(--organisation-on-accent)] shadow-lg transition hover:bg-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         type="button"
                         disabled={
                             !currentCompetitionId ||
@@ -670,7 +670,7 @@ export function CompetitionTeamsManager() {
             </section>
 
             {!currentCompetitionId ? (
-                <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-12 text-center">
+                <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-black/20 px-6 py-12 text-center">
                     <h3 className="text-lg font-bold text-white">
                         No competition selected
                     </h3>
@@ -680,7 +680,7 @@ export function CompetitionTeamsManager() {
                     </p>
                 </div>
             ) : !organisationTeams.length ? (
-                <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-12 text-center">
+                <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-black/20 px-6 py-12 text-center">
                     <h3 className="text-lg font-bold text-white">
                         No teams available
                     </h3>
@@ -691,7 +691,7 @@ export function CompetitionTeamsManager() {
                 </div>
             ) : (
                 <>
-                    <section className="rounded-2xl border border-lime-900/40 bg-black/20 p-4 sm:p-5">
+                    <section className="rounded-2xl border border-[color:var(--organisation-border)] bg-black/20 p-4 sm:p-5">
                         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                             <div className="relative w-full xl:max-w-xl">
                                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
@@ -702,7 +702,7 @@ export function CompetitionTeamsManager() {
                                     type="search"
                                     value={searchTerm}
                                     placeholder="Search teams, clubs, age groups or divisions..."
-                                    className="min-h-11 w-full rounded-xl border border-lime-900/50 bg-slate-950 py-2.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-lime-500 focus:ring-4 focus:ring-lime-500/10"
+                                    className="min-h-11 w-full rounded-xl border border-[color:var(--organisation-border)] bg-slate-950 py-2.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-[color:var(--organisation-border)] focus:ring-4 focus:ring-[color:var(--organisation-accent)]/10"
                                     onChange={(event) =>
                                         setSearchTerm(
                                             event.currentTarget
@@ -714,7 +714,7 @@ export function CompetitionTeamsManager() {
 
                             <div className="flex flex-wrap gap-2">
                                 <button
-                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-lime-700 bg-lime-500/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-lime-300 transition hover:bg-lime-500 hover:text-black disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-accent)] hover:text-[var(--organisation-on-accent)] disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
                                     type="button"
                                     disabled={
                                         allVisibleSelected ||
@@ -728,7 +728,7 @@ export function CompetitionTeamsManager() {
                                 </button>
 
                                 <button
-                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-lime-700 bg-lime-500/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-lime-300 transition hover:bg-lime-500 hover:text-black disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-accent)] hover:text-[var(--organisation-on-accent)] disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
                                     type="button"
                                     disabled={
                                         noVisibleSelected ||
@@ -777,16 +777,16 @@ export function CompetitionTeamsManager() {
                     </section>
 
                     <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-                        <div className="overflow-hidden rounded-2xl border border-lime-700/40 bg-gradient-to-br from-lime-500/15 to-emerald-950/40 p-5">
+                        <div className="overflow-hidden rounded-2xl border border-[color:var(--organisation-border)] bg-gradient-to-br from-[color:var(--organisation-accent)]/15 to-[color:var(--organisation-primary)]/10 p-5">
                             <div className="flex items-center gap-5">
-                                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-lime-500 text-2xl font-black text-black shadow-lg">
+                                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[var(--organisation-accent)] text-2xl font-black text-[var(--organisation-on-accent)] shadow-lg">
                                     {
                                         selectedTeamIds.length
                                     }
                                 </div>
 
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-300">
+                                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--organisation-accent)]">
                                         Teams selected
                                     </p>
 
@@ -803,7 +803,7 @@ export function CompetitionTeamsManager() {
 
                                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
                                         <div
-                                            className="h-full rounded-full bg-lime-400 transition-all"
+                                            className="h-full rounded-full bg-[var(--organisation-accent)] transition-all"
                                             style={{
                                                 width: `${selectionPercentage}%`,
                                             }}
@@ -846,7 +846,7 @@ export function CompetitionTeamsManager() {
                     </section>
 
                     {!filteredTeams.length ? (
-                        <div className="rounded-2xl border border-dashed border-lime-900/60 bg-black/20 px-6 py-12 text-center">
+                        <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-black/20 px-6 py-12 text-center">
                             <h3 className="text-lg font-bold text-white">
                                 No matching teams
                             </h3>
@@ -874,8 +874,8 @@ export function CompetitionTeamsManager() {
                                         <article
                                             className={`rounded-2xl border p-4 transition ${
                                                 isSelected
-                                                    ? 'border-lime-500/70 bg-lime-500/10 shadow-lg shadow-lime-950/20'
-                                                    : 'border-lime-900/40 bg-black/20 hover:border-lime-700/60'
+                                                    ? 'border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 shadow-lg shadow-black/20'
+                                                    : 'border-[color:var(--organisation-border)] bg-black/20 hover:border-[color:var(--organisation-border)]'
                                             }`}
                                             key={
                                                 team.id
@@ -891,7 +891,7 @@ export function CompetitionTeamsManager() {
                                                         alt={`${team.name} logo`}
                                                     />
                                                 ) : (
-                                                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lime-500/15 text-sm font-black text-lime-300">
+                                                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[color:var(--organisation-accent)]/15 text-sm font-black text-[var(--organisation-accent)]">
                                                         {getInitials(
                                                             team.name
                                                         )}
@@ -913,7 +913,7 @@ export function CompetitionTeamsManager() {
 
                                                 <input
                                                     type="checkbox"
-                                                    className="h-5 w-5 rounded border-slate-600 bg-slate-900 text-lime-500 accent-lime-500"
+                                                    className="h-5 w-5 rounded border-slate-600 bg-slate-900 text-[var(--organisation-accent)] accent-[var(--organisation-accent)]"
                                                     checked={
                                                         isSelected
                                                     }
@@ -958,8 +958,8 @@ export function CompetitionTeamsManager() {
                                             </div>
 
                                             {isSelected && (
-                                                <div className="mt-4 border-t border-lime-900/50 pt-4">
-                                                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-lime-400">
+                                                <div className="mt-4 border-t border-[color:var(--organisation-border)] pt-4">
+                                                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--organisation-accent)]">
                                                         Preferred group-stage days
                                                     </p>
 
@@ -980,8 +980,8 @@ export function CompetitionTeamsManager() {
                                                                         }
                                                                         className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                                                                             checked
-                                                                                ? 'border-lime-400 bg-lime-400 text-black'
-                                                                                : 'border-lime-900/60 bg-black/20 text-slate-300 hover:border-lime-600'
+                                                                                ? 'border-[color:var(--organisation-accent)] bg-[var(--organisation-accent)] text-[var(--organisation-on-accent)]'
+                                                                                : 'border-[color:var(--organisation-border)] bg-black/20 text-slate-300 hover:border-[color:var(--organisation-border)]'
                                                                         }`}
                                                                     >
                                                                         <input
@@ -1023,9 +1023,9 @@ export function CompetitionTeamsManager() {
                         </div>
                     )}
 
-                    <div className="sticky bottom-4 z-20 flex justify-end rounded-2xl border border-lime-900/50 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
+                    <div className="sticky bottom-4 z-20 flex justify-end rounded-2xl border border-[color:var(--organisation-border)] bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
                         <button
-                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-lime-500 px-5 py-2.5 text-sm font-bold text-black shadow-lg transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-bold text-[var(--organisation-on-accent)] shadow-lg transition hover:bg-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                             type="button"
                             disabled={
                                 !hasUnsavedChanges ||

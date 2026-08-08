@@ -1,3 +1,7 @@
+import { Medal } from 'lucide-react'
+
+import { PublicEmptyState } from './public/home/PublicEmptyState'
+
 export type PublicGoal = {
     id: string
     fixtureId: string
@@ -18,8 +22,11 @@ type GoldenBootEntry = {
     goals: number
 }
 
-type GoldenBootTableProps = {
+export type GoldenBootTableProps = {
     goals: PublicGoal[]
+    surfaceColour: string
+    textColour: string
+    accentColour: string
 }
 
 function getInitials(name: string) {
@@ -34,22 +41,16 @@ function getInitials(name: string) {
 
 export function GoldenBootTable({
                                     goals,
+                                    surfaceColour,
+                                    textColour,
+                                    accentColour,
                                 }: GoldenBootTableProps) {
-    const scorerMap = new Map<
-        string,
-        GoldenBootEntry
-    >()
+    const scorerMap = new Map<string, GoldenBootEntry>()
 
     goals.forEach((goal) => {
-        const normalisedName =
-            goal.playerName
-                .trim()
-                .toLowerCase()
-
+        const normalisedName = goal.playerName.trim().toLowerCase()
         const key = `${goal.teamId}:${normalisedName}`
-
-        const existing =
-            scorerMap.get(key)
+        const existing = scorerMap.get(key)
 
         if (existing) {
             existing.goals += 1
@@ -58,115 +59,155 @@ export function GoldenBootTable({
 
         scorerMap.set(key, {
             key,
-            playerName:
-                goal.playerName.trim(),
+            playerName: goal.playerName.trim(),
             teamId: goal.teamId,
             teamName: goal.teamName,
-            teamLogoUrl:
-            goal.teamLogoUrl,
+            teamLogoUrl: goal.teamLogoUrl,
             goals: 1,
         })
     })
 
-    const leaderboard =
-        Array.from(
-            scorerMap.values()
-        ).sort((first, second) => {
-            if (
-                second.goals !== first.goals
-            ) {
-                return (
-                    second.goals -
-                    first.goals
-                )
+    const leaderboard = Array.from(scorerMap.values()).sort(
+        (first, second) => {
+            if (second.goals !== first.goals) {
+                return second.goals - first.goals
             }
 
-            return first.playerName.localeCompare(
-                second.playerName
-            )
-        })
+            return first.playerName.localeCompare(second.playerName)
+        },
+    )
 
     if (!leaderboard.length) {
         return (
-            <div className="teamsEmptyState">
-                <h3>
-                    Golden Boot table coming soon
-                </h3>
-
-                <p>
-                    Scorers from published match
-                    results will appear here.
-                </p>
-            </div>
+            <PublicEmptyState
+                title="Golden Boot table coming soon"
+                description="Scorers from published match results will appear here."
+                icon={Medal}
+                surfaceColour={surfaceColour}
+                textColour={textColour}
+                accentColour={accentColour}
+            />
         )
     }
 
     return (
-        <div className="tableWrap goldenBootWrap">
-            <table className="goldenBootTable">
-                <thead>
-                <tr>
-                    <th>Pos</th>
-                    <th>Player</th>
-                    <th>Club</th>
-                    <th>Goals</th>
-                </tr>
-                </thead>
+        <div
+            className="overflow-hidden rounded-2xl border shadow-sm"
+            style={{
+                backgroundColor: surfaceColour,
+                borderColor: `${accentColour}30`,
+                color: textColour,
+            }}
+        >
+            <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-left">
+                    <thead
+                        style={{
+                            backgroundColor: `${accentColour}12`,
+                        }}
+                    >
+                    <tr>
+                        <th
+                            className="px-4 py-3 text-xs font-black uppercase tracking-[0.14em] sm:px-5"
+                            style={{ color: accentColour }}
+                        >
+                            Pos
+                        </th>
+                        <th
+                            className="px-4 py-3 text-xs font-black uppercase tracking-[0.14em] sm:px-5"
+                            style={{ color: accentColour }}
+                        >
+                            Player
+                        </th>
+                        <th
+                            className="px-4 py-3 text-xs font-black uppercase tracking-[0.14em] sm:px-5"
+                            style={{ color: accentColour }}
+                        >
+                            Club
+                        </th>
+                        <th
+                            className="px-4 py-3 text-right text-xs font-black uppercase tracking-[0.14em] sm:px-5"
+                            style={{ color: accentColour }}
+                        >
+                            Goals
+                        </th>
+                    </tr>
+                    </thead>
 
-                <tbody>
-                {leaderboard.map(
-                    (entry, index) => (
-                        <tr key={entry.key}>
-                            <td>
-                                    <span className="leaguePosition">
+                    <tbody>
+                    {leaderboard.map((entry, index) => (
+                        <tr
+                            key={entry.key}
+                            className="border-t"
+                            style={{
+                                borderColor: `${accentColour}20`,
+                            }}
+                        >
+                            <td className="px-4 py-4 sm:px-5">
+                                    <span
+                                        className="inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm font-black"
+                                        style={{
+                                            backgroundColor:
+                                                index === 0
+                                                    ? accentColour
+                                                    : `${accentColour}18`,
+                                            color:
+                                                index === 0
+                                                    ? '#ffffff'
+                                                    : accentColour,
+                                        }}
+                                    >
                                         {index + 1}
                                     </span>
                             </td>
 
-                            <td>
-                                <strong>
-                                    {
-                                        entry.playerName
-                                    }
+                            <td className="px-4 py-4 sm:px-5">
+                                <strong className="font-black">
+                                    {entry.playerName}
                                 </strong>
                             </td>
 
-                            <td>
-                                <div className="goldenBootClub">
-                                    <div className="leagueTeamLogo">
+                            <td className="px-4 py-4 sm:px-5">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <div
+                                        className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border text-xs font-black"
+                                        style={{
+                                            backgroundColor: `${accentColour}10`,
+                                            borderColor: `${accentColour}30`,
+                                            color: accentColour,
+                                        }}
+                                    >
                                         {entry.teamLogoUrl ? (
                                             <img
-                                                src={
-                                                    entry.teamLogoUrl
-                                                }
+                                                src={entry.teamLogoUrl}
                                                 alt={`${entry.teamName} logo`}
                                                 loading="lazy"
+                                                className="h-full w-full object-cover"
                                             />
                                         ) : (
-                                            getInitials(
-                                                entry.teamName
-                                            )
+                                            getInitials(entry.teamName)
                                         )}
                                     </div>
 
-                                    <span>
-                                            {
-                                                entry.teamName
-                                            }
+                                    <span className="truncate font-semibold">
+                                            {entry.teamName}
                                         </span>
                                 </div>
                             </td>
 
-                            <td className="goldenBootGoals">
-                                <strong>
+                            <td className="px-4 py-4 text-right sm:px-5">
+                                <strong
+                                    className="text-xl font-black"
+                                    style={{ color: accentColour }}
+                                >
                                     {entry.goals}
                                 </strong>
                             </td>
                         </tr>
-                    )
-                )}
-                </tbody>
-            </table>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 }

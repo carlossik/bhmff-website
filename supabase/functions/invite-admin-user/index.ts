@@ -22,7 +22,6 @@ type InviteRequest = {
     fullName: string
     email: string
     role: AdminRole
-    redirectUrl: string
 }
 
 type ProfileRow = {
@@ -90,10 +89,16 @@ Deno.serve(async (request) => {
                 'SUPABASE_ANON_KEY',
             )
 
+        const applicationBaseUrl =
+            Deno.env.get(
+                'TOURNAMENTHQ_APP_URL',
+            )?.replace(/\/$/, '')
+
         if (
             !supabaseUrl ||
             !serviceRoleKey ||
-            !anonKey
+            !anonKey ||
+            !applicationBaseUrl
         ) {
             throw new Error(
                 'Supabase function environment is not configured.',
@@ -183,8 +188,32 @@ Deno.serve(async (request) => {
 
         const role = body.role
 
+        let parsedApplicationUrl: URL
+
+        try {
+            parsedApplicationUrl =
+                new URL(applicationBaseUrl)
+        } catch {
+            throw new Error(
+                'TOURNAMENTHQ_APP_URL must be a valid absolute URL.',
+            )
+        }
+
+        if (
+            parsedApplicationUrl.protocol !==
+            'https:' ||
+            parsedApplicationUrl.hostname ===
+            'localhost' ||
+            parsedApplicationUrl.hostname ===
+            '127.0.0.1'
+        ) {
+            throw new Error(
+                'TOURNAMENTHQ_APP_URL must use a production HTTPS domain.',
+            )
+        }
+
         const redirectUrl =
-            body.redirectUrl?.trim()
+            `${applicationBaseUrl}/admin/set-password?invitation=true`
 
         if (!isValidAction(action)) {
             throw new Error(
@@ -221,12 +250,6 @@ Deno.serve(async (request) => {
         ) {
             throw new Error(
                 'A valid administrator role is required.',
-            )
-        }
-
-        if (!redirectUrl) {
-            throw new Error(
-                'A redirect URL is required.',
             )
         }
 

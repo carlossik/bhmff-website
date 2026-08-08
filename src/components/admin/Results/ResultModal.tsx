@@ -28,11 +28,8 @@ export function ResultModal({
                                 onClose,
                                 onSave,
                             }: ResultModalProps) {
-    const competitionTeamNames = new Map(
-        teams.map((team) => [
-            team.competition_team_id,
-            team.name.trim(),
-        ])
+    const teamNames = new Map(
+        teams.map((team) => [team.id, team.name])
     )
 
     function updateField<K extends keyof ResultFormValues>(
@@ -50,30 +47,27 @@ export function ResultModal({
             title={mode === 'edit' ? 'Edit Result' : 'Add Result'}
             onClose={onClose}
         >
-            <div className="adminFormGrid">
-                <label className="adminFormFullWidth">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-[var(--organisation-text)] [&_input]:rounded-xl [&_input]:border [&_input]:border-[var(--organisation-border)] [&_input]:bg-[var(--organisation-background)] [&_input]:px-4 [&_input]:py-3 [&_input]:text-[var(--organisation-text)] [&_input]:outline-none [&_input]:focus:border-[var(--organisation-accent)] [&_select]:rounded-xl [&_select]:border [&_select]:border-[var(--organisation-border)] [&_select]:bg-[var(--organisation-background)] [&_select]:px-4 [&_select]:py-3 [&_select]:text-[var(--organisation-text)] [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-[var(--organisation-border)] [&_textarea]:bg-[var(--organisation-background)] [&_textarea]:px-4 [&_textarea]:py-3 [&_textarea]:text-[var(--organisation-text)]">
+                <label className="md:col-span-2">
                     <span>Fixture</span>
 
                     <select
                         value={values.fixture_id}
                         onChange={(event) =>
-                            updateField(
-                                'fixture_id',
-                                event.target.value
-                            )
+                            updateField('fixture_id', event.target.value)
                         }
                     >
                         <option value="">Select fixture</option>
 
                         {fixtures.map((fixture) => {
                             const home =
-                                competitionTeamNames.get(
-                                    fixture.home_competition_team_id ?? ''
+                                teamNames.get(
+                                    fixture.home_team_id ?? ''
                                 ) ?? 'Home team TBC'
 
                             const away =
-                                competitionTeamNames.get(
-                                    fixture.away_competition_team_id ?? ''
+                                teamNames.get(
+                                    fixture.away_team_id ?? ''
                                 ) ?? 'Away team TBC'
 
                             const alreadyHasResult =
@@ -125,7 +119,7 @@ export function ResultModal({
                     />
                 </label>
 
-                <label className="adminFormFullWidth">
+                <label className="md:col-span-2">
                     <span>Player of the Match</span>
                     <input
                         value={values.player_of_match}
@@ -139,7 +133,7 @@ export function ResultModal({
                     />
                 </label>
 
-                <label className="adminFormFullWidth">
+                <label className="md:col-span-2">
                     <span>Match Report</span>
                     <textarea
                         value={values.match_report}
@@ -153,7 +147,7 @@ export function ResultModal({
                     />
                 </label>
 
-                <label className="adminCheckboxLabel adminFormFullWidth">
+                <label className="md:col-span-2 flex items-center gap-3 rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] p-4 text-sm font-semibold text-[var(--organisation-text)]">
                     <input
                         type="checkbox"
                         checked={values.published}
@@ -168,9 +162,9 @@ export function ResultModal({
                 </label>
             </div>
 
-            <div className="modalActions">
+            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[var(--organisation-border)] pt-5 sm:flex-row sm:justify-end">
                 <button
-                    className="btn secondary"
+                    className="inline-flex items-center justify-center rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-5 py-3 font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] disabled:opacity-50"
                     type="button"
                     onClick={onClose}
                     disabled={isSaving}
@@ -179,7 +173,7 @@ export function ResultModal({
                 </button>
 
                 <button
-                    className="btn primary"
+                    className="inline-flex items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-bold text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:opacity-50"
                     type="button"
                     onClick={onSave}
                     disabled={isSaving}

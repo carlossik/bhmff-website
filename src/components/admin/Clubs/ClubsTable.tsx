@@ -1,5 +1,5 @@
 import type { DbClub } from './clubTypes'
-import './ClubsTable.css'
+
 type ClubsTableProps = {
     clubs: DbClub[]
     loading: boolean
@@ -15,7 +15,7 @@ export function ClubsTable({
                            }: ClubsTableProps) {
     if (loading) {
         return (
-            <div className="teamsEmptyState">
+            <div className="rounded-2xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[var(--organisation-text)] [&_h3]:text-xl [&_h3]:font-bold [&_h4]:text-lg [&_h4]:font-bold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-400">
                 <p>Loading clubs...</p>
             </div>
         )
@@ -23,7 +23,7 @@ export function ClubsTable({
 
     if (!clubs.length) {
         return (
-            <div className="teamsEmptyState">
+            <div className="rounded-2xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[var(--organisation-text)] [&_h3]:text-xl [&_h3]:font-bold [&_h4]:text-lg [&_h4]:font-bold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-400">
                 <h4>No clubs added yet</h4>
 
                 <p>
@@ -35,8 +35,8 @@ export function ClubsTable({
     }
 
     return (
-        <div className="clubsTableWrapper">
-            <table className="clubsTable">
+        <div className="overflow-x-auto rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)]">
+            <table className="min-w-full divide-y divide-[var(--organisation-border)] text-left text-sm text-[var(--organisation-text)] [&_thead]:bg-[var(--organisation-background)] [&_th]:px-5 [&_th]:py-4 [&_th]:text-xs [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_td]:px-5 [&_td]:py-4 [&_tbody_tr]:border-t [&_tbody_tr]:border-[var(--organisation-border)]">
                 <thead>
                 <tr>
                     <th>Club</th>
@@ -52,15 +52,15 @@ export function ClubsTable({
                 {clubs.map((club) => (
                     <tr key={club.id}>
                         <td>
-                            <div className="clubTableIdentity">
+                            <div className="flex items-center gap-3">
                                 {club.badge_url ? (
                                     <img
                                         src={club.badge_url}
                                         alt={`${club.name} badge`}
-                                        className="clubTableBadge"
+                                        className="h-11 w-11 rounded-xl border border-[var(--organisation-border)] object-contain"
                                     />
                                 ) : (
-                                    <div className="clubTableBadgePlaceholder">
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] font-bold text-[var(--organisation-on-accent)]">
                                         {club.name
                                             .charAt(0)
                                             .toUpperCase()}
@@ -73,7 +73,7 @@ export function ClubsTable({
                                     </strong>
 
                                     {club.colours && (
-                                        <span className="muted">
+                                        <span className="text-slate-400">
                                                 {
                                                     club.colours
                                                 }
@@ -96,7 +96,7 @@ export function ClubsTable({
                                 )}
 
                                 {club.phone && (
-                                    <div className="muted">
+                                    <div className="text-slate-400">
                                         {club.phone}
                                     </div>
                                 )}
@@ -116,10 +116,10 @@ export function ClubsTable({
                         </td>
 
                         <td>
-                            <div className="clubsTableActions">
+                            <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    className="secondaryButton"
+                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] hover:border-[var(--organisation-accent)]"
                                     onClick={() =>
                                         onEdit(club)
                                     }
@@ -129,7 +129,7 @@ export function ClubsTable({
 
                                 <button
                                     type="button"
-                                    className="dangerButton"
+                                    className="inline-flex items-center justify-center rounded-lg border border-red-700/60 bg-red-950/20 px-3 py-2 text-sm font-semibold text-red-300 hover:bg-red-950/40"
                                     onClick={() =>
                                         onDelete(club)
                                     }

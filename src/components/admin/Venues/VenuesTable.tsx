@@ -20,7 +20,7 @@ function renderNotes(notes: string | null) {
                     href={part}
                     target="_blank"
                     rel="noreferrer"
-                    className="venueMapLink"
+                    className="text-[var(--organisation-accent)] underline-offset-4 hover:underline"
                 >
                     View map
                 </a>
@@ -38,7 +38,7 @@ export function VenuesTable({
                             }: VenuesTableProps) {
     if (!venues.length) {
         return (
-            <div className="teamsEmptyState">
+            <div className="rounded-2xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[var(--organisation-text)] [&_h3]:text-xl [&_h3]:font-bold [&_h4]:text-lg [&_h4]:font-bold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-400">
                 <h3>No venues added</h3>
                 <p>
                     Add the first venue so it becomes available when creating
@@ -49,8 +49,8 @@ export function VenuesTable({
     }
 
     return (
-        <div className="tableWrap adminTableWrap">
-            <table className="adminTable venuesAdminTable">
+        <div className="overflow-x-auto rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)]">
+            <table className="min-w-full text-left text-sm text-[var(--organisation-text)] [&_thead]:bg-[var(--organisation-background)] [&_th]:px-5 [&_th]:py-4 [&_th]:text-xs [&_th]:font-bold [&_th]:uppercase [&_td]:border-t [&_td]:border-[var(--organisation-border)] [&_td]:px-5 [&_td]:py-4">
                 <thead>
                 <tr>
                     <th>Venue</th>
@@ -68,20 +68,20 @@ export function VenuesTable({
                             <strong>{venue.name}</strong>
                         </td>
 
-                        <td className="venueAddressCell">
+                        <td className="max-w-xs">
                             {venue.address ?? '—'}
                         </td>
 
                         <td>{venue.postcode ?? '—'}</td>
 
-                        <td className="venueNotesCell">
+                        <td className="max-w-sm text-slate-400">
                             {renderNotes(venue.notes)}
                         </td>
 
-                        <td className="venueActionsCell">
-                            <div className="tableActions">
+                        <td className="whitespace-nowrap">
+                            <div className="flex flex-wrap gap-2">
                                 <button
-                                    className="btn secondary small"
+                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
                                     type="button"
                                     onClick={() => onEdit(venue)}
                                 >
@@ -89,7 +89,7 @@ export function VenuesTable({
                                 </button>
 
                                 <button
-                                    className="btn secondary small"
+                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
                                     type="button"
                                     onClick={() => onDelete(venue)}
                                 >

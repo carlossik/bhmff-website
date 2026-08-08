@@ -11,6 +11,7 @@ import {
     Search,
     Shield,
     Trophy,
+    UserRoundCheck,
 } from "lucide-react";
 
 import { supabase } from "../../lib/supabaseClient";
@@ -45,6 +46,19 @@ type FixtureVenue = {
     id?: string | null;
     name?: string | null;
     address?: string | null;
+};
+
+type PublicFixtureOfficial = {
+    officialId: string;
+    role: string;
+    displayName: string;
+};
+
+type PublicFixtureOfficialRow = {
+    fixture_id: string;
+    official_id: string;
+    role: string;
+    display_name: string;
 };
 
 type PublicFixtureRow = {
@@ -87,6 +101,7 @@ type FixtureViewModel = {
     scheduledAt: string;
     status: string;
     roundLabel: string;
+    officials: PublicFixtureOfficial[];
 };
 
 function getString(
@@ -225,6 +240,7 @@ function getRoundLabel(
 
 function mapFixture(
     fixture: PublicFixtureRow,
+    officials: PublicFixtureOfficial[] = [],
 ): FixtureViewModel {
     return {
         id: fixture.id,
@@ -270,7 +286,67 @@ function mapFixture(
             getRoundLabel(
                 fixture,
             ),
+        officials,
     };
+}
+
+
+function formatOfficialRole(
+    role: string,
+) {
+    switch (role) {
+        case "referee":
+            return "Referee";
+        case "assistant_referee":
+            return "Assistant Referee";
+        case "fourth_official":
+            return "Fourth Official";
+        case "match_commissioner":
+            return "Match Commissioner";
+        case "assessor":
+            return "Assessor";
+        case "observer":
+            return "Observer";
+        default:
+            return role
+                .split("_")
+                .map(
+                    (word) =>
+                        word.charAt(0).toUpperCase() +
+                        word.slice(1),
+                )
+                .join(" ");
+    }
+}
+
+function sortOfficials(
+    officials: PublicFixtureOfficial[],
+) {
+    const roleOrder = new Map<string, number>([
+        ["referee", 0],
+        ["assistant_referee", 1],
+        ["fourth_official", 2],
+        ["match_commissioner", 3],
+        ["assessor", 4],
+        ["observer", 5],
+    ]);
+
+    return [...officials].sort(
+        (first, second) => {
+            const firstOrder =
+                roleOrder.get(first.role) ?? 99;
+            const secondOrder =
+                roleOrder.get(second.role) ?? 99;
+
+            if (firstOrder !== secondOrder) {
+                return firstOrder - secondOrder;
+            }
+
+            return first.displayName.localeCompare(
+                second.displayName,
+            );
+        },
+    );
 }
 
 function formatFixtureDate(
@@ -383,16 +459,16 @@ function getStatusClasses(
 }
 
 export function PublicFixturesPage({
-                                       organisationId,
-                                       organisationName,
-                                       competitions = [],
-                                       backgroundColour,
-                                       surfaceColour,
-                                       textColour,
-                                       accentColour,
-                                       accentTextColour,
-                                       basePath,
-                                   }: PublicFixturesPageProps) {
+    organisationId,
+    organisationName,
+    competitions = [],
+    backgroundColour,
+    surfaceColour,
+    textColour,
+    accentColour,
+    accentTextColour,
+    basePath,
+}: PublicFixturesPageProps) {
     const [fixtures, setFixtures] =
         useState<FixtureViewModel[]>([]);
 
@@ -492,9 +568,82 @@ export function PublicFixturesPage({
                             fixture.published !== false,
                     );
 
+                const fixtureIds =
+                    visibleRows.map(
+                        (fixture) =>
+                            fixture.id,
+                    );
+
+                const officialsByFixture =
+                    new Map<
+                        string,
+                        PublicFixtureOfficial[]
+                    >();
+
+                if (fixtureIds.length > 0) {
+                    const {
+                        data: officialRows,
+                        error: officialError,
+                    } = await supabase.rpc(
+                        "get_public_fixture_officials",
+                        {
+                            p_organisation_id:
+                                organisationId,
+                        },
+                    );
+
+                    if (officialError) {
+                        console.error(
+                            "Failed to load public fixture officials:",
+                            officialError,
+                        );
+                    } else {
+                        for (
+                            const row of (
+                                officialRows ?? []
+                            ) as PublicFixtureOfficialRow[]
+                        ) {
+                            if (
+                                !fixtureIds.includes(
+                                    row.fixture_id,
+                                )
+                            ) {
+                                continue;
+                            }
+
+                            const current =
+                                officialsByFixture.get(
+                                    row.fixture_id,
+                                ) ?? [];
+
+                            current.push({
+                                officialId:
+                                    row.official_id,
+                                role:
+                                    row.role,
+                                displayName:
+                                    row.display_name,
+                            });
+
+                            officialsByFixture.set(
+                                row.fixture_id,
+                                current,
+                            );
+                        }
+                    }
+                }
+
                 setFixtures(
                     visibleRows.map(
-                        mapFixture,
+                        (fixture) =>
+                            mapFixture(
+                                fixture,
+                                sortOfficials(
+                                    officialsByFixture.get(
+                                        fixture.id,
+                                    ) ?? [],
+                                ),
+                            ),
                     ),
                 );
             } catch (error) {
@@ -527,7 +676,7 @@ export function PublicFixturesPage({
                 ...competitions.map(
                     (competition) => ({
                         id:
-                        competition.id,
+                            competition.id,
                         name:
                             (
                                 competition as Competition &
@@ -555,9 +704,9 @@ export function PublicFixturesPage({
                 (fixture) => {
                     const competitionMatches =
                         selectedCompetitionId ===
-                        "all" ||
+                            "all" ||
                         fixture.competitionId ===
-                        selectedCompetitionId;
+                            selectedCompetitionId;
 
                     const searchMatches =
                         !normalisedSearch ||
@@ -602,9 +751,9 @@ export function PublicFixturesPage({
             className="min-h-screen"
             style={{
                 background:
-                backgroundColour,
+                    backgroundColour,
                 color:
-                textColour,
+                    textColour,
             }}
         >
             <section
@@ -625,7 +774,7 @@ export function PublicFixturesPage({
                         className="text-xs font-black uppercase tracking-[0.2em]"
                         style={{
                             color:
-                            accentColour,
+                                accentColour,
                         }}
                     >
                         Match Centre
@@ -637,7 +786,7 @@ export function PublicFixturesPage({
 
                     <p className="mt-5 max-w-3xl text-base leading-7 opacity-75 sm:text-lg">
                         View confirmed fixtures,
-                        kick-off times and venues for{" "}
+                        kick-off times, venues and appointed officials for{" "}
                         <strong>
                             {organisationName}
                         </strong>
@@ -657,7 +806,7 @@ export function PublicFixturesPage({
                         className="flex flex-col gap-4 rounded-2xl border p-4 lg:flex-row lg:items-center lg:justify-between"
                         style={{
                             background:
-                            surfaceColour,
+                                surfaceColour,
                             borderColor:
                                 `${accentColour}35`,
                         }}
@@ -681,7 +830,7 @@ export function PublicFixturesPage({
                                 className="w-full rounded-xl border border-white/10 bg-black/20 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-current"
                                 style={{
                                     color:
-                                    textColour,
+                                        textColour,
                                 }}
                             />
                         </div>
@@ -699,7 +848,7 @@ export function PublicFixturesPage({
                             className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-bold outline-none"
                             style={{
                                 color:
-                                textColour,
+                                    textColour,
                             }}
                         >
                             {competitionOptions.map(
@@ -735,7 +884,7 @@ export function PublicFixturesPage({
                             className="rounded-2xl border p-12 text-center"
                             style={{
                                 background:
-                                surfaceColour,
+                                    surfaceColour,
                                 borderColor:
                                     `${accentColour}35`,
                             }}
@@ -751,12 +900,12 @@ export function PublicFixturesPage({
                             </p>
                         </div>
                     ) : filteredFixtures.length ===
-                    0 ? (
+                      0 ? (
                         <div
                             className="rounded-2xl border p-12 text-center"
                             style={{
                                 background:
-                                surfaceColour,
+                                    surfaceColour,
                                 borderColor:
                                     `${accentColour}35`,
                             }}
@@ -790,7 +939,7 @@ export function PublicFixturesPage({
                                         className="rounded-2xl border p-5 sm:p-6"
                                         style={{
                                             background:
-                                            surfaceColour,
+                                                surfaceColour,
                                             borderColor:
                                                 `${accentColour}35`,
                                         }}
@@ -801,7 +950,7 @@ export function PublicFixturesPage({
                                                     className="text-xs font-black uppercase tracking-[0.16em]"
                                                     style={{
                                                         color:
-                                                        accentColour,
+                                                            accentColour,
                                                     }}
                                                 >
                                                     {
@@ -888,6 +1037,67 @@ export function PublicFixturesPage({
                                         </div>
 
                                         <div
+                                            className="mt-6 rounded-xl border p-4"
+                                            style={{
+                                                borderColor:
+                                                    `${accentColour}20`,
+                                                background:
+                                                    `${backgroundColour}80`,
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <UserRoundCheck
+                                                    size={18}
+                                                    color={
+                                                        accentColour
+                                                    }
+                                                />
+
+                                                <strong>
+                                                    Match Officials
+                                                </strong>
+                                            </div>
+
+                                            {fixture.officials.length > 0 ? (
+                                                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                                    {fixture.officials.map(
+                                                        (
+                                                            official,
+                                                            index,
+                                                        ) => (
+                                                            <div
+                                                                key={`${fixture.id}-${official.officialId}-${official.role}-${index}`}
+                                                                className="rounded-lg border border-white/10 bg-black/10 px-4 py-3"
+                                                            >
+                                                                <span
+                                                                    className="block text-[11px] font-black uppercase tracking-[0.12em]"
+                                                                    style={{
+                                                                        color:
+                                                                            accentColour,
+                                                                    }}
+                                                                >
+                                                                    {formatOfficialRole(
+                                                                        official.role,
+                                                                    )}
+                                                                </span>
+
+                                                                <span className="mt-1 block text-sm font-bold">
+                                                                    {
+                                                                        official.displayName
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <p className="mt-3 text-sm opacity-70">
+                                                    Referee: To Be Appointed
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div
                                             className="mt-6 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
                                             style={{
                                                 borderColor:
@@ -929,7 +1139,7 @@ export function PublicFixturesPage({
                                                 className="inline-flex items-center gap-2 text-sm font-black no-underline"
                                                 style={{
                                                     color:
-                                                    accentColour,
+                                                        accentColour,
                                                 }}
                                             >
                                                 View Teams
@@ -960,12 +1170,12 @@ type TeamBlockProps = {
 };
 
 function TeamBlock({
-                       name,
-                       badge,
-                       label,
-                       accentColour,
-                       align,
-                   }: TeamBlockProps) {
+    name,
+    badge,
+    label,
+    accentColour,
+    align,
+}: TeamBlockProps) {
     return (
         <div
             className={`flex items-center gap-4 ${

@@ -12,7 +12,9 @@ import {
     Building2,
     Check,
     ImagePlus,
+    ChevronDown,
     Palette,
+    RotateCcw,
     Save,
     ShieldCheck,
     Trash2,
@@ -68,6 +70,102 @@ type ColourField = {
         | 'text_colour'
     label: string
 }
+
+type PalettePreset = {
+    id: string
+    name: string
+    description: string
+    colours: Pick<
+        OrganisationFormData,
+        | 'primary_colour'
+        | 'secondary_colour'
+        | 'accent_colour'
+        | 'background_colour'
+        | 'surface_colour'
+        | 'text_colour'
+    >
+}
+
+const palettePresets: readonly PalettePreset[] = [
+    {
+        id: 'tournamenthq',
+        name: 'TournamentHQ Green',
+        description: 'The established dark TournamentHQ interface.',
+        colours: {
+            primary_colour: '#0F766E',
+            secondary_colour: '#0F172A',
+            accent_colour: '#84CC16',
+            background_colour: '#071006',
+            surface_colour: '#10190F',
+            text_colour: '#FFFFFF',
+        },
+    },
+    {
+        id: 'clean-white',
+        name: 'Clean White',
+        description: 'A bright, modern workspace with professional blue actions.',
+        colours: {
+            primary_colour: '#FFFFFF',
+            secondary_colour: '#0F172A',
+            accent_colour: '#2563EB',
+            background_colour: '#F8FAFC',
+            surface_colour: '#FFFFFF',
+            text_colour: '#0F172A',
+        },
+    },
+    {
+        id: 'professional-blue',
+        name: 'Professional Blue',
+        description: 'A dependable enterprise palette for leagues and governing bodies.',
+        colours: {
+            primary_colour: '#1D4ED8',
+            secondary_colour: '#0F172A',
+            accent_colour: '#38BDF8',
+            background_colour: '#08111F',
+            surface_colour: '#101C2E',
+            text_colour: '#F8FAFC',
+        },
+    },
+    {
+        id: 'royal-purple',
+        name: 'Royal Purple',
+        description: 'A premium palette for tournaments and showcase events.',
+        colours: {
+            primary_colour: '#6D28D9',
+            secondary_colour: '#1E1B4B',
+            accent_colour: '#C4B5FD',
+            background_colour: '#120C22',
+            surface_colour: '#21143B',
+            text_colour: '#FAF5FF',
+        },
+    },
+    {
+        id: 'modern-teal',
+        name: 'Modern Teal',
+        description: 'A fresh, contemporary identity with strong accessibility.',
+        colours: {
+            primary_colour: '#0F766E',
+            secondary_colour: '#134E4A',
+            accent_colour: '#2DD4BF',
+            background_colour: '#071A18',
+            surface_colour: '#0E2925',
+            text_colour: '#F0FDFA',
+        },
+    },
+    {
+        id: 'premium-black',
+        name: 'Premium Black',
+        description: 'A restrained black-and-gold presentation.',
+        colours: {
+            primary_colour: '#111827',
+            secondary_colour: '#000000',
+            accent_colour: '#F59E0B',
+            background_colour: '#030712',
+            surface_colour: '#111827',
+            text_colour: '#F9FAFB',
+        },
+    },
+]
 
 const colourFields: ColourField[] = [
     {
@@ -135,6 +233,48 @@ function isValidHexColour(value: string) {
     )
 }
 
+function hexToRgb(value: string): [number, number, number] | null {
+    if (!isValidHexColour(value)) {
+        return null
+    }
+
+    return [
+        Number.parseInt(value.slice(1, 3), 16),
+        Number.parseInt(value.slice(3, 5), 16),
+        Number.parseInt(value.slice(5, 7), 16),
+    ]
+}
+
+function getRelativeLuminance(value: string): number {
+    const rgb = hexToRgb(value)
+
+    if (!rgb) {
+        return 0
+    }
+
+    const channels = rgb.map((channel) => {
+        const normalised = channel / 255
+        return normalised <= 0.03928
+            ? normalised / 12.92
+            : ((normalised + 0.055) / 1.055) ** 2.4
+    })
+
+    return (
+        0.2126 * channels[0] +
+        0.7152 * channels[1] +
+        0.0722 * channels[2]
+    )
+}
+
+function getContrastRatio(foreground: string, background: string): number {
+    const first = getRelativeLuminance(foreground)
+    const second = getRelativeLuminance(background)
+    const lighter = Math.max(first, second)
+    const darker = Math.min(first, second)
+
+    return (lighter + 0.05) / (darker + 0.05)
+}
+
 function mapOrganisationToForm(
     organisation: Organisation
 ): OrganisationFormData {
@@ -176,8 +316,8 @@ function mapOrganisationToForm(
 }
 
 function FieldError({
-    message,
-}: {
+                        message,
+                    }: {
     message?: string
 }) {
     if (!message) {
@@ -192,10 +332,10 @@ function FieldError({
 }
 
 function SectionHeading({
-    icon: Icon,
-    title,
-    description,
-}: {
+                            icon: Icon,
+                            title,
+                            description,
+                        }: {
     icon: typeof Building2
     title: string
     description: string
@@ -220,11 +360,11 @@ function SectionHeading({
 }
 
 export function OrganisationForm({
-    organisation,
-    saving,
-    onSave,
-    onCancel,
-}: OrganisationFormProps) {
+                                     organisation,
+                                     saving,
+                                     onSave,
+                                     onCancel,
+                                 }: OrganisationFormProps) {
     const logoInputRef =
         useRef<HTMLInputElement | null>(null)
 
@@ -239,6 +379,9 @@ export function OrganisationForm({
     const [uploadingLogo, setUploadingLogo] =
         useState(false)
 
+    const [showAdvancedColours, setShowAdvancedColours] =
+        useState(false)
+
     const provisionalId = useMemo(
         () =>
             organisation?.id ??
@@ -250,14 +393,14 @@ export function OrganisationForm({
         setForm(
             organisation
                 ? mapOrganisationToForm(
-                      organisation
-                  )
+                    organisation
+                )
                 : {
-                      ...defaultOrganisation,
-                      enabled_modules: [
-                          ...defaultOrganisation.enabled_modules,
-                      ],
-                  }
+                    ...defaultOrganisation,
+                    enabled_modules: [
+                        ...defaultOrganisation.enabled_modules,
+                    ],
+                }
         )
 
         setErrors({})
@@ -337,7 +480,7 @@ export function OrganisationForm({
 
             const filePath = [
                 organisation?.id ??
-                    provisionalId,
+                provisionalId,
                 'organisation-branding',
                 `${crypto.randomUUID()}.${extension}`,
             ].join('/')
@@ -351,7 +494,7 @@ export function OrganisationForm({
                 .upload(filePath, file, {
                     cacheControl: '3600',
                     contentType:
-                        file.type,
+                    file.type,
                     upsert: false,
                 })
 
@@ -510,15 +653,49 @@ export function OrganisationForm({
             'enabled_modules',
             enabled
                 ? form.enabled_modules.filter(
-                      (item) =>
-                          item !== module
-                  )
+                    (item) =>
+                        item !== module
+                )
                 : [
-                      ...form.enabled_modules,
-                      module,
-                  ]
+                    ...form.enabled_modules,
+                    module,
+                ]
         )
     }
+
+    function applyPalettePreset(
+        preset: PalettePreset,
+    ) {
+        setForm((previous) => ({
+            ...previous,
+            ...preset.colours,
+        }))
+
+        setErrors((previous) => ({
+            ...previous,
+            primary_colour: undefined,
+            secondary_colour: undefined,
+            accent_colour: undefined,
+            background_colour: undefined,
+            surface_colour: undefined,
+            text_colour: undefined,
+            submit: undefined,
+        }))
+    }
+
+    const textContrast = getContrastRatio(
+        form.text_colour,
+        form.background_colour,
+    )
+
+    const surfaceContrast = getContrastRatio(
+        form.text_colour,
+        form.surface_colour,
+    )
+
+    const paletteIsReadable =
+        textContrast >= 4.5 &&
+        surfaceContrast >= 4.5
 
     const controlsDisabled =
         saving || uploadingLogo
@@ -851,8 +1028,8 @@ export function OrganisationForm({
                                 {uploadingLogo
                                     ? 'Uploading...'
                                     : form.logo_url
-                                      ? 'Replace logo'
-                                      : 'Upload logo'}
+                                        ? 'Replace logo'
+                                        : 'Upload logo'}
                             </button>
 
                             {form.logo_url && (
@@ -1088,68 +1265,353 @@ export function OrganisationForm({
                 <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-12">
                     <SectionHeading
                         icon={Palette}
-                        title="Brand colours"
-                        description="Theme values applied to the organisation portal and public site."
+                        title="Brand palette"
+                        description="Choose a professionally balanced palette, preview it immediately and customise individual colours only when required."
                     />
 
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                        {colourFields.map(
-                            ({
-                                field,
-                                label,
-                            }) => (
-                                <label
-                                    key={field}
-                                    className="rounded-2xl border border-lime-900/40 bg-black/20 p-4"
-                                >
-                                    <span className={labelClassName}>
-                                        {label}
-                                    </span>
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+                        <div className="space-y-5">
+                            <div>
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <h4 className="m-0 text-base font-bold text-white">
+                                            Recommended palettes
+                                        </h4>
 
-                                    <div className="mt-3 flex items-center gap-3">
-                                        <input
-                                            type="color"
-                                            value={
-                                                form[field]
-                                            }
-                                            disabled={
-                                                controlsDisabled
-                                            }
-                                            onChange={(event) =>
-                                                updateField(
-                                                    field,
-                                                    event.target.value
-                                                )
-                                            }
-                                            className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-lime-900/50 bg-[#10190d] p-1"
-                                        />
-
-                                        <input
-                                            type="text"
-                                            value={
-                                                form[field]
-                                            }
-                                            disabled={
-                                                controlsDisabled
-                                            }
-                                            onChange={(event) =>
-                                                updateField(
-                                                    field,
-                                                    event.target.value
-                                                )
-                                            }
-                                            className="min-w-0 flex-1 rounded-lg border border-lime-900/50 bg-[#10190d] px-3 py-2 font-mono text-xs uppercase text-white outline-none focus:border-lime-500/70"
-                                        />
+                                        <p className="mt-1 text-sm leading-6 text-slate-400">
+                                            Select a complete palette rather than trying to coordinate six colours independently.
+                                        </p>
                                     </div>
 
-                                    <FieldError
-                                        message={
-                                            errors[field]
+                                    <button
+                                        type="button"
+                                        disabled={controlsDisabled}
+                                        onClick={() =>
+                                            applyPalettePreset(
+                                                palettePresets[0],
+                                            )
                                         }
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/60 bg-black/20 px-4 py-2.5 text-sm font-bold text-slate-200 transition hover:border-lime-500/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <RotateCcw className="h-4 w-4" />
+                                        Reset default
+                                    </button>
+                                </div>
+
+                                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                    {palettePresets.map((preset) => {
+                                        const selected =
+                                            colourFields.every(
+                                                ({ field }) =>
+                                                    form[field].toUpperCase() ===
+                                                    preset.colours[field].toUpperCase(),
+                                            )
+
+                                        return (
+                                            <button
+                                                key={preset.id}
+                                                type="button"
+                                                disabled={controlsDisabled}
+                                                onClick={() =>
+                                                    applyPalettePreset(
+                                                        preset,
+                                                    )
+                                                }
+                                                className={[
+                                                    'rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60',
+                                                    selected
+                                                        ? 'border-lime-400 bg-lime-500/10 ring-2 ring-lime-400/20'
+                                                        : 'border-lime-900/40 bg-black/20 hover:border-lime-700/60',
+                                                ].join(' ')}
+                                            >
+                                                <div className="flex items-center gap-1.5">
+                                                    {colourFields.map(
+                                                        ({ field }) => (
+                                                            <span
+                                                                key={field}
+                                                                aria-hidden="true"
+                                                                className="h-7 flex-1 rounded-md border border-white/10"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        preset.colours[field],
+                                                                }}
+                                                            />
+                                                        ),
+                                                    )}
+                                                </div>
+
+                                                <div className="mt-3 flex items-center justify-between gap-3">
+                                                    <strong className="text-sm text-white">
+                                                        {preset.name}
+                                                    </strong>
+
+                                                    {selected && (
+                                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-lime-400 text-[#071006]">
+                                                            <Check className="h-4 w-4" />
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <p className="mt-2 text-xs leading-5 text-slate-400">
+                                                    {preset.description}
+                                                </p>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="overflow-hidden rounded-2xl border border-lime-900/40 bg-black/20">
+                                <button
+                                    type="button"
+                                    disabled={controlsDisabled}
+                                    onClick={() =>
+                                        setShowAdvancedColours(
+                                            (current) => !current,
+                                        )
+                                    }
+                                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+                                    aria-expanded={showAdvancedColours}
+                                >
+                                    <span>
+                                        <span className="block text-sm font-bold text-white">
+                                            Advanced colour controls
+                                        </span>
+
+                                        <span className="mt-1 block text-xs leading-5 text-slate-400">
+                                            Fine-tune individual colours using a picker or a six-digit hex value.
+                                        </span>
+                                    </span>
+
+                                    <ChevronDown
+                                        className={[
+                                            'h-5 w-5 shrink-0 text-lime-400 transition-transform',
+                                            showAdvancedColours
+                                                ? 'rotate-180'
+                                                : '',
+                                        ].join(' ')}
                                     />
-                                </label>
-                            )
-                        )}
+                                </button>
+
+                                {showAdvancedColours && (
+                                    <div className="grid gap-4 border-t border-lime-900/40 p-5 sm:grid-cols-2 lg:grid-cols-3">
+                                        {colourFields.map(
+                                            ({ field, label }) => (
+                                                <label
+                                                    key={field}
+                                                    className="rounded-2xl border border-lime-900/40 bg-[#10190d] p-4"
+                                                >
+                                                    <span className={labelClassName}>
+                                                        {label}
+                                                    </span>
+
+                                                    <div className="mt-3 flex items-center gap-3">
+                                                        <input
+                                                            type="color"
+                                                            value={form[field]}
+                                                            disabled={controlsDisabled}
+                                                            onChange={(event) =>
+                                                                updateField(
+                                                                    field,
+                                                                    event.target.value.toUpperCase(),
+                                                                )
+                                                            }
+                                                            className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-lime-900/50 bg-[#10190d] p-1"
+                                                        />
+
+                                                        <input
+                                                            type="text"
+                                                            value={form[field]}
+                                                            disabled={controlsDisabled}
+                                                            onChange={(event) =>
+                                                                updateField(
+                                                                    field,
+                                                                    event.target.value.toUpperCase(),
+                                                                )
+                                                            }
+                                                            className="min-w-0 flex-1 rounded-lg border border-lime-900/50 bg-black/20 px-3 py-2 font-mono text-xs uppercase text-white outline-none focus:border-lime-500/70"
+                                                        />
+                                                    </div>
+
+                                                    <FieldError
+                                                        message={errors[field]}
+                                                    />
+                                                </label>
+                                            ),
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <aside className="space-y-4">
+                            <div className="rounded-2xl border border-lime-900/40 bg-black/20 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-lime-400">
+                                            Live preview
+                                        </p>
+
+                                        <h4 className="mt-1 text-base font-bold text-white">
+                                            Organisation portal
+                                        </h4>
+                                    </div>
+
+                                    <span
+                                        className={[
+                                            'rounded-full border px-3 py-1 text-xs font-bold',
+                                            paletteIsReadable
+                                                ? 'border-lime-700/50 bg-lime-500/10 text-lime-300'
+                                                : 'border-amber-700/50 bg-amber-500/10 text-amber-200',
+                                        ].join(' ')}
+                                    >
+                                        {paletteIsReadable
+                                            ? 'Readable'
+                                            : 'Low contrast'}
+                                    </span>
+                                </div>
+
+                                <div
+                                    className="mt-4 overflow-hidden rounded-2xl border shadow-xl"
+                                    style={{
+                                        backgroundColor:
+                                        form.background_colour,
+                                        borderColor:
+                                        form.accent_colour,
+                                        color:
+                                        form.text_colour,
+                                    }}
+                                >
+                                    <div
+                                        className="flex items-center justify-between border-b px-4 py-3"
+                                        style={{
+                                            backgroundColor:
+                                            form.surface_colour,
+                                            borderColor:
+                                            form.accent_colour,
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="h-9 w-9 rounded-xl"
+                                                style={{
+                                                    backgroundColor:
+                                                    form.primary_colour,
+                                                }}
+                                            />
+
+                                            <div>
+                                                <strong className="block text-sm">
+                                                    {form.name ||
+                                                        'Your organisation'}
+                                                </strong>
+
+                                                <span className="text-xs opacity-70">
+                                                    Competition Administration
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            tabIndex={-1}
+                                            className="rounded-lg px-3 py-2 text-xs font-black"
+                                            style={{
+                                                backgroundColor:
+                                                form.accent_colour,
+                                                color:
+                                                    getContrastRatio(
+                                                        '#071006',
+                                                        form.accent_colour,
+                                                    ) >= 4.5
+                                                        ? '#071006'
+                                                        : '#FFFFFF',
+                                            }}
+                                        >
+                                            View site
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-[94px_1fr] gap-3 p-3">
+                                        <div
+                                            className="space-y-2 rounded-xl p-2"
+                                            style={{
+                                                backgroundColor:
+                                                form.surface_colour,
+                                            }}
+                                        >
+                                            {['Dashboard', 'Teams', 'Fixtures'].map(
+                                                (item, index) => (
+                                                    <div
+                                                        key={item}
+                                                        className="rounded-lg px-2 py-2 text-[10px] font-bold"
+                                                        style={{
+                                                            backgroundColor:
+                                                                index === 0
+                                                                    ? form.accent_colour
+                                                                    : 'transparent',
+                                                            color:
+                                                                index === 0
+                                                                    ? getContrastRatio(
+                                                                        '#071006',
+                                                                        form.accent_colour,
+                                                                    ) >= 4.5
+                                                                        ? '#071006'
+                                                                        : '#FFFFFF'
+                                                                    : form.text_colour,
+                                                            opacity:
+                                                                index === 0
+                                                                    ? 1
+                                                                    : 0.72,
+                                                        }}
+                                                    >
+                                                        {item}
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div
+                                                className="h-11 rounded-xl"
+                                                style={{
+                                                    backgroundColor:
+                                                    form.surface_colour,
+                                                }}
+                                            />
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {[1, 2].map((item) => (
+                                                    <div
+                                                        key={item}
+                                                        className="h-20 rounded-xl border"
+                                                        style={{
+                                                            backgroundColor:
+                                                            form.surface_colour,
+                                                            borderColor:
+                                                            form.primary_colour,
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                className={[
+                                    'rounded-2xl border px-4 py-3 text-sm leading-6',
+                                    paletteIsReadable
+                                        ? 'border-lime-800/50 bg-lime-500/10 text-lime-200'
+                                        : 'border-amber-700/50 bg-amber-500/10 text-amber-100',
+                                ].join(' ')}
+                            >
+                                {paletteIsReadable
+                                    ? 'The selected text, background and surface colours meet the recommended contrast threshold.'
+                                    : 'Increase the contrast between the text colour and the background or surface colour before saving.'}
+                            </div>
+                        </aside>
                     </div>
                 </section>
             </div>
@@ -1202,8 +1664,8 @@ export function OrganisationForm({
                                 ? 'Updating organisation...'
                                 : 'Creating organisation...'
                             : organisation
-                              ? 'Update organisation'
-                              : 'Create organisation'}
+                                ? 'Update organisation'
+                                : 'Create organisation'}
                     </button>
                 </div>
             </section>

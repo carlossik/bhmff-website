@@ -654,10 +654,10 @@ export function TeamsManager({
                 }
             />
 
-            <section className="flex flex-col gap-5 rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6 sm:flex-row sm:items-center sm:justify-between">
+            <section className="flex flex-col gap-5 rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-4">
-                    <div className="rounded-2xl bg-lime-400/10 p-3">
-                        <Users className="h-7 w-7 text-lime-400" />
+                    <div className="rounded-2xl bg-[color:var(--organisation-accent)]/10 p-3">
+                        <Users className="h-7 w-7 text-[var(--organisation-accent)]" />
                     </div>
 
                     <div>
@@ -672,7 +672,7 @@ export function TeamsManager({
                 </div>
 
                 <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 font-bold text-black transition hover:bg-lime-300"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-bold text-[var(--organisation-on-accent)] transition hover:opacity-90"
                     type="button"
                     onClick={openAddTeamModal}
                 >

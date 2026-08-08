@@ -1,12 +1,3 @@
-import {
-    Eye,
-    EyeOff,
-    Globe2,
-    Pencil,
-    ShieldCheck,
-    Trash2,
-    Users,
-} from 'lucide-react'
 import type {
     ClubOption,
     DbTeam,
@@ -21,9 +12,7 @@ type TeamsTableProps = {
     onTogglePublished: (team: DbTeam) => void
 }
 
-function getInitials(
-    teamName: string
-) {
+function getInitials(teamName: string) {
     return teamName
         .split(' ')
         .filter(Boolean)
@@ -54,83 +43,39 @@ function getClubName(
     )
 }
 
-function getParticipationBadgeClassName(
-    status: TeamParticipationStatus
-) {
-    switch (status) {
-        case 'confirmed':
-            return 'border-lime-700/60 bg-lime-400/10 text-lime-300'
-        case 'invited':
-            return 'border-sky-700/60 bg-sky-400/10 text-sky-300'
-        case 'withdrawn':
-            return 'border-red-800/60 bg-red-500/10 text-red-300'
-        case 'interested':
-        default:
-            return 'border-amber-700/60 bg-amber-400/10 text-amber-300'
-    }
-}
-
-function getPublicVisibility(
-    team: DbTeam
-) {
+function getPublicVisibility(team: DbTeam) {
     if (
         team.published &&
-        team.participation_status ===
-        'confirmed'
+        team.participation_status === 'confirmed'
     ) {
         return {
-            label: 'Visible publicly',
-            badgeClassName:
-                'border-lime-700/60 bg-lime-400/10 text-lime-300',
+            label: 'Visible on public website',
+            className:
+                'teamVisibilityBadge teamVisibilityPublished',
             description:
-                'Confirmed and published.',
-            icon: Eye,
+                'The team is confirmed and published.',
         }
     }
 
     if (!team.published) {
         return {
-            label: 'Hidden publicly',
-            badgeClassName:
-                'border-slate-700 bg-slate-500/10 text-slate-300',
+            label: 'Hidden from public website',
+            className:
+                'teamVisibilityBadge teamVisibilityHidden',
             description:
-                'Publish this team to make it eligible for public display.',
-            icon: EyeOff,
+                'Publish the team to make it eligible for public display.',
         }
     }
 
     return {
-        label: 'Hidden publicly',
-        badgeClassName:
-            'border-amber-700/60 bg-amber-400/10 text-amber-300',
+        label: 'Hidden from public website',
+        className:
+            'teamVisibilityBadge teamVisibilityHidden',
         description:
             `Status is ${formatParticipationStatus(
                 team.participation_status
             )}. Only confirmed teams appear publicly.`,
-        icon: EyeOff,
     }
-}
-
-type DetailItemProps = {
-    label: string
-    value: string
-}
-
-function DetailItem({
-                        label,
-                        value,
-                    }: DetailItemProps) {
-    return (
-        <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                {label}
-            </p>
-
-            <p className="mt-1 break-words text-sm font-medium leading-6 text-slate-200">
-                {value}
-            </p>
-        </div>
-    )
 }
 
 export function TeamsTable({
@@ -142,224 +87,200 @@ export function TeamsTable({
                            }: TeamsTableProps) {
     if (!teams.length) {
         return (
-            <section className="rounded-3xl border border-dashed border-lime-800/60 bg-[#10190e] px-6 py-14 text-center font-sans">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-400/10">
-                    <Users className="h-7 w-7 text-lime-400" />
-                </div>
+            <div className="rounded-2xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[var(--organisation-text)] [&_h3]:text-xl [&_h3]:font-bold [&_h4]:text-lg [&_h4]:font-bold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-400">
+                <h3>No teams added</h3>
 
-                <h3 className="mt-5 text-xl font-bold text-white">
-                    No teams added
-                </h3>
-
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
+                <p>
                     Add the first team for one of
-                    your clubs. Its primary home
-                    venue will be linked during
-                    creation.
+                    your clubs.
                 </p>
-            </section>
+            </div>
         )
     }
 
     return (
-        <div className="space-y-5 font-sans">
-            <section className="flex items-start gap-3 rounded-2xl border border-sky-800/40 bg-sky-500/10 px-5 py-4">
-                <div className="mt-0.5 rounded-xl bg-sky-400/10 p-2">
-                    <Globe2 className="h-5 w-5 text-sky-300" />
-                </div>
+        <div>
+            <div className="rounded-2xl border border-[var(--organisation-accent)] bg-[var(--organisation-surface)] p-4 text-sm text-[var(--organisation-text)] [&_strong]:text-[var(--organisation-accent)] [&_p]:mt-1 [&_p]:text-slate-300">
+                <strong>
+                    Public website visibility rules
+                </strong>
 
-                <div>
-                    <h3 className="text-sm font-bold text-sky-100">
-                        Public website visibility
-                    </h3>
+                <p>
+                    A team appears publicly only
+                    when its participation status is
+                    <strong> Confirmed</strong> and
+                    it is
+                    <strong> Published</strong>.
+                </p>
+            </div>
 
-                    <p className="mt-1 text-sm leading-6 text-sky-100/70">
-                        A team appears publicly only
-                        when its participation status
-                        is{' '}
-                        <strong className="font-bold text-sky-100">
-                            Confirmed
-                        </strong>{' '}
-                        and it is{' '}
-                        <strong className="font-bold text-sky-100">
-                            Published
-                        </strong>
-                        .
-                    </p>
-                </div>
-            </section>
-
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {teams.map((team) => {
                     const visibility =
                         getPublicVisibility(team)
 
-                    const VisibilityIcon =
-                        visibility.icon
-
                     return (
                         <article
-                            className="flex min-w-0 flex-col overflow-hidden rounded-3xl border border-lime-900/50 bg-[#10190e] shadow-lg shadow-black/10 transition hover:border-lime-700/60"
+                            className="rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-5 text-[var(--organisation-text)] shadow-sm"
                             key={team.id}
                         >
-                            <header className="flex items-start gap-4 border-b border-lime-900/40 p-5 sm:p-6">
-                                {team.logo_url ? (
-                                    <img
-                                        className="h-16 w-16 shrink-0 rounded-2xl border border-lime-900/50 bg-black/20 object-cover"
-                                        src={team.logo_url}
-                                        alt={`${team.name} logo`}
-                                        loading="lazy"
-                                    />
-                                ) : (
-                                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-lime-800/50 bg-lime-400/10 text-lg font-black tracking-wide text-lime-300">
-                                        {getInitials(
-                                            team.name
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="min-w-0 flex-1">
-                                    <h4 className="truncate text-lg font-bold tracking-tight text-white">
-                                        {team.name}
-                                    </h4>
-
-                                    <p className="mt-1 truncate text-sm font-medium text-slate-400">
-                                        {getClubName(
-                                            team,
-                                            clubs
-                                        )}
-                                    </p>
-
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        <span
-                                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${getParticipationBadgeClassName(
-                                                team.participation_status
-                                            )}`}
-                                        >
-                                            {formatParticipationStatus(
-                                                team.participation_status
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex min-w-0 items-center gap-4">
+                                    {team.logo_url ? (
+                                        <img
+                                            className="h-14 w-14 rounded-xl border border-[var(--organisation-border)] object-contain"
+                                            src={
+                                                team.logo_url
+                                            }
+                                            alt={`${team.name} logo`}
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--organisation-accent)] font-bold text-[var(--organisation-on-accent)]">
+                                            {getInitials(
+                                                team.name
                                             )}
-                                        </span>
-
-                                        <span
-                                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${
-                                                team.published
-                                                    ? 'border-lime-700/60 bg-lime-400/10 text-lime-300'
-                                                    : 'border-slate-700 bg-slate-500/10 text-slate-300'
-                                            }`}
-                                        >
-                                            {team.published
-                                                ? 'Published'
-                                                : 'Unpublished'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </header>
-
-                            <div className="flex-1 p-5 sm:p-6">
-                                <div className="rounded-2xl border border-lime-900/40 bg-black/20 p-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className="rounded-xl bg-lime-400/10 p-2">
-                                            <VisibilityIcon className="h-4 w-4 text-lime-300" />
                                         </div>
+                                    )}
 
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                                                Public visibility
-                                            </p>
+                                    <div>
+                                        <h4>
+                                            {team.name}
+                                        </h4>
 
+                                        <p className="text-slate-400">
+                                            {getClubName(
+                                                team,
+                                                clubs
+                                            )}
+                                        </p>
+
+                                        <div className="mt-2 flex flex-wrap gap-2 [&_span]:rounded-full [&_span]:border [&_span]:border-[var(--organisation-border)] [&_span]:px-2.5 [&_span]:py-1 [&_span]:text-xs [&_span]:font-semibold">
                                             <span
-                                                className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${visibility.badgeClassName}`}
+                                                className={`teamParticipationBadge teamParticipation-${team.participation_status}`}
                                             >
-                                                {
-                                                    visibility.label
-                                                }
+                                                {formatParticipationStatus(
+                                                    team.participation_status
+                                                )}
                                             </span>
 
-                                            <p className="mt-2 text-xs leading-5 text-slate-500">
-                                                {
-                                                    visibility.description
+                                            <span
+                                                className={
+                                                    team.published
+                                                        ? 'teamVisibilityBadge teamVisibilityPublished'
+                                                        : 'teamVisibilityBadge teamVisibilityHidden'
                                                 }
-                                            </p>
+                                            >
+                                                {team.published
+                                                    ? 'Published'
+                                                    : 'Unpublished'}
+                                            </span>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-5">
-                                    <DetailItem
-                                        label="Age group"
-                                        value={
-                                            team.age_group ??
-                                            'Not provided'
-                                        }
-                                    />
-
-                                    <DetailItem
-                                        label="Gender"
-                                        value={
-                                            team.gender ??
-                                            'Not provided'
-                                        }
-                                    />
-
-                                    <DetailItem
-                                        label="Division"
-                                        value={
-                                            team.division ??
-                                            'Not provided'
-                                        }
-                                    />
-
-                                    <DetailItem
-                                        label="Year group"
-                                        value={
-                                            team.year_group?.toString() ??
-                                            'Not provided'
-                                        }
-                                    />
-
-                                    <DetailItem
-                                        label="Home kit"
-                                        value={
-                                            team.home_kit_colour ??
-                                            'Not provided'
-                                        }
-                                    />
-
-                                    <DetailItem
-                                        label="Away kit"
-                                        value={
-                                            team.away_kit_colour ??
-                                            'Not provided'
-                                        }
-                                    />
-                                </div>
-
-                                <div className="mt-5 border-t border-lime-900/40 pt-5">
-                                    <DetailItem
-                                        label="Notes"
-                                        value={
-                                            team.notes?.trim() ||
-                                            'No notes added'
-                                        }
-                                    />
                                 </div>
                             </div>
 
-                            <footer className="grid grid-cols-1 gap-2 border-t border-lime-900/40 bg-black/10 p-4 sm:grid-cols-3">
+                            <div className="mt-5 grid grid-cols-1 gap-4 border-t border-[var(--organisation-border)] pt-4 sm:grid-cols-2 [&>div]:flex [&>div]:flex-col [&>div]:gap-1">
+                                <div>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Public Visibility
+                                    </span>
+
+                                    <span
+                                        className={
+                                            visibility.className
+                                        }
+                                    >
+                                        {visibility.label}
+                                    </span>
+
+                                    <small className="text-slate-400">
+                                        {
+                                            visibility.description
+                                        }
+                                    </small>
+                                </div>
+
+                                <div>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Age Group
+                                    </span>
+
+                                    <strong>
+                                        {team.age_group ??
+                                            'Not provided'}
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Gender
+                                    </span>
+
+                                    <span>
+                                        {team.gender ??
+                                            'Not provided'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Division
+                                    </span>
+
+                                    <span>
+                                        {team.division ??
+                                            'Not provided'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Home Kit
+                                    </span>
+
+                                    <span>
+                                        {team.home_kit_colour ??
+                                            'Not provided'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Away Kit
+                                    </span>
+
+                                    <span>
+                                        {team.away_kit_colour ??
+                                            'Not provided'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Notes
+                                    </span>
+
+                                    <span>
+                                        {team.notes?.trim() ||
+                                            'No notes added'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 flex flex-wrap gap-2 border-t border-[var(--organisation-border)] pt-4">
                                 <button
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-800/60 bg-lime-400/5 px-4 py-2.5 text-sm font-bold text-lime-100 transition hover:border-lime-500/70 hover:bg-lime-400/10"
+                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
                                     type="button"
                                     onClick={() =>
                                         onEdit(team)
                                     }
                                 >
-                                    <Pencil className="h-4 w-4" />
                                     Edit
                                 </button>
 
                                 <button
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-800/60 bg-sky-400/5 px-4 py-2.5 text-sm font-bold text-sky-100 transition hover:border-sky-500/70 hover:bg-sky-400/10"
+                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
                                     type="button"
                                     onClick={() =>
                                         onTogglePublished(
@@ -367,28 +288,21 @@ export function TeamsTable({
                                         )
                                     }
                                 >
-                                    {team.published ? (
-                                        <EyeOff className="h-4 w-4" />
-                                    ) : (
-                                        <ShieldCheck className="h-4 w-4" />
-                                    )}
-
                                     {team.published
                                         ? 'Unpublish'
                                         : 'Publish'}
                                 </button>
 
                                 <button
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-900/60 bg-red-500/5 px-4 py-2.5 text-sm font-bold text-red-300 transition hover:border-red-600/70 hover:bg-red-500/10"
+                                    className="inline-flex items-center justify-center rounded-lg border border-red-700/60 bg-red-950/20 px-3 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-950/40"
                                     type="button"
                                     onClick={() =>
                                         onDelete(team)
                                     }
                                 >
-                                    <Trash2 className="h-4 w-4" />
                                     Delete
                                 </button>
-                            </footer>
+                            </div>
                         </article>
                     )
                 })}

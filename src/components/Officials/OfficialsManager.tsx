@@ -50,7 +50,6 @@ const DEFAULT_STATS: OfficialDashboardStats = {
 const OfficialsManager: React.FC = () => {
     const { currentOrganisation } = useOrganisation();
     const { currentCompetition } = useCompetition();
-    console.log(currentCompetition);
 
     const currentOrganisationId =
         currentOrganisation?.id ?? '';
@@ -432,7 +431,7 @@ const OfficialsManager: React.FC = () => {
                             disabled={
                                 !currentOrganisationId
                             }
-                            className="inline-flex items-center gap-2 rounded-lg bg-lime-600 px-4 py-2 text-sm font-semibold text-white hover:bg-lime-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-lg bg-[var(--organisation-accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Plus size={16} />
 
@@ -450,7 +449,7 @@ const OfficialsManager: React.FC = () => {
 
                         <input
                             type="search"
-                            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-lime-500 focus:ring-2 focus:ring-lime-100"
+                            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                             placeholder="Search officials..."
                             value={
                                 filters.search
@@ -470,7 +469,7 @@ const OfficialsManager: React.FC = () => {
                     </div>
 
                     <select
-                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-lime-500 focus:ring-2 focus:ring-lime-100"
+                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                         value={
                             filters.role ?? ''
                         }
@@ -516,7 +515,7 @@ const OfficialsManager: React.FC = () => {
                     </select>
 
                     <select
-                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-lime-500 focus:ring-2 focus:ring-lime-100"
+                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                         value={
                             filters.status ?? ''
                         }
@@ -553,7 +552,7 @@ const OfficialsManager: React.FC = () => {
                     </select>
 
                     <select
-                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-lime-500 focus:ring-2 focus:ring-lime-100"
+                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                         value={
                             filters
                                 .verification_status ??

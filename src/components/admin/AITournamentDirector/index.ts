@@ -1,0 +1,1 @@
+export { AITournamentDirector } from './AITournamentDirector'

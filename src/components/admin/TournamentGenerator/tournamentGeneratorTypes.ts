@@ -73,6 +73,17 @@ export type GeneratedFixturePreview = {
 
     venueId: string | null
     venueName: string
+
+    refereeOfficialId: string | null
+    refereeName: string
+}
+
+export type CreatedGeneratedFixture = {
+    id: string
+    home_competition_team_id: string
+    away_competition_team_id: string
+    venue_id: string | null
+    kickoff_time: string
 }
 
 export type GeneratorConfig = {

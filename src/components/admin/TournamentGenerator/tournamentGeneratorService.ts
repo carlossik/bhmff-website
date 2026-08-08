@@ -1,5 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient'
 import type {
+    CreatedGeneratedFixture,
     ExistingFixture,
     GeneratedFixturePreview,
     GeneratorCompetitionTeam,
@@ -227,7 +228,7 @@ export const tournamentGeneratorService = {
         competitionId: string,
         fixtures: GeneratedFixturePreview[],
         publishImmediately: boolean
-    ): Promise<void> {
+    ): Promise<CreatedGeneratedFixture[]> {
         if (!fixtures.length) {
             throw new Error(
                 'There are no generated fixtures to save.'
@@ -256,13 +257,24 @@ export const tournamentGeneratorService = {
             })
         )
 
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('fixtures')
             .insert(payload)
+            .select(`
+                id,
+                home_competition_team_id,
+                away_competition_team_id,
+                venue_id,
+                kickoff_time
+            `)
 
         throwSupabaseError(
             error,
             'Failed to save generated fixtures'
         )
+
+        return (
+            data ?? []
+        ) as CreatedGeneratedFixture[]
     },
 }
