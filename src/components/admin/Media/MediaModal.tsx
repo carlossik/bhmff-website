@@ -41,10 +41,10 @@ type MediaModalProps = {
 };
 
 const fieldClassName =
-    "mt-2 w-full rounded-xl border border-lime-900/60 bg-[#071006] px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-lime-400";
+    "mt-2 w-full rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-[var(--organisation-text)] outline-none transition placeholder:text-[var(--organisation-muted)] focus:border-[var(--organisation-accent)]";
 
 const labelClassName =
-    "block text-sm font-bold text-slate-200";
+    "block text-sm font-bold text-[var(--organisation-text)]";
 
 export default function MediaModal({
                                        open,
@@ -167,14 +167,14 @@ export default function MediaModal({
 
     if (showPreview) {
         return (
-            <div className="fixed inset-0 z-[70] overflow-y-auto bg-[#071006]">
-                <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-lime-900/50 bg-[#10190f]/95 px-5 py-4 backdrop-blur sm:px-8">
+            <div className="fixed inset-0 z-[70] overflow-y-auto bg-[var(--organisation-background)]">
+                <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-[color:var(--organisation-border)] bg-[var(--organisation-surface)]/95 px-5 py-4 backdrop-blur sm:px-8">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                             Preview Mode — Not Public
                         </p>
 
-                        <h2 className="mt-1 text-xl font-black text-white">
+                        <h2 className="mt-1 text-xl font-black text-[var(--organisation-text)]">
                             Media Preview
                         </h2>
                     </div>
@@ -184,7 +184,7 @@ export default function MediaModal({
                         onClick={() =>
                             setShowPreview(false)
                         }
-                        className="rounded-xl border border-lime-900/70 px-5 py-2.5 font-bold text-white transition hover:border-lime-400"
+                        className="rounded-xl border border-[color:var(--organisation-border)] px-5 py-2.5 font-bold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
                     >
                         Back to editor
                     </button>
@@ -192,7 +192,7 @@ export default function MediaModal({
 
                 <main className="mx-auto max-w-5xl px-5 py-10 sm:px-8">
                     <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full bg-lime-400/10 px-3 py-1 text-xs font-bold text-lime-300">
+                        <span className="rounded-full bg-[var(--organisation-accent)]/10 px-3 py-1 text-xs font-bold text-[var(--organisation-accent)]">
                             {values.category}
                         </span>
 
@@ -207,13 +207,13 @@ export default function MediaModal({
                         )}
                     </div>
 
-                    <h1 className="mt-6 text-4xl font-black text-white sm:text-5xl">
+                    <h1 className="mt-6 text-4xl font-black text-[var(--organisation-text)] sm:text-5xl">
                         {values.title ||
                             "Untitled media"}
                     </h1>
 
                     {values.embedUrl ? (
-                        <div className="mt-8 overflow-hidden rounded-3xl border border-lime-900/50 bg-black">
+                        <div className="mt-8 overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-black">
                             <iframe
                                 src={
                                     values.embedUrl
@@ -240,12 +240,12 @@ export default function MediaModal({
                             className="mt-8 max-h-[520px] w-full rounded-3xl object-cover"
                         />
                     ) : (
-                        <div className="mt-8 flex aspect-video items-center justify-center rounded-3xl border border-dashed border-lime-900/60 bg-[#0b150a] text-slate-500">
+                        <div className="mt-8 flex aspect-video items-center justify-center rounded-3xl border border-dashed border-[color:var(--organisation-border)] bg-[var(--organisation-background)] text-[var(--organisation-muted)]">
                             No preview available
                         </div>
                     )}
 
-                    <p className="mt-8 text-lg leading-8 text-slate-300">
+                    <p className="mt-8 text-lg leading-8 text-[var(--organisation-muted)]">
                         {values.description ||
                             "No description provided."}
                     </p>
@@ -274,25 +274,25 @@ export default function MediaModal({
             }}
         >
             <section
-                className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-lime-900/50 bg-[#10190f] shadow-2xl"
+                className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] shadow-2xl"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="media-modal-title"
             >
-                <header className="flex items-start justify-between gap-4 border-b border-lime-900/50 px-5 py-5 sm:px-8">
+                <header className="flex items-start justify-between gap-4 border-b border-[color:var(--organisation-border)] px-5 py-5 sm:px-8">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                             Content Management
                         </p>
 
                         <h2
                             id="media-modal-title"
-                            className="mt-1 text-2xl font-black text-white"
+                            className="mt-1 text-2xl font-black text-[var(--organisation-text)]"
                         >
                             {modalTitle}
                         </h2>
 
-                        <p className="mt-2 text-sm text-slate-400">
+                        <p className="mt-2 text-sm text-[var(--organisation-muted)]">
                             {organisationName} ·{" "}
                             {competitionName}
                         </p>
@@ -302,7 +302,7 @@ export default function MediaModal({
                         type="button"
                         disabled={saving}
                         onClick={onCancel}
-                        className="rounded-xl border border-lime-900/60 p-2 text-slate-300 transition hover:border-lime-400 hover:text-white disabled:opacity-50"
+                        className="rounded-xl border border-[color:var(--organisation-border)] p-2 text-[var(--organisation-muted)] transition hover:border-[var(--organisation-accent)] hover:text-[var(--organisation-text)] disabled:opacity-50"
                         aria-label="Close media form"
                     >
                         <X className="h-5 w-5" />
@@ -406,8 +406,8 @@ export default function MediaModal({
                         </label>
 
                         <div className="lg:col-span-2">
-                            <div className="flex items-center gap-2 text-sm font-bold text-slate-200">
-                                <Calendar className="h-4 w-4 text-lime-400" />
+                            <div className="flex items-center gap-2 text-sm font-bold text-[var(--organisation-text)]">
+                                <Calendar className="h-4 w-4 text-[var(--organisation-accent)]" />
                                 Publication date and time
                             </div>
 
@@ -580,7 +580,7 @@ export default function MediaModal({
                             </div>
                         </div>
 
-                        <label className="flex items-center gap-3 rounded-xl border border-lime-900/50 bg-[#071006] px-4 py-4 text-sm font-bold text-slate-200 lg:col-span-2">
+                        <label className="flex items-center gap-3 rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-4 text-sm font-bold text-[var(--organisation-text)] lg:col-span-2">
                             <input
                                 type="checkbox"
                                 checked={
@@ -593,7 +593,7 @@ export default function MediaModal({
                                             .checked,
                                     )
                                 }
-                                className="h-5 w-5 accent-lime-400"
+                                className="h-5 w-5 accent-[var(--organisation-accent)]"
                             />
 
                             Featured media
@@ -688,7 +688,7 @@ export default function MediaModal({
 
                         {(values.embedUrl ||
                             values.thumbnailUrl) && (
-                            <div className="overflow-hidden rounded-2xl border border-lime-900/50 bg-black lg:col-span-2">
+                            <div className="overflow-hidden rounded-2xl border border-[color:var(--organisation-border)] bg-black lg:col-span-2">
                                 {values.embedUrl ? (
                                     <iframe
                                         src={
@@ -720,7 +720,7 @@ export default function MediaModal({
                     </div>
                 </div>
 
-                <footer className="flex shrink-0 flex-col-reverse gap-3 border-t border-lime-900/50 bg-[#10190f] px-5 py-4 sm:flex-row sm:justify-end sm:px-8">
+                <footer className="flex shrink-0 flex-col-reverse gap-3 border-t border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-5 py-4 sm:flex-row sm:justify-end sm:px-8">
                     <button
                         type="button"
                         disabled={saving}
@@ -737,7 +737,7 @@ export default function MediaModal({
                         type="button"
                         disabled={saving}
                         onClick={onCancel}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/70 px-6 py-3 font-bold text-white transition hover:border-lime-400 disabled:opacity-50"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--organisation-border)] px-6 py-3 font-bold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] disabled:opacity-50"
                     >
                         <X className="h-5 w-5" />
                         Cancel
@@ -747,7 +747,7 @@ export default function MediaModal({
                         type="button"
                         disabled={saving}
                         onClick={onSave}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-6 py-3 font-black text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-6 py-3 font-black text-[var(--organisation-on-accent)] transition hover:bg-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <Save className="h-5 w-5" />
                         {saving

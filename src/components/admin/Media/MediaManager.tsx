@@ -577,12 +577,12 @@ export function MediaManager() {
         !currentCompetition
     ) {
         return (
-            <div className="rounded-2xl border border-lime-900/50 bg-[#0b150a] p-8 text-center">
-                <h3 className="text-xl font-bold text-white">
+            <div className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] p-8 text-center">
+                <h3 className="text-xl font-bold text-[var(--organisation-text)]">
                     Select an organisation and competition
                 </h3>
 
-                <p className="mt-2 text-slate-400">
+                <p className="mt-2 text-[var(--organisation-muted)]">
                     Choose the context you want to manage before opening the media library.
                 </p>
             </div>
@@ -591,19 +591,19 @@ export function MediaManager() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-2xl border border-lime-900/50 bg-[#0b150a] p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                         Content Management
                     </p>
 
-                    <h3 className="mt-1 text-3xl font-black text-white">
+                    <h3 className="mt-1 text-3xl font-black text-[var(--organisation-text)]">
                         Media Library
                     </h3>
 
-                    <p className="mt-2 text-sm text-slate-400">
+                    <p className="mt-2 text-sm text-[var(--organisation-muted)]">
                         Manage highlights, full matches, interviews, livestreams, podcasts and promotional content for{" "}
-                        <strong className="text-white">
+                        <strong className="text-[var(--organisation-text)]">
                             {currentCompetition.name}
                         </strong>
                         .
@@ -615,7 +615,7 @@ export function MediaManager() {
                     onClick={
                         openCreateMediaModal
                     }
-                    className="rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
+                    className="rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-black text-[var(--organisation-on-accent)] transition hover:bg-[var(--organisation-accent)]"
                 >
                     + Add Media
                 </button>

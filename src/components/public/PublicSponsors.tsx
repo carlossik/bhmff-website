@@ -733,14 +733,14 @@ export function PublicSponsors({
 
     if (isLoading) {
         return (
-            <p className="text-sm font-semibold text-slate-400">
+            <p className="text-sm font-semibold text-[var(--organisation-muted)]">
                 {sponsorshipContent.loadingLabel}
             </p>
         );
     }
 
     const inputClassName =
-        "mt-2 w-full rounded-xl border border-lime-900/70 bg-[#071006] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-lime-400 disabled:cursor-not-allowed disabled:opacity-60";
+        "mt-2 w-full rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-sm text-[var(--organisation-text)] outline-none transition placeholder:text-[var(--organisation-muted)] focus:border-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-60";
 
     return (
         <>
@@ -915,12 +915,12 @@ export function PublicSponsors({
                     }}
                 >
                     <section
-                        className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-lime-800/60 bg-[#071006] shadow-2xl"
+                        className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] shadow-2xl"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="sponsor-enquiry-title"
                     >
-                        <header className="sticky top-0 z-10 flex flex-col gap-5 border-b border-lime-900/50 bg-[#071006]/95 p-6 backdrop-blur sm:flex-row sm:items-start sm:justify-between">
+                        <header className="sticky top-0 z-10 flex flex-col gap-5 border-b border-[color:var(--organisation-border)] bg-[var(--organisation-background)]/95 p-6 backdrop-blur sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <img
                                     src="/assets/tournamenthq-logo.png"
@@ -928,18 +928,18 @@ export function PublicSponsors({
                                     className="mb-5 h-auto max-h-12 w-[190px] object-contain"
                                 />
 
-                                <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-400">
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--organisation-accent)]">
                                     {sponsorshipContent.modalEyebrow}
                                 </p>
 
                                 <h2
                                     id="sponsor-enquiry-title"
-                                    className="mt-2 text-4xl font-black text-white"
+                                    className="mt-2 text-4xl font-black text-[var(--organisation-text)]"
                                 >
                                     {sponsorshipContent.modalTitle}
                                 </h2>
 
-                                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+                                <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--organisation-muted)]">
                                     {sponsorshipContent.modalDescription}
                                 </p>
                             </div>
@@ -952,7 +952,7 @@ export function PublicSponsors({
                                 onClick={
                                     closeEnquiryForm
                                 }
-                                className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-white transition hover:border-lime-500 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--organisation-border)] px-4 py-2 text-sm font-bold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] hover:text-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <X
                                     size={17}
@@ -969,7 +969,7 @@ export function PublicSponsors({
                                         className="mx-auto text-emerald-300"
                                     />
 
-                                    <h3 className="mt-4 text-2xl font-black text-white">
+                                    <h3 className="mt-4 text-2xl font-black text-[var(--organisation-text)]">
                                         Enquiry received
                                     </h3>
 
@@ -984,7 +984,7 @@ export function PublicSponsors({
                                         onClick={
                                             closeEnquiryForm
                                         }
-                                        className="mt-6 rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
+                                        className="mt-6 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-black text-[var(--organisation-on-accent)] transition hover:opacity-90"
                                     >
                                         Close
                                     </button>
@@ -1005,11 +1005,11 @@ export function PublicSponsors({
                                     )}
 
                                     <div className="grid gap-5 sm:grid-cols-2">
-                                        <label className="block text-sm font-bold text-white">
+                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
                                             <span className="inline-flex items-center gap-2">
                                                 <Building2
                                                     size={16}
-                                                    className="text-lime-400"
+                                                    className="text-[var(--organisation-accent)]"
                                                 />
                                                 Organisation
                                             </span>
@@ -1039,7 +1039,7 @@ export function PublicSponsors({
                                             />
                                         </label>
 
-                                        <label className="block text-sm font-bold text-white">
+                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
                                             Contact name
 
                                             <input
@@ -1067,11 +1067,11 @@ export function PublicSponsors({
                                             />
                                         </label>
 
-                                        <label className="block text-sm font-bold text-white">
+                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
                                             <span className="inline-flex items-center gap-2">
                                                 <Mail
                                                     size={16}
-                                                    className="text-lime-400"
+                                                    className="text-[var(--organisation-accent)]"
                                                 />
                                                 Email
                                             </span>
@@ -1102,11 +1102,11 @@ export function PublicSponsors({
                                             />
                                         </label>
 
-                                        <label className="block text-sm font-bold text-white">
+                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
                                             <span className="inline-flex items-center gap-2">
                                                 <Phone
                                                     size={16}
-                                                    className="text-lime-400"
+                                                    className="text-[var(--organisation-accent)]"
                                                 />
                                                 Phone
                                             </span>
@@ -1151,7 +1151,7 @@ export function PublicSponsors({
                                             />
                                         </label>
 
-                                        <label className="block text-sm font-bold text-white">
+                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
                                             Partnership interest
 
                                             <select
@@ -1208,7 +1208,7 @@ export function PublicSponsors({
                                             </select>
                                         </label>
 
-                                        <label className="block text-sm font-bold text-white">
+                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
                                             Estimated budget
 
                                             <select
@@ -1256,7 +1256,7 @@ export function PublicSponsors({
                                             </select>
                                         </label>
 
-                                        <label className="block text-sm font-bold text-white sm:col-span-2">
+                                        <label className="block text-sm font-bold text-[var(--organisation-text)] sm:col-span-2">
                                             Message
 
                                             <textarea
@@ -1285,13 +1285,13 @@ export function PublicSponsors({
                                         </label>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-3 border-t border-lime-900/50 pt-6">
+                                    <div className="flex flex-wrap gap-3 border-t border-[color:var(--organisation-border)] pt-6">
                                         <button
                                             type="submit"
                                             disabled={
                                                 isSubmitting
                                             }
-                                            className="rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-black text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {isSubmitting
                                                 ? "Submitting..."
@@ -1306,7 +1306,7 @@ export function PublicSponsors({
                                             onClick={
                                                 closeEnquiryForm
                                             }
-                                            className="rounded-xl border border-slate-700 px-5 py-3 font-bold text-white transition hover:border-lime-500 hover:text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-xl border border-[color:var(--organisation-border)] px-5 py-3 font-bold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] hover:text-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Cancel
                                         </button>
