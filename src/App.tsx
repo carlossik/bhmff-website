@@ -5,9 +5,10 @@ import {
 
 import { AdminPage } from './pages/AdminPage'
 import { SetPasswordPage } from './pages/Auth/SetPasswordPage'
+import { SignupPage } from './pages/Auth/SignupPage'
 import { HomePage } from './pages/Home/HomePage'
-import { PublicOrganisationLayout } from './pages/public/PublicOrganisationLayout'
 import { SetupWizard } from './pages/onboarding/SetupWizard'
+import { PublicOrganisationLayout } from './pages/public/PublicOrganisationLayout'
 
 const RESERVED_PUBLIC_PATHS =
     new Set([
@@ -22,6 +23,7 @@ const RESERVED_PUBLIC_PATHS =
         'request-demo',
         'robots.txt',
         'set-password',
+        'signup',
         'sitemap.xml',
     ])
 
@@ -38,7 +40,7 @@ function isBhmffCustomDomain() {
     return (
         hostname === 'bhmff.co.uk' ||
         hostname ===
-        'www.bhmff.co.uk'
+            'www.bhmff.co.uk'
     )
 }
 
@@ -100,22 +102,31 @@ function App() {
 
     if (
         location.pathname ===
-        '/admin/set-password'
+        '/signup'
     ) {
-        return <SetPasswordPage />
+        return <SignupPage />
     }
 
     if (
-        !isBhmffCustomDomain() &&
-        (location.pathname === '/onboarding' ||
-            location.pathname.startsWith('/onboarding/'))
+        location.pathname ===
+        '/onboarding' ||
+        location.pathname.startsWith(
+            '/onboarding/',
+        )
     ) {
         return <SetupWizard />
     }
 
     if (
         location.pathname ===
-        '/admin' ||
+        '/admin/set-password'
+    ) {
+        return <SetPasswordPage />
+    }
+
+    if (
+        location.pathname ===
+            '/admin' ||
         location.pathname.startsWith(
             '/admin/',
         )
@@ -147,6 +158,17 @@ function App() {
     }
 
     if (
+        location.pathname === '/'
+    ) {
+        return (
+            <Navigate
+                replace
+                to="/admin"
+            />
+        )
+    }
+
+    if (
         isCleanOrganisationPath(
             location.pathname,
         )
@@ -154,10 +176,6 @@ function App() {
         return (
             <PublicOrganisationLayout />
         )
-    }
-
-    if (location.pathname === '/') {
-        return <Navigate replace to="/admin" />
     }
 
     return (

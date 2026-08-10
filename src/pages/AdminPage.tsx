@@ -18,6 +18,22 @@ import { OrganisationProvider } from '../context/OrganisationContext'
 import { OrganisationThemeProvider } from '../context/OrganisationThemeProvider'
 import { CompetitionProvider } from '../contexts/CompetitionContext'
 
+const ONBOARDING_ACCESS_MESSAGES = new Set([
+    'Your account does not have an administrator profile.',
+    'Your account is not assigned to an active organisation.',
+])
+
+function shouldContinueOnboarding(
+    error: unknown,
+): boolean {
+    return (
+        error instanceof Error &&
+        ONBOARDING_ACCESS_MESSAGES.has(
+            error.message.trim(),
+        )
+    )
+}
+
 export function AdminPage() {
     const [session, setSession] =
         useState<Session | null>(null)
@@ -54,14 +70,14 @@ export function AdminPage() {
     const loadProfile = useCallback(
         async (
             activeSession: Session,
-            showLoadingScreen = false
+            showLoadingScreen = false,
         ) => {
             const userId =
                 activeSession.user.id
 
             if (
                 loadedUserIdRef.current ===
-                userId &&
+                    userId &&
                 profileRef.current
             ) {
                 setSession(activeSession)
@@ -79,6 +95,7 @@ export function AdminPage() {
                 }
 
                 setAccessError('')
+                setSession(activeSession)
 
                 try {
                     const adminProfile =
@@ -111,10 +128,25 @@ export function AdminPage() {
 
                     setProfile(null)
 
+                    if (
+                        shouldContinueOnboarding(
+                            error,
+                        )
+                    ) {
+                        setAccessError('')
+                        navigate(
+                            '/onboarding',
+                            {
+                                replace: true,
+                            },
+                        )
+                        return
+                    }
+
                     setAccessError(
                         error instanceof Error
                             ? error.message
-                            : 'Your administrator access could not be verified.'
+                            : 'Your administrator access could not be verified.',
                     )
                 } finally {
                     if (
@@ -133,7 +165,7 @@ export function AdminPage() {
 
             await request
         },
-        []
+        [navigate],
     )
 
     useEffect(() => {
@@ -165,7 +197,7 @@ export function AdminPage() {
 
                 void loadProfile(
                     data.session,
-                    true
+                    true,
                 )
             })
 
@@ -175,7 +207,7 @@ export function AdminPage() {
             supabase.auth.onAuthStateChange(
                 (
                     event,
-                    activeSession
+                    activeSession,
                 ) => {
                     if (
                         !isMountedRef.current
@@ -185,7 +217,7 @@ export function AdminPage() {
 
                     if (
                         event ===
-                        'SIGNED_OUT' ||
+                            'SIGNED_OUT' ||
                         !activeSession
                     ) {
                         loadedUserIdRef.current =
@@ -207,25 +239,25 @@ export function AdminPage() {
                         'TOKEN_REFRESHED'
                     ) {
                         setSession(
-                            activeSession
+                            activeSession,
                         )
                         return
                     }
 
                     if (
                         event ===
-                        'SIGNED_IN' ||
+                            'SIGNED_IN' ||
                         event ===
-                        'INITIAL_SESSION' ||
+                            'INITIAL_SESSION' ||
                         event ===
-                        'USER_UPDATED'
+                            'USER_UPDATED'
                     ) {
                         void loadProfile(
                             activeSession,
-                            !profileRef.current
+                            !profileRef.current,
                         )
                     }
-                }
+                },
             )
 
         return () => {
@@ -327,19 +359,23 @@ export function AdminPage() {
                                 !data.session
                             ) {
                                 setAccessError(
-                                    'Login succeeded, but the session could not be loaded.'
+                                    'Login succeeded, but the session could not be loaded.',
                                 )
                                 setIsLoading(
-                                    false
+                                    false,
                                 )
                                 return
                             }
 
+                            setSession(
+                                data.session,
+                            )
+
                             void loadProfile(
                                 data.session,
-                                true
+                                true,
                             )
-                        }
+                        },
                     )
             }}
         />

@@ -1,310 +1,369 @@
-import { Modal } from '../../common/Modal'
+import {
+    useEffect,
+    useRef,
+    useState,
+    type FormEvent,
+} from 'react'
 import { ImageUpload } from '../../common/ImageUpload'
-import type { ClubFormValues } from './clubTypes'
+import { EnterpriseModal } from '../../common/EnterpriseModal'
+import {
+    emptyClubForm,
+    type ClubFormValues,
+} from './clubTypes'
 
 type ClubModalProps = {
     open: boolean
     mode: 'create' | 'edit'
     organisationId: string
-    values: ClubFormValues
+    initialValues?: ClubFormValues | null
     isSaving: boolean
-    onChange: (
-        field: keyof ClubFormValues,
-        value: string
-    ) => void
     onClose: () => void
-    onSave: () => void
+    onSave: (values: ClubFormValues) => void
 }
+
+const inputClassName =
+    'mt-1.5 w-full rounded-xl border border-[color:var(--thq-accent,#84cc16)]/25 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[var(--thq-accent,#84cc16)] focus:ring-4 focus:ring-[var(--thq-accent,#84cc16)]/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500'
+
+const labelClassName =
+    'block text-sm font-medium text-[var(--thq-text,#0f172a)]/80'
 
 export function ClubModal({
                               open,
                               mode,
                               organisationId,
-                              values,
+                              initialValues,
                               isSaving,
-                              onChange,
                               onClose,
                               onSave,
                           }: ClubModalProps) {
+    const [values, setValues] =
+        useState<ClubFormValues>({
+            ...emptyClubForm,
+        })
+
+    const nameInputRef =
+        useRef<HTMLInputElement | null>(null)
+
     if (!open) {
         return null
     }
 
+    function updateValue(
+        field: keyof ClubFormValues,
+        value: string
+    ) {
+        setValues((currentValues) => ({
+            ...currentValues,
+            [field]: value,
+        }))
+    }
+
+    function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+
+        if (isSaving || !values.name.trim()) {
+            return
+        }
+
+        onSave(values)
+    }
+
     return (
-        <Modal
-            title={
-                mode === 'edit'
-                    ? 'Edit Club'
-                    : 'Add Club'
-            }
+        <EnterpriseModal
+            title={mode === 'edit' ? 'Edit Club' : 'Add Club'}
+            eyebrow="Club administration"
+            description="Add the club details and badge used across the competition."
+            closeDisabled={isSaving}
             onClose={onClose}
+            maxWidthClassName="max-w-5xl"
         >
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-[var(--organisation-text)] [&_input]:rounded-xl [&_input]:border [&_input]:border-[var(--organisation-border)] [&_input]:bg-[var(--organisation-background)] [&_input]:px-4 [&_input]:py-3 [&_input]:text-[var(--organisation-text)] [&_input]:outline-none [&_input]:focus:border-[var(--organisation-accent)] [&_select]:rounded-xl [&_select]:border [&_select]:border-[var(--organisation-border)] [&_select]:bg-[var(--organisation-background)] [&_select]:px-4 [&_select]:py-3 [&_select]:text-[var(--organisation-text)] [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-[var(--organisation-border)] [&_textarea]:bg-[var(--organisation-background)] [&_textarea]:px-4 [&_textarea]:py-3 [&_textarea]:text-[var(--organisation-text)]">
-                <label>
-                    <span>Club Name *</span>
-
-                    <input
-                        value={values.name}
-                        placeholder="e.g. Teviot Rangers"
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'name',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Short Name</span>
-
-                    <input
-                        value={values.shortName}
-                        placeholder="e.g. Teviot"
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'shortName',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <div className="md:col-span-2">
-                    <ImageUpload
-                        value={values.badgeUrl}
-                        organisationId={organisationId}
-                        folder="clubs"
-                        label="Club Badge"
-                        disabled={isSaving}
-                        onChange={(url) =>
-                            onChange('badgeUrl', url)
-                        }
-                    />
-                </div>
-
-                <label>
-                    <span>Manager Name</span>
-
-                    <input
-                        value={values.managerName}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'managerName',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Secretary Name</span>
-
-                    <input
-                        value={values.secretaryName}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'secretaryName',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Email</span>
-
-                    <input
-                        type="email"
-                        value={values.email}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'email',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Phone</span>
-
-                    <input
-                        type="tel"
-                        value={values.phone}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'phone',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Website</span>
-
-                    <input
-                        type="url"
-                        value={values.website}
-                        placeholder="https://..."
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'website',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Founded Year</span>
-
-                    <input
-                        type="number"
-                        min="1800"
-                        max="2200"
-                        value={values.foundedYear}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'foundedYear',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Club Colours</span>
-
-                    <input
-                        value={values.colours}
-                        placeholder="e.g. Red and white"
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'colours',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Facebook URL</span>
-
-                    <input
-                        type="url"
-                        value={values.facebookUrl}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'facebookUrl',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Instagram URL</span>
-
-                    <input
-                        type="url"
-                        value={values.instagramUrl}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'instagramUrl',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label>
-                    <span>Twitter / X URL</span>
-
-                    <input
-                        type="url"
-                        value={values.twitterUrl}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'twitterUrl',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label className="md:col-span-2">
-                    <span>Address</span>
-
-                    <textarea
-                        rows={3}
-                        value={values.address}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'address',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-
-                <label className="md:col-span-2">
-                    <span>Description</span>
-
-                    <textarea
-                        rows={4}
-                        value={values.description}
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onChange(
-                                'description',
-                                event.target.value
-                            )
-                        }
-                    />
-                </label>
-            </div>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[var(--organisation-border)] pt-5 sm:flex-row sm:justify-end">
-                <button
-                    className="inline-flex items-center justify-center rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-5 py-3 font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] disabled:opacity-50"
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSaving}
+                <form
+                    className="flex min-h-0 flex-1 flex-col"
+                    onSubmit={handleSubmit}
                 >
-                    Cancel
-                </button>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <label className={labelClassName}>
+                                Club Name{' '}
+                                <span className="text-red-600">*</span>
+                                <input
+                                    ref={nameInputRef}
+                                    type="text"
+                                    value={values.name}
+                                    placeholder="e.g. Herongate Football Club"
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    autoComplete="organization"
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'name',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
 
-                <button
-                    className="inline-flex items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-bold text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:opacity-50"
-                    type="button"
-                    onClick={onSave}
-                    disabled={
-                        isSaving ||
-                        !values.name.trim()
-                    }
-                >
-                    {isSaving
-                        ? 'Saving...'
-                        : mode === 'edit'
-                            ? 'Update Club'
-                            : 'Create Club'}
-                </button>
-            </div>
-        </Modal>
+                            <label className={labelClassName}>
+                                Short Name
+                                <input
+                                    type="text"
+                                    value={values.shortName}
+                                    placeholder="e.g. Herongate"
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'shortName',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <div className="md:col-span-2 rounded-2xl border border-[color:var(--thq-accent,#84cc16)]/15 bg-black/5 p-4">
+                                <ImageUpload
+                                    value={values.badgeUrl}
+                                    organisationId={organisationId}
+                                    folder="clubs"
+                                    label="Club Badge"
+                                    disabled={isSaving}
+                                    onChange={(url) =>
+                                        updateValue('badgeUrl', url)
+                                    }
+                                />
+                            </div>
+
+                            <label className={labelClassName}>
+                                Manager Name
+                                <input
+                                    type="text"
+                                    value={values.managerName}
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'managerName',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Secretary Name
+                                <input
+                                    type="text"
+                                    value={values.secretaryName}
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'secretaryName',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Email
+                                <input
+                                    type="email"
+                                    value={values.email}
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    autoComplete="email"
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'email',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Phone
+                                <input
+                                    type="tel"
+                                    value={values.phone}
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    autoComplete="tel"
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'phone',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Website
+                                <input
+                                    type="url"
+                                    value={values.website}
+                                    placeholder="https://..."
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'website',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Founded Year
+                                <input
+                                    type="number"
+                                    min="1800"
+                                    max="2200"
+                                    value={values.foundedYear}
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'foundedYear',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Club Colours
+                                <input
+                                    type="text"
+                                    value={values.colours}
+                                    placeholder="e.g. Blue and yellow"
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'colours',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Facebook URL
+                                <input
+                                    type="url"
+                                    value={values.facebookUrl}
+                                    placeholder="https://facebook.com/..."
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'facebookUrl',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Instagram URL
+                                <input
+                                    type="url"
+                                    value={values.instagramUrl}
+                                    placeholder="https://instagram.com/..."
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'instagramUrl',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={labelClassName}>
+                                Twitter / X URL
+                                <input
+                                    type="url"
+                                    value={values.twitterUrl}
+                                    placeholder="https://x.com/..."
+                                    disabled={isSaving}
+                                    className={inputClassName}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'twitterUrl',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={`${labelClassName} md:col-span-2`}>
+                                Address
+                                <textarea
+                                    rows={3}
+                                    value={values.address}
+                                    disabled={isSaving}
+                                    className={`${inputClassName} resize-y`}
+                                    autoComplete="street-address"
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'address',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+
+                            <label className={`${labelClassName} md:col-span-2`}>
+                                Description
+                                <textarea
+                                    rows={4}
+                                    value={values.description}
+                                    disabled={isSaving}
+                                    className={`${inputClassName} resize-y`}
+                                    onChange={(event) =>
+                                        updateValue(
+                                            'description',
+                                            event.currentTarget.value
+                                        )
+                                    }
+                                />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col-reverse gap-3 border-t border-[color:var(--thq-accent,#84cc16)]/15 bg-black/5 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+                        <button
+                            type="button"
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={onClose}
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="submit"
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--thq-accent,#84cc16)] px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                            disabled={
+                                isSaving ||
+                                !values.name.trim()
+                            }
+                        >
+                            {isSaving
+                                ? 'Saving...'
+                                : mode === 'edit'
+                                    ? 'Update Club'
+                                    : 'Create Club'}
+                        </button>
+                    </div>
+                </form>
+        </EnterpriseModal>
     )
+
 }

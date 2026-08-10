@@ -11,6 +11,7 @@ import {
 } from 'react'
 
 import type { VenueFormValues } from './venueTypes'
+import { EnterpriseModal } from '../../common/EnterpriseModal'
 
 type VenueModalProps = {
     mode: 'create' | 'edit'
@@ -36,10 +37,10 @@ type PostcodeLookupResponse = {
 }
 
 const fieldClassName =
-    'mt-2 w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-sm font-medium text-white outline-none transition placeholder:text-slate-600 focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-60'
+    'mt-2 w-full rounded-xl border border-[color:var(--thq-accent,#84cc16)]/25 bg-black/10 px-4 py-3 text-sm font-medium text-[var(--thq-text,#ffffff)] outline-none transition placeholder:opacity-45 focus:border-[var(--thq-accent,#84cc16)] focus:ring-2 focus:ring-[var(--thq-accent,#84cc16)]/15 disabled:cursor-not-allowed disabled:opacity-60'
 
 const labelClassName =
-    'block text-sm font-semibold text-slate-300'
+    'block text-sm font-semibold text-[var(--thq-text,#ffffff)]/80'
 
 function normaliseSpaces(value: string) {
     return value.replace(/\s+/g, ' ')
@@ -224,58 +225,14 @@ export function VenueModal({
     }
 
     return (
-        <div
-            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/75 p-4 font-sans backdrop-blur-sm"
-            role="presentation"
-            onMouseDown={(event) => {
-                if (
-                    event.target ===
-                        event.currentTarget &&
-                    !isSaving
-                ) {
-                    onClose()
-                }
-            }}
+        <EnterpriseModal
+            title={mode === 'edit' ? 'Edit Venue' : 'Add Venue'}
+            eyebrow="Venue administration"
+            description="Add the ground, location and access information organisers and teams will need."
+            closeDisabled={isSaving}
+            onClose={onClose}
+            maxWidthClassName="max-w-3xl"
         >
-            <section
-                aria-labelledby="venue-modal-title"
-                aria-modal="true"
-                className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] shadow-2xl shadow-black/70"
-                role="dialog"
-            >
-                <header className="flex shrink-0 items-start justify-between border-b border-[var(--organisation-border)] px-6 py-5 sm:px-8">
-                    <div>
-                        <img
-                            src="/assets/tournamenthq-logo.png"
-                            alt="TournamentHQ"
-                            className="h-10 w-auto object-contain"
-                        />
-
-                        <h2
-                            id="venue-modal-title"
-                            className="mt-3 text-2xl font-bold tracking-tight text-[var(--organisation-accent)] sm:text-3xl"
-                        >
-                            {mode === 'edit'
-                                ? 'Edit Venue'
-                                : 'Add Venue'}
-                        </h2>
-
-                        <p className="mt-1 text-sm text-slate-400">
-                            Add the ground, location and access information organisers and teams will need.
-                        </p>
-                    </div>
-
-                    <button
-                        aria-label="Close venue form"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--organisation-border)] bg-black/20 text-slate-300 transition hover:border-[var(--organisation-accent)] hover:bg-[var(--organisation-surface)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                        type="button"
-                        disabled={isSaving}
-                        onClick={onClose}
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </header>
-
                 <form
                     className="flex min-h-0 flex-1 flex-col"
                     onSubmit={handleSubmit}
@@ -284,7 +241,7 @@ export function VenueModal({
                         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                             <label className={labelClassName}>
                                 Venue name{' '}
-                                <span className="text-[var(--organisation-accent)]">
+                                <span className="text-[var(--thq-accent,#84cc16)]">
                                     *
                                 </span>
 
@@ -322,7 +279,7 @@ export function VenueModal({
 
                                 <div className="mt-2 flex gap-2">
                                     <input
-                                        className="min-w-0 flex-1 rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-sm font-medium uppercase text-white outline-none transition placeholder:text-slate-600 focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="min-w-0 flex-1 rounded-xl border border-lime-900/60 bg-[#0c160b] px-4 py-3 text-sm font-medium uppercase text-[var(--thq-text,#ffffff)] outline-none transition placeholder:text-slate-600 focus:border-lime-400 focus:ring-2 focus:ring-lime-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                                         value={
                                             values.postcode
                                         }
@@ -356,7 +313,7 @@ export function VenueModal({
 
                                     <button
                                         type="button"
-                                        className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--organisation-accent)] bg-[var(--organisation-surface)] px-4 text-sm font-bold text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-accent)] hover:text-black disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600"
+                                        className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-lime-700 bg-[var(--thq-accent,#84cc16)]/10 px-4 text-sm font-bold text-[var(--thq-accent,#84cc16)] transition hover:bg-[var(--thq-accent,#84cc16)] hover:text-black disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600"
                                         disabled={
                                             isSaving ||
                                             isLookingUp ||
@@ -381,7 +338,7 @@ export function VenueModal({
                                 </div>
 
                                 {lookupMessage && (
-                                    <p className="mt-2 text-xs leading-5 text-[var(--organisation-accent)]">
+                                    <p className="mt-2 text-xs leading-5 text-[var(--thq-accent,#84cc16)]">
                                         {lookupMessage}
                                     </p>
                                 )}
@@ -451,18 +408,18 @@ export function VenueModal({
                                 />
                             </label>
 
-                            <div className="rounded-2xl border border-[var(--organisation-border)] bg-black/20 p-4 md:col-span-2">
+                            <div className="rounded-2xl border border-[color:var(--thq-accent,#84cc16)]/20 bg-black/5 p-4 md:col-span-2">
                                 <div className="flex items-start gap-3">
-                                    <div className="rounded-xl bg-[var(--organisation-surface)] p-3">
-                                        <MapPin className="h-5 w-5 text-[var(--organisation-accent)]" />
+                                    <div className="rounded-xl bg-[var(--thq-accent,#84cc16)]/10 p-3">
+                                        <MapPin className="h-5 w-5 text-[var(--thq-accent,#84cc16)]" />
                                     </div>
 
                                     <div>
-                                        <p className="text-sm font-bold text-white">
+                                        <p className="text-sm font-bold text-[var(--thq-text,#ffffff)]">
                                             Venue summary
                                         </p>
 
-                                        <p className="mt-1 text-sm text-[var(--organisation-accent)]">
+                                        <p className="mt-1 text-sm text-[var(--thq-accent,#84cc16)]">
                                             {values.name.trim() ||
                                                 'Venue name not entered'}
                                         </p>
@@ -488,9 +445,9 @@ export function VenueModal({
                         </div>
                     </div>
 
-                    <footer className="flex shrink-0 flex-col-reverse gap-3 border-t border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
+                    <footer className="flex shrink-0 flex-col-reverse gap-3 border-t border-lime-900/50 bg-[var(--thq-surface,#0d170c)] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
                         <button
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--organisation-border)] bg-black/20 px-5 py-3 text-sm font-bold text-white transition hover:border-[var(--organisation-accent)] hover:bg-[var(--organisation-surface)] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/60 bg-black/20 px-5 py-3 text-sm font-bold text-[var(--thq-text,#ffffff)] transition hover:border-lime-500/70 hover:bg-[var(--thq-accent,#84cc16)]/5 disabled:cursor-not-allowed disabled:opacity-50"
                             type="button"
                             onClick={onClose}
                             disabled={isSaving}
@@ -500,7 +457,7 @@ export function VenueModal({
                         </button>
 
                         <button
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-bold text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--thq-accent,#84cc16)] px-5 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                             type="submit"
                             disabled={
                                 isSaving ||
@@ -517,7 +474,7 @@ export function VenueModal({
                         </button>
                     </footer>
                 </form>
-            </section>
-        </div>
+        </EnterpriseModal>
     )
+
 }

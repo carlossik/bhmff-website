@@ -34,7 +34,7 @@ type OrganisationRecord = {
 }
 
 function normaliseOptionalText(
-    value: string
+    value: string,
 ): string | null {
     const normalisedValue = value.trim()
 
@@ -42,7 +42,7 @@ function normaliseOptionalText(
 }
 
 function toOrganisationRecord(
-    organisation: OrganisationFormData
+    organisation: OrganisationFormData,
 ): OrganisationRecord {
     return {
         name: organisation.name.trim(),
@@ -63,7 +63,7 @@ function toOrganisationRecord(
             organisation.text_colour,
         logo_url:
             normaliseOptionalText(
-                organisation.logo_url
+                organisation.logo_url,
             ),
         status: organisation.status,
         subscription_plan:
@@ -72,7 +72,7 @@ function toOrganisationRecord(
             organisation.subscription_status,
         trial_end:
             normaliseOptionalText(
-                organisation.trial_end
+                organisation.trial_end,
             ),
         max_users:
             organisation.max_users,
@@ -82,20 +82,35 @@ function toOrganisationRecord(
             organisation.public_site_enabled,
         owner_name:
             normaliseOptionalText(
-                organisation.owner_name
+                organisation.owner_name,
             ),
         owner_email:
             normaliseOptionalText(
-                organisation.owner_email
+                organisation.owner_email,
             )?.toLowerCase() ?? null,
         owner_phone:
             normaliseOptionalText(
-                organisation.owner_phone
+                organisation.owner_phone,
             ),
         enabled_modules: [
             ...organisation.enabled_modules,
         ],
     }
+}
+
+function getErrorMessage(
+    error: unknown,
+): string {
+    if (
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof error.message === 'string'
+    ) {
+        return error.message
+    }
+
+    return 'Unable to create organisation.'
 }
 
 export async function getOrganisations(): Promise<
@@ -114,7 +129,7 @@ export async function getOrganisations(): Promise<
 }
 
 export async function getOrganisation(
-    id: string
+    id: string,
 ): Promise<Organisation | null> {
     const { data, error } = await supabase
         .from(TABLE)
@@ -131,14 +146,14 @@ export async function getOrganisation(
 
 export async function slugExists(
     slug: string,
-    excludeId?: string
+    excludeId?: string,
 ): Promise<boolean> {
     let query = supabase
         .from(TABLE)
         .select('id')
         .eq(
             'slug',
-            slug.trim().toLowerCase()
+            slug.trim().toLowerCase(),
         )
 
     if (excludeId) {
@@ -156,20 +171,10 @@ export async function slugExists(
 
 export async function createOrganisation(
     organisation: OrganisationFormData,
-    provisionalId?: string
+    provisionalId?: string,
 ): Promise<Organisation> {
     const record =
         toOrganisationRecord(organisation)
-
-    const exists = await slugExists(
-        record.slug
-    )
-
-    if (exists) {
-        throw new Error(
-            'An organisation with this slug already exists.'
-        )
-    }
 
     const {
         data: { user },
@@ -178,69 +183,70 @@ export async function createOrganisation(
 
     if (userError || !user) {
         throw new Error(
-            'Unable to determine the current user.'
+            'Unable to determine the current user.',
         )
     }
 
-    const {
-        data: newOrganisation,
-        error: organisationError,
-    } = await supabase
-        .from(TABLE)
-        .insert({
-            ...(provisionalId
-                ? { id: provisionalId }
-                : {}),
-            ...record,
-        })
-        .select()
-        .single()
+    /*
+     * Organisation bootstrap must be atomic.
+     *
+     * A brand-new self-service customer cannot insert directly into
+     * organisations because the normal RLS model correctly requires
+     * existing tenant/platform access. The RPC creates the organisation,
+     * owner membership and owner profile together inside one database
+     * transaction without weakening tenant RLS.
+     */
+    const { data, error } = await supabase.rpc(
+        'create_onboarding_organisation',
+        {
+            p_organisation: record,
+            p_provisional_id:
+                provisionalId ?? null,
+        },
+    )
 
-    if (organisationError) {
-        throw organisationError
-    }
+    if (error) {
+        const message = getErrorMessage(error)
 
-    const { error: membershipError } =
-        await supabase
-            .from('organisation_memberships')
-            .insert({
-                organisation_id:
-                    newOrganisation.id,
-                user_id: user.id,
-                role: 'super_admin',
-                active: true,
-            })
-
-    if (membershipError) {
-        await supabase
-            .from(TABLE)
-            .delete()
-            .eq(
-                'id',
-                newOrganisation.id
+        if (
+            message
+                .toLowerCase()
+                .includes(
+                    'organisation slug already exists',
+                )
+        ) {
+            throw new Error(
+                'An organisation with this slug already exists.',
             )
+        }
 
-        throw membershipError
+        throw new Error(message)
     }
 
-    return newOrganisation as Organisation
+    if (!data) {
+        throw new Error(
+            'TournamentHQ did not return the created organisation.',
+        )
+    }
+
+    return data as Organisation
 }
 
 export async function updateOrganisation(
     id: string,
-    organisation: OrganisationFormData
+    organisation: OrganisationFormData,
 ): Promise<Organisation> {
     const record =
         toOrganisationRecord(organisation)
 
     const exists = await slugExists(
         record.slug,
-        id
+        id,
     )
 
     if (exists) {
         throw new Error(
-            'An organisation with this slug already exists.'
+            'An organisation with this slug already exists.',
         )
     }
 
@@ -259,7 +265,7 @@ export async function updateOrganisation(
 }
 
 export async function deleteOrganisation(
-    id: string
+    id: string,
 ): Promise<void> {
     const { error } = await supabase
         .from(TABLE)
