@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react'
-import { Camera } from 'lucide-react'
 
 import type { Competition } from '../../../types/competitionTypes'
 import type { PublicMediaItem } from '../../../services/public/organisationPublicService'
@@ -26,7 +25,10 @@ function getPublicString(
     for (const key of keys) {
         const candidate = value[key]
 
-        if (typeof candidate === 'string' && candidate.trim()) {
+        if (
+            typeof candidate === 'string' &&
+            candidate.trim()
+        ) {
             return candidate.trim()
         }
     }
@@ -49,7 +51,9 @@ function getPublicBoolean(
     return false
 }
 
-function formatCompetitionStartDate(value: string): string | null {
+function formatCompetitionStartDate(
+    value: string,
+): string | null {
     const date = new Date(value)
 
     if (Number.isNaN(date.getTime())) {
@@ -62,6 +66,22 @@ function formatCompetitionStartDate(value: string): string | null {
         month: 'long',
         year: 'numeric',
     }).format(date)
+}
+
+function getOrganisationTitleClasses(
+    organisationName: string,
+): string {
+    const length = organisationName.trim().length
+
+    if (length >= 34) {
+        return 'text-3xl sm:text-4xl lg:text-5xl'
+    }
+
+    if (length >= 22) {
+        return 'text-4xl sm:text-4xl lg:text-5xl'
+    }
+
+    return 'text-4xl sm:text-5xl lg:text-5xl xl:text-6xl'
 }
 
 export function HeroSection({
@@ -77,10 +97,12 @@ export function HeroSection({
                             }: HeroSectionProps) {
     const publicOrganisation =
         useOptionalPublicOrganisation()
+
     const organisationSlug =
         publicOrganisation?.organisationSlug
             ?.trim()
             .toLowerCase() ?? ''
+
     const isBhmff = organisationSlug === 'bhmff'
 
     if (isBhmff) {
@@ -92,9 +114,10 @@ export function HeroSection({
         )
     }
 
-    const primaryCompetition = competitions[0] as
-        | (Competition & Record<string, unknown>)
-        | undefined
+    const primaryCompetition =
+        competitions[0] as
+            | (Competition & Record<string, unknown>)
+            | undefined
 
     const competitionName =
         primaryCompetition &&
@@ -113,18 +136,25 @@ export function HeroSection({
     const competitionStartDate =
         primaryCompetition &&
         typeof primaryCompetition.start_date === 'string'
-            ? formatCompetitionStartDate(primaryCompetition.start_date)
+            ? formatCompetitionStartDate(
+                primaryCompetition.start_date,
+            )
             : null
 
     const featuredMedia =
-        media.find((item) => getPublicBoolean(item, ['featured'])) ?? media[0]
+        media.find((item) =>
+            getPublicBoolean(item, ['featured']),
+        ) ?? media[0]
 
     const featuredEmbedUrl = featuredMedia
         ? getPublicString(featuredMedia, ['embed_url'])
         : ''
 
     const featuredImageUrl = featuredMedia
-        ? getPublicString(featuredMedia, ['thumbnail_url', 'image_url'])
+        ? getPublicString(featuredMedia, [
+            'thumbnail_url',
+            'image_url',
+        ])
         : ''
 
     const featuredTitle = featuredMedia
@@ -132,11 +162,20 @@ export function HeroSection({
         `${organisationName} featured media`
         : `${organisationName} featured media`
 
+    const hasFeaturedMedia = Boolean(
+        featuredEmbedUrl || featuredImageUrl,
+    )
+
+    const titleClasses =
+        getOrganisationTitleClasses(
+            organisationName,
+        )
+
     return (
         <>
             {competitionStartDate && (
                 <section
-                    className="border-b py-10 text-center"
+                    className="border-b py-6 text-center sm:py-8 lg:py-9"
                     style={{
                         background: `linear-gradient(90deg, ${accentColour}18, ${accentColour}30, ${accentColour}18)`,
                         borderColor: `${accentColour}35`,
@@ -146,7 +185,7 @@ export function HeroSection({
                 >
                     <div className="mx-auto w-[min(1180px,calc(100%-2rem))]">
                         <p
-                            className="text-xs font-black uppercase tracking-[0.2em]"
+                            className="text-[0.68rem] font-black uppercase tracking-[0.2em] sm:text-xs"
                             style={{ color: accentColour }}
                         >
                             Upcoming competition
@@ -154,12 +193,12 @@ export function HeroSection({
 
                         <h2
                             id="upcoming-competition-title"
-                            className="mt-3 text-3xl font-black uppercase tracking-[-0.03em] sm:text-5xl"
+                            className="mt-2 break-words text-2xl font-black uppercase tracking-[-0.03em] sm:mt-3 sm:text-3xl lg:text-4xl"
                         >
                             {competitionName}
                         </h2>
 
-                        <p className="mt-3 text-sm opacity-75">
+                        <p className="mt-2 text-xs opacity-75 sm:mt-3 sm:text-sm">
                             Starts {competitionStartDate}
                         </p>
                     </div>
@@ -167,7 +206,7 @@ export function HeroSection({
             )}
 
             <section
-                className="border-b py-16 sm:py-24"
+                className="border-b py-11 sm:py-14 lg:py-16 xl:py-20"
                 style={{
                     background: `radial-gradient(circle at 78% 30%, ${accentColour}20, transparent 30%), ${backgroundColour}`,
                     borderColor: `${accentColour}25`,
@@ -175,10 +214,17 @@ export function HeroSection({
                 }}
                 aria-labelledby="public-home-hero-title"
             >
-                <div className="mx-auto grid w-[min(1180px,calc(100%-2rem))] items-center gap-10 lg:grid-cols-2 lg:gap-14">
+                <div
+                    className={[
+                        'mx-auto w-[min(1180px,calc(100%-2rem))] items-center',
+                        hasFeaturedMedia
+                            ? 'grid gap-9 lg:grid-cols-2 lg:gap-12'
+                            : 'max-w-5xl',
+                    ].join(' ')}
+                >
                     <div>
                         <p
-                            className="text-xs font-black uppercase tracking-[0.2em]"
+                            className="text-[0.68rem] font-black uppercase tracking-[0.2em] sm:text-xs"
                             style={{ color: accentColour }}
                         >
                             Official competition website
@@ -186,26 +232,36 @@ export function HeroSection({
 
                         <h1
                             id="public-home-hero-title"
-                            className="mt-4 break-words text-5xl font-black uppercase leading-[0.92] tracking-[-0.04em] sm:text-6xl lg:text-7xl"
+                            className={[
+                                'mt-4 max-w-[15ch] break-words font-normal uppercase leading-[0.98] tracking-[-0.025em]',
+                                titleClasses,
+                            ].join(' ')}
                         >
                             {organisationName}
                         </h1>
 
                         <p
-                            className="mt-4 text-xs font-black uppercase tracking-[0.2em]"
+                            className="mt-4 text-[0.68rem] font-black uppercase tracking-[0.18em] sm:text-xs"
                             style={{ color: accentColour }}
                         >
                             Powered by TournamentHQ
                         </p>
 
-                        <p className="mt-6 max-w-2xl text-base leading-7 opacity-75 sm:text-lg">
+                        <p
+                            className={[
+                                'mt-6 text-base leading-7 opacity-75 sm:text-lg sm:leading-8',
+                                hasFeaturedMedia
+                                    ? 'max-w-2xl'
+                                    : 'max-w-3xl',
+                            ].join(' ')}
+                        >
                             {competitionDescription}
                         </p>
 
                         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                             <a
                                 href={`${basePath}#teams`}
-                                className="inline-flex min-h-12 items-center justify-center rounded-xl px-5 py-3 text-sm font-black uppercase no-underline transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl px-5 py-3 text-sm font-black uppercase no-underline transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto"
                                 style={{
                                     background: accentColour,
                                     color: accentTextColour,
@@ -218,7 +274,7 @@ export function HeroSection({
 
                             <a
                                 href={`${basePath}#fixtures`}
-                                className="inline-flex min-h-12 items-center justify-center rounded-xl border px-5 py-3 text-sm font-black uppercase no-underline transition-colors duration-200 hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border px-5 py-3 text-sm font-black uppercase no-underline transition-colors duration-200 hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto"
                                 style={{
                                     borderColor: `${accentColour}55`,
                                     color: textColour,
@@ -231,49 +287,35 @@ export function HeroSection({
                         </div>
                     </div>
 
-                    <article
-                        className="overflow-hidden rounded-2xl border p-3 shadow-sm"
-                        style={{
-                            background: surfaceColour,
-                            borderColor: `${accentColour}35`,
-                        }}
-                        aria-label="Featured competition media"
-                    >
-                        {featuredEmbedUrl ? (
-                            <iframe
-                                className="aspect-video w-full rounded-xl"
-                                src={featuredEmbedUrl}
-                                title={featuredTitle}
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                                loading="lazy"
-                            />
-                        ) : featuredImageUrl ? (
-                            <img
-                                className="aspect-video w-full rounded-xl object-cover"
-                                src={featuredImageUrl}
-                                alt={featuredTitle}
-                                loading="eager"
-                                decoding="async"
-                            />
-                        ) : (
-                            <div
-                                className="grid aspect-video place-items-center rounded-xl border px-6 text-center"
-                                style={{ borderColor: `${accentColour}25` }}
-                            >
-                                <div>
-                                    <Camera
-                                        className="mx-auto h-8 w-8"
-                                        style={{ color: accentColour }}
-                                        aria-hidden="true"
-                                    />
-                                    <p className="mt-3 font-bold">
-                                        Published competition media will appear here.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </article>
+                    {hasFeaturedMedia && (
+                        <article
+                            className="overflow-hidden rounded-2xl border p-2 shadow-sm sm:p-3"
+                            style={{
+                                background: surfaceColour,
+                                borderColor: `${accentColour}35`,
+                            }}
+                            aria-label="Featured competition media"
+                        >
+                            {featuredEmbedUrl ? (
+                                <iframe
+                                    className="aspect-video w-full rounded-xl"
+                                    src={featuredEmbedUrl}
+                                    title={featuredTitle}
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <img
+                                    className="aspect-video w-full rounded-xl object-cover"
+                                    src={featuredImageUrl}
+                                    alt={featuredTitle}
+                                    loading="eager"
+                                    decoding="async"
+                                />
+                            )}
+                        </article>
+                    )}
                 </div>
             </section>
         </>

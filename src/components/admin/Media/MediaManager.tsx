@@ -42,6 +42,48 @@ const initialFormState: MediaFormState = {
     publishedAt: "",
 };
 
+type MediaDuplicateField =
+    | "slug"
+    | "youtubeUrl"
+    | "embedUrl";
+
+function normaliseComparableValue(
+    value: string | null | undefined,
+): string {
+    return (value ?? "")
+        .trim()
+        .toLowerCase();
+}
+
+function getDatabaseDuplicateMessage(
+    message: string,
+    details?: string | null,
+): string {
+    const combined =
+        `${message} ${details ?? ""}`
+            .toLowerCase();
+
+    if (combined.includes("slug")) {
+        return "A media item with this URL slug already exists in this competition.";
+    }
+
+    if (
+        combined.includes("youtube") ||
+        combined.includes("youtube_url")
+    ) {
+        return "This YouTube URL is already used by another media item in this competition.";
+    }
+
+    if (
+        combined.includes("embed") ||
+        combined.includes("embed_url")
+    ) {
+        return "This embedded media URL is already used by another media item in this competition.";
+    }
+
+    return "A media item with the same slug or media URL already exists in this competition.";
+}
+
 export function MediaManager() {
     const { currentOrganisation } =
         useOrganisation();
@@ -302,6 +344,79 @@ export function MediaManager() {
         setShowMediaModal(true);
     }
 
+    function findDuplicateMediaField(
+        slug: string,
+        youtubeUrl: string,
+        embedUrl: string,
+    ): MediaDuplicateField | null {
+        const normalisedSlug =
+            normaliseComparableValue(slug);
+        const normalisedYoutube =
+            normaliseComparableValue(
+                youtubeUrl,
+            );
+        const normalisedEmbed =
+            normaliseComparableValue(embedUrl);
+
+        const otherItems =
+            mediaItems.filter(
+                (item) =>
+                    item.id !== editingId,
+            );
+
+        if (
+            normalisedSlug &&
+            otherItems.some(
+                (item) =>
+                    normaliseComparableValue(
+                        item.slug,
+                    ) === normalisedSlug,
+            )
+        ) {
+            return "slug";
+        }
+
+        if (
+            normalisedYoutube &&
+            otherItems.some(
+                (item) =>
+                    normaliseComparableValue(
+                        item.youtube_url,
+                    ) === normalisedYoutube,
+            )
+        ) {
+            return "youtubeUrl";
+        }
+
+        if (
+            normalisedEmbed &&
+            otherItems.some(
+                (item) =>
+                    normaliseComparableValue(
+                        item.embed_url,
+                    ) === normalisedEmbed,
+            )
+        ) {
+            return "embedUrl";
+        }
+
+        return null;
+    }
+
+    function getDuplicateFieldMessage(
+        field: MediaDuplicateField,
+    ): string {
+        if (field === "slug") {
+            return "A media item with this URL slug already exists in this competition.";
+        }
+
+        if (field === "youtubeUrl") {
+            return "This YouTube URL is already used by another media item in this competition.";
+        }
+
+        return "This embedded media URL is already used by another media item in this competition.";
+    }
+
     async function saveMedia() {
         const validationError =
             validateMedia(
@@ -339,6 +454,27 @@ export function MediaManager() {
                 )
                 : form.embedUrl.trim();
 
+            const slug = createSlug(
+                form.slug ||
+                form.title,
+            );
+
+            const duplicateField =
+                findDuplicateMediaField(
+                    slug,
+                    youtubeUrl,
+                    embedUrl,
+                );
+
+            if (duplicateField) {
+                setErrorMessage(
+                    getDuplicateFieldMessage(
+                        duplicateField,
+                    ),
+                );
+                return;
+            }
+
             const thumbnailUrl =
                 form.thumbnailUrl.trim() ||
                 createThumbnailUrl(
@@ -368,10 +504,7 @@ export function MediaManager() {
                 currentCompetitionId,
                 title:
                     form.title.trim(),
-                slug: createSlug(
-                    form.slug ||
-                    form.title,
-                ),
+                slug,
                 category: form.category,
                 status: form.status,
                 description:
@@ -417,7 +550,10 @@ export function MediaManager() {
                 setErrorMessage(
                     response.error.code ===
                     "23505"
-                        ? "A media record with this URL already exists."
+                        ? getDatabaseDuplicateMessage(
+                            response.error.message,
+                            response.error.details,
+                        )
                         : response.error.message,
                 );
                 return;
