@@ -3,6 +3,7 @@ import {
     useEffect,
     useRef,
     useState,
+    type ReactNode,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
@@ -14,9 +15,30 @@ import {
     getCurrentAdminProfile,
     type AdminProfile,
 } from '../services/accessControl'
-import { OrganisationProvider } from '../context/OrganisationContext'
+import {
+    OrganisationProvider,
+    useOrganisation,
+} from '../context/OrganisationContext'
 import { OrganisationThemeProvider } from '../context/OrganisationThemeProvider'
 import { CompetitionProvider } from '../contexts/CompetitionContext'
+
+
+function AdminThemeBridge({
+    children,
+}: {
+    children: ReactNode
+}) {
+    const { currentOrganisation } =
+        useOrganisation()
+
+    return (
+        <OrganisationThemeProvider
+            organisation={currentOrganisation}
+        >
+            {children}
+        </OrganisationThemeProvider>
+    )
+}
 
 const ONBOARDING_ACCESS_MESSAGES = new Set([
     'Your account does not have an administrator profile.',
@@ -328,7 +350,7 @@ export function AdminPage() {
             <OrganisationProvider
                 profile={profile}
             >
-                <OrganisationThemeProvider>
+                <AdminThemeBridge>
                     <CompetitionProvider>
                         <AdminPortal
                             profile={profile}
@@ -337,7 +359,7 @@ export function AdminPage() {
                             }
                         />
                     </CompetitionProvider>
-                </OrganisationThemeProvider>
+                </AdminThemeBridge>
             </OrganisationProvider>
         )
     }

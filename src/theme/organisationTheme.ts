@@ -139,19 +139,31 @@ export function createOrganisationTheme(
         source?.accent_colour,
         defaultOrganisationTheme.accent,
     )
-    const background = normaliseHex(
-        source?.background_colour,
-        defaultOrganisationTheme.background,
-    )
-    const surface = normaliseHex(
-        source?.surface_colour,
-        defaultOrganisationTheme.surface,
-    )
-    const text = normaliseHex(
-        source?.text_colour,
-        defaultOrganisationTheme.text,
+
+    const brandIsLight =
+        getRelativeLuminance(primary) >= 0.62
+
+    const shellBase = brandIsLight
+        ? '#F8FAFC'
+        : '#05070B'
+
+    const surfaceBase = brandIsLight
+        ? '#FFFFFF'
+        : '#0B1017'
+
+    const background = mixColours(
+        primary,
+        shellBase,
+        brandIsLight ? 0.08 : 0.16,
     )
 
+    const surface = mixColours(
+        primary,
+        surfaceBase,
+        brandIsLight ? 0.06 : 0.22,
+    )
+
+    const text = getContrastText(background)
     const isLight =
         getRelativeLuminance(background) >= 0.55
 
@@ -170,7 +182,7 @@ export function createOrganisationTheme(
         border: mixColours(
             accent,
             surface,
-            isLight ? 0.24 : 0.2,
+            isLight ? 0.22 : 0.28,
         ),
         accentText: getContrastText(accent),
         primaryText: getContrastText(primary),
@@ -189,7 +201,16 @@ export type OrganisationThemeVariables = Record<
     | '--thq-text'
     | '--thq-muted-text'
     | '--thq-border'
-    | '--thq-colour-scheme',
+    | '--thq-colour-scheme'
+    | '--organisation-primary'
+    | '--organisation-secondary'
+    | '--organisation-accent'
+    | '--organisation-background'
+    | '--organisation-surface'
+    | '--organisation-text'
+    | '--organisation-muted'
+    | '--organisation-border'
+    | '--organisation-on-accent',
     string
 >
 

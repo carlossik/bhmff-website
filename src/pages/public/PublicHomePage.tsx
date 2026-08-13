@@ -24,6 +24,7 @@ import { StatisticsSection } from '../../components/public/home/StatisticsSectio
 import { MediaSection } from '../../components/public/home/MediaSection'
 import { ArticlesSection } from '../../components/public/home/ArticlesSection'
 import { SponsorsSection } from '../../components/public/home/SponsorsSection'
+import { ClubPublicHomePage } from './ClubPublicHomePage'
 
 type PublicHomePageProps = {
     organisationName: string
@@ -37,6 +38,7 @@ type PublicHomePageProps = {
     articles?: PublicArticle[]
     sponsors?: PublicSponsor[]
     media?: PublicMediaItem[]
+    isClub?: boolean
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -85,7 +87,7 @@ function getBoolean(
     return value?.[key] === true
 }
 
-export function PublicHomePage({
+function CompetitionPublicHomePage({
                                    organisationName,
                                    backgroundColour,
                                    surfaceColour,
@@ -732,4 +734,25 @@ export function PublicHomePage({
             />
         </>
     )
+}
+
+export function PublicHomePage(props: PublicHomePageProps) {
+    if (props.isClub) {
+        return (
+            <ClubPublicHomePage
+                organisationName={props.organisationName}
+                backgroundColour={props.backgroundColour}
+                surfaceColour={props.surfaceColour}
+                textColour={props.textColour}
+                accentColour={props.accentColour}
+                accentTextColour={props.accentTextColour}
+                basePath={props.basePath}
+                articles={props.articles}
+                media={props.media}
+                sponsors={props.sponsors}
+            />
+        )
+    }
+
+    return <CompetitionPublicHomePage {...props} />
 }

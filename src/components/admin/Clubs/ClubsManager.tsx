@@ -334,13 +334,21 @@ export function ClubsManager() {
 
     return (
         <>
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2>Clubs</h2>
+            <section className="mb-6 flex flex-col gap-5 rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-6 shadow-xl sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
+                        Club administration
+                    </p>
 
-                    <p>
+                    <h2 className="mt-2 text-3xl font-black tracking-tight text-[var(--organisation-text)] sm:text-4xl">
+                        Clubs
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-[color:var(--organisation-text)]/70">
                         Manage clubs belonging to{' '}
-                        {currentOrganisation.name}.
+                        <strong className="font-semibold text-[var(--organisation-text)]">
+                            {currentOrganisation.name}
+                        </strong>.
                     </p>
                 </div>
 
@@ -351,7 +359,7 @@ export function ClubsManager() {
                 >
                     Add Club
                 </button>
-            </div>
+            </section>
 
             <ClubsTable
                 clubs={clubs}

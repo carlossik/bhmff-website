@@ -22,6 +22,10 @@ import {
 } from "./PublicHomePage";
 
 import {
+    ClubPublicHomePage,
+} from "./ClubPublicHomePage";
+
+import {
     PublicCompetitionsPage,
 } from "./PublicCompetitionsPage";
 
@@ -379,6 +383,9 @@ export function PublicOrganisationLayout({
             .trim()
             .toLowerCase() === "bhmff";
 
+    const isClub =
+        resolvedOrganisation.organisation_type === "club";
+
     const navigationItems = [
         {
             label: "Home",
@@ -391,8 +398,11 @@ export function PublicOrganisationLayout({
                 ? "Festival"
                 : "Overview",
             href:
-                `${basePath}#festival`,
-            sectionId: "festival",
+                `${basePath}#${isClub ? "overview" : "festival"}`,
+            sectionId:
+                isClub
+                    ? "overview"
+                    : "festival",
         },
         {
             label: "Fixtures",
@@ -407,10 +417,13 @@ export function PublicOrganisationLayout({
             sectionId: "results",
         },
         {
-            label: "Teams",
+            label: isClub ? "Squad" : "Teams",
             href:
-                `${basePath}#teams`,
-            sectionId: "teams",
+                `${basePath}#${isClub ? "squad" : "teams"}`,
+            sectionId:
+                isClub
+                    ? "squad"
+                    : "teams",
         },
         {
             label: "Statistics",
@@ -466,7 +479,23 @@ export function PublicOrganisationLayout({
             case basePath:
             case `${basePath}/`:
             case "/":
-                return (
+                return isClub ? (
+                    <ClubPublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                ) : (
                     <PublicHomePage
                         organisationName={
                             resolvedOrganisation.name
@@ -573,7 +602,23 @@ export function PublicOrganisationLayout({
                 );
 
             case `${basePath}/news`:
-                return (
+                return isClub ? (
+                    <ClubPublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                ) : (
                     <PublicNewsPage
                         organisationName={
                             resolvedOrganisation.name
@@ -586,7 +631,23 @@ export function PublicOrganisationLayout({
                 );
 
             case `${basePath}/media`:
-                return (
+                return isClub ? (
+                    <ClubPublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                ) : (
                     <PublicMediaPage
                         organisationName={
                             resolvedOrganisation.name
@@ -599,7 +660,23 @@ export function PublicOrganisationLayout({
                 );
 
             case `${basePath}/sponsors`:
-                return (
+                return isClub ? (
+                    <ClubPublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                ) : (
                     <PublicSponsorsPage
                         organisationName={
                             resolvedOrganisation.name
@@ -612,7 +689,23 @@ export function PublicOrganisationLayout({
                 );
 
             case `${basePath}/contact`:
-                return (
+                return isClub ? (
+                    <ClubPublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                ) : (
                     <PublicContactPage
                         organisationId={
                             resolvedOrganisation.id
@@ -628,7 +721,23 @@ export function PublicOrganisationLayout({
                 );
 
             default:
-                return (
+                return isClub ? (
+                    <ClubPublicHomePage
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        articles={
+                            resolvedPublicData.articles
+                        }
+                        sponsors={
+                            resolvedPublicData.sponsors
+                        }
+                        media={
+                            resolvedPublicData.media
+                        }
+                        {...commonPageProps}
+                    />
+                ) : (
                     <PublicHomePage
                         organisationName={
                             resolvedOrganisation.name
@@ -717,32 +826,20 @@ export function PublicOrganisationLayout({
                                 </div>
                             )}
 
-                            <div>
-                                <strong className="block text-base">
-                                    {
-                                        resolvedOrganisation.name
-                                    }
+                            <div className="min-w-0">
+                                <strong className="block truncate text-base">
+                                    {resolvedOrganisation.name}
                                 </strong>
 
-                                <span className="mt-0.5 block text-xs font-bold uppercase tracking-wider opacity-60">
-                                    Powered by
-                                    TournamentHQ
+                                <span className="mt-1 flex items-center gap-2 text-xs font-semibold opacity-60">
+                                    <span>Powered By</span>
+                                    <img
+                                        src="/assets/tournamenthq-logo.png"
+                                        alt="TournamentHQ"
+                                        className="h-auto w-[92px] object-contain"
+                                    />
                                 </span>
                             </div>
-                        </a>
-
-                        <a
-                            href="https://tournamenthq.co.uk"
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label="Visit TournamentHQ"
-                            className="inline-flex shrink-0 items-center justify-center no-underline"
-                        >
-                            <img
-                                src="/assets/tournamenthq-logo.png"
-                                alt="TournamentHQ"
-                                className="block h-auto max-h-12 w-[clamp(130px,12vw,175px)] object-contain"
-                            />
                         </a>
 
                         <nav
@@ -875,8 +972,9 @@ export function PublicOrganisationLayout({
                             </strong>
 
                             <p className="mt-2 opacity-60">
-                                Official competition
-                                website
+                                {isClub
+                                    ? "Official club website"
+                                    : "Official competition website"}
                             </p>
                         </div>
 

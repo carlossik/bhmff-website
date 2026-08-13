@@ -4,6 +4,8 @@ import {
     useState,
 } from 'react'
 import { useCompetition } from '../../../contexts/CompetitionContext'
+import { useOrganisation } from '../../../context/OrganisationContext'
+import { ClubResultsManager } from './ClubResultsManager'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { ResultModal } from './ResultModal'
@@ -30,7 +32,7 @@ type ToastType =
     | 'error'
     | 'info'
 
-export function ResultsManager() {
+function CompetitionResultsManager() {
     const {
         currentCompetition,
         currentCompetitionId,
@@ -493,4 +495,11 @@ export function ResultsManager() {
             )}
         </div>
     )
+}
+
+export function ResultsManager() {
+    const { currentOrganisation } = useOrganisation()
+    return currentOrganisation.organisation_type === 'club'
+        ? <ClubResultsManager />
+        : <CompetitionResultsManager />
 }

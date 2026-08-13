@@ -11,11 +11,16 @@ export type OrganisationStatus =
     | 'inactive'
     | 'suspended'
 
+export type OrganisationType =
+    | 'competition_organiser'
+    | 'club'
+
 export type Organisation = {
     id: string
     name: string
     slug: string
     status: OrganisationStatus
+    organisation_type: OrganisationType
     logo_url: string | null
     primary_colour: string | null
     secondary_colour: string | null
@@ -57,7 +62,9 @@ export type AdminProfile = {
 export type AdminModule =
     | 'Dashboard'
     | 'Organisations'
+    | 'Club Profile & Website'
     | 'Competitions'
+    | 'Seasons'
     | 'Clubs'
     | 'Teams'
     | 'Competition Teams'
@@ -74,10 +81,15 @@ export type AdminModule =
     | 'Media'
     | 'Enquiries'
     | 'User Access'
+    | 'Opponents'
+    | 'Squad'
+    | 'Statistics'
 
 const organisationOwnerModules: readonly AdminModule[] = [
     'Dashboard',
+    'Club Profile & Website',
     'Competitions',
+    'Seasons',
     'Clubs',
     'Teams',
     'Competition Teams',
@@ -94,6 +106,9 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Media',
     'Enquiries',
     'User Access',
+    'Opponents',
+    'Squad',
+    'Statistics',
 ]
 
 const roleModules: Record<
@@ -114,7 +129,9 @@ const roleModules: Record<
 
     competition_manager: [
         'Dashboard',
+        'Club Profile & Website',
         'Competitions',
+        'Seasons',
         'Clubs',
         'Teams',
         'Competition Teams',
@@ -126,25 +143,138 @@ const roleModules: Record<
         'Fixtures',
         'Results',
         'Goals',
+        'Opponents',
+        'Squad',
+        'Statistics',
     ],
 
     super_admin:
     organisationOwnerModules,
 }
 
+export type OrganisationCapability =
+    | 'competition_management'
+    | 'season_management'
+    | 'fixture_management'
+    | 'club_management'
+    | 'team_management'
+    | 'opponent_management'
+    | 'squad_management'
+    | 'officials_management'
+    | 'results_management'
+    | 'statistics'
+    | 'content'
+    | 'media'
+    | 'sponsors'
+    | 'public_site'
+    | 'user_access'
+    | 'ai_scheduling'
+
+const organisationTypeCapabilities: Record<
+    OrganisationType,
+    readonly OrganisationCapability[]
+> = {
+    competition_organiser: [
+        'competition_management',
+        'fixture_management',
+        'club_management',
+        'team_management',
+        'officials_management',
+        'results_management',
+        'statistics',
+        'content',
+        'media',
+        'sponsors',
+        'public_site',
+        'user_access',
+        'ai_scheduling',
+    ],
+    club: [
+        'season_management',
+        'fixture_management',
+        'team_management',
+        'opponent_management',
+        'squad_management',
+        'officials_management',
+        'results_management',
+        'statistics',
+        'content',
+        'media',
+        'sponsors',
+        'public_site',
+        'user_access',
+    ],
+}
+
+const moduleCapabilities: Partial<
+    Record<AdminModule, OrganisationCapability>
+> = {
+    'Club Profile & Website': 'public_site',
+    Competitions: 'competition_management',
+    Seasons: 'season_management',
+    Clubs: 'club_management',
+    Teams: 'team_management',
+    'Competition Teams': 'competition_management',
+    Groups: 'competition_management',
+    'AI Tournament Director': 'ai_scheduling',
+    'Auto Fixture Generator': 'ai_scheduling',
+    Venues: 'fixture_management',
+    'Sports Officials': 'officials_management',
+    Fixtures: 'fixture_management',
+    Results: 'results_management',
+    Goals: 'statistics',
+    Sponsors: 'sponsors',
+    Articles: 'content',
+    Media: 'media',
+    'User Access': 'user_access',
+    Opponents: 'opponent_management',
+    Squad: 'squad_management',
+    Statistics: 'statistics',
+}
+
+export function getOrganisationCapabilities(
+    organisationType: OrganisationType,
+): readonly OrganisationCapability[] {
+    return organisationTypeCapabilities[
+        organisationType
+        ]
+}
+
+export function organisationHasCapability(
+    organisationType: OrganisationType,
+    capability: OrganisationCapability,
+): boolean {
+    return getOrganisationCapabilities(
+        organisationType,
+    ).includes(capability)
+}
+
+
 export function canAccessModule(
     role: AdminRole,
     module: AdminModule,
     isPlatformAdmin = false,
+    organisationType: OrganisationType =
+    'competition_organiser',
 ): boolean {
-    if (
-        module === 'Organisations'
-    ) {
+    if (module === 'Organisations') {
         return isPlatformAdmin
     }
 
-    return roleModules[role].includes(
-        module,
+    if (!roleModules[role].includes(module)) {
+        return false
+    }
+
+    const requiredCapability =
+        moduleCapabilities[module]
+
+    if (!requiredCapability) {
+        return true
+    }
+
+    return organisationHasCapability(
+        organisationType,
+        requiredCapability,
     )
 }
 
@@ -375,6 +505,7 @@ export async function getCurrentAdminProfile():
             name,
             slug,
             status,
+            organisation_type,
             logo_url,
             primary_colour,
             secondary_colour,

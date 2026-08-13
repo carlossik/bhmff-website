@@ -3,6 +3,10 @@ export type OrganisationStatus =
     | 'inactive'
     | 'suspended'
 
+export type OrganisationType =
+    | 'competition_organiser'
+    | 'club'
+
 export type SubscriptionPlan =
     | 'starter'
     | 'professional'
@@ -21,8 +25,21 @@ export interface Organisation {
     slug: string
 
     status: OrganisationStatus
+    organisation_type: OrganisationType
 
     logo_url: string | null
+    description: string | null
+    sport: string | null
+    country: string | null
+    currency: string | null
+    founded_year: number | null
+    home_ground: string | null
+    website_url: string | null
+    contact_email: string | null
+    facebook_url: string | null
+    instagram_url: string | null
+    twitter_url: string | null
+    youtube_url: string | null
 
     primary_colour: string | null
     secondary_colour: string | null
@@ -60,10 +77,23 @@ export interface OrganisationFormData {
     slug: string
 
     status: OrganisationStatus
+    organisation_type: OrganisationType
 
     // Branding
 
     logo_url: string
+    description: string
+    sport: string
+    country: string
+    currency: string
+    founded_year: number | null
+    home_ground: string
+    website_url: string
+    contact_email: string
+    facebook_url: string
+    instagram_url: string
+    twitter_url: string
+    youtube_url: string
 
     primary_colour: string
     secondary_colour: string
@@ -104,10 +134,23 @@ export const defaultOrganisation: OrganisationFormData = {
     slug: '',
 
     status: 'active',
+    organisation_type: 'competition_organiser',
 
     // Branding
 
     logo_url: '',
+    description: '',
+    sport: '',
+    country: 'United Kingdom',
+    currency: 'GBP',
+    founded_year: null,
+    home_ground: '',
+    website_url: '',
+    contact_email: '',
+    facebook_url: '',
+    instagram_url: '',
+    twitter_url: '',
+    youtube_url: '',
 
     primary_colour: '#0f766e',
     secondary_colour: '#0f172a',

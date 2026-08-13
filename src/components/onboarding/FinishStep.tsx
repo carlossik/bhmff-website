@@ -124,9 +124,9 @@ export function FinishStep({
             />
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
-                <article className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-300" />
-                    <h2 className="mt-4 text-base font-black text-[var(--organisation-text)]">
+                <article className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
+                    <CheckCircle2 className="h-6 w-6 text-[var(--organisation-accent)]" />
+                    <h2 className="mt-4 !text-base !leading-6 font-black text-[var(--organisation-text)] sm:!text-lg">
                         Organisation
                     </h2>
                     <p className="mt-2 text-sm text-[var(--organisation-muted)]">
@@ -135,9 +135,9 @@ export function FinishStep({
                     </p>
                 </article>
 
-                <article className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-                    <Trophy className="h-6 w-6 text-emerald-300" />
-                    <h2 className="mt-4 text-base font-black text-[var(--organisation-text)]">
+                <article className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
+                    <Trophy className="h-6 w-6 text-[var(--organisation-accent)]" />
+                    <h2 className="mt-4 !text-base !leading-6 font-black text-[var(--organisation-text)] sm:!text-lg">
                         Competition
                     </h2>
                     <p className="mt-2 text-sm text-[var(--organisation-muted)]">
@@ -146,9 +146,9 @@ export function FinishStep({
                     </p>
                 </article>
 
-                <article className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-                    <Globe2 className="h-6 w-6 text-emerald-300" />
-                    <h2 className="mt-4 text-base font-black text-[var(--organisation-text)]">
+                <article className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
+                    <Globe2 className="h-6 w-6 text-[var(--organisation-accent)]" />
+                    <h2 className="mt-4 !text-base !leading-6 font-black text-[var(--organisation-text)] sm:!text-lg">
                         Public site
                     </h2>
                     <p className="mt-2 text-sm text-[var(--organisation-muted)]">
@@ -163,7 +163,7 @@ export function FinishStep({
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--organisation-accent,#84cc16)]">
                     Recommended next move
                 </p>
-                <h2 className="mt-2 text-xl font-black text-[var(--organisation-text)]">
+                <h2 className="mt-2 !text-xl !leading-8 font-black text-[var(--organisation-text)] sm:!text-2xl">
                     Add teams, then let the AI Tournament Director build your fixture programme.
                 </h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--organisation-muted)]">
@@ -186,7 +186,7 @@ export function FinishStep({
                             href={`/${organisation.slug}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-5 py-3 text-sm font-bold text-slate-200 no-underline transition hover:bg-white/[0.06]"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-5 py-3 text-sm font-bold text-[var(--organisation-text)] no-underline transition hover:bg-[color:var(--organisation-accent)]/10"
                         >
                             <ExternalLink className="h-4 w-4" />
                             View public site

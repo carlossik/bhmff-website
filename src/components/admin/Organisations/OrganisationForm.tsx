@@ -281,8 +281,23 @@ function mapOrganisationToForm(
     return {
         ...defaultOrganisation,
         ...organisation,
+        organisation_type:
+            organisation.organisation_type ??
+            defaultOrganisation.organisation_type,
         logo_url:
             organisation.logo_url ?? '',
+        description: organisation.description ?? '',
+        sport: organisation.sport ?? '',
+        country: organisation.country ?? 'United Kingdom',
+        currency: organisation.currency ?? 'GBP',
+        founded_year: organisation.founded_year ?? null,
+        home_ground: organisation.home_ground ?? '',
+        website_url: organisation.website_url ?? '',
+        contact_email: organisation.contact_email ?? '',
+        facebook_url: organisation.facebook_url ?? '',
+        instagram_url: organisation.instagram_url ?? '',
+        twitter_url: organisation.twitter_url ?? '',
+        youtube_url: organisation.youtube_url ?? '',
         primary_colour:
             organisation.primary_colour ??
             defaultOrganisation.primary_colour,
@@ -860,6 +875,37 @@ export function OrganisationForm({
                             </select>
                         </label>
 
+                        <label>
+                            <span className={labelClassName}>
+                                Organisation type
+                            </span>
+
+                            <select
+                                value={form.organisation_type}
+                                disabled={controlsDisabled}
+                                onChange={(event) =>
+                                    updateField(
+                                        'organisation_type',
+                                        event.target.value as OrganisationFormData['organisation_type']
+                                    )
+                                }
+                                className={selectClassName}
+                            >
+                                <option value="competition_organiser">
+                                    Competition organiser
+                                </option>
+                                <option value="club">
+                                    Club / team
+                                </option>
+                            </select>
+
+                            <span className="mt-2 block text-xs leading-5 text-slate-400">
+                                {form.organisation_type === 'club'
+                                    ? 'Manage your own seasons, fixtures, results, squad, officials, statistics and media without running a league.'
+                                    : 'Manage leagues, tournaments, competitions, participating clubs, fixtures, results and competition operations.'}
+                            </span>
+                        </label>
+
                         <label className="flex min-h-[76px] items-center gap-3 rounded-xl border border-lime-900/50 bg-black/20 px-4 py-3">
                             <input
                                 type="checkbox"
@@ -884,7 +930,9 @@ export function OrganisationForm({
                                 </span>
 
                                 <span className="mt-1 block text-xs leading-5 text-slate-400">
-                                    Publish competitions, fixtures and results publicly.
+                                    {form.organisation_type === 'club'
+                                        ? 'Publish club fixtures, results, statistics, news and media publicly.'
+                                        : 'Publish competitions, fixtures and results publicly.'}
                                 </span>
                             </span>
                         </label>
@@ -990,11 +1038,156 @@ export function OrganisationForm({
                     </div>
                 </section>
 
+                {form.organisation_type === 'club' && (
+                    <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-12">
+                        <SectionHeading
+                            icon={Building2}
+                            title="Club profile"
+                            description="Public club identity and contact information used across the club website and match-day experience."
+                        />
+
+                        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                            <label className="md:col-span-2 xl:col-span-3">
+                                <span className={labelClassName}>About the club</span>
+                                <textarea
+                                    value={form.description}
+                                    disabled={controlsDisabled}
+                                    onChange={(event) => updateField('description', event.target.value)}
+                                    rows={4}
+                                    placeholder="Tell players, parents, supporters and visitors about the club."
+                                    className={inputClassName}
+                                />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Sport</span>
+                                <select
+                                    value={form.sport}
+                                    disabled={controlsDisabled}
+                                    onChange={(event) => updateField('sport', event.target.value)}
+                                    className={selectClassName}
+                                >
+                                    <option value="">Select sport</option>
+                                    <option value="football">Football</option>
+                                    <option value="basketball">Basketball</option>
+                                    <option value="rugby">Rugby</option>
+                                    <option value="cricket">Cricket</option>
+                                    <option value="netball">Netball</option>
+                                    <option value="hockey">Hockey</option>
+                                    <option value="volleyball">Volleyball</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Country</span>
+                                <input
+                                    type="text"
+                                    value={form.country}
+                                    disabled={controlsDisabled}
+                                    onChange={(event) => updateField('country', event.target.value)}
+                                    className={inputClassName}
+                                />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Currency</span>
+                                <select
+                                    value={form.currency}
+                                    disabled={controlsDisabled}
+                                    onChange={(event) => updateField('currency', event.target.value)}
+                                    className={selectClassName}
+                                >
+                                    <option value="GBP">GBP (£)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GHS">GHS (GH₵)</option>
+                                    <option value="NGN">NGN (₦)</option>
+                                    <option value="CAD">CAD (C$)</option>
+                                    <option value="AUD">AUD (A$)</option>
+                                </select>
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Founded</span>
+                                <input
+                                    type="number"
+                                    min={1800}
+                                    max={new Date().getFullYear()}
+                                    value={form.founded_year ?? ''}
+                                    disabled={controlsDisabled}
+                                    onChange={(event) =>
+                                        updateField(
+                                            'founded_year',
+                                            event.target.value ? Number(event.target.value) : null
+                                        )
+                                    }
+                                    className={inputClassName}
+                                />
+                            </label>
+
+                            <label className="md:col-span-2">
+                                <span className={labelClassName}>Home ground</span>
+                                <input
+                                    type="text"
+                                    value={form.home_ground}
+                                    disabled={controlsDisabled}
+                                    onChange={(event) => updateField('home_ground', event.target.value)}
+                                    placeholder="e.g. Meridian Sports Ground"
+                                    className={inputClassName}
+                                />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Club website</span>
+                                <input type="url" value={form.website_url} disabled={controlsDisabled}
+                                    onChange={(event) => updateField('website_url', event.target.value)}
+                                    placeholder="https://..." className={inputClassName} />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Public contact email</span>
+                                <input type="email" value={form.contact_email} disabled={controlsDisabled}
+                                    onChange={(event) => updateField('contact_email', event.target.value)}
+                                    placeholder="club@example.com" className={inputClassName} />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Facebook</span>
+                                <input type="url" value={form.facebook_url} disabled={controlsDisabled}
+                                    onChange={(event) => updateField('facebook_url', event.target.value)}
+                                    placeholder="https://facebook.com/..." className={inputClassName} />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>Instagram</span>
+                                <input type="url" value={form.instagram_url} disabled={controlsDisabled}
+                                    onChange={(event) => updateField('instagram_url', event.target.value)}
+                                    placeholder="https://instagram.com/..." className={inputClassName} />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>X / Twitter</span>
+                                <input type="url" value={form.twitter_url} disabled={controlsDisabled}
+                                    onChange={(event) => updateField('twitter_url', event.target.value)}
+                                    placeholder="https://x.com/..." className={inputClassName} />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>YouTube</span>
+                                <input type="url" value={form.youtube_url} disabled={controlsDisabled}
+                                    onChange={(event) => updateField('youtube_url', event.target.value)}
+                                    placeholder="https://youtube.com/..." className={inputClassName} />
+                            </label>
+                        </div>
+                    </section>
+                )}
+
                 <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
                     <SectionHeading
                         icon={ImagePlus}
-                        title="Organisation logo"
-                        description="Upload the customer brand mark."
+                        title={form.organisation_type === 'club' ? 'Club logo' : 'Organisation logo'}
+                        description={form.organisation_type === 'club' ? 'Upload the club crest or brand mark used on the public website.' : 'Upload the customer brand mark.'}
                     />
 
                     <div className="flex items-center gap-4">
@@ -1503,11 +1696,11 @@ export function OrganisationForm({
                                             <div>
                                                 <strong className="block text-sm">
                                                     {form.name ||
-                                                        'Your organisation'}
+                                                        'Your club'}
                                                 </strong>
 
                                                 <span className="text-xs opacity-70">
-                                                    Competition Administration
+                                                    {form.organisation_type === 'club' ? 'Club Administration' : 'Competition Administration'}
                                                 </span>
                                             </div>
                                         </div>
@@ -1540,7 +1733,7 @@ export function OrganisationForm({
                                                 form.surface_colour,
                                             }}
                                         >
-                                            {['Dashboard', 'Teams', 'Fixtures'].map(
+                                            {form.organisation_type === 'club' ? ['Dashboard', 'Squad', 'Fixtures'] : ['Dashboard', 'Teams', 'Fixtures'].map(
                                                 (item, index) => (
                                                     <div
                                                         key={item}

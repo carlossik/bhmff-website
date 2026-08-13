@@ -604,8 +604,8 @@ export function CompetitionTeamsManager() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-56 items-center justify-center rounded-2xl border border-[color:var(--organisation-border)] bg-black/20">
-                <p className="text-sm text-slate-400">
+            <div className="flex min-h-56 items-center justify-center rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)]">
+                <p className="text-sm text-[color:var(--organisation-text)]/60">
                     Loading competition teams...
                 </p>
             </div>
@@ -622,25 +622,25 @@ export function CompetitionTeamsManager() {
                 }
             />
 
-            <section className="rounded-2xl border border-[color:var(--organisation-border)] bg-black/20 p-5 shadow-xl sm:p-6">
+            <section className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-5 shadow-xl sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
                             Participant management
                         </p>
 
-                        <h2 className="mt-2 text-2xl font-bold text-white">
+                        <h2 className="mt-2 !text-2xl !leading-8 font-black sm:!text-3xl tracking-tight text-[var(--organisation-text)] sm:!text-2xl !leading-8 sm:!text-3xl">
                             Competition Teams
                         </h2>
 
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--organisation-text)]/75">
                             Select participating teams and set their preferred group-stage match days.
                         </p>
 
                         {currentCompetition && (
-                            <p className="mt-2 text-sm text-slate-400">
+                            <p className="mt-2 text-sm text-[color:var(--organisation-text)]/60">
                                 Managing participants for{' '}
-                                <strong className="text-white">
+                                <strong className="text-[var(--organisation-text)]">
                                     {
                                         currentCompetition
                                             .name
@@ -651,7 +651,7 @@ export function CompetitionTeamsManager() {
                     </div>
 
                     <button
-                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-bold text-[var(--organisation-on-accent)] shadow-lg transition hover:bg-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-bold text-[var(--organisation-on-accent)] shadow-lg transition hover:bg-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:bg-[color:var(--organisation-text)]/10 disabled:text-[color:var(--organisation-text)]/60"
                         type="button"
                         disabled={
                             !currentCompetitionId ||
@@ -670,31 +670,31 @@ export function CompetitionTeamsManager() {
             </section>
 
             {!currentCompetitionId ? (
-                <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-black/20 px-6 py-12 text-center">
-                    <h3 className="text-lg font-bold text-white">
+                <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center">
+                    <h3 className="text-lg font-bold text-[var(--organisation-text)]">
                         No competition selected
                     </h3>
 
-                    <p className="mt-2 text-sm text-slate-400">
+                    <p className="mt-2 text-sm text-[color:var(--organisation-text)]/60">
                         Select a competition before assigning teams.
                     </p>
                 </div>
             ) : !organisationTeams.length ? (
-                <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-black/20 px-6 py-12 text-center">
-                    <h3 className="text-lg font-bold text-white">
+                <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center">
+                    <h3 className="text-lg font-bold text-[var(--organisation-text)]">
                         No teams available
                     </h3>
 
-                    <p className="mt-2 text-sm text-slate-400">
+                    <p className="mt-2 text-sm text-[color:var(--organisation-text)]/60">
                         Create organisation teams first, then return here to add them to this competition.
                     </p>
                 </div>
             ) : (
                 <>
-                    <section className="rounded-2xl border border-[color:var(--organisation-border)] bg-black/20 p-4 sm:p-5">
+                    <section className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-4 sm:p-5">
                         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                             <div className="relative w-full xl:max-w-xl">
-                                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
+                                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[color:var(--organisation-text)]/45">
                                     ⌕
                                 </span>
 
@@ -702,7 +702,7 @@ export function CompetitionTeamsManager() {
                                     type="search"
                                     value={searchTerm}
                                     placeholder="Search teams, clubs, age groups or divisions..."
-                                    className="min-h-11 w-full rounded-xl border border-[color:var(--organisation-border)] bg-slate-950 py-2.5 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-[color:var(--organisation-border)] focus:ring-4 focus:ring-[color:var(--organisation-accent)]/10"
+                                    className="min-h-11 w-full rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] py-2.5 pl-11 pr-4 text-sm text-[var(--organisation-text)] outline-none transition placeholder:text-[color:var(--organisation-text)]/45 focus:border-[color:var(--organisation-border)] focus:ring-4 focus:ring-[color:var(--organisation-accent)]/10"
                                     onChange={(event) =>
                                         setSearchTerm(
                                             event.currentTarget
@@ -714,7 +714,7 @@ export function CompetitionTeamsManager() {
 
                             <div className="flex flex-wrap gap-2">
                                 <button
-                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-accent)] hover:text-[var(--organisation-on-accent)] disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-accent)] hover:text-[var(--organisation-on-accent)] disabled:cursor-not-allowed disabled:border-[color:var(--organisation-border)] disabled:bg-[var(--organisation-background)] disabled:text-[color:var(--organisation-text)]/30"
                                     type="button"
                                     disabled={
                                         allVisibleSelected ||
@@ -728,7 +728,7 @@ export function CompetitionTeamsManager() {
                                 </button>
 
                                 <button
-                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-accent)] hover:text-[var(--organisation-on-accent)] disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--organisation-accent)] transition hover:bg-[var(--organisation-accent)] hover:text-[var(--organisation-on-accent)] disabled:cursor-not-allowed disabled:border-[color:var(--organisation-border)] disabled:bg-[var(--organisation-background)] disabled:text-[color:var(--organisation-text)]/30"
                                     type="button"
                                     disabled={
                                         noVisibleSelected ||
@@ -742,7 +742,7 @@ export function CompetitionTeamsManager() {
                                 </button>
 
                                 <button
-                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-600 bg-slate-900 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-200 transition hover:border-slate-400 hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
+                                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[color:var(--organisation-text)]/85 transition hover:border-[color:var(--organisation-accent)] hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:text-[color:var(--organisation-text)]/30"
                                     type="button"
                                     disabled={
                                         !hasUnsavedChanges &&
@@ -758,15 +758,15 @@ export function CompetitionTeamsManager() {
                         </div>
 
                         {searchTerm && (
-                            <p className="mt-3 text-xs text-slate-400">
+                            <p className="mt-3 text-xs text-[color:var(--organisation-text)]/60">
                                 Showing{' '}
-                                <strong className="text-white">
+                                <strong className="text-[var(--organisation-text)]">
                                     {
                                         filteredTeams.length
                                     }
                                 </strong>{' '}
                                 of{' '}
-                                <strong className="text-white">
+                                <strong className="text-[var(--organisation-text)]">
                                     {
                                         organisationTeams.length
                                     }
@@ -790,7 +790,7 @@ export function CompetitionTeamsManager() {
                                         Teams selected
                                     </p>
 
-                                    <p className="mt-1 text-xl font-bold text-white">
+                                    <p className="mt-1 text-xl font-bold text-[var(--organisation-text)]">
                                         {
                                             selectedTeamIds.length
                                         }{' '}
@@ -810,15 +810,15 @@ export function CompetitionTeamsManager() {
                                         />
                                     </div>
 
-                                    <p className="mt-2 text-xs text-slate-300">
+                                    <p className="mt-2 text-xs text-[color:var(--organisation-text)]/75">
                                         {selectionPercentage}% of available teams are currently selected.
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-sky-700/40 bg-sky-500/10 p-5">
-                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">
+                        <div className="rounded-2xl border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 p-5">
+                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--organisation-accent)]">
                                 Competition match days
                             </p>
 
@@ -827,7 +827,7 @@ export function CompetitionTeamsManager() {
                                     (day) => (
                                         <span
                                             key={day}
-                                            className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-sm font-semibold text-sky-100"
+                                            className="rounded-full border border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 px-3 py-1.5 text-sm font-semibold text-[var(--organisation-text)]"
                                         >
                                             {
                                                 MATCH_DAY_LABELS[
@@ -839,19 +839,19 @@ export function CompetitionTeamsManager() {
                                 )}
                             </div>
 
-                            <p className="mt-3 text-xs leading-5 text-slate-300">
+                            <p className="mt-3 text-xs leading-5 text-[color:var(--organisation-text)]/75">
                                 Group-stage preferences are used where possible. Knockout dates take priority after qualification.
                             </p>
                         </div>
                     </section>
 
                     {!filteredTeams.length ? (
-                        <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-black/20 px-6 py-12 text-center">
-                            <h3 className="text-lg font-bold text-white">
+                        <div className="rounded-2xl border border-dashed border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center">
+                            <h3 className="text-lg font-bold text-[var(--organisation-text)]">
                                 No matching teams
                             </h3>
 
-                            <p className="mt-2 text-sm text-slate-400">
+                            <p className="mt-2 text-sm text-[color:var(--organisation-text)]/60">
                                 Try changing your search term.
                             </p>
                         </div>
@@ -875,7 +875,7 @@ export function CompetitionTeamsManager() {
                                             className={`rounded-2xl border p-4 transition ${
                                                 isSelected
                                                     ? 'border-[color:var(--organisation-border)] bg-[color:var(--organisation-accent)]/10 shadow-lg shadow-black/20'
-                                                    : 'border-[color:var(--organisation-border)] bg-black/20 hover:border-[color:var(--organisation-border)]'
+                                                    : 'border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] hover:border-[color:var(--organisation-border)]'
                                             }`}
                                             key={
                                                 team.id
@@ -899,13 +899,13 @@ export function CompetitionTeamsManager() {
                                                 )}
 
                                                 <div className="min-w-0 flex-1">
-                                                    <h4 className="truncate font-bold text-white">
+                                                    <h4 className="truncate font-bold text-[var(--organisation-text)]">
                                                         {
                                                             team.name
                                                         }
                                                     </h4>
 
-                                                    <p className="truncate text-sm text-slate-400">
+                                                    <p className="truncate text-sm text-[color:var(--organisation-text)]/60">
                                                         {team.club_name ??
                                                             'Independent team'}
                                                     </p>
@@ -913,7 +913,7 @@ export function CompetitionTeamsManager() {
 
                                                 <input
                                                     type="checkbox"
-                                                    className="h-5 w-5 rounded border-slate-600 bg-slate-900 text-[var(--organisation-accent)] accent-[var(--organisation-accent)]"
+                                                    className="h-5 w-5 rounded border-[color:var(--organisation-border)] bg-[var(--organisation-background)] text-[var(--organisation-accent)] accent-[var(--organisation-accent)]"
                                                     checked={
                                                         isSelected
                                                     }
@@ -927,7 +927,7 @@ export function CompetitionTeamsManager() {
 
                                             <div className="mt-4 flex flex-wrap gap-2">
                                                 {team.age_group && (
-                                                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
+                                                    <span className="rounded-full bg-[color:var(--organisation-accent)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--organisation-text)]/85">
                                                         {
                                                             team.age_group
                                                         }
@@ -935,7 +935,7 @@ export function CompetitionTeamsManager() {
                                                 )}
 
                                                 {team.division && (
-                                                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
+                                                    <span className="rounded-full bg-[color:var(--organisation-accent)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--organisation-text)]/85">
                                                         {
                                                             team.division
                                                         }
@@ -943,14 +943,14 @@ export function CompetitionTeamsManager() {
                                                 )}
 
                                                 {team.participation_status && (
-                                                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
+                                                    <span className="rounded-full bg-[color:var(--organisation-accent)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--organisation-text)]/85">
                                                         {
                                                             team.participation_status
                                                         }
                                                     </span>
                                                 )}
 
-                                                <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200">
+                                                <span className="rounded-full bg-[color:var(--organisation-accent)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--organisation-text)]/85">
                                                     {team.published
                                                         ? 'Published'
                                                         : 'Draft'}
@@ -981,7 +981,7 @@ export function CompetitionTeamsManager() {
                                                                         className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                                                                             checked
                                                                                 ? 'border-[color:var(--organisation-accent)] bg-[var(--organisation-accent)] text-[var(--organisation-on-accent)]'
-                                                                                : 'border-[color:var(--organisation-border)] bg-black/20 text-slate-300 hover:border-[color:var(--organisation-border)]'
+                                                                                : 'border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] text-[color:var(--organisation-text)]/75 hover:border-[color:var(--organisation-border)]'
                                                                         }`}
                                                                     >
                                                                         <input
@@ -1023,9 +1023,9 @@ export function CompetitionTeamsManager() {
                         </div>
                     )}
 
-                    <div className="sticky bottom-4 z-20 flex justify-end rounded-2xl border border-[color:var(--organisation-border)] bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
+                    <div className="sticky bottom-4 z-20 flex justify-end rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)]/95 p-4 shadow-2xl backdrop-blur">
                         <button
-                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-bold text-[var(--organisation-on-accent)] shadow-lg transition hover:bg-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-bold text-[var(--organisation-on-accent)] shadow-lg transition hover:bg-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:bg-[color:var(--organisation-text)]/10 disabled:text-[color:var(--organisation-text)]/60"
                             type="button"
                             disabled={
                                 !hasUnsavedChanges ||

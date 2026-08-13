@@ -17,6 +17,20 @@ type OrganisationRecord = {
     surface_colour: string
     text_colour: string
     logo_url: string | null
+    description: string | null
+    sport: string | null
+    country: string | null
+    currency: string | null
+    founded_year: number | null
+    home_ground: string | null
+    website_url: string | null
+    contact_email: string | null
+    facebook_url: string | null
+    instagram_url: string | null
+    twitter_url: string | null
+    youtube_url: string | null
+    organisation_type:
+        OrganisationFormData['organisation_type']
     status: OrganisationFormData['status']
     subscription_plan:
         OrganisationFormData['subscription_plan']
@@ -65,6 +79,21 @@ function toOrganisationRecord(
             normaliseOptionalText(
                 organisation.logo_url,
             ),
+        description: normaliseOptionalText(organisation.description),
+        sport: normaliseOptionalText(organisation.sport),
+        country: normaliseOptionalText(organisation.country),
+        currency: normaliseOptionalText(organisation.currency)?.toUpperCase() ?? null,
+        founded_year: organisation.founded_year,
+        home_ground: normaliseOptionalText(organisation.home_ground),
+        website_url: normaliseOptionalText(organisation.website_url),
+        contact_email:
+            normaliseOptionalText(organisation.contact_email)?.toLowerCase() ?? null,
+        facebook_url: normaliseOptionalText(organisation.facebook_url),
+        instagram_url: normaliseOptionalText(organisation.instagram_url),
+        twitter_url: normaliseOptionalText(organisation.twitter_url),
+        youtube_url: normaliseOptionalText(organisation.youtube_url),
+        organisation_type:
+            organisation.organisation_type,
         status: organisation.status,
         subscription_plan:
             organisation.subscription_plan,
@@ -229,7 +258,46 @@ export async function createOrganisation(
         )
     }
 
-    return data as Organisation
+    let created =
+        data as Organisation
+
+    /*
+     * Backward-compatible correction:
+     * older versions of the onboarding RPC may not yet copy
+     * organisation_type from the JSON payload.
+     */
+    if (
+        created.organisation_type !==
+        organisation.organisation_type
+    ) {
+        const {
+            data: corrected,
+            error: correctionError,
+        } =
+            await supabase
+                .from(TABLE)
+                .update({
+                    organisation_type:
+                        organisation.organisation_type,
+                })
+                .eq(
+                    'id',
+                    created.id,
+                )
+                .select()
+                .single()
+
+        if (correctionError) {
+            throw new Error(
+                `Organisation created, but its operating model could not be saved: ${correctionError.message}`,
+            )
+        }
+
+        created =
+            corrected as Organisation
+    }
+
+    return created
 }
 
 export async function updateOrganisation(

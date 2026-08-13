@@ -303,7 +303,9 @@ export async function createOrganisationOnboarding(
                 ownerInvitationSkipped:
                 invitation.skipped,
                 nextStep:
-                    'create_first_competition',
+                    organisationData.organisation_type === 'club'
+                        ? 'complete_profile'
+                        : 'create_first_competition',
                 warnings,
             }
         } catch (invitationError) {
@@ -337,7 +339,9 @@ export async function createOrganisationOnboarding(
                 ownerInvitationSkipped:
                     false,
                 nextStep:
-                    'create_first_competition',
+                    organisationData.organisation_type === 'club'
+                        ? 'complete_profile'
+                        : 'create_first_competition',
                 warnings,
             }
         }

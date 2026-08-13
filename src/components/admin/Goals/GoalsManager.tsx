@@ -4,6 +4,8 @@ import {
     useState,
 } from 'react'
 import { useCompetition } from '../../../contexts/CompetitionContext'
+import { useOrganisation } from '../../../context/OrganisationContext'
+import { ClubGoalsManager } from './ClubGoalsManager'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { GoalModal } from './GoalModal'
@@ -29,7 +31,7 @@ type ToastType =
     | 'error'
     | 'info'
 
-export function GoalsManager() {
+function CompetitionGoalsManager() {
     const {
         currentCompetition,
         currentCompetitionId,
@@ -487,4 +489,11 @@ export function GoalsManager() {
             )}
         </div>
     )
+}
+
+export function GoalsManager() {
+    const { currentOrganisation } = useOrganisation()
+    return currentOrganisation.organisation_type === 'club'
+        ? <ClubGoalsManager />
+        : <CompetitionGoalsManager />
 }

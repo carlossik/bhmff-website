@@ -390,14 +390,14 @@ const OfficialsManager: React.FC = () => {
                 stats={stats}
             />
 
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-5 shadow-xl">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">
+                        <h1 className="!text-2xl !leading-8 font-black tracking-tight text-[var(--organisation-text)] sm:!text-3xl">
                             Sports Officials
                         </h1>
 
-                        <p className="text-sm text-slate-500">
+                        <p className="mt-1 text-sm text-[color:var(--organisation-text)]/65">
                             Manage referees, umpires,
                             judges, assessors and match
                             officials.
@@ -411,7 +411,7 @@ const OfficialsManager: React.FC = () => {
                                 void loadOfficials()
                             }
                             disabled={loading}
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-2 text-sm font-medium text-[var(--organisation-text)] hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50" 
                         >
                             <RefreshCw
                                 size={16}
@@ -431,7 +431,7 @@ const OfficialsManager: React.FC = () => {
                             disabled={
                                 !currentOrganisationId
                             }
-                            className="inline-flex items-center gap-2 rounded-lg bg-[var(--organisation-accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-black text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Plus size={16} />
 
@@ -443,13 +443,13 @@ const OfficialsManager: React.FC = () => {
                 <div className="mt-6 grid gap-4 lg:grid-cols-5">
                     <div className="relative lg:col-span-2">
                         <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--organisation-text)]/45"
                             size={18}
                         />
 
                         <input
                             type="search"
-                            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
+                            className="w-full rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] py-2.5 pl-10 pr-4 text-sm text-[var(--organisation-text)] outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                             placeholder="Search officials..."
                             value={
                                 filters.search
@@ -469,7 +469,8 @@ const OfficialsManager: React.FC = () => {
                     </div>
 
                     <select
-                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
+                        style={{ colorScheme: 'dark' }}
+                        className="rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] p-2.5 text-sm text-[var(--organisation-text)] outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                         value={
                             filters.role ?? ''
                         }
@@ -515,7 +516,8 @@ const OfficialsManager: React.FC = () => {
                     </select>
 
                     <select
-                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
+                        style={{ colorScheme: 'dark' }}
+                        className="rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] p-2.5 text-sm text-[var(--organisation-text)] outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                         value={
                             filters.status ?? ''
                         }
@@ -552,7 +554,8 @@ const OfficialsManager: React.FC = () => {
                     </select>
 
                     <select
-                        className="rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
+                        style={{ colorScheme: 'dark' }}
+                        className="rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] p-2.5 text-sm text-[var(--organisation-text)] outline-none focus:border-[color:var(--organisation-border)] focus:ring-2 focus:ring-[color:var(--organisation-accent)]/20"
                         value={
                             filters
                                 .verification_status ??

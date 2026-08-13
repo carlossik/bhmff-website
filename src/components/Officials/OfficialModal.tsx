@@ -74,10 +74,10 @@ const createEmptyForm = (
 });
 
 const inputClass =
-    'block w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3.5 py-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition placeholder:text-slate-500 focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-black/30 disabled:text-slate-500';
+    'block w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3.5 py-3 text-sm text-[var(--organisation-text)] shadow-inner shadow-black/20 outline-none transition placeholder:text-[color:var(--organisation-text)]/40 focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)]/20 disabled:cursor-not-allowed disabled:opacity-50';
 
 const labelClass =
-    'mb-2 block text-sm font-semibold text-slate-200';
+    'mb-2 block text-sm font-semibold text-[color:var(--organisation-text)]/85';
 
 const OfficialModal: React.FC<Props> = ({
                                             open,
@@ -399,7 +399,7 @@ const OfficialModal: React.FC<Props> = ({
                 onSubmit={event =>
                     void handleSubmit(event)
                 }
-                className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] text-white shadow-2xl shadow-black/60"
+                className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] text-[var(--organisation-text)] shadow-2xl shadow-black/60"
                 style={{ maxHeight: '90vh' }}
             >
                 <div className="flex shrink-0 items-center justify-between border-b border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-5">
@@ -410,14 +410,14 @@ const OfficialModal: React.FC<Props> = ({
 
                         <h2
                             id="official-modal-title"
-                            className="mt-1 text-3xl font-black tracking-tight text-white"
+                            className="mt-1 text-3xl font-black tracking-tight text-[var(--organisation-text)]"
                         >
                             {official
                                 ? 'Edit Official'
                                 : 'Add Official'}
                         </h2>
 
-                        <p className="mt-2 text-sm text-slate-400">
+                        <p className="mt-2 text-sm text-[color:var(--organisation-text)]/60">
                             Add the official&apos;s sport,
                             role and essential profile
                             details.
@@ -428,7 +428,7 @@ const OfficialModal: React.FC<Props> = ({
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="rounded-xl border border-[var(--organisation-border)] bg-black/20 p-2.5 text-slate-400 transition hover:border-[var(--organisation-accent)] hover:bg-[var(--organisation-surface)] hover:text-white disabled:opacity-50"
+                        className="rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] p-2.5 text-[color:var(--organisation-text)]/60 transition hover:border-[var(--organisation-accent)] hover:bg-[var(--organisation-surface)] hover:text-white disabled:opacity-50"
                         aria-label="Close modal"
                     >
                         <X size={20} />
@@ -455,7 +455,7 @@ const OfficialModal: React.FC<Props> = ({
                                 Competition Context
                             </p>
 
-                            <p className="mt-1 text-sm text-slate-400">
+                            <p className="mt-1 text-sm text-[color:var(--organisation-text)]/60">
                                 The selected competition controls the
                                 sport and available official roles.
                             </p>
@@ -482,11 +482,12 @@ const OfficialModal: React.FC<Props> = ({
 
                                         <Lock
                                             size={16}
-                                            className="text-slate-500"
+                                            className="text-[color:var(--organisation-text)]/45"
                                         />
                                     </div>
                                 ) : (
                                     <select
+                                        style={{ colorScheme: 'dark' }}
                                         required
                                         value={form.sport_id}
                                         disabled={loadingSports}
@@ -515,7 +516,7 @@ const OfficialModal: React.FC<Props> = ({
                                 )}
 
                                 {sportIsInherited && (
-                                    <p className="mt-2 text-xs text-slate-500">
+                                    <p className="mt-2 text-xs text-[color:var(--organisation-text)]/45">
                                         Inherited from the selected competition.
                                     </p>
                                 )}
@@ -528,6 +529,7 @@ const OfficialModal: React.FC<Props> = ({
 
                                 <div className="relative">
                                     <select
+                                        style={{ colorScheme: 'dark' }}
                                         required
                                         value={form.role}
                                         disabled={
@@ -617,7 +619,7 @@ const OfficialModal: React.FC<Props> = ({
 
                         <div>
                             <label className={labelClass}>Status</label>
-                            <select value={form.status} onChange={event => updateField('status', event.target.value as OfficialStatus)} className={inputClass}>
+                            <select style={{ colorScheme: 'dark' }} value={form.status} onChange={event => updateField('status', event.target.value as OfficialStatus)} className={inputClass}>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                                 <option value="pending">Pending</option>
@@ -629,7 +631,7 @@ const OfficialModal: React.FC<Props> = ({
 
                         <div>
                             <label className={labelClass}>Verification</label>
-                            <select value={form.verification_status} onChange={event => updateField('verification_status', event.target.value as VerificationStatus)} className={inputClass}>
+                            <select style={{ colorScheme: 'dark' }} value={form.verification_status} onChange={event => updateField('verification_status', event.target.value as VerificationStatus)} className={inputClass}>
                                 <option value="not_verified">Not Verified</option>
                                 <option value="pending">Pending</option>
                                 <option value="verified">Verified</option>
@@ -639,7 +641,7 @@ const OfficialModal: React.FC<Props> = ({
 
                         <div>
                             <label className={labelClass}>Marketplace Visibility</label>
-                            <select value={form.marketplace_visibility} onChange={event => updateField('marketplace_visibility', event.target.value as MarketplaceVisibility)} className={inputClass}>
+                            <select style={{ colorScheme: 'dark' }} value={form.marketplace_visibility} onChange={event => updateField('marketplace_visibility', event.target.value as MarketplaceVisibility)} className={inputClass}>
                                 <option value="private">Private</option>
                                 <option value="organisation_only">Organisation Only</option>
                                 <option value="public">Public</option>
@@ -658,7 +660,7 @@ const OfficialModal: React.FC<Props> = ({
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="rounded-xl border border-slate-700 bg-black/20 px-5 py-2.5 font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-[var(--organisation-surface)]/5 disabled:opacity-50"
+                        className="rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-5 py-2.5 font-semibold text-[color:var(--organisation-text)]/85 transition hover:border-[var(--organisation-accent)] hover:bg-[var(--organisation-surface)]/5 disabled:opacity-50"
                     >
                         Cancel
                     </button>

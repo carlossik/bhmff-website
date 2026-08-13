@@ -14,12 +14,18 @@ import {
 import {
     competitionService,
 } from '../../services/competitionService'
+import {
+    supabase,
+} from '../../lib/supabaseClient'
 import type {
     Competition,
     CompetitionFormat,
     CompetitionStatus,
     CreateCompetitionInput,
 } from '../../types/competitionTypes'
+import type {
+    Sport,
+} from '../../types/sportTypes'
 import {
     SetupWizardHeader,
 } from '../../pages/onboarding/SetupWizardHeader'
@@ -36,6 +42,7 @@ type CompetitionStepProps = {
 }
 
 type CompetitionDraft = {
+    sportId: string
     name: string
     slug: string
     season: string
@@ -69,6 +76,7 @@ const statuses: Array<{
 ]
 
 const initialDraft: CompetitionDraft = {
+    sportId: '',
     name: '',
     slug: '',
     season: '',
@@ -107,14 +115,20 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function CompetitionStep({
-    organisationId,
-    competitionId,
-    onBack,
-    onCreated,
-    onFinish,
-}: CompetitionStepProps) {
+                                    organisationId,
+                                    competitionId,
+                                    onBack,
+                                    onCreated,
+                                    onFinish,
+                                }: CompetitionStepProps) {
     const [competition, setCompetition] =
         useState<Competition | null>(null)
+    const [sports, setSports] =
+        useState<Sport[]>([])
+    const [sportsLoading, setSportsLoading] =
+        useState(true)
+    const [sportsError, setSportsError] =
+        useState<string | null>(null)
     const [draft, setDraft] =
         useState<CompetitionDraft>(initialDraft)
     const [slugEdited, setSlugEdited] =
@@ -125,6 +139,55 @@ export function CompetitionStep({
         useState(false)
     const [errorMessage, setErrorMessage] =
         useState<string | null>(null)
+
+    useEffect(() => {
+        let cancelled = false
+
+        async function loadSports() {
+            setSportsLoading(true)
+            setSportsError(null)
+
+            const { data, error } =
+                await supabase
+                    .from('sports')
+                    .select(
+                        'id, name, slug, icon_key, active, created_at, updated_at',
+                    )
+                    .eq('active', true)
+                    .order('name', {
+                        ascending: true,
+                    })
+
+            if (cancelled) {
+                return
+            }
+
+            if (error) {
+                console.error(
+                    'Failed to load sports:',
+                    error,
+                )
+
+                setSports([])
+                setSportsError(
+                    'Unable to load sports. Please refresh and try again.',
+                )
+                setSportsLoading(false)
+                return
+            }
+
+            setSports(
+                (data ?? []) as Sport[],
+            )
+            setSportsLoading(false)
+        }
+
+        void loadSports()
+
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     useEffect(() => {
         let mounted = true
@@ -199,6 +262,13 @@ export function CompetitionStep({
             return
         }
 
+        if (!draft.sportId) {
+            setErrorMessage(
+                'Sport is required.',
+            )
+            return
+        }
+
         if (!draft.name.trim()) {
             setErrorMessage(
                 'Competition name is required.',
@@ -230,6 +300,7 @@ export function CompetitionStep({
         try {
             const input: CreateCompetitionInput = {
                 organisation_id: organisationId,
+                sport_id: draft.sportId,
                 name: draft.name.trim(),
                 slug: draft.slug.trim(),
                 season: draft.season.trim() || null,
@@ -293,7 +364,13 @@ export function CompetitionStep({
                                     {competition.name}
                                 </h2>
                                 <p className="mt-1 text-sm text-[var(--organisation-muted)]">
-                                    {competition.format.replaceAll('_', ' ')}
+                                    {sports.find(
+                                        (sport) =>
+                                            sport.id ===
+                                            competition.sport_id,
+                                    )?.name ?? 'Sport'}
+                                    {' · '}
+                                    {competition.format.split('_').join(' ')}
                                     {competition.season
                                         ? ` · ${competition.season}`
                                         : ''}
@@ -326,6 +403,53 @@ export function CompetitionStep({
                                 placeholder="e.g. Kent Youth League 2026/27"
                                 autoFocus
                             />
+                        </label>
+
+                        <label className="text-sm font-bold text-[var(--organisation-text)] md:col-span-2">
+                            Sport *
+                            <select
+                                value={draft.sportId}
+                                onChange={(event) =>
+                                    updateDraft(
+                                        'sportId',
+                                        event.target.value,
+                                    )
+                                }
+                                className={fieldClassName}
+                                disabled={
+                                    saving ||
+                                    sportsLoading
+                                }
+                            >
+                                <option value="">
+                                    {sportsLoading
+                                        ? 'Loading sports...'
+                                        : 'Select a sport'}
+                                </option>
+
+                                {sports.map((sport) => (
+                                    <option
+                                        key={sport.id}
+                                        value={sport.id}
+                                    >
+                                        {sport.name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {sportsError && (
+                                <span className="mt-2 block text-xs font-semibold text-red-300">
+                                    {sportsError}
+                                </span>
+                            )}
+
+                            {!sportsLoading &&
+                                !sportsError &&
+                                sports.length === 0 && (
+                                    <span className="mt-2 block text-xs text-[var(--organisation-muted)]">
+                                        No active sports are available.
+                                    </span>
+                                )}
                         </label>
 
                         <label className="text-sm font-bold text-[var(--organisation-text)]">
@@ -472,7 +596,11 @@ export function CompetitionStep({
                     <div className="flex justify-end border-t border-[color:var(--organisation-border)] pt-5">
                         <button
                             type="submit"
-                            disabled={saving}
+                            disabled={
+                                saving ||
+                                sportsLoading ||
+                                sports.length === 0
+                            }
                             className="inline-flex items-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-6 py-3 text-sm font-black text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Save className="h-4 w-4" />

@@ -408,7 +408,7 @@ export function GroupsManager() {
                 </div>
 
                 <button
-                    className="btn primary"
+                    className="inline-flex items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-black text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     type="button"
                     onClick={openCreateModal}
                     disabled={!currentCompetitionId}
@@ -476,8 +476,8 @@ export function GroupsManager() {
                                         <button
                                             className={
                                                 group.published
-                                                    ? 'btn secondary small'
-                                                    : 'btn primary small'
+                                                    ? 'inline-flex items-center justify-center rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-xs font-bold text-[var(--organisation-text)] transition hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50'
+                                                    : 'inline-flex items-center justify-center rounded-lg bg-[var(--organisation-accent)] px-3 py-2 text-xs font-black text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
                                             }
                                             type="button"
                                             disabled={isPublishing}
@@ -495,7 +495,7 @@ export function GroupsManager() {
                                         </button>
 
                                         <button
-                                            className="btn secondary small"
+                                            className="inline-flex items-center justify-center rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-xs font-bold text-[var(--organisation-text)] transition hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                                             type="button"
                                             onClick={() =>
                                                 openEditModal(group)
@@ -505,7 +505,7 @@ export function GroupsManager() {
                                         </button>
 
                                         <button
-                                            className="btn secondary small"
+                                            className="inline-flex items-center justify-center rounded-lg border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-xs font-bold text-[var(--organisation-text)] transition hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                                             type="button"
                                             onClick={() =>
                                                 setGroupToDelete(group)

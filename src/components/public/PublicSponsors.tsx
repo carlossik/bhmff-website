@@ -90,6 +90,27 @@ const GENERIC_SPONSORSHIP_CONTENT: SponsorshipContent = {
         "Tell us how your organisation would like to support this competition.",
 };
 
+
+const CLUB_SPONSORSHIP_CONTENT: SponsorshipContent = {
+    loadingLabel: "Loading club sponsors...",
+    defaultTierLabel: "Club Sponsor",
+    opportunityLabel: "Sponsorship Opportunities",
+    callToActionTitle: "Become a Club Sponsor",
+    callToActionDescription:
+        "Support this club while promoting your organisation to players, families, supporters and the wider local community. Sponsorship can help fund kits, equipment, facilities, player development and match-day delivery.",
+    callToActionButton: "Discuss Sponsorship",
+    modalEyebrow: "Club Sponsorship",
+    modalTitle: "Discuss Sponsorship",
+    modalDescription:
+        "Tell us about your organisation and how you would like to support this club.",
+    successMessage:
+        "Thank you. Your sponsorship enquiry has been received and a member of the club team will contact you shortly.",
+    primaryInterestValue: "Club sponsorship",
+    primaryInterestLabel: "Club sponsorship",
+    messagePlaceholder:
+        "Tell us how your organisation would like to support the club.",
+};
+
 const initialEnquiryForm: SponsorEnquiryForm = {
     companyName: "",
     contactName: "",
@@ -260,10 +281,17 @@ export function PublicSponsors({
         configuredOrganisationSlug ||
         "bhmff";
 
+    const isClub =
+        publicOrganisation
+            ?.organisation
+            .organisation_type === "club";
+
     const sponsorshipContent: SponsorshipContent =
         organisationSlug === "bhmff"
             ? BHMFF_SPONSORSHIP_CONTENT
-            : GENERIC_SPONSORSHIP_CONTENT;
+            : isClub
+                ? CLUB_SPONSORSHIP_CONTENT
+                : GENERIC_SPONSORSHIP_CONTENT;
 
     const [sponsors, setSponsors] =
         useState<PublicSponsor[]>([]);

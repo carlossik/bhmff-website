@@ -1,0 +1,255 @@
+/*
+ * TournamentHQ Admin Portal visual lock.
+ *
+ * Scope: #admin only.
+ * Public organisation pages are intentionally unaffected and continue to
+ * use organisation white-label colours.
+ *
+ * This file exists as a release-hardening compatibility layer for legacy
+ * admin components that still contain lime/green Tailwind utility classes.
+ * It can be retired later when those components are fully normalised.
+ */
+
+#admin {
+    /* Canonical TournamentHQ platform design tokens. */
+    --thq-admin-primary: #0f766e;
+    --thq-admin-secondary: #0f172a;
+    --thq-admin-accent: #84cc16;
+    --thq-admin-accent-hover: #a3e635;
+    --thq-admin-background: #071006;
+    --thq-admin-surface: #10190f;
+    --thq-admin-surface-elevated: #121d0f;
+    --thq-admin-input: #071006;
+    --thq-admin-text: #ffffff;
+    --thq-admin-muted: rgb(255 255 255 / 0.68);
+    --thq-admin-border: rgb(132 204 22 / 0.28);
+    --thq-admin-border-strong: rgb(132 204 22 / 0.50);
+    --thq-admin-on-accent: #071006;
+    --thq-admin-danger: #f87171;
+    --thq-admin-success: #4ade80;
+
+    /* Accent opacity tokens used by the compatibility selectors below. */
+    --thq-admin-accent-soft-05: rgb(132 204 22 / 0.05);
+    --thq-admin-accent-soft-10: rgb(132 204 22 / 0.10);
+    --thq-admin-accent-soft-15: rgb(132 204 22 / 0.15);
+    --thq-admin-accent-soft-20: rgb(132 204 22 / 0.20);
+    --thq-admin-accent-soft-25: rgb(132 204 22 / 0.25);
+    --thq-admin-accent-soft-30: rgb(132 204 22 / 0.30);
+    --thq-admin-accent-soft-40: rgb(132 204 22 / 0.40);
+    --thq-admin-accent-soft-50: rgb(132 204 22 / 0.50);
+
+    /* Existing aliases retained for CSS already using the old admin names. */
+    --thq-admin-shell: var(--thq-admin-background);
+    --thq-admin-surface-soft: var(--thq-admin-surface-elevated);
+
+    /*
+     * Hard isolation from application/public theme variables.
+     * Any bg-primary/text-accent-style utilities inside the admin tree must
+     * resolve to TournamentHQ platform colours, never tenant colours.
+     */
+    --thq-primary: var(--thq-admin-primary);
+    --thq-secondary: var(--thq-admin-secondary);
+    --thq-accent: var(--thq-admin-accent);
+    --thq-background: var(--thq-admin-background);
+    --thq-surface: var(--thq-admin-surface);
+    --thq-text: var(--thq-admin-text);
+    --color-primary: var(--thq-admin-primary);
+    --color-secondary: var(--thq-admin-secondary);
+    --color-accent: var(--thq-admin-accent);
+    --color-app: var(--thq-admin-background);
+    --color-surface: var(--thq-admin-surface);
+    --color-content: var(--thq-admin-text);
+    --color-muted: var(--thq-admin-muted);
+    --color-border: var(--thq-admin-border);
+    --color-border-strong: var(--thq-admin-border-strong);
+
+    /*
+     * Transitional compatibility contract for legacy ADMIN components only.
+     * These aliases intentionally point one-way to platform tokens. They are
+     * not populated from OrganisationContext, club state, or public branding.
+     * Remove them incrementally as legacy admin components migrate to
+     * --thq-admin-* directly.
+     */
+    --organisation-primary: var(--thq-admin-primary);
+    --organisation-secondary: var(--thq-admin-secondary);
+    --organisation-accent: var(--thq-admin-accent);
+    --organisation-background: var(--thq-admin-background);
+    --organisation-surface: var(--thq-admin-surface);
+    --organisation-text: var(--thq-admin-text);
+    --organisation-muted: var(--thq-admin-muted);
+    --organisation-border: var(--thq-admin-border);
+    --organisation-on-accent: var(--thq-admin-on-accent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Legacy lime text accents -> TournamentHQ lime                    */
+/* ------------------------------------------------------------------ */
+
+#admin .text-lime-100,
+#admin .text-lime-200,
+#admin .text-lime-300,
+#admin .text-lime-400,
+#admin .text-lime-500,
+#admin .text-lime-600,
+#admin .text-lime-700 {
+    color: var(--thq-admin-accent) !important;
+}
+
+/* Legacy lime fills */
+#admin .bg-lime-300,
+#admin .bg-lime-400,
+#admin .bg-lime-500,
+#admin .bg-lime-600 {
+    background-color: var(--thq-admin-accent) !important;
+}
+
+/* Alpha fills */
+#admin [class~="bg-lime-300/5"],
+#admin [class~="bg-lime-400/5"],
+#admin [class~="bg-lime-500/5"] {
+    background-color: var(--thq-admin-accent-soft-05) !important;
+}
+
+#admin [class~="bg-lime-300/10"],
+#admin [class~="bg-lime-400/10"],
+#admin [class~="bg-lime-500/10"],
+#admin [class~="bg-lime-600/10"] {
+    background-color: var(--thq-admin-accent-soft-10) !important;
+}
+
+#admin [class~="bg-lime-300/15"],
+#admin [class~="bg-lime-400/15"],
+#admin [class~="bg-lime-500/15"] {
+    background-color: var(--thq-admin-accent-soft-15) !important;
+}
+
+#admin [class~="bg-lime-300/20"],
+#admin [class~="bg-lime-400/20"],
+#admin [class~="bg-lime-500/20"] {
+    background-color: var(--thq-admin-accent-soft-20) !important;
+}
+
+#admin [class~="bg-lime-300/25"],
+#admin [class~="bg-lime-400/25"],
+#admin [class~="bg-lime-500/25"] {
+    background-color: var(--thq-admin-accent-soft-25) !important;
+}
+
+/* Legacy lime borders */
+#admin .border-lime-300,
+#admin .border-lime-400,
+#admin .border-lime-500,
+#admin .border-lime-600,
+#admin .border-lime-700,
+#admin .border-lime-800,
+#admin .border-lime-900 {
+    border-color: var(--thq-admin-accent) !important;
+}
+
+#admin [class~="border-lime-300/20"],
+#admin [class~="border-lime-400/20"],
+#admin [class~="border-lime-500/20"],
+#admin [class~="border-lime-800/20"],
+#admin [class~="border-lime-900/20"] {
+    border-color: var(--thq-admin-accent-soft-20) !important;
+}
+
+#admin [class~="border-lime-300/25"],
+#admin [class~="border-lime-400/25"],
+#admin [class~="border-lime-500/25"],
+#admin [class~="border-lime-800/25"],
+#admin [class~="border-lime-900/25"] {
+    border-color: var(--thq-admin-accent-soft-25) !important;
+}
+
+#admin [class~="border-lime-300/30"],
+#admin [class~="border-lime-400/30"],
+#admin [class~="border-lime-500/30"],
+#admin [class~="border-lime-800/30"],
+#admin [class~="border-lime-900/30"] {
+    border-color: var(--thq-admin-accent-soft-30) !important;
+}
+
+#admin [class~="border-lime-300/40"],
+#admin [class~="border-lime-400/40"],
+#admin [class~="border-lime-500/40"],
+#admin [class~="border-lime-800/40"],
+#admin [class~="border-lime-900/40"] {
+    border-color: var(--thq-admin-accent-soft-40) !important;
+}
+
+#admin [class~="border-lime-300/50"],
+#admin [class~="border-lime-400/50"],
+#admin [class~="border-lime-500/50"],
+#admin [class~="border-lime-800/50"],
+#admin [class~="border-lime-900/50"],
+#admin [class~="border-lime-800/60"],
+#admin [class~="border-lime-900/60"] {
+    border-color: var(--thq-admin-accent-soft-50) !important;
+}
+
+/* Rings / focus treatments */
+#admin [class~="ring-lime-300/10"],
+#admin [class~="ring-lime-400/10"],
+#admin [class~="ring-lime-500/10"] {
+    --tw-ring-color: var(--thq-admin-accent-soft-10) !important;
+}
+
+#admin [class~="focus:ring-lime-500/10"]:focus,
+#admin [class~="focus:ring-lime-400/10"]:focus {
+    --tw-ring-color: var(--thq-admin-accent-soft-10) !important;
+}
+
+#admin [class~="focus:border-lime-500/70"]:focus,
+#admin [class~="focus:border-lime-400/70"]:focus {
+    border-color: var(--thq-admin-accent) !important;
+}
+
+/* Legacy hover utilities */
+#admin [class~="hover:bg-lime-300"]:hover,
+#admin [class~="hover:bg-lime-400"]:hover,
+#admin [class~="hover:bg-lime-500"]:hover {
+    background-color: var(--thq-admin-accent-hover) !important;
+}
+
+#admin [class~="hover:bg-lime-400/15"]:hover,
+#admin [class~="hover:bg-lime-500/15"]:hover {
+    background-color: var(--thq-admin-accent-soft-15) !important;
+}
+
+#admin [class~="hover:border-lime-300/50"]:hover,
+#admin [class~="hover:border-lime-400/50"]:hover,
+#admin [class~="hover:border-lime-500/50"]:hover {
+    border-color: var(--thq-admin-accent-soft-50) !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Legacy green-shell arbitrary colours -> neutral TournamentHQ shell */
+/* ------------------------------------------------------------------ */
+
+#admin [class~="bg-[#071006]"],
+#admin [class~="bg-[#071007]"],
+#admin [class~="bg-[#081006]"],
+#admin [class~="bg-[#0d140a]"],
+#admin [class~="bg-[#10190d]"],
+#admin [class~="bg-[#10190f]"],
+#admin [class~="bg-[#121d0f]"],
+#admin [class~="bg-[#14200f]"],
+#admin [class~="bg-[#1b2a15]"] {
+    background-color: var(--thq-admin-surface) !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Known legacy emerald decorations that are product accents, not     */
+/* semantic success states.                                           */
+/* ------------------------------------------------------------------ */
+
+#admin .text-emerald-300.admin-brand-accent,
+#admin .text-emerald-400.admin-brand-accent {
+    color: var(--thq-admin-accent) !important;
+}
+
+/*
+ * Semantic status colours (red errors, amber warnings, green success)
+ * are deliberately NOT globally remapped.
+ */

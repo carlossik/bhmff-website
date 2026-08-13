@@ -25,13 +25,13 @@ const statusBadge = (status: string): string => {
         case 'active':
             return 'bg-[var(--organisation-surface)] text-[var(--organisation-accent)]';
         case 'inactive':
-            return 'bg-slate-100 text-slate-700';
+            return 'bg-[color:var(--organisation-text)]/10 text-[color:var(--organisation-text)]/75';
         case 'suspended':
-            return 'bg-red-100 text-red-700';
+            return 'bg-red-500/15 text-red-300';
         case 'pending':
-            return 'bg-amber-100 text-amber-700';
+            return 'bg-amber-500/15 text-amber-300';
         default:
-            return 'bg-slate-100 text-slate-700';
+            return 'bg-[color:var(--organisation-text)]/10 text-[color:var(--organisation-text)]/75';
     }
 };
 
@@ -106,7 +106,7 @@ const OfficialsTable: React.FC<Props> = ({
 
     if (officials.length === 0) {
         return (
-            <div className="rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-12 text-center text-slate-500">
+            <div className="rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-12 text-center text-[color:var(--organisation-text)]/55">
                 No officials found.
             </div>
         );
@@ -115,9 +115,9 @@ const OfficialsTable: React.FC<Props> = ({
     return (
         <div className="overflow-hidden rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] shadow-sm">
             <div className="overflow-x-auto">
-                <table className="min-w-full">
+                <table className="min-w-full text-[var(--organisation-text)]">
                     <thead className="bg-[var(--organisation-background)]">
-                    <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+                    <tr className="text-left text-xs uppercase tracking-wider text-[color:var(--organisation-text)]/55">
                         <th className="px-6 py-4">Official</th>
                         <th className="px-6 py-4">Role</th>
                         <th className="px-6 py-4">Email</th>
@@ -130,7 +130,7 @@ const OfficialsTable: React.FC<Props> = ({
                     </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-[color:var(--organisation-border)]">
                     {officials.map(official => {
                         const displayName =
                             official.full_name?.trim() ||
@@ -153,7 +153,7 @@ const OfficialsTable: React.FC<Props> = ({
                                                 {displayName}
                                             </div>
 
-                                            <div className="text-xs text-slate-500">
+                                            <div className="text-xs text-[color:var(--organisation-text)]/55">
                                                 {official.city ?? '-'}
                                             </div>
                                         </div>
@@ -202,7 +202,7 @@ const OfficialsTable: React.FC<Props> = ({
                                 </td>
 
                                 <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                                    <div className="flex items-center gap-2 text-sm text-[color:var(--organisation-text)]/55">
                                         <Calendar size={14} />
                                         {formatUpdatedDate(
                                             official.updated_at
@@ -217,7 +217,7 @@ const OfficialsTable: React.FC<Props> = ({
                                             onClick={() => onView(official)}
                                             title={`View ${displayName}`}
                                             aria-label={`View ${displayName}`}
-                                            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-[var(--organisation-text)]"
+                                            className="rounded-lg border border-[color:var(--organisation-border)] p-2 text-[color:var(--organisation-text)]/70 transition-colors hover:bg-[color:var(--organisation-accent)]/10 hover:text-[var(--organisation-text)]"
                                         >
                                             <Eye size={16} />
                                         </button>
@@ -227,7 +227,7 @@ const OfficialsTable: React.FC<Props> = ({
                                             onClick={() => onEdit(official)}
                                             title={`Edit ${displayName}`}
                                             aria-label={`Edit ${displayName}`}
-                                            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                                            className="rounded-lg border border-[color:var(--organisation-border)] p-2 text-[color:var(--organisation-text)]/70 transition-colors hover:bg-[color:var(--organisation-accent)]/10 hover:text-[var(--organisation-accent)]"
                                         >
                                             <Edit size={16} />
                                         </button>
@@ -239,7 +239,7 @@ const OfficialsTable: React.FC<Props> = ({
                                             }
                                             title={`Delete ${displayName}`}
                                             aria-label={`Delete ${displayName}`}
-                                            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-red-50 hover:text-red-700"
+                                            className="rounded-lg border border-[color:var(--organisation-border)] p-2 text-[color:var(--organisation-text)]/70 transition-colors hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-300"
                                         >
                                             <Trash2 size={16} />
                                         </button>

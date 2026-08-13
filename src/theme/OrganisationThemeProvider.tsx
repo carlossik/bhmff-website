@@ -57,8 +57,8 @@ export function OrganisationThemeProvider({
                 data-thq-theme={theme.isLight ? 'light' : 'dark'}
                 className={[
                     'min-h-full',
-                    'bg-[var(--thq-background)]',
-                    'text-[var(--thq-text)]',
+                    'bg-[var(--organisation-background)]',
+                    'text-[var(--organisation-text)]',
                     className,
                 ]
                     .filter(Boolean)

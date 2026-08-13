@@ -22,10 +22,10 @@ type ClubModalProps = {
 }
 
 const inputClassName =
-    'mt-1.5 w-full rounded-xl border border-[color:var(--thq-accent,#84cc16)]/25 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[var(--thq-accent,#84cc16)] focus:ring-4 focus:ring-[var(--thq-accent,#84cc16)]/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500'
+    'mt-1.5 w-full rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-3.5 py-2.5 text-sm text-[var(--organisation-text)] shadow-sm outline-none transition placeholder:text-[color:var(--organisation-text)]/40 focus:border-[var(--organisation-accent)] focus:ring-4 focus:ring-[var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50'
 
 const labelClassName =
-    'block text-sm font-medium text-[var(--thq-text,#0f172a)]/80'
+    'block text-sm font-medium text-[color:var(--organisation-text)]/80'
 
 export function ClubModal({
                               open,
@@ -120,7 +120,7 @@ export function ClubModal({
                                 />
                             </label>
 
-                            <div className="md:col-span-2 rounded-2xl border border-[color:var(--thq-accent,#84cc16)]/15 bg-black/5 p-4">
+                            <div className="md:col-span-2 rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] p-4">
                                 <ImageUpload
                                     value={values.badgeUrl}
                                     organisationId={organisationId}
@@ -337,10 +337,10 @@ export function ClubModal({
                         </div>
                     </div>
 
-                    <div className="flex flex-col-reverse gap-3 border-t border-[color:var(--thq-accent,#84cc16)]/15 bg-black/5 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+                    <div className="flex flex-col-reverse gap-3 border-t border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
                         <button
                             type="button"
-                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-5 py-2.5 text-sm font-semibold text-[var(--organisation-text)] shadow-sm transition hover:bg-[color:var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={onClose}
                             disabled={isSaving}
                         >
@@ -349,7 +349,7 @@ export function ClubModal({
 
                         <button
                             type="submit"
-                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--thq-accent,#84cc16)] px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-2.5 text-sm font-semibold text-[var(--organisation-on-accent)] shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                             disabled={
                                 isSaving ||
                                 !values.name.trim()

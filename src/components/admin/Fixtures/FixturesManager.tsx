@@ -25,6 +25,7 @@ import { FixtureImportModal } from './FixtureImportModal'
 import { FixtureModal } from './FixtureModal'
 import { FixturesTable } from './FixturesTable'
 import { fixtureService } from './fixtureService'
+import { ClubFixturesManager } from './ClubFixturesManager'
 import type {
     Fixture,
     FixtureFormValues,
@@ -166,7 +167,7 @@ function getAssignmentSelections(
     }
 }
 
-export function FixturesManager() {
+function CompetitionFixturesManager() {
     const { currentOrganisation } =
         useOrganisation()
 
@@ -1264,4 +1265,11 @@ export function FixturesManager() {
             )}
         </div>
     )
+}
+
+export function FixturesManager() {
+    const { currentOrganisation } = useOrganisation()
+    return currentOrganisation.organisation_type === 'club'
+        ? <ClubFixturesManager />
+        : <CompetitionFixturesManager />
 }

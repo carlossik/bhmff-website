@@ -42,48 +42,6 @@ const initialFormState: MediaFormState = {
     publishedAt: "",
 };
 
-type MediaDuplicateField =
-    | "slug"
-    | "youtubeUrl"
-    | "embedUrl";
-
-function normaliseComparableValue(
-    value: string | null | undefined,
-): string {
-    return (value ?? "")
-        .trim()
-        .toLowerCase();
-}
-
-function getDatabaseDuplicateMessage(
-    message: string,
-    details?: string | null,
-): string {
-    const combined =
-        `${message} ${details ?? ""}`
-            .toLowerCase();
-
-    if (combined.includes("slug")) {
-        return "A media item with this URL slug already exists in this competition.";
-    }
-
-    if (
-        combined.includes("youtube") ||
-        combined.includes("youtube_url")
-    ) {
-        return "This YouTube URL is already used by another media item in this competition.";
-    }
-
-    if (
-        combined.includes("embed") ||
-        combined.includes("embed_url")
-    ) {
-        return "This embedded media URL is already used by another media item in this competition.";
-    }
-
-    return "A media item with the same slug or media URL already exists in this competition.";
-}
-
 export function MediaManager() {
     const { currentOrganisation } =
         useOrganisation();
@@ -95,6 +53,14 @@ export function MediaManager() {
 
     const organisationId =
         currentOrganisation?.id ?? null;
+
+    const isClub =
+        currentOrganisation?.organisation_type === "club";
+
+    const mediaContextName =
+        isClub
+            ? currentOrganisation?.name ?? "this club"
+            : currentCompetition?.name ?? "the selected competition";
 
     const [mediaItems, setMediaItems] =
         useState<DbMedia[]>([]);
@@ -151,17 +117,14 @@ export function MediaManager() {
             setLoading(true);
             setErrorMessage(null);
 
-            if (
-                !organisationId ||
-                !currentCompetitionId
-            ) {
+            if (!organisationId) {
                 setMediaItems([]);
                 setLoading(false);
                 return;
             }
 
-            const { data, error } =
-                await supabase
+            let query =
+                supabase
                     .from("media")
                     .select(`
                         id,
@@ -185,14 +148,29 @@ export function MediaManager() {
                     .eq(
                         "organisation_id",
                         organisationId,
-                    )
-                    .eq(
+                    );
+
+            if (!isClub) {
+                if (!currentCompetitionId) {
+                    setMediaItems([]);
+                    setLoading(false);
+                    return;
+                }
+
+                query =
+                    query.eq(
                         "competition_id",
                         currentCompetitionId,
-                    )
-                    .order("created_at", {
+                    );
+            }
+
+            const { data, error } =
+                await query.order(
+                    "created_at",
+                    {
                         ascending: false,
-                    });
+                    },
+                );
 
             if (error) {
                 console.error(
@@ -214,6 +192,7 @@ export function MediaManager() {
             setLoading(false);
         }, [
             currentCompetitionId,
+            isClub,
             organisationId,
         ]);
 
@@ -282,10 +261,12 @@ export function MediaManager() {
     function openCreateMediaModal() {
         if (
             !organisationId ||
-            !currentCompetitionId
+            (!isClub && !currentCompetitionId)
         ) {
             setErrorMessage(
-                "Select an organisation and competition before adding media.",
+                isClub
+                    ? "Select a club before adding media."
+                    : "Select an organisation and competition before adding media.",
             );
             return;
         }
@@ -302,14 +283,21 @@ export function MediaManager() {
     ) {
         if (
             !organisationId ||
-            !currentCompetitionId ||
             item.organisation_id !==
-            organisationId ||
-            item.competition_id !==
-            currentCompetitionId
+                organisationId ||
+            (
+                !isClub &&
+                (
+                    !currentCompetitionId ||
+                    item.competition_id !==
+                        currentCompetitionId
+                )
+            )
         ) {
             setErrorMessage(
-                "This media item does not belong to the selected organisation and competition.",
+                isClub
+                    ? "This media item does not belong to the selected club."
+                    : "This media item does not belong to the selected organisation and competition.",
             );
             return;
         }
@@ -344,86 +332,21 @@ export function MediaManager() {
         setShowMediaModal(true);
     }
 
-    function findDuplicateMediaField(
-        slug: string,
-        youtubeUrl: string,
-        embedUrl: string,
-    ): MediaDuplicateField | null {
-        const normalisedSlug =
-            normaliseComparableValue(slug);
-        const normalisedYoutube =
-            normaliseComparableValue(
-                youtubeUrl,
-            );
-        const normalisedEmbed =
-            normaliseComparableValue(embedUrl);
-
-        const otherItems =
-            mediaItems.filter(
-                (item) =>
-                    item.id !== editingId,
-            );
-
-        if (
-            normalisedSlug &&
-            otherItems.some(
-                (item) =>
-                    normaliseComparableValue(
-                        item.slug,
-                    ) === normalisedSlug,
-            )
-        ) {
-            return "slug";
-        }
-
-        if (
-            normalisedYoutube &&
-            otherItems.some(
-                (item) =>
-                    normaliseComparableValue(
-                        item.youtube_url,
-                    ) === normalisedYoutube,
-            )
-        ) {
-            return "youtubeUrl";
-        }
-
-        if (
-            normalisedEmbed &&
-            otherItems.some(
-                (item) =>
-                    normaliseComparableValue(
-                        item.embed_url,
-                    ) === normalisedEmbed,
-            )
-        ) {
-            return "embedUrl";
-        }
-
-        return null;
-    }
-
-    function getDuplicateFieldMessage(
-        field: MediaDuplicateField,
-    ): string {
-        if (field === "slug") {
-            return "A media item with this URL slug already exists in this competition.";
-        }
-
-        if (field === "youtubeUrl") {
-            return "This YouTube URL is already used by another media item in this competition.";
-        }
-
-        return "This embedded media URL is already used by another media item in this competition.";
-    }
-
     async function saveMedia() {
         const validationError =
-            validateMedia(
-                form,
-                organisationId,
-                currentCompetitionId,
-            );
+            isClub
+                ? !organisationId
+                    ? "Select a club before adding media."
+                    : !form.title.trim()
+                        ? "Media title is required."
+                        : !form.slug.trim()
+                            ? "Media slug is required."
+                            : null
+                : validateMedia(
+                    form,
+                    organisationId,
+                    currentCompetitionId,
+                );
 
         if (validationError) {
             setErrorMessage(
@@ -435,7 +358,7 @@ export function MediaManager() {
 
         if (
             !organisationId ||
-            !currentCompetitionId
+            (!isClub && !currentCompetitionId)
         ) {
             return;
         }
@@ -453,27 +376,6 @@ export function MediaManager() {
                     youtubeUrl,
                 )
                 : form.embedUrl.trim();
-
-            const slug = createSlug(
-                form.slug ||
-                form.title,
-            );
-
-            const duplicateField =
-                findDuplicateMediaField(
-                    slug,
-                    youtubeUrl,
-                    embedUrl,
-                );
-
-            if (duplicateField) {
-                setErrorMessage(
-                    getDuplicateFieldMessage(
-                        duplicateField,
-                    ),
-                );
-                return;
-            }
 
             const thumbnailUrl =
                 form.thumbnailUrl.trim() ||
@@ -501,10 +403,15 @@ export function MediaManager() {
                 organisation_id:
                 organisationId,
                 competition_id:
-                currentCompetitionId,
+                    isClub
+                        ? null
+                        : currentCompetitionId,
                 title:
                     form.title.trim(),
-                slug,
+                slug: createSlug(
+                    form.slug ||
+                    form.title,
+                ),
                 category: form.category,
                 status: form.status,
                 description:
@@ -524,22 +431,35 @@ export function MediaManager() {
                 publishedAt,
             };
 
-            const response = editingId
-                ? await supabase
-                    .from("media")
-                    .update(payload)
-                    .eq("id", editingId)
-                    .eq(
-                        "organisation_id",
-                        organisationId,
-                    )
-                    .eq(
-                        "competition_id",
-                        currentCompetitionId,
-                    )
-                : await supabase
-                    .from("media")
-                    .insert(payload);
+            let response;
+
+            if (editingId) {
+                let updateQuery =
+                    supabase
+                        .from("media")
+                        .update(payload)
+                        .eq("id", editingId)
+                        .eq(
+                            "organisation_id",
+                            organisationId,
+                        );
+
+                if (!isClub) {
+                    updateQuery =
+                        updateQuery.eq(
+                            "competition_id",
+                            currentCompetitionId,
+                        );
+                }
+
+                response =
+                    await updateQuery;
+            } else {
+                response =
+                    await supabase
+                        .from("media")
+                        .insert(payload);
+            }
 
             if (response.error) {
                 console.error(
@@ -550,10 +470,7 @@ export function MediaManager() {
                 setErrorMessage(
                     response.error.code ===
                     "23505"
-                        ? getDatabaseDuplicateMessage(
-                            response.error.message,
-                            response.error.details,
-                        )
+                        ? "A media record with this URL already exists."
                         : response.error.message,
                 );
                 return;
@@ -593,10 +510,12 @@ export function MediaManager() {
     ) {
         if (
             !organisationId ||
-            !currentCompetitionId
+            (!isClub && !currentCompetitionId)
         ) {
             setErrorMessage(
-                "Select an organisation and competition before updating media.",
+                isClub
+                    ? "Select a club before updating media."
+                    : "Select an organisation and competition before updating media.",
             );
             return;
         }
@@ -610,23 +529,30 @@ export function MediaManager() {
                 new Date().toISOString()
                 : item.published_at;
 
-        const { error } =
-            await supabase
+        let statusQuery =
+            supabase
                 .from("media")
                 .update({
                     status,
                     published_at:
-                    publishedAt,
+                        publishedAt,
                 })
                 .eq("id", item.id)
                 .eq(
                     "organisation_id",
                     organisationId,
-                )
-                .eq(
+                );
+
+        if (!isClub) {
+            statusQuery =
+                statusQuery.eq(
                     "competition_id",
                     currentCompetitionId,
                 );
+        }
+
+        const { error } =
+            await statusQuery;
 
         if (error) {
             console.error(
@@ -652,7 +578,7 @@ export function MediaManager() {
             !mediaToDelete ||
             saving ||
             !organisationId ||
-            !currentCompetitionId
+            (!isClub && !currentCompetitionId)
         ) {
             return;
         }
@@ -664,19 +590,26 @@ export function MediaManager() {
         setErrorMessage(null);
 
         try {
-            const { error } =
-                await supabase
+            let deleteQuery =
+                supabase
                     .from("media")
                     .delete()
                     .eq("id", item.id)
                     .eq(
                         "organisation_id",
                         organisationId,
-                    )
-                    .eq(
+                    );
+
+            if (!isClub) {
+                deleteQuery =
+                    deleteQuery.eq(
                         "competition_id",
                         currentCompetitionId,
                     );
+            }
+
+            const { error } =
+                await deleteQuery;
 
             if (error) {
                 console.error(
@@ -710,16 +643,20 @@ export function MediaManager() {
 
     if (
         !currentOrganisation ||
-        !currentCompetition
+        (!isClub && !currentCompetition)
     ) {
         return (
             <div className="rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] p-8 text-center">
                 <h3 className="text-xl font-bold text-[var(--organisation-text)]">
-                    Select an organisation and competition
+                    {isClub
+                        ? "Select a club"
+                        : "Select an organisation and competition"}
                 </h3>
 
                 <p className="mt-2 text-[var(--organisation-muted)]">
-                    Choose the context you want to manage before opening the media library.
+                    {isClub
+                        ? "Choose the club you want to manage before opening the media library."
+                        : "Choose the context you want to manage before opening the media library."}
                 </p>
             </div>
         );
@@ -740,7 +677,7 @@ export function MediaManager() {
                     <p className="mt-2 text-sm text-[var(--organisation-muted)]">
                         Manage highlights, full matches, interviews, livestreams, podcasts and promotional content for{" "}
                         <strong className="text-[var(--organisation-text)]">
-                            {currentCompetition.name}
+                            {mediaContextName}
                         </strong>
                         .
                     </p>
@@ -773,7 +710,7 @@ export function MediaManager() {
                 loading={loading}
                 mediaItems={mediaItems}
                 competitionName={
-                    currentCompetition.name
+                    mediaContextName
                 }
                 onEdit={
                     openEditMediaModal
@@ -813,7 +750,7 @@ export function MediaManager() {
                     currentOrganisation.name
                 }
                 competitionName={
-                    currentCompetition.name
+                    mediaContextName
                 }
                 saving={saving}
                 message={message}

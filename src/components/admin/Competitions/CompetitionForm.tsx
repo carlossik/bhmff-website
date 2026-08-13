@@ -11,6 +11,9 @@ import {
     X,
 } from 'lucide-react'
 
+import { supabase } from '../../../lib/supabaseClient'
+import type { Sport } from '../../../types/sportTypes'
+
 import type {
     Competition,
     CompetitionFormat,
@@ -18,6 +21,7 @@ import type {
 } from '../../../types/competitionTypes'
 
 export interface CompetitionFormData {
+    sport_id: string
     name: string
     slug: string
     season: string | null
@@ -39,6 +43,7 @@ interface CompetitionFormProps {
 }
 
 interface CompetitionFormErrors {
+    sport_id?: string
     name?: string
     slug?: string
     season?: string
@@ -113,6 +118,7 @@ const createSlug = (value: string): string =>
 const getInitialFormData = (
     competition?: Competition
 ): CompetitionFormData => ({
+    sport_id: competition?.sport_id ?? '',
     name: competition?.name ?? '',
     slug: competition?.slug ?? '',
     season: competition?.season ?? '',
@@ -147,6 +153,15 @@ export const CompetitionForm: React.FC<
     const [errors, setErrors] =
         useState<CompetitionFormErrors>({})
 
+    const [sports, setSports] =
+        useState<Sport[]>([])
+
+    const [sportsLoading, setSportsLoading] =
+        useState(true)
+
+    const [sportsError, setSportsError] =
+        useState<string | null>(null)
+
     const [slugManuallyEdited, setSlugManuallyEdited] =
         useState(Boolean(competition?.slug))
 
@@ -161,6 +176,55 @@ export const CompetitionForm: React.FC<
             Boolean(competition?.slug)
         )
     }, [competition])
+
+    useEffect(() => {
+        let cancelled = false
+
+        const loadSports = async () => {
+            setSportsLoading(true)
+            setSportsError(null)
+
+            const { data, error } =
+                await supabase
+                    .from('sports')
+                    .select(
+                        'id, name, slug, icon_key, active, created_at, updated_at'
+                    )
+                    .eq('active', true)
+                    .order('name', {
+                        ascending: true,
+                    })
+
+            if (cancelled) {
+                return
+            }
+
+            if (error) {
+                console.error(
+                    'Failed to load sports:',
+                    error
+                )
+
+                setSports([])
+                setSportsError(
+                    'Unable to load sports. Please refresh and try again.'
+                )
+                setSportsLoading(false)
+                return
+            }
+
+            setSports(
+                (data ?? []) as Sport[]
+            )
+            setSportsLoading(false)
+        }
+
+        void loadSports()
+
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     const updateField = <
         Key extends keyof CompetitionFormData
@@ -218,6 +282,11 @@ export const CompetitionForm: React.FC<
         const trimmedSlug =
             formData.slug.trim()
 
+        if (!formData.sport_id) {
+            nextErrors.sport_id =
+                'Sport is required.'
+        }
+
         if (!trimmedName) {
             nextErrors.name =
                 'Competition name is required.'
@@ -262,6 +331,7 @@ export const CompetitionForm: React.FC<
         }
 
         await onSave({
+            sport_id: formData.sport_id,
             name: formData.name.trim(),
             slug: formData.slug.trim(),
             season:
@@ -366,6 +436,92 @@ export const CompetitionForm: React.FC<
                                         {errors.name}
                                     </span>
                                 )}
+                            </div>
+
+                            <div className="md:col-span-2 flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
+                                <label htmlFor="competition-sport">
+                                    Sport
+                                    <span aria-hidden="true">
+                                        *
+                                    </span>
+                                </label>
+
+                                <select
+                                    id="competition-sport"
+                                    value={formData.sport_id}
+                                    onChange={event =>
+                                        updateField(
+                                            'sport_id',
+                                            event.target.value
+                                        )
+                                    }
+                                    disabled={
+                                        saving ||
+                                        sportsLoading
+                                    }
+                                    className={[
+                                        'w-full rounded-xl border bg-[var(--organisation-background)] px-4 py-3 text-[var(--organisation-text)] outline-none transition',
+                                        'border-[var(--organisation-border)] focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)]',
+                                        'disabled:cursor-not-allowed disabled:opacity-50',
+                                        errors.sport_id
+                                            ? 'border-red-400'
+                                            : '',
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' ')}
+                                    style={{
+                                        colorScheme: 'dark',
+                                    }}
+                                >
+                                    <option
+                                        value=""
+                                        style={{
+                                            backgroundColor:
+                                                'var(--organisation-background)',
+                                            color:
+                                                'var(--organisation-text)',
+                                        }}
+                                    >
+                                        {sportsLoading
+                                            ? 'Loading sports...'
+                                            : 'Select a sport'}
+                                    </option>
+
+                                    {sports.map(sport => (
+                                        <option
+                                            key={sport.id}
+                                            value={sport.id}
+                                            style={{
+                                                backgroundColor:
+                                                    'var(--organisation-background)',
+                                                color:
+                                                    'var(--organisation-text)',
+                                            }}
+                                        >
+                                            {sport.name}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {errors.sport_id && (
+                                    <span className="text-sm font-medium text-red-400">
+                                        {errors.sport_id}
+                                    </span>
+                                )}
+
+                                {sportsError && (
+                                    <span className="text-sm font-medium text-red-400">
+                                        {sportsError}
+                                    </span>
+                                )}
+
+                                {!sportsLoading &&
+                                    !sportsError &&
+                                    sports.length === 0 && (
+                                        <span className="text-sm opacity-65">
+                                            No active sports are available. Add or activate a sport before creating a competition.
+                                        </span>
+                                    )}
                             </div>
 
                             <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--organisation-text)]">
@@ -657,7 +813,11 @@ export const CompetitionForm: React.FC<
                         <button
                             type="submit"
                             className="inline-flex items-center justify-center rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-bold text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={saving}
+                            disabled={
+                                saving ||
+                                sportsLoading ||
+                                sports.length === 0
+                            }
                         >
                             <Save size={17} />
 
