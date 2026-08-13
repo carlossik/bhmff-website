@@ -70,6 +70,26 @@ const BHMFF_SPONSORSHIP_CONTENT: SponsorshipContent = {
         "Tell us how your organisation would like to support the festival.",
 };
 
+const CLUB_SPONSORSHIP_CONTENT: SponsorshipContent = {
+    loadingLabel: "Loading club sponsors...",
+    defaultTierLabel: "Club Sponsor",
+    opportunityLabel: "Sponsorship Opportunities",
+    callToActionTitle: "Become a Club Sponsor",
+    callToActionDescription:
+        "Support the club through kit, equipment, matchday, community or other sponsorship while promoting your organisation to players, families and supporters.",
+    callToActionButton: "Discuss Sponsorship",
+    modalEyebrow: "Club Sponsorship",
+    modalTitle: "Discuss Sponsorship",
+    modalDescription:
+        "Tell us about your organisation and how you would like to support the club.",
+    successMessage:
+        "Thank you. Your sponsorship enquiry has been received and a member of the club team will contact you shortly.",
+    primaryInterestValue: "Club sponsorship",
+    primaryInterestLabel: "Club sponsorship",
+    messagePlaceholder:
+        "Tell us how your organisation would like to support the club.",
+};
+
 const GENERIC_SPONSORSHIP_CONTENT: SponsorshipContent = {
     loadingLabel: "Loading competition sponsors...",
     defaultTierLabel: "Competition Sponsor",
@@ -88,27 +108,6 @@ const GENERIC_SPONSORSHIP_CONTENT: SponsorshipContent = {
     primaryInterestLabel: "Competition sponsorship",
     messagePlaceholder:
         "Tell us how your organisation would like to support this competition.",
-};
-
-
-const CLUB_SPONSORSHIP_CONTENT: SponsorshipContent = {
-    loadingLabel: "Loading club sponsors...",
-    defaultTierLabel: "Club Sponsor",
-    opportunityLabel: "Sponsorship Opportunities",
-    callToActionTitle: "Become a Club Sponsor",
-    callToActionDescription:
-        "Support this club while promoting your organisation to players, families, supporters and the wider local community. Sponsorship can help fund kits, equipment, facilities, player development and match-day delivery.",
-    callToActionButton: "Discuss Sponsorship",
-    modalEyebrow: "Club Sponsorship",
-    modalTitle: "Discuss Sponsorship",
-    modalDescription:
-        "Tell us about your organisation and how you would like to support this club.",
-    successMessage:
-        "Thank you. Your sponsorship enquiry has been received and a member of the club team will contact you shortly.",
-    primaryInterestValue: "Club sponsorship",
-    primaryInterestLabel: "Club sponsorship",
-    messagePlaceholder:
-        "Tell us how your organisation would like to support the club.",
 };
 
 const initialEnquiryForm: SponsorEnquiryForm = {
@@ -282,9 +281,8 @@ export function PublicSponsors({
         "bhmff";
 
     const isClub =
-        publicOrganisation
-            ?.organisation
-            .organisation_type === "club";
+        publicOrganisation?.organisation.organisation_type ===
+        "club";
 
     const sponsorshipContent: SponsorshipContent =
         organisationSlug === "bhmff"

@@ -139,9 +139,9 @@ type PublicOrganisationLayoutProps = {
 }
 
 export function PublicOrganisationLayout({
-    organisationSlugOverride,
-    useRootPath = false,
-}: PublicOrganisationLayoutProps) {
+                                             organisationSlugOverride,
+                                             useRootPath = false,
+                                         }: PublicOrganisationLayoutProps) {
     const location =
         useLocation();
 
@@ -375,8 +375,8 @@ export function PublicOrganisationLayout({
         useRootPath
             ? ""
             : `/${encodeURIComponent(
-                  resolvedOrganisation.slug,
-              )}`;
+                resolvedOrganisation.slug,
+            )}`;
 
     const isBhmff =
         resolvedOrganisation.slug
@@ -483,6 +483,9 @@ export function PublicOrganisationLayout({
                     <ClubPublicHomePage
                         organisationName={
                             resolvedOrganisation.name
+                        }
+                        organisationLogoUrl={
+                            resolvedOrganisation.logo_url
                         }
                         articles={
                             resolvedPublicData.articles
@@ -607,6 +610,9 @@ export function PublicOrganisationLayout({
                         organisationName={
                             resolvedOrganisation.name
                         }
+                        organisationLogoUrl={
+                            resolvedOrganisation.logo_url
+                        }
                         articles={
                             resolvedPublicData.articles
                         }
@@ -635,6 +641,9 @@ export function PublicOrganisationLayout({
                     <ClubPublicHomePage
                         organisationName={
                             resolvedOrganisation.name
+                        }
+                        organisationLogoUrl={
+                            resolvedOrganisation.logo_url
                         }
                         articles={
                             resolvedPublicData.articles
@@ -665,6 +674,9 @@ export function PublicOrganisationLayout({
                         organisationName={
                             resolvedOrganisation.name
                         }
+                        organisationLogoUrl={
+                            resolvedOrganisation.logo_url
+                        }
                         articles={
                             resolvedPublicData.articles
                         }
@@ -693,6 +705,9 @@ export function PublicOrganisationLayout({
                     <ClubPublicHomePage
                         organisationName={
                             resolvedOrganisation.name
+                        }
+                        organisationLogoUrl={
+                            resolvedOrganisation.logo_url
                         }
                         articles={
                             resolvedPublicData.articles
@@ -725,6 +740,9 @@ export function PublicOrganisationLayout({
                     <ClubPublicHomePage
                         organisationName={
                             resolvedOrganisation.name
+                        }
+                        organisationLogoUrl={
+                            resolvedOrganisation.logo_url
                         }
                         articles={
                             resolvedPublicData.articles
@@ -791,60 +809,85 @@ export function PublicOrganisationLayout({
                             `${theme.accentColour}30`,
                     }}
                 >
-                    <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-3">
-                        <a
-                            href={
-                                basePath || "/"
-                            }
-                            className="flex items-center gap-3 no-underline"
-                            style={{
-                                color:
-                                theme.textColour,
-                            }}
-                        >
-                            {resolvedOrganisation.logo_url ? (
-                                <img
-                                    src={
-                                        resolvedOrganisation.logo_url
+                    <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center gap-x-8 gap-y-3 py-3">
+                        <div className="flex items-center gap-3">
+                            <a
+                                href={
+                                    basePath || "/"
+                                }
+                                className="flex shrink-0 items-center no-underline"
+                                style={{
+                                    color:
+                                    theme.textColour,
+                                }}
+                                aria-label={`Visit ${resolvedOrganisation.name} home`}
+                            >
+                                {resolvedOrganisation.logo_url ? (
+                                    <img
+                                        src={
+                                            resolvedOrganisation.logo_url
+                                        }
+                                        alt={`${resolvedOrganisation.name} logo`}
+                                        className="h-12 w-12 rounded-xl object-contain"
+                                    />
+                                ) : (
+                                    <div
+                                        className="grid h-12 w-12 place-items-center rounded-xl font-black"
+                                        style={{
+                                            background:
+                                            theme.accentColour,
+                                            color:
+                                            theme.accentTextColour,
+                                        }}
+                                    >
+                                        {resolvedOrganisation.name
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                    </div>
+                                )}
+                            </a>
+
+                            <div>
+                                <a
+                                    href={
+                                        basePath || "/"
                                     }
-                                    alt={`${resolvedOrganisation.name} logo`}
-                                    className="h-12 w-12 rounded-xl object-contain"
-                                />
-                            ) : (
-                                <div
-                                    className="grid h-12 w-12 place-items-center rounded-xl font-black"
+                                    className="block text-base font-bold no-underline"
                                     style={{
-                                        background:
-                                        theme.accentColour,
                                         color:
-                                        theme.accentTextColour,
+                                        theme.textColour,
                                     }}
                                 >
-                                    {resolvedOrganisation.name
-                                        .charAt(0)
-                                        .toUpperCase()}
+                                    {
+                                        resolvedOrganisation.name
+                                    }
+                                </a>
+
+                                <div className="mt-1 flex items-center gap-2">
+                                    <span className="text-[11px] font-bold opacity-60">
+                                        Powered By
+                                    </span>
+
+                                    <a
+                                        href="https://tournamenthq.co.uk"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        aria-label="Visit TournamentHQ"
+                                        className="inline-flex items-center no-underline transition-opacity hover:opacity-85"
+                                    >
+                                        <img
+                                            src="/assets/tournamenthq-logo.png"
+                                            alt="TournamentHQ"
+                                            className="block h-auto w-[110px] object-contain"
+                                        />
+                                    </a>
                                 </div>
-                            )}
-
-                            <div className="min-w-0">
-                                <strong className="block truncate text-base">
-                                    {resolvedOrganisation.name}
-                                </strong>
-
-                                <span className="mt-1 flex items-center gap-2 text-xs font-semibold opacity-60">
-                                    <span>Powered By</span>
-                                    <img
-                                        src="/assets/tournamenthq-logo.png"
-                                        alt="TournamentHQ"
-                                        className="h-auto w-[92px] object-contain"
-                                    />
-                                </span>
                             </div>
-                        </a>
+                        </div>
 
                         <nav
                             aria-label="Public site navigation"
-                            className="flex flex-wrap items-center justify-end gap-1"
+                            className="ml-auto flex flex-wrap items-center justify-end gap-1"
                         >
                             {navigationItems.map(
                                 ({
@@ -854,20 +897,20 @@ export function PublicOrganisationLayout({
                                  }) => {
                                     const isHomePage =
                                         location.pathname ===
-                                            basePath ||
+                                        basePath ||
                                         location.pathname ===
-                                            `${basePath}/`;
+                                        `${basePath}/`;
 
                                     const active =
                                         label ===
-                                            "Home"
+                                        "Home"
                                             ? isHomePage &&
-                                              !location.hash
+                                            !location.hash
                                             : sectionId
-                                              ? isHomePage &&
+                                                ? isHomePage &&
                                                 location.hash ===
-                                                    `#${sectionId}`
-                                              : location.pathname ===
+                                                `#${sectionId}`
+                                                : location.pathname ===
                                                 href;
 
                                     return (
@@ -963,43 +1006,224 @@ export function PublicOrganisationLayout({
                         theme.surfaceColour,
                     }}
                 >
-                    <div className="mx-auto flex min-h-[150px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-8">
-                        <div>
-                            <strong>
-                                {
-                                    resolvedOrganisation.name
-                                }
-                            </strong>
+                    {isClub ? (
+                        <div className="mx-auto w-[min(1240px,calc(100%-2rem))] py-3 sm:py-4">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="flex min-w-0 flex-wrap items-center gap-x-7 gap-y-2">
+                                    <div className="min-w-0">
+                                        <strong className="block truncate text-sm font-black sm:text-base">
+                                            {
+                                                resolvedOrganisation.name
+                                            }
+                                        </strong>
 
-                            <p className="mt-2 opacity-60">
-                                {isClub
-                                    ? "Official club website"
-                                    : "Official competition website"}
-                            </p>
+                                        <p className="mt-0.5 text-[11px] opacity-55 sm:text-xs">
+                                            Official club website · ©{" "}
+                                            {new Date().getFullYear()}
+                                        </p>
+                                    </div>
+
+                                    <nav
+                                        aria-label="Club footer navigation"
+                                        className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold"
+                                    >
+                                        {[
+                                            [
+                                                "Home",
+                                                basePath || "/",
+                                            ],
+                                            [
+                                                "Fixtures",
+                                                `${basePath}#fixtures`,
+                                            ],
+                                            [
+                                                "Results",
+                                                `${basePath}#results`,
+                                            ],
+                                            [
+                                                "Squad",
+                                                `${basePath}#squad`,
+                                            ],
+                                            [
+                                                "Sponsors",
+                                                `${basePath}#sponsors`,
+                                            ],
+                                        ].map(
+                                            ([label, href]) => (
+                                                <a
+                                                    key={label}
+                                                    href={href}
+                                                    className="no-underline transition-opacity hover:opacity-100"
+                                                    style={{
+                                                        color:
+                                                        theme.textColour,
+                                                        opacity:
+                                                            0.62,
+                                                    }}
+                                                >
+                                                    {label}
+                                                </a>
+                                            ),
+                                        )}
+                                    </nav>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-3 lg:justify-end">
+                                    <a
+                                        href="https://tournamenthq.co.uk"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        aria-label="Visit TournamentHQ"
+                                        className="inline-flex items-center gap-2 no-underline"
+                                        style={{
+                                            color:
+                                            theme.textColour,
+                                        }}
+                                    >
+                                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">
+                                            Powered by
+                                        </span>
+
+                                        <img
+                                            src="/assets/tournamenthq-logo.png"
+                                            alt="TournamentHQ"
+                                            className="block h-auto max-h-7 w-[104px] max-w-full object-contain"
+                                        />
+                                    </a>
+
+                                    <span
+                                        aria-hidden="true"
+                                        className="hidden h-8 w-px opacity-20 sm:block"
+                                        style={{
+                                            background:
+                                            theme.accentColour,
+                                        }}
+                                    />
+
+                                    <div
+                                        aria-label="CKEFA digital ecosystem"
+                                        className="flex flex-wrap items-center gap-3"
+                                    >
+                                        <span className="hidden text-[10px] font-bold uppercase tracking-[0.12em] opacity-45 xl:inline">
+                                            CKEFA ecosystem
+                                        </span>
+
+                                        <a
+                                            href="https://fcfs.app/home"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            aria-label="Visit FCFS"
+                                            className="inline-grid h-8 w-[82px] place-items-center no-underline transition-opacity hover:opacity-80"
+                                        >
+                                            <img
+                                                src="/assets/fcfs-logo.png"
+                                                alt="FCFS"
+                                                className="max-h-7 max-w-[82px] object-contain"
+                                            />
+                                        </a>
+
+                                        <a
+                                            href="https://ckefamedia.co.uk"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            aria-label="Visit CKEFA Media"
+                                            className="inline-grid h-8 w-[88px] place-items-center overflow-hidden no-underline transition-opacity hover:opacity-80"
+                                        >
+                                            <img
+                                                src="/assets/ckefa-media-logo.jpg"
+                                                alt="CKEFA Media"
+                                                data-fallback-index="0"
+                                                className="h-8 w-[88px] scale-[1.45] object-cover"
+                                                onError={(event) => {
+                                                    const image =
+                                                        event.currentTarget;
+                                                    const fallbackImages = [
+                                                        "/assets/ckefa-media-logo.jpeg",
+                                                        "/assets/ckefa-media-logo.JPG",
+                                                        "/assets/ckefa-media-logo.png",
+                                                    ];
+                                                    const fallbackIndex =
+                                                        Number(
+                                                            image.dataset
+                                                                .fallbackIndex ??
+                                                            "0",
+                                                        );
+                                                    const nextSource =
+                                                        fallbackImages[
+                                                            fallbackIndex
+                                                            ];
+
+                                                    if (nextSource) {
+                                                        image.dataset.fallbackIndex =
+                                                            String(
+                                                                fallbackIndex +
+                                                                1,
+                                                            );
+                                                        image.src =
+                                                            nextSource;
+                                                        return;
+                                                    }
+
+                                                    image.style.display =
+                                                        "none";
+                                                }}
+                                            />
+                                        </a>
+
+                                        <a
+                                            href="https://ckefa.co.uk"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            aria-label="Visit CKEFA Software"
+                                            className="inline-grid h-8 w-[96px] place-items-center no-underline transition-opacity hover:opacity-80"
+                                        >
+                                            <img
+                                                src="/assets/ckefa-software-logo.png"
+                                                alt="CKEFA Software Solutions"
+                                                className="max-h-7 max-w-[96px] object-contain"
+                                            />
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    ) : (
+                        <div className="mx-auto flex min-h-[150px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-8">
+                            <div>
+                                <strong>
+                                    {
+                                        resolvedOrganisation.name
+                                    }
+                                </strong>
 
-                        <a
-                            href="https://tournamenthq.co.uk"
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label="Visit TournamentHQ"
-                            className="inline-flex flex-col items-end gap-2 no-underline"
-                            style={{
-                                color:
-                                theme.textColour,
-                            }}
-                        >
-                            <span className="text-xs font-bold uppercase tracking-wider opacity-60">
-                                Powered by
-                            </span>
+                                <p className="mt-2 opacity-60">
+                                    Official competition website
+                                </p>
+                            </div>
 
-                            <img
-                                src="/assets/tournamenthq-logo.png"
-                                alt="TournamentHQ"
-                                className="block h-auto max-h-[52px] w-[180px] max-w-full object-contain"
-                            />
-                        </a>
-                    </div>
+                            <a
+                                href="https://tournamenthq.co.uk"
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label="Visit TournamentHQ"
+                                className="inline-flex flex-col items-end gap-2 no-underline"
+                                style={{
+                                    color:
+                                    theme.textColour,
+                                }}
+                            >
+                                <span className="text-xs font-bold uppercase tracking-wider opacity-60">
+                                    Powered by
+                                </span>
+
+                                <img
+                                    src="/assets/tournamenthq-logo.png"
+                                    alt="TournamentHQ"
+                                    className="block h-auto max-h-[36px] w-[120px] max-w-full object-contain"
+                                />
+                            </a>
+                        </div>
+                    )}
                 </footer>
             </main>
         </PublicOrganisationProvider>

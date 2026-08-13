@@ -95,8 +95,17 @@ type SeasonRecord = {
     goalsAgainst: number;
 };
 
+type CountdownValue = {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    hasStarted: boolean;
+};
+
 export type ClubPublicHomePageProps = {
     organisationName: string;
+    organisationLogoUrl?: string | null;
     backgroundColour: string;
     surfaceColour: string;
     textColour: string;
@@ -127,27 +136,266 @@ function formatDate(value: string) {
     ).format(date);
 }
 
+function getFixtureKickoffTimestamp(
+    fixture: Fixture,
+): number | null {
+    const fixtureDate =
+        fixture.fixture_date.trim();
+
+    if (!fixtureDate) {
+        return null;
+    }
+
+    const kickoffTime =
+        fixture.kickoff_time?.trim();
+
+    const normalisedTime =
+        kickoffTime
+            ? kickoffTime.slice(0, 8)
+            : "23:59:59";
+
+    const timestamp = new Date(
+        `${fixtureDate}T${normalisedTime}`,
+    ).getTime();
+
+    return Number.isNaN(timestamp)
+        ? null
+        : timestamp;
+}
+
+function calculateCountdown(
+    targetTimestamp: number | null,
+): CountdownValue {
+    if (targetTimestamp === null) {
+        return {
+            days: 0,
+            hours: 0,
+            minutes: 0,
+            seconds: 0,
+            hasStarted: false,
+        };
+    }
+
+    const difference =
+        targetTimestamp - Date.now();
+
+    if (difference <= 0) {
+        return {
+            days: 0,
+            hours: 0,
+            minutes: 0,
+            seconds: 0,
+            hasStarted: true,
+        };
+    }
+
+    const totalSeconds = Math.floor(
+        difference / 1000,
+    );
+
+    return {
+        days: Math.floor(
+            totalSeconds / 86_400,
+        ),
+        hours: Math.floor(
+            (totalSeconds % 86_400) / 3_600,
+        ),
+        minutes: Math.floor(
+            (totalSeconds % 3_600) / 60,
+        ),
+        seconds: totalSeconds % 60,
+        hasStarted: false,
+    };
+}
+
+function formatCountdownValue(
+    value: number,
+) {
+    return String(value).padStart(
+        2,
+        "0",
+    );
+}
+
+type NextMatchCountdownProps = {
+    fixture: Fixture;
+    fixtureTitle: string;
+    accentColour: string;
+};
+
+function NextMatchCountdown({
+                                fixture,
+                                fixtureTitle,
+                                accentColour,
+                            }: NextMatchCountdownProps) {
+    const targetTimestamp =
+        useMemo(
+            () =>
+                getFixtureKickoffTimestamp(
+                    fixture,
+                ),
+            [fixture],
+        );
+
+    const [countdown, setCountdown] =
+        useState<CountdownValue>(() =>
+            calculateCountdown(
+                targetTimestamp,
+            ),
+        );
+
+    useEffect(() => {
+        setCountdown(
+            calculateCountdown(
+                targetTimestamp,
+            ),
+        );
+
+        if (targetTimestamp === null) {
+            return;
+        }
+
+        const interval =
+            window.setInterval(() => {
+                setCountdown(
+                    calculateCountdown(
+                        targetTimestamp,
+                    ),
+                );
+            }, 1000);
+
+        return () => {
+            window.clearInterval(
+                interval,
+            );
+        };
+    }, [targetTimestamp]);
+
+    const countdownItems = [
+        {
+            label: "Days",
+            value: countdown.days,
+        },
+        {
+            label: "Hours",
+            value: countdown.hours,
+        },
+        {
+            label: "Minutes",
+            value: countdown.minutes,
+        },
+        {
+            label: "Seconds",
+            value: countdown.seconds,
+        },
+    ];
+
+    return (
+        <>
+            <p
+                className="club-public-eyebrow"
+                style={{
+                    color: accentColour,
+                }}
+            >
+                Next Match Begins In
+            </p>
+
+            <h2 className="club-public-card-title">
+                {fixtureTitle}
+            </h2>
+
+            {targetTimestamp !== null &&
+            !countdown.hasStarted ? (
+                <div className="mt-5 grid grid-cols-4 gap-2">
+                    {countdownItems.map(
+                        (item) => (
+                            <div
+                                key={
+                                    item.label
+                                }
+                                className="rounded-xl border px-2 py-3 text-center"
+                                style={{
+                                    background: `${accentColour}0D`,
+                                    borderColor: `${accentColour}28`,
+                                }}
+                            >
+                                <strong
+                                    className="block text-xl font-black tabular-nums sm:text-2xl"
+                                    style={{
+                                        color: accentColour,
+                                    }}
+                                >
+                                    {formatCountdownValue(
+                                        item.value,
+                                    )}
+                                </strong>
+                                <span className="mt-1 block text-[9px] font-black uppercase tracking-[0.12em] opacity-55 sm:text-[10px]">
+                                    {item.label}
+                                </span>
+                            </div>
+                        ),
+                    )}
+                </div>
+            ) : targetTimestamp !== null ? (
+                <p
+                    className="mt-4 text-sm font-bold"
+                    style={{
+                        color: accentColour,
+                    }}
+                >
+                    Kick-off is underway.
+                </p>
+            ) : null}
+
+            <div className="mt-5 space-y-2 text-sm opacity-70">
+                <p className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    {formatDate(
+                        fixture.fixture_date,
+                    )}
+                </p>
+
+                {fixture.kickoff_time && (
+                    <p className="flex items-center gap-2">
+                        <Clock3 className="h-4 w-4" />
+                        {fixture.kickoff_time.slice(
+                            0,
+                            5,
+                        )}
+                    </p>
+                )}
+
+                <p className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    {fixture.venue_name ??
+                        (fixture.home_away ===
+                        "away"
+                            ? "Away"
+                            : "Home")}
+                </p>
+            </div>
+        </>
+    );
+}
+
 export function ClubPublicHomePage({
-    organisationName,
-    backgroundColour,
-    surfaceColour,
-    textColour,
-    accentColour,
-    accentTextColour = "#071006",
-    basePath = "",
-    articles = [],
-    media = [],
-}: ClubPublicHomePageProps) {
+                                       organisationName,
+                                       organisationLogoUrl,
+                                       backgroundColour,
+                                       surfaceColour,
+                                       textColour,
+                                       accentColour,
+                                       accentTextColour = "#071006",
+                                       basePath = "",
+                                       articles = [],
+                                       media = [],
+                                   }: ClubPublicHomePageProps) {
     const publicOrganisation =
         useOptionalPublicOrganisation();
 
     const organisationId =
         publicOrganisation?.organisationId ??
-        null;
-
-    const organisationLogoUrl =
-        publicOrganisation?.organisation
-            .logo_url ??
         null;
 
     const {
@@ -207,6 +455,11 @@ export function ClubPublicHomePage({
         useState<string | null>(
             null,
         );
+
+    const [
+        showAllFixtures,
+        setShowAllFixtures,
+    ] = useState(false);
 
     const activeArticle =
         useMemo(
@@ -287,8 +540,8 @@ export function ClubPublicHomePage({
 
             setSeasonLabel(
                 season.season_label ??
-                    season.name ??
-                    "",
+                season.name ??
+                "",
             );
 
             const [
@@ -459,10 +712,10 @@ export function ClubPublicHomePage({
         };
     }, [organisationId]);
 
-    const today =
-        new Date()
-            .toISOString()
-            .slice(0, 10);
+    useEffect(() => {
+        setShowAllFixtures(false);
+    }, [organisationId]);
+
 
     const fixtureById =
         useMemo(
@@ -479,16 +732,47 @@ export function ClubPublicHomePage({
         );
 
     const nextFixture =
+        useMemo(() => {
+            const now = Date.now();
+
+            return (
+                [...fixtures]
+                    .map((fixture) => ({
+                        fixture,
+                        timestamp:
+                            getFixtureKickoffTimestamp(
+                                fixture,
+                            ),
+                    }))
+                    .filter(
+                        (entry) =>
+                            entry.timestamp !==
+                            null &&
+                            entry.timestamp >=
+                            now,
+                    )
+                    .sort(
+                        (left, right) =>
+                            (left.timestamp ??
+                                Number.MAX_SAFE_INTEGER) -
+                            (right.timestamp ??
+                                Number.MAX_SAFE_INTEGER),
+                    )[0]?.fixture ?? null
+            );
+        }, [fixtures]);
+
+    const displayedFixtures =
         useMemo(
             () =>
-                fixtures.find(
-                    (fixture) =>
-                        fixture.fixture_date >=
-                        today,
-                ) ?? null,
+                showAllFixtures
+                    ? fixtures
+                    : fixtures.slice(
+                        0,
+                        6,
+                    ),
             [
                 fixtures,
-                today,
+                showAllFixtures,
             ],
         );
 
@@ -657,14 +941,14 @@ export function ClubPublicHomePage({
             );
 
         return fixture.home_away ===
-            "away"
+        "away"
             ? `${opponent} vs ${organisationName}`
             : `${organisationName} vs ${opponent}`;
     };
 
     const cardStyle = {
         background:
-            surfaceColour,
+        surfaceColour,
         borderColor:
             `${accentColour}35`,
     };
@@ -690,9 +974,9 @@ export function ClubPublicHomePage({
                 className="club-public-site"
                 style={{
                     background:
-                        backgroundColour,
+                    backgroundColour,
                     color:
-                        textColour,
+                    textColour,
                 }}
             >
                 <style>
@@ -816,7 +1100,7 @@ export function ClubPublicHomePage({
                                         background:
                                             `${accentColour}16`,
                                         color:
-                                            accentColour,
+                                        accentColour,
                                     }}
                                 >
                                     {
@@ -833,57 +1117,35 @@ export function ClubPublicHomePage({
                                 cardStyle
                             }
                         >
-                            <p
-                                className="club-public-eyebrow"
-                                style={{
-                                    color:
-                                        accentColour,
-                                }}
-                            >
-                                Next Fixture
-                            </p>
-
                             {nextFixture ? (
-                                <>
-                                    <h2 className="club-public-card-title">
-                                        {getFixtureTitle(
+                                <NextMatchCountdown
+                                    fixture={
+                                        nextFixture
+                                    }
+                                    fixtureTitle={
+                                        getFixtureTitle(
                                             nextFixture,
-                                        )}
-                                    </h2>
-
-                                    <div className="mt-4 space-y-2 text-sm opacity-70">
-                                        <p className="flex items-center gap-2">
-                                            <CalendarDays className="h-4 w-4" />
-                                            {formatDate(
-                                                nextFixture.fixture_date,
-                                            )}
-                                        </p>
-
-                                        {nextFixture.kickoff_time && (
-                                            <p className="flex items-center gap-2">
-                                                <Clock3 className="h-4 w-4" />
-                                                {nextFixture.kickoff_time.slice(
-                                                    0,
-                                                    5,
-                                                )}
-                                            </p>
-                                        )}
-
-                                        {nextFixture.venue_name && (
-                                            <p className="flex items-center gap-2">
-                                                <MapPin className="h-4 w-4" />
-                                                {
-                                                    nextFixture.venue_name
-                                                }
-                                            </p>
-                                        )}
-                                    </div>
-                                </>
+                                        )
+                                    }
+                                    accentColour={
+                                        accentColour
+                                    }
+                                />
                             ) : (
-                                <p className="mt-4 text-sm opacity-65">
-                                    No upcoming
-                                    published fixture.
-                                </p>
+                                <>
+                                    <p
+                                        className="club-public-eyebrow"
+                                        style={{
+                                            color: accentColour,
+                                        }}
+                                    >
+                                        Next Match
+                                    </p>
+                                    <p className="mt-4 text-sm opacity-65">
+                                        No upcoming
+                                        published fixture.
+                                    </p>
+                                </>
                             )}
                         </div>
                     </div>
@@ -907,7 +1169,7 @@ export function ClubPublicHomePage({
                         className="club-public-eyebrow"
                         style={{
                             color:
-                                accentColour,
+                            accentColour,
                         }}
                     >
                         Season Overview
@@ -951,10 +1213,10 @@ export function ClubPublicHomePage({
                             ],
                         ].map(
                             ([
-                                Icon,
-                                label,
-                                value,
-                            ]) => {
+                                 Icon,
+                                 label,
+                                 value,
+                             ]) => {
                                 const MetricIcon =
                                     Icon as typeof Trophy;
 
@@ -996,7 +1258,7 @@ export function ClubPublicHomePage({
                         className="club-public-eyebrow"
                         style={{
                             color:
-                                accentColour,
+                            accentColour,
                         }}
                     >
                         Match Centre
@@ -1007,67 +1269,94 @@ export function ClubPublicHomePage({
                     </h2>
 
                     <div className="mt-4 space-y-3">
-                        {fixtures
-                            .slice(
-                                0,
-                                6,
-                            )
-                            .map(
-                                (
-                                    fixture,
-                                ) => (
-                                    <article
-                                        key={
-                                            fixture.id
-                                        }
-                                        className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
-                                        style={
-                                            cardStyle
-                                        }
+                        {displayedFixtures.map(
+                            (
+                                fixture,
+                            ) => (
+                                <article
+                                    key={
+                                        fixture.id
+                                    }
+                                    className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
+                                    style={
+                                        cardStyle
+                                    }
+                                >
+                                    <div>
+                                        <p className="font-bold">
+                                            {getFixtureTitle(
+                                                fixture,
+                                            )}
+                                        </p>
+
+                                        <p className="mt-1 text-sm opacity-65">
+                                            {formatDate(
+                                                fixture.fixture_date,
+                                            )}
+                                            {fixture.kickoff_time
+                                                ? ` · ${fixture.kickoff_time.slice(
+                                                    0,
+                                                    5,
+                                                )}`
+                                                : ""}
+                                            {fixture.venue_name
+                                                ? ` · ${fixture.venue_name}`
+                                                : ""}
+                                        </p>
+                                    </div>
+
+                                    <span
+                                        className="w-fit rounded-full px-3 py-1 text-[11px] font-black uppercase"
+                                        style={{
+                                            background:
+                                                `${accentColour}15`,
+                                            color:
+                                            accentColour,
+                                        }}
                                     >
-                                        <div>
-                                            <p className="font-bold">
-                                                {getFixtureTitle(
-                                                    fixture,
-                                                )}
-                                            </p>
-
-                                            <p className="mt-1 text-sm opacity-65">
-                                                {formatDate(
-                                                    fixture.fixture_date,
-                                                )}
-                                                {fixture.kickoff_time
-                                                    ? ` · ${fixture.kickoff_time.slice(
-                                                          0,
-                                                          5,
-                                                      )}`
-                                                    : ""}
-                                                {fixture.venue_name
-                                                    ? ` · ${fixture.venue_name}`
-                                                    : ""}
-                                            </p>
-                                        </div>
-
-                                        <span
-                                            className="w-fit rounded-full px-3 py-1 text-[11px] font-black uppercase"
-                                            style={{
-                                                background:
-                                                    `${accentColour}15`,
-                                                color:
-                                                    accentColour,
-                                            }}
-                                        >
                                             {
                                                 fixture.fixture_type
                                             }
                                         </span>
-                                    </article>
-                                ),
+                                </article>
+                            ),
+                        )}
+
+                        {!loading &&
+                            fixtures.length > 6 && (
+                                <div className="flex justify-center pt-2">
+                                    <button
+                                        type="button"
+                                        aria-expanded={
+                                            showAllFixtures
+                                        }
+                                        onClick={() =>
+                                            setShowAllFixtures(
+                                                (current) =>
+                                                    !current,
+                                            )
+                                        }
+                                        className="inline-flex min-h-10 items-center justify-center rounded-xl border px-5 py-2.5 text-sm font-black transition hover:brightness-110"
+                                        style={{
+                                            background: showAllFixtures
+                                                ? `${accentColour}10`
+                                                : accentColour,
+                                            borderColor: accentColour,
+                                            color: showAllFixtures
+                                                ? accentColour
+                                                : accentTextColour,
+                                        }}
+                                    >
+                                        {showAllFixtures
+                                            ? "Show fewer fixtures"
+                                            : `Show more fixtures (${fixtures.length - 6})`}
+                                    </button>
+                                </div>
                             )}
 
                         {!loading &&
                             fixtures.length ===
-                                0 && (
+                            0 && (
                                 <p
                                     className="rounded-xl border p-5 text-sm opacity-65"
                                     style={
@@ -1089,7 +1378,7 @@ export function ClubPublicHomePage({
                         className="club-public-eyebrow"
                         style={{
                             color:
-                                accentColour,
+                            accentColour,
                         }}
                     >
                         Form & Results
@@ -1122,8 +1411,8 @@ export function ClubPublicHomePage({
                                                 <p className="font-bold">
                                                     {fixture
                                                         ? getFixtureTitle(
-                                                              fixture,
-                                                          )
+                                                            fixture,
+                                                        )
                                                         : "Fixture"}
                                                 </p>
 
@@ -1165,16 +1454,16 @@ export function ClubPublicHomePage({
 
                         {recentResults.length ===
                             0 && (
-                            <p
-                                className="rounded-xl border p-5 text-sm opacity-65 md:col-span-2"
-                                style={
-                                    cardStyle
-                                }
-                            >
-                                No published results
-                                yet.
-                            </p>
-                        )}
+                                <p
+                                    className="rounded-xl border p-5 text-sm opacity-65 md:col-span-2"
+                                    style={
+                                        cardStyle
+                                    }
+                                >
+                                    No published results
+                                    yet.
+                                </p>
+                            )}
                     </div>
                 </section>
 
@@ -1186,7 +1475,7 @@ export function ClubPublicHomePage({
                         className="club-public-eyebrow"
                         style={{
                             color:
-                                accentColour,
+                            accentColour,
                         }}
                     >
                         Players
@@ -1221,7 +1510,7 @@ export function ClubPublicHomePage({
                                                 background:
                                                     `${accentColour}15`,
                                                 color:
-                                                    accentColour,
+                                                accentColour,
                                             }}
                                         >
                                             {player.squad_number ??
@@ -1252,7 +1541,7 @@ export function ClubPublicHomePage({
                         className="club-public-eyebrow"
                         style={{
                             color:
-                                accentColour,
+                            accentColour,
                         }}
                     >
                         Player Statistics
@@ -1305,10 +1594,10 @@ export function ClubPublicHomePage({
 
                         {topScorers.length ===
                             0 && (
-                            <p className="text-sm opacity-65">
-                                No goals recorded yet.
-                            </p>
-                        )}
+                                <p className="text-sm opacity-65">
+                                    No goals recorded yet.
+                                </p>
+                            )}
                     </div>
                 </section>
             </div>
