@@ -40,6 +40,9 @@ type OrganisationFormProps = {
         provisionalId?: string
     ) => Promise<void>
     onCancel: () => void
+    showSubscriptionControls?: boolean
+    initialOrganisationType?: OrganisationFormData['organisation_type']
+    fixedOrganisationType?: OrganisationFormData['organisation_type']
 }
 
 type FormErrors = Partial<
@@ -213,39 +216,44 @@ const selectClassName =
 const labelClassName =
     'text-sm font-semibold text-slate-300'
 
-function createSlug(value: string) {
-    return value
+function safeTrim(value: unknown): string {
+    return typeof value === 'string'
+        ? value.trim()
+        : ''
+}
+
+function createSlug(value: unknown) {
+    return safeTrim(value)
         .toLowerCase()
-        .trim()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
 }
 
-function isValidEmail(value: string) {
+function isValidEmail(value: unknown) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        value.trim()
+        safeTrim(value)
     )
 }
 
-function isValidHexColour(value: string) {
+function isValidHexColour(value: unknown) {
     return /^#[0-9a-fA-F]{6}$/.test(
-        value.trim()
+        safeTrim(value)
     )
 }
 
-function hexToRgb(value: string): [number, number, number] | null {
+function hexToRgb(value: unknown): [number, number, number] | null {
     if (!isValidHexColour(value)) {
         return null
     }
 
     return [
-        Number.parseInt(value.slice(1, 3), 16),
-        Number.parseInt(value.slice(3, 5), 16),
-        Number.parseInt(value.slice(5, 7), 16),
+        Number.parseInt(safeTrim(value).slice(1, 3), 16),
+        Number.parseInt(safeTrim(value).slice(3, 5), 16),
+        Number.parseInt(safeTrim(value).slice(5, 7), 16),
     ]
 }
 
-function getRelativeLuminance(value: string): number {
+function getRelativeLuminance(value: unknown): number {
     const rgb = hexToRgb(value)
 
     if (!rgb) {
@@ -266,7 +274,7 @@ function getRelativeLuminance(value: string): number {
     )
 }
 
-function getContrastRatio(foreground: string, background: string): number {
+function getContrastRatio(foreground: unknown, background: unknown): number {
     const first = getRelativeLuminance(foreground)
     const second = getRelativeLuminance(background)
     const lighter = Math.max(first, second)
@@ -286,18 +294,6 @@ function mapOrganisationToForm(
             defaultOrganisation.organisation_type,
         logo_url:
             organisation.logo_url ?? '',
-        description: organisation.description ?? '',
-        sport: organisation.sport ?? '',
-        country: organisation.country ?? 'United Kingdom',
-        currency: organisation.currency ?? 'GBP',
-        founded_year: organisation.founded_year ?? null,
-        home_ground: organisation.home_ground ?? '',
-        website_url: organisation.website_url ?? '',
-        contact_email: organisation.contact_email ?? '',
-        facebook_url: organisation.facebook_url ?? '',
-        instagram_url: organisation.instagram_url ?? '',
-        twitter_url: organisation.twitter_url ?? '',
-        youtube_url: organisation.youtube_url ?? '',
         primary_colour:
             organisation.primary_colour ??
             defaultOrganisation.primary_colour,
@@ -375,11 +371,14 @@ function SectionHeading({
 }
 
 export function OrganisationForm({
-                                     organisation,
-                                     saving,
-                                     onSave,
-                                     onCancel,
-                                 }: OrganisationFormProps) {
+    organisation,
+    saving,
+    onSave,
+    onCancel,
+    showSubscriptionControls = true,
+    initialOrganisationType,
+    fixedOrganisationType,
+}: OrganisationFormProps) {
     const logoInputRef =
         useRef<HTMLInputElement | null>(null)
 
@@ -407,11 +406,20 @@ export function OrganisationForm({
     useEffect(() => {
         setForm(
             organisation
-                ? mapOrganisationToForm(
-                    organisation
-                )
+                ? {
+                    ...mapOrganisationToForm(
+                        organisation
+                    ),
+                    organisation_type:
+                        fixedOrganisationType ??
+                        organisation.organisation_type,
+                }
                 : {
                     ...defaultOrganisation,
+                    organisation_type:
+                        fixedOrganisationType ??
+                        initialOrganisationType ??
+                        defaultOrganisation.organisation_type,
                     enabled_modules: [
                         ...defaultOrganisation.enabled_modules,
                     ],
@@ -419,7 +427,11 @@ export function OrganisationForm({
         )
 
         setErrors({})
-    }, [organisation])
+    }, [
+        organisation,
+        initialOrganisationType,
+        fixedOrganisationType,
+    ])
 
     function updateField<
         K extends keyof OrganisationFormData,
@@ -555,29 +567,29 @@ export function OrganisationForm({
         const nextErrors: FormErrors =
             {}
 
-        if (!form.name.trim()) {
+        if (!safeTrim(form.name)) {
             nextErrors.name =
                 'Enter the organisation name.'
         }
 
-        if (!form.slug.trim()) {
+        if (!safeTrim(form.slug)) {
             nextErrors.slug =
                 'Enter the organisation slug.'
         } else if (
             !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
-                form.slug.trim()
+                safeTrim(form.slug)
             )
         ) {
             nextErrors.slug =
                 'Use lowercase letters, numbers and hyphens only.'
         }
 
-        if (!form.owner_name.trim()) {
+        if (!safeTrim(form.owner_name)) {
             nextErrors.owner_name =
                 'Enter the administrator name.'
         }
 
-        if (!form.owner_email.trim()) {
+        if (!safeTrim(form.owner_email)) {
             nextErrors.owner_email =
                 'Enter the administrator email.'
         } else if (
@@ -623,23 +635,27 @@ export function OrganisationForm({
             await onSave(
                 {
                     ...form,
+                    organisation_type:
+                        fixedOrganisationType ??
+                        form.organisation_type,
                     name:
-                        form.name.trim(),
+                        safeTrim(form.name),
                     slug: createSlug(
                         form.slug
                     ),
                     logo_url:
-                        form.logo_url.trim(),
+                        safeTrim(form.logo_url),
                     owner_name:
-                        form.owner_name.trim(),
+                        safeTrim(form.owner_name),
                     owner_email:
-                        form.owner_email
-                            .trim()
+                        safeTrim(form.owner_email)
                             .toLowerCase(),
                     owner_phone:
-                        form.owner_phone.trim(),
+                        safeTrim(form.owner_phone),
                     enabled_modules: [
-                        ...form.enabled_modules,
+                        ...(Array.isArray(form.enabled_modules)
+                            ? form.enabled_modules
+                            : []),
                     ],
                 },
                 organisation
@@ -672,7 +688,9 @@ export function OrganisationForm({
                         item !== module
                 )
                 : [
-                    ...form.enabled_modules,
+                    ...(Array.isArray(form.enabled_modules)
+                            ? form.enabled_modules
+                            : []),
                     module,
                 ]
         )
@@ -714,6 +732,8 @@ export function OrganisationForm({
 
     const controlsDisabled =
         saving || uploadingLogo
+    const isClubForm =
+        form.organisation_type === 'club'
 
     return (
         <form
@@ -730,18 +750,25 @@ export function OrganisationForm({
 
                         <div>
                             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-lime-400">
-                                Organisation administration
+                                {isClubForm
+                                    ? 'Club administration'
+                                    : 'Organisation administration'}
                             </p>
 
                             <h2 className="mt-2 text-3xl font-bold normal-case text-white">
                                 {organisation
-                                    ? 'Edit organisation'
-                                    : 'Add organisation'}
+                                    ? isClubForm
+                                        ? 'Edit club'
+                                        : 'Edit organisation'
+                                    : isClubForm
+                                      ? 'Add club'
+                                      : 'Add organisation'}
                             </h2>
 
                             <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-                                Complete the organisation, administrator,
-                                subscription and branding details in one place.
+                                {isClubForm
+                                    ? 'Complete the club, administrator and branding details for your TournamentHQ workspace.'
+                                    : 'Complete the organisation, administrator, subscription and branding details in one place.'}
                             </p>
                         </div>
                     </div>
@@ -755,7 +782,9 @@ export function OrganisationForm({
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/60 bg-black/20 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-lime-500/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        Back to organisations
+                        {isClubForm && !organisation
+                            ? 'Back'
+                            : 'Back to organisations'}
                     </button>
                 </div>
             </section>
@@ -764,14 +793,24 @@ export function OrganisationForm({
                 <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-7">
                     <SectionHeading
                         icon={Building2}
-                        title="Organisation details"
-                        description="Workspace identity, status and public-site availability."
+                        title={
+                            isClubForm
+                                ? 'Club details'
+                                : 'Organisation details'
+                        }
+                        description={
+                            isClubForm
+                                ? 'Club identity, status and public-site availability.'
+                                : 'Workspace identity, status and public-site availability.'
+                        }
                     />
 
                     <div className="grid gap-5 md:grid-cols-2">
                         <label>
                             <span className={labelClassName}>
-                                Organisation name
+                                {isClubForm
+                                    ? 'Club name'
+                                    : 'Organisation name'}
                                 <span className="ml-1 text-red-400">
                                     *
                                 </span>
@@ -813,7 +852,9 @@ export function OrganisationForm({
 
                         <label>
                             <span className={labelClassName}>
-                                Organisation slug
+                                {isClubForm
+                                    ? 'Club slug'
+                                    : 'Organisation slug'}
                                 <span className="ml-1 text-red-400">
                                     *
                                 </span>
@@ -875,36 +916,38 @@ export function OrganisationForm({
                             </select>
                         </label>
 
-                        <label>
-                            <span className={labelClassName}>
-                                Organisation type
-                            </span>
+                        {!fixedOrganisationType && (
+                            <label>
+                                <span className={labelClassName}>
+                                    Organisation type
+                                </span>
 
-                            <select
-                                value={form.organisation_type}
-                                disabled={controlsDisabled}
-                                onChange={(event) =>
-                                    updateField(
-                                        'organisation_type',
-                                        event.target.value as OrganisationFormData['organisation_type']
-                                    )
-                                }
-                                className={selectClassName}
-                            >
-                                <option value="competition_organiser">
-                                    Competition organiser
-                                </option>
-                                <option value="club">
-                                    Club / team
-                                </option>
-                            </select>
+                                <select
+                                    value={form.organisation_type}
+                                    disabled={controlsDisabled}
+                                    onChange={(event) =>
+                                        updateField(
+                                            'organisation_type',
+                                            event.target.value as OrganisationFormData['organisation_type']
+                                        )
+                                    }
+                                    className={selectClassName}
+                                >
+                                    <option value="competition_organiser">
+                                        Competition organiser
+                                    </option>
+                                    <option value="club">
+                                        Club / team
+                                    </option>
+                                </select>
 
-                            <span className="mt-2 block text-xs leading-5 text-slate-400">
-                                {form.organisation_type === 'club'
-                                    ? 'Manage your own seasons, fixtures, results, squad, officials, statistics and media without running a league.'
-                                    : 'Manage leagues, tournaments, competitions, participating clubs, fixtures, results and competition operations.'}
-                            </span>
-                        </label>
+                                <span className="mt-2 block text-xs leading-5 text-slate-400">
+                                    {form.organisation_type === 'club'
+                                        ? 'Manage your own seasons, fixtures, results, squad, officials, statistics and media without running a league.'
+                                        : 'Manage leagues, tournaments, competitions, participating clubs, fixtures, results and competition operations.'}
+                                </span>
+                            </label>
+                        )}
 
                         <label className="flex min-h-[76px] items-center gap-3 rounded-xl border border-lime-900/50 bg-black/20 px-4 py-3">
                             <input
@@ -1038,156 +1081,11 @@ export function OrganisationForm({
                     </div>
                 </section>
 
-                {form.organisation_type === 'club' && (
-                    <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-12">
-                        <SectionHeading
-                            icon={Building2}
-                            title="Club profile"
-                            description="Public club identity and contact information used across the club website and match-day experience."
-                        />
-
-                        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                            <label className="md:col-span-2 xl:col-span-3">
-                                <span className={labelClassName}>About the club</span>
-                                <textarea
-                                    value={form.description}
-                                    disabled={controlsDisabled}
-                                    onChange={(event) => updateField('description', event.target.value)}
-                                    rows={4}
-                                    placeholder="Tell players, parents, supporters and visitors about the club."
-                                    className={inputClassName}
-                                />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Sport</span>
-                                <select
-                                    value={form.sport}
-                                    disabled={controlsDisabled}
-                                    onChange={(event) => updateField('sport', event.target.value)}
-                                    className={selectClassName}
-                                >
-                                    <option value="">Select sport</option>
-                                    <option value="football">Football</option>
-                                    <option value="basketball">Basketball</option>
-                                    <option value="rugby">Rugby</option>
-                                    <option value="cricket">Cricket</option>
-                                    <option value="netball">Netball</option>
-                                    <option value="hockey">Hockey</option>
-                                    <option value="volleyball">Volleyball</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Country</span>
-                                <input
-                                    type="text"
-                                    value={form.country}
-                                    disabled={controlsDisabled}
-                                    onChange={(event) => updateField('country', event.target.value)}
-                                    className={inputClassName}
-                                />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Currency</span>
-                                <select
-                                    value={form.currency}
-                                    disabled={controlsDisabled}
-                                    onChange={(event) => updateField('currency', event.target.value)}
-                                    className={selectClassName}
-                                >
-                                    <option value="GBP">GBP (£)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="GHS">GHS (GH₵)</option>
-                                    <option value="NGN">NGN (₦)</option>
-                                    <option value="CAD">CAD (C$)</option>
-                                    <option value="AUD">AUD (A$)</option>
-                                </select>
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Founded</span>
-                                <input
-                                    type="number"
-                                    min={1800}
-                                    max={new Date().getFullYear()}
-                                    value={form.founded_year ?? ''}
-                                    disabled={controlsDisabled}
-                                    onChange={(event) =>
-                                        updateField(
-                                            'founded_year',
-                                            event.target.value ? Number(event.target.value) : null
-                                        )
-                                    }
-                                    className={inputClassName}
-                                />
-                            </label>
-
-                            <label className="md:col-span-2">
-                                <span className={labelClassName}>Home ground</span>
-                                <input
-                                    type="text"
-                                    value={form.home_ground}
-                                    disabled={controlsDisabled}
-                                    onChange={(event) => updateField('home_ground', event.target.value)}
-                                    placeholder="e.g. Meridian Sports Ground"
-                                    className={inputClassName}
-                                />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Club website</span>
-                                <input type="url" value={form.website_url} disabled={controlsDisabled}
-                                    onChange={(event) => updateField('website_url', event.target.value)}
-                                    placeholder="https://..." className={inputClassName} />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Public contact email</span>
-                                <input type="email" value={form.contact_email} disabled={controlsDisabled}
-                                    onChange={(event) => updateField('contact_email', event.target.value)}
-                                    placeholder="club@example.com" className={inputClassName} />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Facebook</span>
-                                <input type="url" value={form.facebook_url} disabled={controlsDisabled}
-                                    onChange={(event) => updateField('facebook_url', event.target.value)}
-                                    placeholder="https://facebook.com/..." className={inputClassName} />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>Instagram</span>
-                                <input type="url" value={form.instagram_url} disabled={controlsDisabled}
-                                    onChange={(event) => updateField('instagram_url', event.target.value)}
-                                    placeholder="https://instagram.com/..." className={inputClassName} />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>X / Twitter</span>
-                                <input type="url" value={form.twitter_url} disabled={controlsDisabled}
-                                    onChange={(event) => updateField('twitter_url', event.target.value)}
-                                    placeholder="https://x.com/..." className={inputClassName} />
-                            </label>
-
-                            <label>
-                                <span className={labelClassName}>YouTube</span>
-                                <input type="url" value={form.youtube_url} disabled={controlsDisabled}
-                                    onChange={(event) => updateField('youtube_url', event.target.value)}
-                                    placeholder="https://youtube.com/..." className={inputClassName} />
-                            </label>
-                        </div>
-                    </section>
-                )}
-
                 <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
                     <SectionHeading
                         icon={ImagePlus}
-                        title={form.organisation_type === 'club' ? 'Club logo' : 'Organisation logo'}
-                        description={form.organisation_type === 'club' ? 'Upload the club crest or brand mark used on the public website.' : 'Upload the customer brand mark.'}
+                        title="Organisation logo"
+                        description="Upload the customer brand mark."
                     />
 
                     <div className="flex items-center gap-4">
@@ -1266,145 +1164,154 @@ export function OrganisationForm({
                     />
                 </section>
 
-                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
-                    <SectionHeading
-                        icon={ShieldCheck}
-                        title="Subscription"
-                        description="Plan, state and account limits."
-                    />
+                {showSubscriptionControls && (
+                    <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
+                        <SectionHeading
+                            icon={ShieldCheck}
+                            title="Subscription"
+                            description="Plan, state and account limits."
+                        />
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <label>
-                            <span className={labelClassName}>
-                                Plan
-                            </span>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <label>
+                                <span className={labelClassName}>
+                                    Plan
+                                </span>
 
-                            <select
-                                value={
-                                    form.subscription_plan
-                                }
-                                disabled={
-                                    controlsDisabled
-                                }
-                                onChange={(event) =>
-                                    updateField(
-                                        'subscription_plan',
-                                        event.target.value as OrganisationFormData['subscription_plan']
-                                    )
-                                }
-                                className={selectClassName}
-                            >
-                                <option value="starter">
-                                    Starter
-                                </option>
-
-                                <option value="professional">
-                                    Professional
-                                </option>
-
-                                <option value="enterprise">
-                                    Enterprise
-                                </option>
-                            </select>
-                        </label>
-
-                        <label>
-                            <span className={labelClassName}>
-                                Status
-                            </span>
-
-                            <select
-                                value={
-                                    form.subscription_status
-                                }
-                                disabled={
-                                    controlsDisabled
-                                }
-                                onChange={(event) =>
-                                    updateField(
-                                        'subscription_status',
-                                        event.target.value as OrganisationFormData['subscription_status']
-                                    )
-                                }
-                                className={selectClassName}
-                            >
-                                <option value="trial">
-                                    Trial
-                                </option>
-
-                                <option value="active">
-                                    Active
-                                </option>
-
-                                <option value="past_due">
-                                    Past due
-                                </option>
-
-                                <option value="cancelled">
-                                    Cancelled
-                                </option>
-                            </select>
-                        </label>
-
-                        <label>
-                            <span className={labelClassName}>
-                                Maximum users
-                            </span>
-
-                            <input
-                                type="number"
-                                min={1}
-                                value={
-                                    form.max_users
-                                }
-                                disabled={
-                                    controlsDisabled
-                                }
-                                onChange={(event) =>
-                                    updateField(
-                                        'max_users',
-                                        Number(
-                                            event.target.value
+                                <select
+                                    value={
+                                        form.subscription_plan
+                                    }
+                                    disabled={
+                                        controlsDisabled
+                                    }
+                                    onChange={(event) =>
+                                        updateField(
+                                            'subscription_plan',
+                                            event.target.value as OrganisationFormData['subscription_plan']
                                         )
-                                    )
-                                }
-                                className={inputClassName}
-                            />
-                        </label>
+                                    }
+                                    className={selectClassName}
+                                >
+                                    <option value="starter">
+                                        Starter
+                                    </option>
 
-                        <label>
-                            <span className={labelClassName}>
-                                Maximum competitions
-                            </span>
+                                    <option value="professional">
+                                        Professional
+                                    </option>
 
-                            <input
-                                type="number"
-                                min={1}
-                                value={
-                                    form.max_competitions
-                                }
-                                disabled={
-                                    controlsDisabled
-                                }
-                                onChange={(event) =>
-                                    updateField(
-                                        'max_competitions',
-                                        Number(
-                                            event.target.value
+                                    <option value="enterprise">
+                                        Enterprise
+                                    </option>
+                                </select>
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>
+                                    Status
+                                </span>
+
+                                <select
+                                    value={
+                                        form.subscription_status
+                                    }
+                                    disabled={
+                                        controlsDisabled
+                                    }
+                                    onChange={(event) =>
+                                        updateField(
+                                            'subscription_status',
+                                            event.target.value as OrganisationFormData['subscription_status']
                                         )
-                                    )
-                                }
-                                className={inputClassName}
-                            />
-                        </label>
-                    </div>
-                </section>
+                                    }
+                                    className={selectClassName}
+                                >
+                                    <option value="trial">
+                                        Trial
+                                    </option>
 
+                                    <option value="active">
+                                        Active
+                                    </option>
+
+                                    <option value="past_due">
+                                        Past due
+                                    </option>
+
+                                    <option value="suspended">
+                                        Suspended
+                                    </option>
+
+                                    <option value="cancelled">
+                                        Cancelled
+                                    </option>
+                                </select>
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>
+                                    Maximum users
+                                </span>
+
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={
+                                        form.max_users
+                                    }
+                                    disabled={
+                                        controlsDisabled
+                                    }
+                                    onChange={(event) =>
+                                        updateField(
+                                            'max_users',
+                                            Number(
+                                                event.target.value
+                                            )
+                                        )
+                                    }
+                                    className={inputClassName}
+                                />
+                            </label>
+
+                            <label>
+                                <span className={labelClassName}>
+                                    Maximum competitions
+                                </span>
+
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={
+                                        form.max_competitions
+                                    }
+                                    disabled={
+                                        controlsDisabled
+                                    }
+                                    onChange={(event) =>
+                                        updateField(
+                                            'max_competitions',
+                                            Number(
+                                                event.target.value
+                                            )
+                                        )
+                                    }
+                                    className={inputClassName}
+                                />
+                            </label>
+                        </div>
+                    </section>
+                )}
                 <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
                     <SectionHeading
                         icon={Check}
                         title="Enabled modules"
-                        description="Choose the features available to this organisation."
+                        description={
+                            isClubForm
+                                ? 'Choose the features available to this club workspace.'
+                                : 'Choose the features available to this organisation.'
+                        }
                     />
 
                     <div className="grid grid-cols-2 gap-2">
@@ -1646,7 +1553,9 @@ export function OrganisationForm({
                                         </p>
 
                                         <h4 className="mt-1 text-base font-bold text-white">
-                                            Organisation portal
+                                            {isClubForm
+                                                ? 'Club portal'
+                                                : 'Organisation portal'}
                                         </h4>
                                     </div>
 
@@ -1696,11 +1605,15 @@ export function OrganisationForm({
                                             <div>
                                                 <strong className="block text-sm">
                                                     {form.name ||
-                                                        'Your club'}
+                                                        (isClubForm
+                                                            ? 'Your club'
+                                                            : 'Your organisation')}
                                                 </strong>
 
                                                 <span className="text-xs opacity-70">
-                                                    {form.organisation_type === 'club' ? 'Club Administration' : 'Competition Administration'}
+                                                    {isClubForm
+                                                        ? 'Club Administration'
+                                                        : 'Competition Administration'}
                                                 </span>
                                             </div>
                                         </div>
@@ -1733,7 +1646,7 @@ export function OrganisationForm({
                                                 form.surface_colour,
                                             }}
                                         >
-                                            {form.organisation_type === 'club' ? ['Dashboard', 'Squad', 'Fixtures'] : ['Dashboard', 'Teams', 'Fixtures'].map(
+                                            {['Dashboard', 'Teams', 'Fixtures'].map(
                                                 (item, index) => (
                                                     <div
                                                         key={item}

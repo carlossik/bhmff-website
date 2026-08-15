@@ -1,4 +1,5 @@
 import {
+    useCallback,
     useEffect,
     useState,
 } from 'react'
@@ -8,16 +9,17 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabaseClient'
 import { useOrganisation } from '../../../context/OrganisationContext'
-import { useCompetition } from '../../../contexts/CompetitionContext'
 import { Toast } from '../../common/Toast'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
-import { TeamModal } from './TeamModal'
+import {
+    TeamModal,
+    type TeamModalDraft,
+} from './TeamModal'
 import { TeamsTable } from './TeamsTable'
 import {
     deleteTeamLogo,
     replaceTeamLogo,
 } from './teamService'
-import { venueService } from '../Venues/venueService'
 import type {
     ClubOption,
     DbTeam,
@@ -57,9 +59,6 @@ export function TeamsManager({
     const { currentOrganisation } =
         useOrganisation()
 
-    const { currentCompetition } =
-        useCompetition()
-
     const [
         showTeamModal,
         setShowTeamModal,
@@ -77,6 +76,21 @@ export function TeamsManager({
 
     const [clubs, setClubs] =
         useState<ClubOption[]>([])
+
+    const isClubOrganisation =
+        currentOrganisation.organisation_type === 'club'
+
+    const canonicalClub =
+        isClubOrganisation
+            ? clubs.find(
+                  (club) =>
+                      club.name.trim().localeCompare(
+                          currentOrganisation.name.trim(),
+                          undefined,
+                          { sensitivity: 'base' }
+                      ) === 0
+              ) ?? clubs[0] ?? null
+            : null
 
     const [venues, setVenues] =
         useState<TeamVenueOption[]>([])
@@ -114,11 +128,6 @@ export function TeamsManager({
 
     const [logoUrl, setLogoUrl] =
         useState('')
-
-    const [
-        selectedLogo,
-        setSelectedLogo,
-    ] = useState<File | null>(null)
 
     const [
         participationStatus,
@@ -174,7 +183,7 @@ export function TeamsManager({
         setToastType(type)
     }
 
-    async function loadClubs() {
+    const loadClubs = useCallback(async () => {
         const { data, error } =
             await supabase
                 .from('clubs')
@@ -188,17 +197,88 @@ export function TeamsManager({
                 })
 
         if (error) {
-            showToast(
-                error.message,
-                'error'
-            )
+            setToastMessage(error.message)
+            setToastType('error')
             return
         }
 
-        setClubs(data ?? [])
-    }
+        let nextClubs =
+            (data ?? []) as ClubOption[]
 
-    async function loadVenues() {
+        if (
+            isClubOrganisation &&
+            nextClubs.length === 0
+        ) {
+            const {
+                data: createdClub,
+                error: createClubError,
+            } = await supabase
+                .from('clubs')
+                .insert({
+                    organisation_id:
+                        currentOrganisation.id,
+                    name:
+                        currentOrganisation.name.trim(),
+                })
+                .select('id, name')
+                .single()
+
+            if (createClubError) {
+                setToastMessage(
+                    `TournamentHQ could not initialise the club record: ${createClubError.message}`
+                )
+                setToastType('error')
+                return
+            }
+
+            nextClubs = [createdClub]
+        }
+
+        if (isClubOrganisation) {
+            const primaryClub =
+                nextClubs.find(
+                    (club) =>
+                        club.name.trim().localeCompare(
+                            currentOrganisation.name.trim(),
+                            undefined,
+                            { sensitivity: 'base' }
+                        ) === 0
+                ) ?? nextClubs[0] ?? null
+
+            if (primaryClub) {
+                setClubId((current) =>
+                    current || primaryClub.id
+                )
+
+                const { error: repairError } =
+                    await supabase
+                        .from('teams')
+                        .update({
+                            club_id: primaryClub.id,
+                        })
+                        .eq(
+                            'organisation_id',
+                            currentOrganisation.id
+                        )
+                        .is('club_id', null)
+
+                if (repairError) {
+                    setToastMessage(
+                        `The club was loaded, but existing teams could not be linked automatically: ${repairError.message}`
+                    )
+                    setToastType('error')
+                }
+            }
+        }
+
+        setClubs(nextClubs)
+    }, [
+        currentOrganisation.id,
+        currentOrganisation.name,
+        isClubOrganisation,
+    ])
+
+    const loadVenues = useCallback(async () => {
         const { data, error } =
             await supabase
                 .from('venues')
@@ -221,18 +301,22 @@ export function TeamsManager({
         }
 
         setVenues(data ?? [])
-    }
+    }, [currentOrganisation.id])
 
     useEffect(() => {
         void Promise.all([
             loadClubs(),
             loadVenues(),
         ])
-    }, [currentOrganisation.id])
+    }, [loadClubs, loadVenues])
 
     function resetForm() {
         setEditingTeam(null)
-        setClubId('')
+        setClubId(
+            isClubOrganisation
+                ? canonicalClub?.id ?? ''
+                : ''
+        )
         setTeamName('')
         setAgeGroup('')
         setYearGroup('')
@@ -242,7 +326,6 @@ export function TeamsManager({
         setAwayKitColour('')
         setNotes('')
         setLogoUrl('')
-        setSelectedLogo(null)
         setParticipationStatus(
             'interested'
         )
@@ -268,7 +351,11 @@ export function TeamsManager({
         team: DbTeam
     ) {
         setEditingTeam(team)
-        setClubId(team.club_id ?? '')
+        setClubId(
+            team.club_id ??
+                canonicalClub?.id ??
+                ''
+        )
         setTeamName(team.name)
         setAgeGroup(
             team.age_group ?? ''
@@ -291,7 +378,6 @@ export function TeamsManager({
         )
         setNotes(team.notes ?? '')
         setLogoUrl(team.logo_url ?? '')
-        setSelectedLogo(null)
         setParticipationStatus(
             team.participation_status ??
             'interested'
@@ -310,19 +396,21 @@ export function TeamsManager({
         setShowTeamModal(true)
     }
 
-    async function resolveHomeVenueId() {
-        if (!createNewVenue) {
-            if (!primaryHomeVenueId) {
+    async function resolveHomeVenueId(
+        draft: TeamModalDraft
+    ) {
+        if (!draft.createNewVenue) {
+            if (!draft.primaryHomeVenueId) {
                 throw new Error(
                     'A primary home venue is required.'
                 )
             }
 
-            return primaryHomeVenueId
+            return draft.primaryHomeVenueId
         }
 
         if (
-            !newVenueDraft
+            !draft.newVenueDraft
                 .groundName
                 .trim()
         ) {
@@ -333,7 +421,7 @@ export function TeamsManager({
 
         const venueName =
             buildVenueName(
-                newVenueDraft
+                draft.newVenueDraft
             )
 
         const existingVenue =
@@ -354,23 +442,23 @@ export function TeamsManager({
             return existingVenue.id
         }
 
-        if (!currentCompetition?.id) {
-            throw new Error(
-                'Select a competition before creating a venue.'
-            )
+        const { data, error } =
+            await supabase
+                .from('venues')
+                .insert({
+                    organisation_id:
+                    currentOrganisation.id,
+                    name: venueName,
+                })
+                .select('id, name')
+                .single()
+
+        if (error) {
+            throw error
         }
 
         const createdVenue =
-            await venueService.createVenue(
-                currentCompetition.id,
-                currentOrganisation.id,
-                {
-                    name: venueName,
-                    address: '',
-                    postcode: '',
-                    notes: '',
-                }
-            )
+            data as TeamVenueOption
 
         setVenues((current) =>
             [...current, createdVenue]
@@ -389,16 +477,25 @@ export function TeamsManager({
         return createdVenue.id
     }
 
-    async function saveTeam() {
-        if (!clubId) {
+    async function saveTeam(
+        draft: TeamModalDraft
+    ) {
+        const effectiveClubId =
+            isClubOrganisation
+                ? canonicalClub?.id ?? draft.clubId
+                : draft.clubId
+
+        if (!effectiveClubId) {
             showToast(
-                'Select a club.',
+                isClubOrganisation
+                    ? 'Your club workspace is still initialising. Please try again in a moment.'
+                    : 'Select a club.',
                 'error'
             )
             return
         }
 
-        if (!teamName.trim()) {
+        if (!draft.teamName.trim()) {
             showToast(
                 'Team name is required.',
                 'error'
@@ -407,8 +504,8 @@ export function TeamsManager({
         }
 
         if (
-            !createNewVenue &&
-            !primaryHomeVenueId
+            !draft.createNewVenue &&
+            !draft.primaryHomeVenueId
         ) {
             showToast(
                 'A primary home venue is required.',
@@ -418,8 +515,8 @@ export function TeamsManager({
         }
 
         if (
-            createNewVenue &&
-            !newVenueDraft
+            draft.createNewVenue &&
+            !draft.newVenueDraft
                 .groundName
                 .trim()
         ) {
@@ -434,9 +531,9 @@ export function TeamsManager({
             | number
             | null = null
 
-        if (yearGroup.trim()) {
+        if (draft.yearGroup.trim()) {
             parsedYearGroup =
-                Number(yearGroup)
+                Number(draft.yearGroup)
 
             if (
                 !Number.isInteger(
@@ -457,15 +554,17 @@ export function TeamsManager({
 
         try {
             const finalHomeVenueId =
-                await resolveHomeVenueId()
+                await resolveHomeVenueId(
+                    draft
+                )
 
             let finalLogoUrl =
                 logoUrl
 
-            if (selectedLogo) {
+            if (draft.selectedLogo) {
                 finalLogoUrl =
                     await replaceTeamLogo(
-                        selectedLogo,
+                        draft.selectedLogo,
                         editingTeam?.logo_url
                     )
             }
@@ -473,34 +572,35 @@ export function TeamsManager({
             const payload = {
                 organisation_id:
                 currentOrganisation.id,
-                club_id: clubId,
-                name: teamName.trim(),
+                club_id: effectiveClubId,
+                name: draft.teamName.trim(),
                 age_group:
-                    ageGroup.trim() ||
+                    draft.ageGroup.trim() ||
                     null,
                 year_group:
                 parsedYearGroup,
                 gender:
-                    gender.trim() ||
+                    draft.gender.trim() ||
                     null,
                 division:
-                    division.trim() ||
+                    draft.division.trim() ||
                     null,
                 home_kit_colour:
-                    homeKitColour.trim() ||
+                    draft.homeKitColour.trim() ||
                     null,
                 away_kit_colour:
-                    awayKitColour.trim() ||
+                    draft.awayKitColour.trim() ||
                     null,
                 notes:
-                    notes.trim() ||
+                    draft.notes.trim() ||
                     null,
                 logo_url:
                     finalLogoUrl ||
                     null,
                 participation_status:
-                participationStatus,
-                published,
+                draft.participationStatus,
+                published:
+                draft.published,
                 primary_home_venue_id:
                 finalHomeVenueId,
             }
@@ -644,6 +744,19 @@ export function TeamsManager({
         }
     }
 
+    const displayTeams =
+        isClubOrganisation && canonicalClub
+            ? teams.map((team) =>
+                  team.club_id
+                      ? team
+                      : {
+                            ...team,
+                            club_id:
+                                canonicalClub.id,
+                        }
+              )
+            : teams
+
     return (
         <div className="space-y-6 font-sans">
             <Toast
@@ -654,10 +767,10 @@ export function TeamsManager({
                 }
             />
 
-            <section className="flex flex-col gap-5 rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-6 sm:flex-row sm:items-center sm:justify-between">
+            <section className="flex flex-col gap-5 rounded-3xl border border-lime-900/40 bg-[#121d0f] p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-4">
-                    <div className="rounded-2xl bg-[color:var(--organisation-accent)]/10 p-3">
-                        <Users className="h-7 w-7 text-[var(--organisation-accent)]" />
+                    <div className="rounded-2xl bg-lime-400/10 p-3">
+                        <Users className="h-7 w-7 text-lime-400" />
                     </div>
 
                     <div>
@@ -672,9 +785,13 @@ export function TeamsManager({
                 </div>
 
                 <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 font-bold text-[var(--organisation-on-accent)] transition hover:opacity-90"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
                     type="button"
                     onClick={openAddTeamModal}
+                    disabled={
+                        isClubOrganisation &&
+                        !canonicalClub
+                    }
                 >
                     <Plus className="h-5 w-5" />
                     Add Team
@@ -682,7 +799,7 @@ export function TeamsManager({
             </section>
 
             <TeamsTable
-                teams={teams}
+                teams={displayTeams}
                 clubs={clubs}
                 onEdit={
                     openEditTeamModal
@@ -732,64 +849,12 @@ export function TeamsManager({
                     clubs={clubs}
                     venues={venues}
                     isSaving={isSaving}
-                    onClubIdChange={
-                        setClubId
+                    clubSelectionLocked={
+                        isClubOrganisation
                     }
-                    onTeamNameChange={
-                        setTeamName
-                    }
-                    onAgeGroupChange={
-                        setAgeGroup
-                    }
-                    onYearGroupChange={
-                        setYearGroup
-                    }
-                    onGenderChange={
-                        setGender
-                    }
-                    onDivisionChange={
-                        setDivision
-                    }
-                    onHomeKitColourChange={
-                        setHomeKitColour
-                    }
-                    onAwayKitColourChange={
-                        setAwayKitColour
-                    }
-                    onNotesChange={
-                        setNotes
-                    }
-                    onParticipationStatusChange={
-                        setParticipationStatus
-                    }
-                    onPublishedChange={
-                        setPublished
-                    }
-                    onPrimaryHomeVenueChange={
-                        setPrimaryHomeVenueId
-                    }
-                    onCreateNewVenueChange={(
-                        value
-                    ) => {
-                        setCreateNewVenue(
-                            value
-                        )
-
-                        if (value) {
-                            setPrimaryHomeVenueId(
-                                ''
-                            )
-                        } else {
-                            setNewVenueDraft(
-                                emptyVenueDraft
-                            )
-                        }
-                    }}
-                    onNewVenueDraftChange={
-                        setNewVenueDraft
-                    }
-                    onLogoSelected={
-                        setSelectedLogo
+                    lockedClubName={
+                        canonicalClub?.name ??
+                        currentOrganisation.name
                     }
                     onClose={
                         closeTeamModal

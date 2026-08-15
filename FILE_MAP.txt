@@ -1,0 +1,28 @@
+TournamentHQ Stripe Phase 1 replacement map
+
+CLIENT / SaaS APP
+- src/config/subscriptionPlans.ts
+- src/services/billingService.ts
+- src/services/onboardingService.ts
+- src/types/setupWizard.ts
+- src/components/onboarding/BillingStep.tsx
+- src/components/onboarding/OrganisationStep.tsx
+- src/components/admin/Organisations/OrganisationForm.tsx
+- src/components/admin/Organisations/organisationTypes.ts
+- src/pages/onboarding/SetupWizard.tsx
+- src/pages/onboarding/SetupWizardProgress.tsx
+- src/pages/public/SignupPage.tsx
+
+MARKETING WEBSITE
+- src/components/ClosingSections/ClosingSections.tsx
+- src/config/subscriptionPlans.ts (same file can be reused if this is a separate repository)
+
+SUPABASE
+- supabase/config.toml
+- supabase/migrations/20260814_add_stripe_subscription_billing.sql
+- supabase/functions/_shared/http.ts
+- supabase/functions/_shared/auth.ts
+- supabase/functions/_shared/subscriptionPlans.ts
+- supabase/functions/create-checkout-session/index.ts
+- supabase/functions/create-billing-portal-session/index.ts
+- supabase/functions/stripe-webhook/index.ts

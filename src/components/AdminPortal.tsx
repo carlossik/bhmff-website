@@ -37,6 +37,8 @@ import { MediaManager } from './admin/Media/MediaManager'
 import { supabase } from '../lib/supabaseClient'
 import { ClubsManager } from './admin/Clubs/ClubsManager'
 import { TeamsManager } from './admin/Teams/TeamsManager'
+import ClubSeasonsManager from './admin/Seasons/ClubSeasonsManager'
+import { SquadManager } from './admin/Squad/SquadManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
 import { VenuesManager } from './admin/Venues/VenuesManager'
 import { ResultsManager } from './admin/Results/ResultsManager'
@@ -118,6 +120,14 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Competitions',
                 icon: Trophy,
+            },
+            {
+                module: 'Seasons',
+                icon: CalendarDays,
+            },
+            {
+                module: 'Squad',
+                icon: Users,
             },
             {
                 module: 'Clubs',
@@ -357,6 +367,12 @@ export function AdminPortal({
     const activeRole =
         effectiveProfile.role
 
+    const organisationType =
+        effectiveProfile.currentOrganisation.organisation_type
+
+    const isClub =
+        organisationType === 'club'
+
     const publicSiteUrl =
         getOrganisationPublicSiteUrl(
             window.location.origin,
@@ -370,11 +386,13 @@ export function AdminPortal({
                     activeRole,
                     tab,
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ),
         [
             activeRole,
             effectiveProfile.isPlatformAdmin,
+            organisationType,
         ]
     )
 
@@ -384,12 +402,16 @@ export function AdminPortal({
                 navigationSections
                     .map((section) => ({
                         ...section,
+                        title:
+                            isClub && section.id === 'competition'
+                                ? 'Club Setup'
+                                : section.title,
+                        icon:
+                            isClub && section.id === 'competition'
+                                ? Shield
+                                : section.icon,
                         items: section.items.filter(
                             (item) => {
-                                const isClub =
-                                    effectiveProfile.currentOrganisation.organisation_type ===
-                                    'club'
-
                                 if (
                                     isClub &&
                                     item.module ===
@@ -406,6 +428,13 @@ export function AdminPortal({
                                     return false
                                 }
 
+                                if (
+                                    isClub &&
+                                    item.module === 'Venues'
+                                ) {
+                                    return false
+                                }
+
                                 return visibleTabs.includes(
                                     item.module
                                 )
@@ -417,7 +446,7 @@ export function AdminPortal({
                             section.items.length > 0
                     ),
             [
-                effectiveProfile.currentOrganisation.organisation_type,
+                isClub,
                 visibleTabs,
             ]
         )
@@ -485,6 +514,7 @@ export function AdminPortal({
                     activeRole,
                     'Teams',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 setDbTeams([])
@@ -518,6 +548,8 @@ export function AdminPortal({
         }, [
             activeRole,
             currentOrganisation,
+            effectiveProfile.isPlatformAdmin,
+            organisationType,
         ])
 
     const loadOrganisationStats =
@@ -685,7 +717,10 @@ export function AdminPortal({
 
     const loadCompetitionStats =
         useCallback(async () => {
-            if (!currentCompetitionId) {
+            if (
+                isClub ||
+                !currentCompetitionId
+            ) {
                 setCompetitionStats(
                     emptyCompetitionStats
                 )
@@ -842,7 +877,10 @@ export function AdminPortal({
             } finally {
                 setCompetitionStatsLoading(false)
             }
-        }, [currentCompetitionId])
+        }, [
+            currentCompetitionId,
+            isClub,
+        ])
 
     const loadEnquiryCount =
         useCallback(async () => {
@@ -852,6 +890,7 @@ export function AdminPortal({
                     activeRole,
                     'Enquiries',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 setEnquiryCount(0)
@@ -886,6 +925,8 @@ export function AdminPortal({
         }, [
             activeRole,
             currentOrganisation?.id,
+            effectiveProfile.isPlatformAdmin,
+            organisationType,
         ])
 
     useEffect(() => {
@@ -922,6 +963,7 @@ export function AdminPortal({
                     activeRole,
                     'Clubs',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -937,6 +979,7 @@ export function AdminPortal({
                     activeRole,
                     'Teams',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -948,10 +991,12 @@ export function AdminPortal({
             }
 
             if (
+                !isClub &&
                 canAccessModule(
                     activeRole,
                     'Venues',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -967,6 +1012,7 @@ export function AdminPortal({
                     activeRole,
                     'Sponsors',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -982,6 +1028,7 @@ export function AdminPortal({
                     activeRole,
                     'Articles',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -997,6 +1044,7 @@ export function AdminPortal({
                     activeRole,
                     'Media',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -1012,6 +1060,7 @@ export function AdminPortal({
                     activeRole,
                     'Enquiries',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -1024,12 +1073,19 @@ export function AdminPortal({
             return items
         }, [
             activeRole,
-            organisationStats,
+            effectiveProfile.isPlatformAdmin,
             enquiryCount,
+            isClub,
+            organisationStats,
+            organisationType,
         ])
 
     const competitionStatItems =
         useMemo(() => {
+            if (isClub) {
+                return []
+            }
+
             const items: Array<{
                 label: string
                 value: number
@@ -1041,6 +1097,7 @@ export function AdminPortal({
                     activeRole,
                     'Competition Teams',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -1057,6 +1114,7 @@ export function AdminPortal({
                     activeRole,
                     'Groups',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -1072,6 +1130,7 @@ export function AdminPortal({
                     activeRole,
                     'Fixtures',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -1087,6 +1146,7 @@ export function AdminPortal({
                     activeRole,
                     'Results',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -1102,6 +1162,7 @@ export function AdminPortal({
                     activeRole,
                     'Goals',
                     effectiveProfile.isPlatformAdmin,
+                    organisationType,
                 )
             ) {
                 items.push({
@@ -1116,6 +1177,9 @@ export function AdminPortal({
         }, [
             activeRole,
             competitionStats,
+            effectiveProfile.isPlatformAdmin,
+            isClub,
+            organisationType,
         ])
 
     function getStatisticIcon(
@@ -1313,6 +1377,7 @@ export function AdminPortal({
                 activeRole,
                 activeTab,
                 effectiveProfile.isPlatformAdmin,
+                organisationType,
             )
         ) {
             return (
@@ -1354,6 +1419,7 @@ export function AdminPortal({
                                 activeRole,
                                 'Articles',
                                 effectiveProfile.isPlatformAdmin,
+                                organisationType,
                             ) && (
                                 <button
                                     type="button"
@@ -1373,7 +1439,9 @@ export function AdminPortal({
 
                         <section>
                             <h4>
-                                Organisation Statistics
+                                {isClub
+                                    ? 'Club Statistics'
+                                    : 'Organisation Statistics'}
                             </h4>
 
                             {organisationStatsLoading && (
@@ -1387,47 +1455,49 @@ export function AdminPortal({
                             )}
                         </section>
 
-                        <section className="adminChecklist">
-                            <h4>
-                                Competition Statistics
-                            </h4>
+                        {!isClub && (
+                            <section className="adminChecklist">
+                                <h4>
+                                    Competition Statistics
+                                </h4>
 
-                            {currentCompetition ? (
-                                <>
-                                    <p>
-                                        Selected competition:{' '}
-                                        <strong>
-                                            {
-                                                currentCompetition.name
-                                            }
-                                        </strong>
-                                    </p>
-
-                                    {competitionStatsLoading && (
-                                        <p className="muted">
-                                            Loading competition statistics...
+                                {currentCompetition ? (
+                                    <>
+                                        <p>
+                                            Selected competition:{' '}
+                                            <strong>
+                                                {
+                                                    currentCompetition.name
+                                                }
+                                            </strong>
                                         </p>
-                                    )}
 
-                                    {renderStatGrid(
-                                        competitionStatItems
-                                    )}
-                                </>
-                            ) : (
-                                <div className="teamsEmptyState">
-                                    <h3>
-                                        No competition selected
-                                    </h3>
+                                        {competitionStatsLoading && (
+                                            <p className="muted">
+                                                Loading competition statistics...
+                                            </p>
+                                        )}
 
-                                    <p>
-                                        Select or create a
-                                        competition to view
-                                        competition-specific
-                                        statistics.
-                                    </p>
-                                </div>
-                            )}
-                        </section>
+                                        {renderStatGrid(
+                                            competitionStatItems
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="teamsEmptyState">
+                                        <h3>
+                                            No competition selected
+                                        </h3>
+
+                                        <p>
+                                            Select or create a
+                                            competition to view
+                                            competition-specific
+                                            statistics.
+                                        </p>
+                                    </div>
+                                )}
+                            </section>
+                        )}
 
                         <div className="adminChecklist">
                             <h4>Your Access</h4>
@@ -1487,6 +1557,12 @@ export function AdminPortal({
                     <CompetitionManager />
                 )
 
+            case 'Seasons':
+                return <ClubSeasonsManager />
+
+            case 'Squad':
+                return <SquadManager />
+
             case 'Clubs':
                 return <ClubsManager />
 
@@ -1522,7 +1598,9 @@ export function AdminPortal({
                 )
 
             case 'Venues':
-                return <VenuesManager />
+                return isClub
+                    ? null
+                    : <VenuesManager />
             case 'Sports Officials':
                 return <OfficialsPage />
 
@@ -1657,7 +1735,9 @@ export function AdminPortal({
                             />
 
                             <strong className="mt-3 block text-lg leading-6 text-white">
-                                Competition Administration
+                                {isClub
+                                    ? 'Club Administration'
+                                    : 'Competition Administration'}
                             </strong>
 
                             <span className="mt-2 block text-sm text-slate-400">

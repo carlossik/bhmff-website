@@ -15,14 +15,13 @@ export interface ClubSquadMember {
     id: string
     organisation_id: string
     season_id: string
+    team_id: string
     player_id: string
     squad_number: number | null
     position: string | null
     registration_status: ClubPlayerRegistrationStatus
     sign_on_fee_amount: number
     sign_on_fee_status: ClubPaymentStatus
-    subs_amount: number
-    subs_status: ClubPaymentStatus
     notes: string | null
     active: boolean
     created_at: string
@@ -47,8 +46,6 @@ export interface ClubSquadMemberFormValues {
     registration_status: ClubPlayerRegistrationStatus
     sign_on_fee_amount: string
     sign_on_fee_status: ClubPaymentStatus
-    subs_amount: string
-    subs_status: ClubPaymentStatus
     notes: string
     active: boolean
 }
@@ -63,7 +60,5 @@ export interface ClubSquadCsvRow {
     registration_status: string
     sign_on_fee_amount: string
     sign_on_fee_status: string
-    subs_amount: string
-    subs_status: string
     notes: string
 }

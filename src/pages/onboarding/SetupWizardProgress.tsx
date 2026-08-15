@@ -1,28 +1,121 @@
-import { Check } from 'lucide-react'
-import { SETUP_WIZARD_STEP_DEFINITIONS, type SetupWizardStep } from '../../types/setupWizard'
+import {
+    Check,
+} from 'lucide-react'
 
-type SetupWizardProgressProps = { currentStep: SetupWizardStep; completedSteps: SetupWizardStep[] }
+import type {
+    OrganisationType,
+} from '../../components/admin/Organisations/organisationTypes'
+import {
+    SETUP_WIZARD_STEPS,
+    type SetupWizardStep,
+} from '../../types/setupWizard'
 
-export function SetupWizardProgress({ currentStep, completedSteps }: SetupWizardProgressProps) {
-    const currentIndex = SETUP_WIZARD_STEP_DEFINITIONS.findIndex(step => step.id === currentStep)
+type SetupWizardProgressProps = {
+    currentStep: SetupWizardStep
+    completedSteps: SetupWizardStep[]
+    organisationType: OrganisationType
+}
+
+function getStepLabels(
+    organisationType: OrganisationType,
+): Readonly<Record<SetupWizardStep, string>> {
+    const isClub =
+        organisationType === 'club'
+
+    return {
+        welcome: 'Welcome',
+        organisation: isClub
+            ? 'Club'
+            : 'Organisation',
+        billing: 'Plan & Billing',
+        branding: 'Branding',
+        competition: isClub
+            ? 'Club Setup'
+            : 'Competition',
+        finish: 'Finish',
+    }
+}
+
+export function SetupWizardProgress({
+    currentStep,
+    completedSteps,
+    organisationType,
+}: SetupWizardProgressProps) {
+    const currentIndex =
+        SETUP_WIZARD_STEPS.indexOf(
+            currentStep,
+        )
+    const stepLabels =
+        getStepLabels(
+            organisationType,
+        )
+
     return (
-        <nav aria-label="Setup progress" className="w-full">
-            <ol className="grid grid-cols-5 gap-2">
-                {SETUP_WIZARD_STEP_DEFINITIONS.map((step, index) => {
-                    const complete = completedSteps.includes(step.id)
-                    const current = step.id === currentStep
+        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {SETUP_WIZARD_STEPS.map(
+                (step, index) => {
+                    const completed =
+                        completedSteps.includes(
+                            step,
+                        )
+                    const active =
+                        step === currentStep
+                    const reached =
+                        completed ||
+                        active ||
+                        index < currentIndex
+
                     return (
-                        <li key={step.id} className="min-w-0">
-                            <div className={['h-1.5 rounded-full transition', complete || current ? 'bg-[var(--organisation-accent,#84cc16)]' : 'bg-white/10'].join(' ')} />
-                            <div className="mt-3 hidden items-center gap-2 lg:flex">
-                                <span className={['grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-black', complete ? 'border-[var(--organisation-accent,#84cc16)] bg-[var(--organisation-accent,#84cc16)] text-[var(--organisation-on-accent,#071006)]' : current ? 'border-[var(--organisation-accent,#84cc16)] text-[var(--organisation-accent,#84cc16)]' : 'border-white/15 text-slate-500'].join(' ')}>{complete ? <Check className="h-4 w-4" /> : index + 1}</span>
-                                <span className={['truncate text-xs font-bold', current ? 'text-white' : complete ? 'text-slate-300' : 'text-slate-500'].join(' ')}>{step.shortTitle}</span>
+                        <li
+                            key={step}
+                            aria-current={
+                                active
+                                    ? 'step'
+                                    : undefined
+                            }
+                            className="min-w-0"
+                        >
+                            <div className="flex items-center gap-2">
+                                <span
+                                    className={[
+                                        'grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[10px] font-black transition',
+                                        completed
+                                            ? 'border-lime-400 bg-lime-400 text-[#071006]'
+                                            : active
+                                              ? 'border-lime-400 bg-lime-400/10 text-lime-300'
+                                              : reached
+                                                ? 'border-lime-800/70 text-lime-400'
+                                                : 'border-white/10 text-slate-600',
+                                    ].join(' ')}
+                                >
+                                    {completed ? (
+                                        <Check className="h-3 w-3" />
+                                    ) : (
+                                        index + 1
+                                    )}
+                                </span>
+
+                                <span
+                                    className={[
+                                        'truncate !text-[11px] font-bold',
+                                        active
+                                            ? 'text-white'
+                                            : reached
+                                              ? 'text-slate-300'
+                                              : 'text-slate-600',
+                                    ].join(' ')}
+                                >
+                                    {
+                                        stepLabels[
+                                            step
+                                        ]
+                                    }
+                                </span>
                             </div>
                         </li>
                     )
-                })}
-            </ol>
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 lg:hidden">Step {Math.max(currentIndex + 1, 1)} of {SETUP_WIZARD_STEP_DEFINITIONS.length}</p>
-        </nav>
+                },
+            )}
+        </ol>
     )
 }

@@ -14,6 +14,7 @@ import {
 import type {
     Organisation,
     OrganisationFormData,
+    OrganisationType,
 } from '../admin/Organisations/organisationTypes'
 import {
     getOrganisation,
@@ -31,6 +32,7 @@ const CURRENT_ORGANISATION_KEY =
 
 type OrganisationStepProps = {
     organisationId: string | null
+    requestedOrganisationType: OrganisationType
     onBack: () => void
     onCreated: (
         organisation: Organisation,
@@ -48,6 +50,7 @@ function getErrorMessage(
 
 export function OrganisationStep({
     organisationId,
+    requestedOrganisationType,
     onBack,
     onCreated,
     onContinue,
@@ -130,24 +133,34 @@ export function OrganisationStep({
         setErrorMessage(null)
 
         try {
+            const journeyValues: OrganisationFormData = {
+                ...values,
+                organisation_type:
+                    requestedOrganisationType,
+            }
+
             if (organisation) {
                 const updated =
                     await updateOrganisation(
                         organisation.id,
-                        values,
+                        journeyValues,
                     )
 
                 setOrganisation(updated)
                 setEditing(false)
                 setMessage(
-                    'Organisation details updated successfully.',
+                    updated.organisation_type ===
+                        'club'
+                        ? 'Club details updated successfully.'
+                        : 'Organisation details updated successfully.',
                 )
+                onCreated(updated)
                 return
             }
 
             const result =
                 await onboardingService.createOrganisation({
-                    organisation: values,
+                    organisation: journeyValues,
                     provisionalId,
                 })
 
@@ -169,11 +182,19 @@ export function OrganisationStep({
                 result.ownerInvitationSent
             ) {
                 setMessage(
-                    'Organisation created and the owner invitation was sent.',
+                    result.organisation
+                        .organisation_type ===
+                    'club'
+                        ? 'Club workspace created and the owner invitation was sent.'
+                        : 'Organisation created and the owner invitation was sent.',
                 )
             } else {
                 setMessage(
-                    'Organisation created successfully.',
+                    result.organisation
+                        .organisation_type ===
+                    'club'
+                        ? 'Club workspace created successfully.'
+                        : 'Organisation created successfully.',
                 )
             }
 
@@ -191,13 +212,22 @@ export function OrganisationStep({
         }
     }
 
+    const effectiveOrganisationType =
+        organisation?.organisation_type ??
+        requestedOrganisationType
+    const isClub =
+        effectiveOrganisationType ===
+        'club'
+
     if (loading) {
         return (
             <div className="grid min-h-[18rem] place-items-center">
                 <div className="text-center">
                     <Loader2 className="mx-auto h-7 w-7 animate-spin text-[var(--organisation-accent,#84cc16)]" />
                     <p className="mt-3 text-sm text-[var(--organisation-muted)]">
-                        Loading your organisation setup...
+                        Loading your {isClub
+                            ? 'club'
+                            : 'organisation'} setup...
                     </p>
                 </div>
             </div>
@@ -209,8 +239,16 @@ export function OrganisationStep({
             <div>
                 <div className="mb-6">
                     <SetupWizardHeader
-                        title="Your organisation"
-                        description="Create the organisation workspace that will own your competitions, public website, administrators and branding."
+                        title={
+                            isClub
+                                ? 'Your club'
+                                : 'Your organisation'
+                        }
+                        description={
+                            isClub
+                                ? 'Create the club workspace that will manage your teams, squads, fixtures, results, public website, administrators and branding.'
+                                : 'Create the organisation workspace that will own your competitions, public website, administrators and branding.'
+                        }
                     />
                 </div>
 
@@ -229,6 +267,13 @@ export function OrganisationStep({
                         undefined
                     }
                     saving={saving}
+                    showSubscriptionControls={false}
+                    initialOrganisationType={
+                        requestedOrganisationType
+                    }
+                    fixedOrganisationType={
+                        requestedOrganisationType
+                    }
                     onSave={handleSave}
                     onCancel={
                         organisation
@@ -244,8 +289,16 @@ export function OrganisationStep({
     return (
         <div>
             <SetupWizardHeader
-                title="Organisation created"
-                description="Your TournamentHQ tenant is provisioned. Review the details below, or continue to the branding checkpoint."
+                title={
+                    isClub
+                        ? 'Club workspace created'
+                        : 'Organisation created'
+                }
+                description={
+                    isClub
+                        ? 'Your TournamentHQ club workspace is provisioned. Review the details below, then continue to choose your plan and billing frequency.'
+                        : 'Your TournamentHQ tenant is provisioned. Review the details below, then continue to choose your plan and billing frequency.'
+                }
             />
 
             {message && (
@@ -271,7 +324,12 @@ export function OrganisationStep({
                             </div>
 
                             <div>
-                                <h2 className="m-0 text-xl font-black text-[var(--organisation-text)]">
+                                <p className="text-xs font-black uppercase tracking-[0.14em] text-lime-400">
+                                    {isClub
+                                        ? 'Club'
+                                        : 'Organisation'}
+                                </p>
+                                <h2 className="m-0 mt-1 text-xl font-black text-[var(--organisation-text)]">
                                     {organisation.name}
                                 </h2>
                                 <p className="mt-1 text-sm text-[var(--organisation-muted)]">
@@ -304,7 +362,9 @@ export function OrganisationStep({
                         }
                         className="rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.06]"
                     >
-                        Edit organisation
+                        Edit {isClub
+                            ? 'club'
+                            : 'organisation'}
                     </button>
 
                     <button
@@ -312,7 +372,7 @@ export function OrganisationStep({
                         onClick={onContinue}
                         className="rounded-xl bg-[var(--organisation-accent,#84cc16)] px-6 py-3 text-sm font-black text-[var(--organisation-on-accent,#071006)] transition hover:opacity-90"
                     >
-                        Continue to branding
+                        Continue to plan & billing
                     </button>
                 </div>
             </div>

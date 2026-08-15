@@ -186,6 +186,52 @@ function applyOnboardingDefaults(
     }
 }
 
+async function ensureClubWorkspaceRecord(
+    organisation: Organisation,
+): Promise<void> {
+    if (organisation.organisation_type !== 'club') {
+        return
+    }
+
+    const {
+        data: existingClub,
+        error: existingClubError,
+    } = await supabase
+        .from('clubs')
+        .select('id')
+        .eq(
+            'organisation_id',
+            organisation.id,
+        )
+        .limit(1)
+        .maybeSingle()
+
+    if (existingClubError) {
+        throw existingClubError
+    }
+
+    if (existingClub) {
+        return
+    }
+
+    const { error: createClubError } =
+        await supabase
+            .from('clubs')
+            .insert({
+                organisation_id:
+                    organisation.id,
+                name:
+                    organisation.name.trim(),
+                badge_url:
+                    organisation.logo_url
+                        ?.trim() || null,
+            })
+
+    if (createClubError) {
+        throw createClubError
+    }
+}
+
 async function inviteOrganisationOwner(
     organisation: Organisation,
     ownerName: string,
@@ -286,6 +332,27 @@ export async function createOrganisationOnboarding(
                 organisationData,
                 input.provisionalId,
             )
+
+        if (
+            createdOrganisation.organisation_type ===
+            'club'
+        ) {
+            try {
+                await ensureClubWorkspaceRecord(
+                    createdOrganisation,
+                )
+            } catch (clubBootstrapError) {
+                const message =
+                    clubBootstrapError instanceof
+                    Error
+                        ? clubBootstrapError.message
+                        : 'The club record could not be initialised.'
+
+                warnings.push(
+                    `The club workspace was created, but its club record could not be initialised automatically: ${message}`,
+                )
+            }
+        }
 
         try {
             const invitation =

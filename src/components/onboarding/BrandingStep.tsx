@@ -135,12 +135,20 @@ export function BrandingStep({
         )
     }
 
+    const isClub =
+        organisation?.organisation_type ===
+        'club'
+
     if (editing && organisation) {
         return (
             <div>
                 <SetupWizardHeader
                     title="Edit your branding"
-                    description="Use the same production organisation editor to update your logo, palette and public-site presentation."
+                    description={
+                        isClub
+                            ? 'Update the club logo, colours and public-site presentation used across the TournamentHQ Club Portal.'
+                            : 'Use the same production organisation editor to update your logo, palette and public-site presentation.'
+                    }
                 />
 
                 <div className="mt-6">
@@ -175,7 +183,11 @@ export function BrandingStep({
         <div>
             <SetupWizardHeader
                 title="Brand your experience"
-                description="TournamentHQ will use this identity across your public site and organisation-aware workspace."
+                description={
+                    isClub
+                        ? 'TournamentHQ will use this identity across your club website and club-management workspace.'
+                        : 'TournamentHQ will use this identity across your public site and organisation-aware workspace.'
+                }
             />
 
             {errorMessage && (
@@ -196,7 +208,9 @@ export function BrandingStep({
                             </div>
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-                                    Organisation
+                                    {isClub
+                                        ? 'Club'
+                                        : 'Organisation'}
                                 </p>
                                 <h2 className="mt-1 text-lg font-black text-[var(--organisation-text)]">
                                     {organisation.name}
@@ -280,7 +294,11 @@ export function BrandingStep({
                     }
                     onBack={onBack}
                     onNext={onContinue}
-                    nextLabel="Create first competition"
+                    nextLabel={
+                        isClub
+                            ? 'Continue to club setup'
+                            : 'Create first competition'
+                    }
                 />
             </div>
         </div>

@@ -17,18 +17,6 @@ type OrganisationRecord = {
     surface_colour: string
     text_colour: string
     logo_url: string | null
-    description: string | null
-    sport: string | null
-    country: string | null
-    currency: string | null
-    founded_year: number | null
-    home_ground: string | null
-    website_url: string | null
-    contact_email: string | null
-    facebook_url: string | null
-    instagram_url: string | null
-    twitter_url: string | null
-    youtube_url: string | null
     organisation_type:
         OrganisationFormData['organisation_type']
     status: OrganisationFormData['status']
@@ -48,9 +36,12 @@ type OrganisationRecord = {
 }
 
 function normaliseOptionalText(
-    value: string,
+    value: unknown,
 ): string | null {
-    const normalisedValue = value.trim()
+    const normalisedValue =
+        typeof value === 'string'
+            ? value.trim()
+            : ''
 
     return normalisedValue || null
 }
@@ -59,10 +50,11 @@ function toOrganisationRecord(
     organisation: OrganisationFormData,
 ): OrganisationRecord {
     return {
-        name: organisation.name.trim(),
-        slug: organisation.slug
-            .trim()
-            .toLowerCase(),
+        name:
+            normaliseOptionalText(organisation.name) ?? '',
+        slug:
+            (normaliseOptionalText(organisation.slug) ?? '')
+                .toLowerCase(),
         primary_colour:
             organisation.primary_colour,
         secondary_colour:
@@ -79,19 +71,6 @@ function toOrganisationRecord(
             normaliseOptionalText(
                 organisation.logo_url,
             ),
-        description: normaliseOptionalText(organisation.description),
-        sport: normaliseOptionalText(organisation.sport),
-        country: normaliseOptionalText(organisation.country),
-        currency: normaliseOptionalText(organisation.currency)?.toUpperCase() ?? null,
-        founded_year: organisation.founded_year,
-        home_ground: normaliseOptionalText(organisation.home_ground),
-        website_url: normaliseOptionalText(organisation.website_url),
-        contact_email:
-            normaliseOptionalText(organisation.contact_email)?.toLowerCase() ?? null,
-        facebook_url: normaliseOptionalText(organisation.facebook_url),
-        instagram_url: normaliseOptionalText(organisation.instagram_url),
-        twitter_url: normaliseOptionalText(organisation.twitter_url),
-        youtube_url: normaliseOptionalText(organisation.youtube_url),
         organisation_type:
             organisation.organisation_type,
         status: organisation.status,
@@ -121,9 +100,12 @@ function toOrganisationRecord(
             normaliseOptionalText(
                 organisation.owner_phone,
             ),
-        enabled_modules: [
-            ...organisation.enabled_modules,
-        ],
+        enabled_modules:
+            Array.isArray(organisation.enabled_modules)
+                ? [
+                    ...organisation.enabled_modules,
+                ]
+                : [],
     }
 }
 
