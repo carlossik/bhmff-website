@@ -292,6 +292,136 @@ type BillingPortalResponse = {
     error?: unknown
 }
 
+type BillingInterval =
+    | 'monthly'
+    | 'annual'
+
+type BillingSummary = {
+    hasBillingCustomer: boolean
+    billingInterval: BillingInterval | null
+    stripeStatus: string | null
+    currentPeriodStart: string | null
+    currentPeriodEnd: string | null
+    cancelAtPeriodEnd: boolean
+}
+
+type BillingSummaryResponse = {
+    billing?: unknown
+    error?: unknown
+}
+
+function isRecord(
+    value: unknown,
+): value is Record<string, unknown> {
+    return (
+        typeof value === 'object' &&
+        value !== null
+    )
+}
+
+function parseBillingSummary(
+    value: unknown,
+): BillingSummary | null {
+    if (value === null || value === undefined) {
+        return null
+    }
+
+    if (!isRecord(value)) {
+        throw new Error(
+            'TournamentHQ returned an invalid billing summary.',
+        )
+    }
+
+    const billingInterval =
+        value.billingInterval
+
+    if (
+        billingInterval !== null &&
+        billingInterval !== 'monthly' &&
+        billingInterval !== 'annual'
+    ) {
+        throw new Error(
+            'TournamentHQ returned an invalid billing interval.',
+        )
+    }
+
+    const stripeStatus =
+        value.stripeStatus
+    const currentPeriodStart =
+        value.currentPeriodStart
+    const currentPeriodEnd =
+        value.currentPeriodEnd
+
+    if (
+        typeof value.hasBillingCustomer !== 'boolean' ||
+        typeof value.cancelAtPeriodEnd !== 'boolean' ||
+        (
+            stripeStatus !== null &&
+            typeof stripeStatus !== 'string'
+        ) ||
+        (
+            currentPeriodStart !== null &&
+            typeof currentPeriodStart !== 'string'
+        ) ||
+        (
+            currentPeriodEnd !== null &&
+            typeof currentPeriodEnd !== 'string'
+        )
+    ) {
+        throw new Error(
+            'TournamentHQ returned incomplete billing information.',
+        )
+    }
+
+    return {
+        hasBillingCustomer:
+            value.hasBillingCustomer,
+        billingInterval,
+        stripeStatus,
+        currentPeriodStart,
+        currentPeriodEnd,
+        cancelAtPeriodEnd:
+            value.cancelAtPeriodEnd,
+    }
+}
+
+function formatBillingDate(
+    value: string | null,
+): string | null {
+    if (!value) {
+        return null
+    }
+
+    const date = new Date(value)
+
+    if (Number.isNaN(date.getTime())) {
+        return null
+    }
+
+    return new Intl.DateTimeFormat(
+        'en-GB',
+        {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        },
+    ).format(date)
+}
+
+function formatBillingInterval(
+    interval: BillingInterval | null,
+): string | null {
+    if (interval === 'monthly') {
+        return 'Monthly billing'
+    }
+
+    if (interval === 'annual') {
+        return 'Annual billing'
+    }
+
+    return null
+}
+
 function formatSubscriptionPlan(
     plan: SubscriptionPlan,
 ): string {
@@ -346,20 +476,47 @@ function getSubscriptionStatusClasses(
 function getSubscriptionSummary(
     plan: SubscriptionPlan,
     status: SubscriptionStatus,
+    billing: BillingSummary | null,
 ): string {
+    const periodEnd =
+        formatBillingDate(
+            billing?.currentPeriodEnd ?? null,
+        )
+
+    if (
+        plan === 'professional' &&
+        status === 'active' &&
+        billing?.cancelAtPeriodEnd
+    ) {
+        return periodEnd
+            ? `Cancellation scheduled. Professional access remains available until ${periodEnd}.`
+            : 'Cancellation scheduled. Professional access remains available until the end of the current paid billing period.'
+    }
+
     if (status === 'past_due') {
         return 'Your payment requires attention. Open billing to review the payment method and outstanding invoice.'
     }
 
     if (status === 'suspended') {
-        return 'This workspace is currently suspended. Contact TournamentHQ support if you need assistance.'
+        return 'This workspace is currently suspended. Open billing to review the subscription or contact TournamentHQ support.'
     }
 
     if (status === 'cancelled') {
-        return 'This subscription is cancelled. Your workspace access may change in line with the billing period.'
+        return 'This paid subscription has ended. TournamentHQ is updating the workspace entitlement.'
+    }
+
+    if (
+        plan === 'starter' &&
+        billing?.stripeStatus === 'canceled'
+    ) {
+        return 'Your Professional subscription has ended and this workspace is now on the Starter plan.'
     }
 
     if (plan === 'professional') {
+        if (periodEnd) {
+            return `Your Professional workspace is active. The current billing period runs until ${periodEnd}.`
+        }
+
         return 'Your Professional workspace is active with the paid TournamentHQ feature set and account limits.'
     }
 
@@ -438,6 +595,21 @@ export function AdminPortal({
         setBillingPortalError,
     ] = useState('')
 
+    const [
+        billingSummary,
+        setBillingSummary,
+    ] = useState<BillingSummary | null>(null)
+
+    const [
+        billingSummaryLoading,
+        setBillingSummaryLoading,
+    ] = useState(false)
+
+    const [
+        billingSummaryError,
+        setBillingSummaryError,
+    ] = useState('')
+
     const effectiveProfile =
         useMemo<AdminProfile>(
             () => ({
@@ -476,7 +648,18 @@ export function AdminPortal({
         effectiveProfile.currentOrganisation.subscription_status
 
     const canManageBilling =
-        subscriptionPlan === 'professional'
+        subscriptionPlan === 'professional' ||
+        billingSummary?.hasBillingCustomer === true
+
+    const billingPeriodEnd =
+        formatBillingDate(
+            billingSummary?.currentPeriodEnd ?? null,
+        )
+
+    const billingIntervalLabel =
+        formatBillingInterval(
+            billingSummary?.billingInterval ?? null,
+        )
 
     const publicSiteUrl =
         getOrganisationPublicSiteUrl(
@@ -605,6 +788,9 @@ export function AdminPortal({
         setArticleCreateRequestKey(0)
         setBillingPortalError('')
         setBillingPortalLoading(false)
+        setBillingSummary(null)
+        setBillingSummaryError('')
+        setBillingSummaryLoading(false)
     }, [currentOrganisation?.id])
 
     useEffect(() => {
@@ -1036,6 +1222,67 @@ export function AdminPortal({
             organisationType,
         ])
 
+    const loadBillingSummary =
+        useCallback(async () => {
+            if (!currentOrganisation?.id) {
+                setBillingSummary(null)
+                setBillingSummaryError('')
+                return
+            }
+
+            setBillingSummaryLoading(true)
+            setBillingSummaryError('')
+
+            try {
+                const {
+                    data,
+                    error,
+                } = await supabase.functions.invoke<BillingSummaryResponse>(
+                    'get-billing-summary',
+                    {
+                        body: {
+                            organisationId:
+                                currentOrganisation.id,
+                        },
+                    },
+                )
+
+                if (error) {
+                    throw error
+                }
+
+                if (
+                    data &&
+                    typeof data.error === 'string' &&
+                    data.error.trim()
+                ) {
+                    throw new Error(
+                        data.error.trim(),
+                    )
+                }
+
+                setBillingSummary(
+                    parseBillingSummary(
+                        data?.billing,
+                    ),
+                )
+            } catch (error) {
+                console.error(
+                    'Failed to load billing summary:',
+                    error,
+                )
+
+                setBillingSummary(null)
+                setBillingSummaryError(
+                    error instanceof Error
+                        ? error.message
+                        : 'TournamentHQ could not load the billing summary.',
+                )
+            } finally {
+                setBillingSummaryLoading(false)
+            }
+        }, [currentOrganisation?.id])
+
     useEffect(() => {
         if (!currentOrganisation?.id) {
             return
@@ -1045,12 +1292,14 @@ export function AdminPortal({
             loadTeams(),
             loadOrganisationStats(),
             loadEnquiryCount(),
+            loadBillingSummary(),
         ])
     }, [
         currentOrganisation?.id,
         loadTeams,
         loadOrganisationStats,
         loadEnquiryCount,
+        loadBillingSummary,
     ])
 
     useEffect(() => {
@@ -1632,6 +1881,13 @@ export function AdminPortal({
                                                 subscriptionStatus,
                                             )}
                                         </span>
+
+                                        {billingSummary?.cancelAtPeriodEnd && (
+                                            <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-amber-200">
+                                                <CircleAlert className="h-4 w-4" />
+                                                Cancellation scheduled
+                                            </span>
+                                        )}
                                     </div>
 
                                     <h4 className="mt-4 text-lg font-black text-[var(--thq-admin-text)]">
@@ -1642,10 +1898,41 @@ export function AdminPortal({
                                         {getSubscriptionSummary(
                                             subscriptionPlan,
                                             subscriptionStatus,
+                                            billingSummary,
                                         )}
                                     </p>
 
-                                    <p className="mt-3 text-xs font-semibold text-[var(--thq-admin-muted)]">
+                                    {(billingSummaryLoading ||
+                                        billingIntervalLabel ||
+                                        billingPeriodEnd) && (
+                                        <p className="mt-3 text-xs font-semibold text-[var(--thq-admin-muted)]">
+                                            {billingSummaryLoading
+                                                ? 'Loading billing cycle…'
+                                                : [
+                                                      billingIntervalLabel,
+                                                      billingSummary?.cancelAtPeriodEnd
+                                                          ? billingPeriodEnd
+                                                              ? `Access until ${billingPeriodEnd}`
+                                                              : 'Ends after current billing period'
+                                                          : billingPeriodEnd
+                                                            ? `Renews ${billingPeriodEnd}`
+                                                            : null,
+                                                  ]
+                                                      .filter(
+                                                          (
+                                                              value,
+                                                          ): value is string =>
+                                                              Boolean(
+                                                                  value,
+                                                              ),
+                                                      )
+                                                      .join(
+                                                          ' · ',
+                                                      )}
+                                        </p>
+                                    )}
+
+                                    <p className="mt-2 text-xs font-semibold text-[var(--thq-admin-muted)]">
                                         Account limits: {effectiveProfile.currentOrganisation.max_users}{' '}
                                         administrator accounts
                                         {!isClub && (
@@ -1682,6 +1969,18 @@ export function AdminPortal({
                                 >
                                     <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span>{billingPortalError}</span>
+                                </div>
+                            )}
+
+                            {billingSummaryError && (
+                                <div
+                                    role="alert"
+                                    className="mt-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+                                >
+                                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>
+                                        Billing details are temporarily unavailable. Your workspace access is unaffected.
+                                    </span>
                                 </div>
                             )}
                         </section>

@@ -236,29 +236,51 @@ async function syncSubscription(
         throw billingError
     }
 
-    const professional =
-        SERVER_SUBSCRIPTION_PLANS.professional
+    const subscriptionEnded =
+        subscription.status === 'canceled'
+
+    const entitlementPlan =
+        subscriptionEnded
+            ? SERVER_SUBSCRIPTION_PLANS.starter
+            : SERVER_SUBSCRIPTION_PLANS.professional
 
     const {
         error: organisationError,
     } = await admin
         .from('organisations')
-        .update({
-            subscription_plan:
-                'professional',
-            subscription_status:
-                appStatus,
-            trial_end:
-                toIso(
-                    subscription.trial_end,
-                ),
-            max_users:
-                professional.maxUsers,
-            max_competitions:
-                professional.maxCompetitions,
-            public_site_enabled:
-                professional.publicSiteEnabled,
-        })
+        .update(
+            subscriptionEnded
+                ? {
+                      subscription_plan:
+                          'starter',
+                      subscription_status:
+                          'active',
+                      trial_end:
+                          null,
+                      max_users:
+                          entitlementPlan.maxUsers,
+                      max_competitions:
+                          entitlementPlan.maxCompetitions,
+                      public_site_enabled:
+                          entitlementPlan.publicSiteEnabled,
+                  }
+                : {
+                      subscription_plan:
+                          'professional',
+                      subscription_status:
+                          appStatus,
+                      trial_end:
+                          toIso(
+                              subscription.trial_end,
+                          ),
+                      max_users:
+                          entitlementPlan.maxUsers,
+                      max_competitions:
+                          entitlementPlan.maxCompetitions,
+                      public_site_enabled:
+                          entitlementPlan.publicSiteEnabled,
+                  },
+        )
         .eq('id', organisationId)
 
     if (organisationError) {
