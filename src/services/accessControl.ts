@@ -15,6 +15,18 @@ export type OrganisationType =
     | 'competition_organiser'
     | 'club'
 
+export type SubscriptionPlan =
+    | 'starter'
+    | 'professional'
+    | 'enterprise'
+
+export type SubscriptionStatus =
+    | 'trial'
+    | 'active'
+    | 'past_due'
+    | 'suspended'
+    | 'cancelled'
+
 export type Organisation = {
     id: string
     name: string
@@ -28,6 +40,10 @@ export type Organisation = {
     background_colour: string | null
     surface_colour: string | null
     text_colour: string | null
+    subscription_plan: SubscriptionPlan
+    subscription_status: SubscriptionStatus
+    max_users: number
+    max_competitions: number
     created_at: string
     updated_at: string
 }
@@ -513,6 +529,10 @@ export async function getCurrentAdminProfile():
             background_colour,
             surface_colour,
             text_colour,
+            subscription_plan,
+            subscription_status,
+            max_users,
+            max_competitions,
             created_at,
             updated_at
         `)

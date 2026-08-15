@@ -8,12 +8,15 @@ import type { LucideIcon } from 'lucide-react'
 import { Gavel } from 'lucide-react'
 import OfficialsPage from '../pages/OfficialsPage'
 import {
+    BadgeCheck,
     BarChart3,
     Bot,
     Building2,
     CalendarDays,
     ChevronDown,
+    CircleAlert,
     CircleUserRound,
+    CreditCard,
     ExternalLink,
     Flag,
     Handshake,
@@ -66,6 +69,8 @@ import {
     formatAdminRole,
     type AdminModule,
     type AdminProfile,
+    type SubscriptionPlan,
+    type SubscriptionStatus,
 } from '../services/accessControl'
 
 import { useOrganisation } from '../context/OrganisationContext'
@@ -282,7 +287,88 @@ const emptyCompetitionStats: CompetitionDashboardStats = {
     goals: 0,
 }
 
+type BillingPortalResponse = {
+    url?: unknown
+    error?: unknown
+}
 
+function formatSubscriptionPlan(
+    plan: SubscriptionPlan,
+): string {
+    return plan
+        .split('_')
+        .map(
+            (word) =>
+                word.charAt(0).toUpperCase() +
+                word.slice(1),
+        )
+        .join(' ')
+}
+
+function formatSubscriptionStatus(
+    status: SubscriptionStatus,
+): string {
+    if (status === 'past_due') {
+        return 'Past Due'
+    }
+
+    return status
+        .split('_')
+        .map(
+            (word) =>
+                word.charAt(0).toUpperCase() +
+                word.slice(1),
+        )
+        .join(' ')
+}
+
+function getSubscriptionStatusClasses(
+    status: SubscriptionStatus,
+): string {
+    if (status === 'active') {
+        return 'border-lime-400/40 bg-lime-400/10 text-lime-300'
+    }
+
+    if (
+        status === 'past_due' ||
+        status === 'suspended'
+    ) {
+        return 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+    }
+
+    if (status === 'cancelled') {
+        return 'border-rose-400/40 bg-rose-400/10 text-rose-200'
+    }
+
+    return 'border-sky-400/40 bg-sky-400/10 text-sky-200'
+}
+
+function getSubscriptionSummary(
+    plan: SubscriptionPlan,
+    status: SubscriptionStatus,
+): string {
+    if (status === 'past_due') {
+        return 'Your payment requires attention. Open billing to review the payment method and outstanding invoice.'
+    }
+
+    if (status === 'suspended') {
+        return 'This workspace is currently suspended. Contact TournamentHQ support if you need assistance.'
+    }
+
+    if (status === 'cancelled') {
+        return 'This subscription is cancelled. Your workspace access may change in line with the billing period.'
+    }
+
+    if (plan === 'professional') {
+        return 'Your Professional workspace is active with the paid TournamentHQ feature set and account limits.'
+    }
+
+    if (plan === 'enterprise') {
+        return 'Your Enterprise workspace is active with organisation-specific limits and commercial terms.'
+    }
+
+    return 'Your Starter workspace is active. Paid billing is not required for the Starter plan.'
+}
 
 export function AdminPortal({
                                 profile,
@@ -342,6 +428,16 @@ export function AdminPortal({
         setCompetitionStatsLoading,
     ] = useState(false)
 
+    const [
+        billingPortalLoading,
+        setBillingPortalLoading,
+    ] = useState(false)
+
+    const [
+        billingPortalError,
+        setBillingPortalError,
+    ] = useState('')
+
     const effectiveProfile =
         useMemo<AdminProfile>(
             () => ({
@@ -372,6 +468,15 @@ export function AdminPortal({
 
     const isClub =
         organisationType === 'club'
+
+    const subscriptionPlan =
+        effectiveProfile.currentOrganisation.subscription_plan
+
+    const subscriptionStatus =
+        effectiveProfile.currentOrganisation.subscription_status
+
+    const canManageBilling =
+        subscriptionPlan === 'professional'
 
     const publicSiteUrl =
         getOrganisationPublicSiteUrl(
@@ -498,6 +603,8 @@ export function AdminPortal({
         )
         setEnquiryCount(0)
         setArticleCreateRequestKey(0)
+        setBillingPortalError('')
+        setBillingPortalLoading(false)
     }, [currentOrganisation?.id])
 
     useEffect(() => {
@@ -1359,6 +1466,68 @@ export function AdminPortal({
         )
     }
 
+    async function openBillingPortal() {
+        if (
+            billingPortalLoading ||
+            !canManageBilling
+        ) {
+            return
+        }
+
+        setBillingPortalLoading(true)
+        setBillingPortalError('')
+
+        try {
+            const {
+                data,
+                error,
+            } = await supabase.functions.invoke<BillingPortalResponse>(
+                'create-billing-portal-session',
+                {
+                    body: {
+                        organisationId:
+                            currentOrganisation.id,
+                    },
+                },
+            )
+
+            if (error) {
+                throw error
+            }
+
+            if (
+                !data ||
+                typeof data.url !== 'string' ||
+                !data.url.trim()
+            ) {
+                const message =
+                    data &&
+                    typeof data.error === 'string'
+                        ? data.error
+                        : 'TournamentHQ could not open the billing portal.'
+
+                throw new Error(message)
+            }
+
+            window.location.assign(
+                data.url.trim(),
+            )
+        } catch (error) {
+            console.error(
+                'Failed to open billing portal:',
+                error,
+            )
+
+            setBillingPortalError(
+                error instanceof Error
+                    ? error.message
+                    : 'TournamentHQ could not open the billing portal.',
+            )
+        } finally {
+            setBillingPortalLoading(false)
+        }
+    }
+
     function toggleSection(
         sectionId: NavigationSectionId
     ) {
@@ -1436,6 +1605,86 @@ export function AdminPortal({
                                 </button>
                             )}
                         </div>
+
+                        <section className="mb-6 rounded-2xl border border-[color:var(--thq-admin-border)] bg-[var(--thq-admin-surface)] p-5 shadow-sm">
+                            <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--thq-admin-border)] bg-black/20 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-[var(--thq-admin-text)]">
+                                            <BadgeCheck className="h-4 w-4 text-[var(--thq-admin-accent)]" />
+                                            {formatSubscriptionPlan(
+                                                subscriptionPlan,
+                                            )}
+                                        </span>
+
+                                        <span
+                                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] ${getSubscriptionStatusClasses(
+                                                subscriptionStatus,
+                                            )}`}
+                                        >
+                                            {subscriptionStatus ===
+                                            'active' ? (
+                                                <BadgeCheck className="h-4 w-4" />
+                                            ) : (
+                                                <CircleAlert className="h-4 w-4" />
+                                            )}
+                                            {formatSubscriptionStatus(
+                                                subscriptionStatus,
+                                            )}
+                                        </span>
+                                    </div>
+
+                                    <h4 className="mt-4 text-lg font-black text-[var(--thq-admin-text)]">
+                                        Subscription & Billing
+                                    </h4>
+
+                                    <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--thq-admin-muted)]">
+                                        {getSubscriptionSummary(
+                                            subscriptionPlan,
+                                            subscriptionStatus,
+                                        )}
+                                    </p>
+
+                                    <p className="mt-3 text-xs font-semibold text-[var(--thq-admin-muted)]">
+                                        Account limits: {effectiveProfile.currentOrganisation.max_users}{' '}
+                                        administrator accounts
+                                        {!isClub && (
+                                            <>
+                                                {' '}·{' '}
+                                                {effectiveProfile.currentOrganisation.max_competitions}{' '}
+                                                competitions
+                                            </>
+                                        )}
+                                    </p>
+                                </div>
+
+                                {canManageBilling && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            void openBillingPortal()
+                                        }}
+                                        disabled={billingPortalLoading}
+                                        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[color:var(--thq-admin-border)] bg-black/20 px-5 py-3 text-sm font-black text-[var(--thq-admin-text)] transition hover:border-[var(--thq-admin-accent)] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[var(--thq-admin-accent)] focus:ring-offset-2 focus:ring-offset-[var(--thq-admin-background)]"
+                                    >
+                                        <CreditCard className="h-4 w-4 text-[var(--thq-admin-accent)]" />
+                                        {billingPortalLoading
+                                            ? 'Opening Billing…'
+                                            : 'Manage Billing'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {billingPortalError && (
+                                <div
+                                    role="alert"
+                                    className="mt-4 flex items-start gap-3 rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+                                >
+                                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>{billingPortalError}</span>
+                                </div>
+                            )}
+                        </section>
 
                         <section>
                             <h4>
@@ -1746,6 +1995,24 @@ export function AdminPortal({
                                     effectiveProfile.isPlatformAdmin,
                                 )}
                             </span>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <span className="inline-flex items-center rounded-full border border-[color:var(--thq-admin-border)] bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--thq-admin-text)]">
+                                    {formatSubscriptionPlan(
+                                        subscriptionPlan,
+                                    )}
+                                </span>
+
+                                <span
+                                    className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getSubscriptionStatusClasses(
+                                        subscriptionStatus,
+                                    )}`}
+                                >
+                                    {formatSubscriptionStatus(
+                                        subscriptionStatus,
+                                    )}
+                                </span>
+                            </div>
                         </div>
 
                         <nav

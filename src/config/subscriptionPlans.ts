@@ -161,13 +161,6 @@ export function getRequestedPlanFromSearch(
     const requestedPlan =
         new URLSearchParams(search).get('plan')
 
-    // Backward compatibility for old marketing links.
-    // "trial" was previously used as if it were a plan,
-    // but Starter is the actual £0 self-service plan.
-    if (requestedPlan === 'trial') {
-        return 'starter'
-    }
-
     return isSelfServiceSubscriptionPlan(
         requestedPlan,
     )

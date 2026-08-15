@@ -54,9 +54,9 @@ const enterprisePlan =
     getSubscriptionPlan('enterprise')
 
 function readRequestedPlan():
-    SelfServiceSubscriptionPlan {
+    SelfServiceSubscriptionPlan | null {
     if (typeof window === 'undefined') {
-        return 'starter'
+        return null
     }
 
     const stored =
@@ -66,7 +66,7 @@ function readRequestedPlan():
 
     return isSelfServiceSubscriptionPlan(stored)
         ? stored
-        : 'starter'
+        : null
 }
 
 function clearRequestedPlan(): void {
@@ -119,9 +119,9 @@ function clearBillingReturnQuery(): void {
 
 function planIsReady(
     organisation: Organisation | null,
-    selectedPlan: SelfServiceSubscriptionPlan,
+    selectedPlan: SelfServiceSubscriptionPlan | null,
 ): boolean {
-    if (!organisation) {
+    if (!organisation || !selectedPlan) {
         return false
     }
 
@@ -155,7 +155,7 @@ export function BillingStep({
     const [organisation, setOrganisation] =
         useState<Organisation | null>(null)
     const [selectedPlan, setSelectedPlan] =
-        useState<SelfServiceSubscriptionPlan>(
+        useState<SelfServiceSubscriptionPlan | null>(
             readRequestedPlan,
         )
     const [billingInterval, setBillingInterval] =
@@ -345,6 +345,15 @@ export function BillingStep({
             return
         }
 
+        if (!selectedPlan) {
+            setNotice({
+                tone: 'warning',
+                message:
+                    'Choose Starter or Professional before continuing.',
+            })
+            return
+        }
+
         setSubmitting(true)
         setNotice(null)
 
@@ -430,6 +439,12 @@ export function BillingStep({
                     ].join(' ')}
                 >
                     {notice.message}
+                </div>
+            )}
+
+            {!selectedPlan && (
+                <div className="mt-6 rounded-2xl border border-amber-700/50 bg-amber-500/10 px-5 py-4 text-sm font-semibold text-amber-100">
+                    No plan is selected. Choose Starter or Professional explicitly before activating billing.
                 </div>
             )}
 
@@ -670,7 +685,7 @@ export function BillingStep({
                     </section>
                 )}
 
-            {!ready && (
+            {!ready && selectedPlan && (
                 <div className="mt-6">
                     <button
                         type="button"

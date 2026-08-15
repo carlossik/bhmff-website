@@ -40,22 +40,6 @@ type SignupStatus =
     | 'submitting'
     | 'verify-email'
 
-function getStoredRequestedPlan():
-    'starter' | 'professional' | null {
-    if (typeof window === 'undefined') {
-        return null
-    }
-
-    const value = window.localStorage.getItem(
-        REQUESTED_PLAN_STORAGE_KEY,
-    )
-
-    return value === 'starter' ||
-        value === 'professional'
-        ? value
-        : null
-}
-
 function persistRequestedPlan():
     'starter' | 'professional' | null {
     if (typeof window === 'undefined') {
@@ -65,14 +49,21 @@ function persistRequestedPlan():
     const requestedPlan =
         getRequestedPlanFromSearch(
             window.location.search,
-        ) ?? getStoredRequestedPlan()
-
-    if (requestedPlan) {
-        window.localStorage.setItem(
-            REQUESTED_PLAN_STORAGE_KEY,
-            requestedPlan,
         )
+
+    if (!requestedPlan) {
+        // A generic signup URL must never resurrect an old plan choice.
+        // New customers choose a plan explicitly on the marketing pricing section.
+        window.localStorage.removeItem(
+            REQUESTED_PLAN_STORAGE_KEY,
+        )
+        return null
     }
+
+    window.localStorage.setItem(
+        REQUESTED_PLAN_STORAGE_KEY,
+        requestedPlan,
+    )
 
     return requestedPlan
 }
@@ -112,6 +103,10 @@ function getOnboardingPath(): string {
     }
 
     return `/onboarding?${params.toString()}`
+}
+
+function getMarketingPricingUrl(): string {
+    return 'https://tournamenthq.co.uk/#pricing'
 }
 
 function getRedirectUrl(): string {
@@ -218,8 +213,18 @@ export function SignupPage() {
     useEffect(() => {
         let isMounted = true
 
-        persistRequestedPlan()
+        const requestedPlan =
+            persistRequestedPlan()
         persistRequestedType()
+
+        if (!requestedPlan) {
+            window.location.replace(
+                getMarketingPricingUrl(),
+            )
+            return () => {
+                isMounted = false
+            }
+        }
 
         void supabase.auth
             .getSession()
@@ -271,6 +276,13 @@ export function SignupPage() {
             persistRequestedPlan()
         const requestedOrganisationType =
             persistRequestedType()
+
+        if (!requestedPlan) {
+            window.location.assign(
+                getMarketingPricingUrl(),
+            )
+            return
+        }
 
         if (!normalisedName) {
             setErrorMessage(
@@ -524,11 +536,7 @@ export function SignupPage() {
                             </h1>
 
                             <p className="mt-3 text-sm leading-6 text-slate-400">
-                                No organisation setup
-                                required yet. Create your
-                                secure account first, then
-                                the Setup Assistant will
-                                guide you through the rest.
+                                Your product and plan were chosen on the TournamentHQ pricing page. Create your secure account and we will carry that choice into setup and billing.
                             </p>
 
                             <form
