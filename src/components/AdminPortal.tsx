@@ -1902,6 +1902,40 @@ export function AdminPortal({
                                         )}
                                     </p>
 
+                                    {subscriptionStatus === 'past_due' && (
+                                        <div
+                                            role="alert"
+                                            className="mt-4 flex items-start gap-3 rounded-xl border border-amber-400/35 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+                                        >
+                                            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+                                            <div>
+                                                <strong className="block font-black text-amber-100">
+                                                    Payment needs attention
+                                                </strong>
+                                                <p className="mt-1 leading-6 text-amber-100/80">
+                                                    Your Professional access remains available while payment recovery is in progress. Open Manage Billing to update the payment method, complete any required authentication or pay the outstanding invoice.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {subscriptionStatus === 'suspended' && (
+                                        <div
+                                            role="alert"
+                                            className="mt-4 flex items-start gap-3 rounded-xl border border-rose-400/35 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+                                        >
+                                            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-rose-300" />
+                                            <div>
+                                                <strong className="block font-black text-rose-100">
+                                                    Subscription requires action
+                                                </strong>
+                                                <p className="mt-1 leading-6 text-rose-100/80">
+                                                    Payment recovery has not completed. Your TournamentHQ data remains intact. Open Manage Billing to update payment details and resolve any outstanding invoice.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {(billingSummaryLoading ||
                                         billingIntervalLabel ||
                                         billingPeriodEnd) && (

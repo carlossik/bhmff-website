@@ -88,6 +88,42 @@ function mapSubscriptionStatus(
     }
 }
 
+function getInvoiceSubscriptionId(
+    invoice: Stripe.Invoice,
+): string | null {
+    const parent = invoice.parent
+
+    if (
+        !parent ||
+        parent.type !== 'subscription_details'
+    ) {
+        return null
+    }
+
+    return getExpandableId(
+        parent.subscription_details?.subscription ??
+            null,
+    )
+}
+
+async function syncInvoiceSubscription(
+    invoice: Stripe.Invoice,
+): Promise<void> {
+    const subscriptionId =
+        getInvoiceSubscriptionId(invoice)
+
+    if (!subscriptionId) {
+        return
+    }
+
+    const subscription =
+        await stripe.subscriptions.retrieve(
+            subscriptionId,
+        )
+
+    await syncSubscription(subscription)
+}
+
 function resolveBillingInterval(
     subscription: Stripe.Subscription,
 ): ServerBillingInterval {
@@ -194,6 +230,12 @@ async function syncSubscription(
         mapSubscriptionStatus(
             subscription.status,
         )
+    const cancellationScheduled =
+        subscription.status !== 'canceled' &&
+        (
+            subscription.cancel_at_period_end ||
+            typeof subscription.cancel_at === 'number'
+        )
 
     const {
         error: billingError,
@@ -222,7 +264,7 @@ async function syncSubscription(
                         item?.current_period_end,
                     ),
                 cancel_at_period_end:
-                    subscription.cancel_at_period_end,
+                    cancellationScheduled,
                 updated_at:
                     new Date().toISOString(),
             },
@@ -356,11 +398,36 @@ Deno.serve(async (request) => {
             }
 
             case 'customer.subscription.created':
-            case 'customer.subscription.updated':
+            case 'customer.subscription.updated': {
+                const eventSubscription =
+                    event.data.object as
+                        Stripe.Subscription
+
+                const currentSubscription =
+                    await stripe.subscriptions.retrieve(
+                        eventSubscription.id,
+                    )
+
+                await syncSubscription(
+                    currentSubscription,
+                )
+                break
+            }
+
             case 'customer.subscription.deleted': {
                 await syncSubscription(
                     event.data.object as
                         Stripe.Subscription,
+                )
+                break
+            }
+
+            case 'invoice.payment_failed':
+            case 'invoice.payment_action_required':
+            case 'invoice.paid': {
+                await syncInvoiceSubscription(
+                    event.data.object as
+                        Stripe.Invoice,
                 )
                 break
             }
