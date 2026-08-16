@@ -7,6 +7,10 @@ import {
     jsonResponse,
 } from '../_shared/http.ts'
 import {
+    recordOperationsEvent,
+    type OperationsEventSeverity,
+} from '../_shared/operationsLog.ts'
+import {
     SERVER_SUBSCRIPTION_PLANS,
     type ServerBillingInterval,
 } from '../_shared/subscriptionPlans.ts'
@@ -21,6 +25,12 @@ type AppSubscriptionStatus =
     | 'past_due'
     | 'suspended'
     | 'cancelled'
+
+type StripeEventContext = {
+    eventId: string
+    eventCreated: number
+    livemode: boolean
+}
 
 function getRequiredEnvironment(
     name: string,
@@ -106,24 +116,6 @@ function getInvoiceSubscriptionId(
     )
 }
 
-async function syncInvoiceSubscription(
-    invoice: Stripe.Invoice,
-): Promise<void> {
-    const subscriptionId =
-        getInvoiceSubscriptionId(invoice)
-
-    if (!subscriptionId) {
-        return
-    }
-
-    const subscription =
-        await stripe.subscriptions.retrieve(
-            subscriptionId,
-        )
-
-    await syncSubscription(subscription)
-}
-
 function resolveBillingInterval(
     subscription: Stripe.Subscription,
 ): ServerBillingInterval {
@@ -199,7 +191,8 @@ async function findOrganisationId(
 
 async function syncSubscription(
     subscription: Stripe.Subscription,
-): Promise<void> {
+    eventContext: StripeEventContext,
+): Promise<string | null> {
     const organisationId =
         await findOrganisationId(
             subscription,
@@ -210,7 +203,7 @@ async function syncSubscription(
             'Stripe subscription could not be matched to a TournamentHQ organisation:',
             subscription.id,
         )
-        return
+        return null
     }
 
     const admin = createAdminClient()
@@ -265,6 +258,14 @@ async function syncSubscription(
                     ),
                 cancel_at_period_end:
                     cancellationScheduled,
+                stripe_livemode:
+                    eventContext.livemode,
+                last_stripe_event_id:
+                    eventContext.eventId,
+                last_stripe_event_at:
+                    toIso(
+                        eventContext.eventCreated,
+                    ),
                 updated_at:
                     new Date().toISOString(),
             },
@@ -328,6 +329,99 @@ async function syncSubscription(
     if (organisationError) {
         throw organisationError
     }
+
+    return organisationId
+}
+
+async function syncInvoiceSubscription(
+    invoice: Stripe.Invoice,
+    eventContext: StripeEventContext,
+): Promise<string | null> {
+    const subscriptionId =
+        getInvoiceSubscriptionId(invoice)
+
+    if (!subscriptionId) {
+        return null
+    }
+
+    const subscription =
+        await stripe.subscriptions.retrieve(
+            subscriptionId,
+        )
+
+    return syncSubscription(
+        subscription,
+        eventContext,
+    )
+}
+
+function getEventSeverity(
+    eventType: string,
+    organisationId: string | null,
+): OperationsEventSeverity {
+    if (!organisationId) {
+        return 'warning'
+    }
+
+    if (
+        eventType === 'invoice.payment_failed' ||
+        eventType ===
+            'invoice.payment_action_required'
+    ) {
+        return 'warning'
+    }
+
+    return 'info'
+}
+
+function getEventMessage(
+    eventType: string,
+    organisationId: string | null,
+): string {
+    if (!organisationId) {
+        return `Stripe event ${eventType} was processed but could not be matched to a TournamentHQ organisation.`
+    }
+
+    switch (eventType) {
+        case 'checkout.session.completed':
+            return 'Stripe Checkout completed and TournamentHQ billing was reconciled.'
+        case 'customer.subscription.created':
+            return 'Stripe subscription created and TournamentHQ entitlement was reconciled.'
+        case 'customer.subscription.updated':
+            return 'Stripe subscription changed and TournamentHQ entitlement was reconciled.'
+        case 'customer.subscription.deleted':
+            return 'Stripe subscription ended and TournamentHQ entitlement was reconciled.'
+        case 'invoice.payment_failed':
+            return 'Stripe reported a failed subscription payment attempt.'
+        case 'invoice.payment_action_required':
+            return 'Stripe reported that customer action is required to complete a subscription payment.'
+        case 'invoice.paid':
+            return 'Stripe invoice was paid and TournamentHQ billing was reconciled.'
+        default:
+            return `Stripe event ${eventType} was processed.`
+    }
+}
+
+function getStripeObjectId(
+    event: Stripe.Event,
+): string | null {
+    const value =
+        event.data.object as unknown
+
+    if (
+        typeof value === 'object' &&
+        value !== null &&
+        'id' in value &&
+        typeof (
+            value as { id?: unknown }
+        ).id === 'string'
+    ) {
+        return (
+            value as { id: string }
+        ).id
+    }
+
+    return null
 }
 
 const stripe = new Stripe(
@@ -345,6 +439,10 @@ Deno.serve(async (request) => {
             405,
         )
     }
+
+    const startedAt = Date.now()
+    let event: Stripe.Event | null = null
+    let organisationId: string | null = null
 
     try {
         const signature =
@@ -364,7 +462,7 @@ Deno.serve(async (request) => {
 
         const payload =
             await request.text()
-        const event =
+        event =
             await stripe.webhooks.constructEventAsync(
                 payload,
                 signature,
@@ -374,6 +472,12 @@ Deno.serve(async (request) => {
                 undefined,
                 cryptoProvider,
             )
+
+        const eventContext: StripeEventContext = {
+            eventId: event.id,
+            eventCreated: event.created,
+            livemode: event.livemode,
+        }
 
         switch (event.type) {
             case 'checkout.session.completed': {
@@ -390,9 +494,11 @@ Deno.serve(async (request) => {
                         await stripe.subscriptions.retrieve(
                             subscriptionId,
                         )
-                    await syncSubscription(
-                        subscription,
-                    )
+                    organisationId =
+                        await syncSubscription(
+                            subscription,
+                            eventContext,
+                        )
                 }
                 break
             }
@@ -408,33 +514,68 @@ Deno.serve(async (request) => {
                         eventSubscription.id,
                     )
 
-                await syncSubscription(
-                    currentSubscription,
-                )
+                organisationId =
+                    await syncSubscription(
+                        currentSubscription,
+                        eventContext,
+                    )
                 break
             }
 
             case 'customer.subscription.deleted': {
-                await syncSubscription(
-                    event.data.object as
-                        Stripe.Subscription,
-                )
+                organisationId =
+                    await syncSubscription(
+                        event.data.object as
+                            Stripe.Subscription,
+                        eventContext,
+                    )
                 break
             }
 
             case 'invoice.payment_failed':
             case 'invoice.payment_action_required':
             case 'invoice.paid': {
-                await syncInvoiceSubscription(
-                    event.data.object as
-                        Stripe.Invoice,
-                )
+                organisationId =
+                    await syncInvoiceSubscription(
+                        event.data.object as
+                            Stripe.Invoice,
+                        eventContext,
+                    )
                 break
             }
 
             default:
                 break
         }
+
+        await recordOperationsEvent({
+            source: 'stripe_webhook',
+            category: 'billing',
+            eventType: event.type,
+            severity:
+                getEventSeverity(
+                    event.type,
+                    organisationId,
+                ),
+            processingStatus: 'processed',
+            organisationId,
+            externalId: event.id,
+            message:
+                getEventMessage(
+                    event.type,
+                    organisationId,
+                ),
+            durationMs:
+                Date.now() - startedAt,
+            occurredAt:
+                toIso(event.created) ??
+                new Date().toISOString(),
+            details: {
+                livemode: event.livemode,
+                stripeObjectId:
+                    getStripeObjectId(event),
+            },
+        })
 
         return jsonResponse({
             received: true,
@@ -444,6 +585,33 @@ Deno.serve(async (request) => {
             'Stripe webhook processing failed:',
             error,
         )
+
+        if (event) {
+            await recordOperationsEvent({
+                source: 'stripe_webhook',
+                category: 'billing',
+                eventType: event.type,
+                severity: 'error',
+                processingStatus: 'failed',
+                organisationId,
+                externalId: event.id,
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : 'Stripe webhook processing failed.',
+                durationMs:
+                    Date.now() - startedAt,
+                occurredAt:
+                    toIso(event.created) ??
+                    new Date().toISOString(),
+                details: {
+                    livemode:
+                        event.livemode,
+                    stripeObjectId:
+                        getStripeObjectId(event),
+                },
+            })
+        }
 
         return jsonResponse(
             {

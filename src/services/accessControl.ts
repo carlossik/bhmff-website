@@ -100,6 +100,7 @@ export type AdminModule =
     | 'Opponents'
     | 'Squad'
     | 'Statistics'
+    | 'Platform Operations'
 
 const organisationOwnerModules: readonly AdminModule[] = [
     'Dashboard',
@@ -273,7 +274,10 @@ export function canAccessModule(
     organisationType: OrganisationType =
     'competition_organiser',
 ): boolean {
-    if (module === 'Organisations') {
+    if (
+        module === 'Organisations' ||
+        module === 'Platform Operations'
+    ) {
         return isPlatformAdmin
     }
 

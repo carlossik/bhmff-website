@@ -194,3 +194,144 @@ export async function requireBillingAdmin(
         user,
     }
 }
+
+export async function requireAuthenticatedUser(
+    request: Request,
+): Promise<BillingAuthContext> {
+    const supabaseUrl =
+        getRequiredEnvironment(
+            'SUPABASE_URL',
+        )
+    const supabaseAnonKey =
+        getRequiredEnvironment(
+            'SUPABASE_ANON_KEY',
+        )
+    const token =
+        getBearerToken(request)
+
+    const authClient = createClient(
+        supabaseUrl,
+        supabaseAnonKey,
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+            },
+        },
+    )
+
+    const {
+        data: { user },
+        error: userError,
+    } = await authClient.auth.getUser(
+        token,
+    )
+
+    if (userError || !user) {
+        throw new HttpError(
+            401,
+            'Your TournamentHQ session could not be verified.',
+        )
+    }
+
+    return {
+        admin: createAdminClient(),
+        user,
+    }
+}
+
+export async function requirePlatformAdmin(
+    request: Request,
+): Promise<BillingAuthContext> {
+    const context =
+        await requireAuthenticatedUser(request)
+
+    const {
+        data,
+        error,
+    } = await context.admin
+        .from('platform_admins')
+        .select('active')
+        .eq('user_id', context.user.id)
+        .eq('active', true)
+        .maybeSingle()
+
+    if (error) {
+        throw new HttpError(
+            500,
+            error.message,
+        )
+    }
+
+    const platformAdmin =
+        data as PlatformAdminRow | null
+
+    if (!platformAdmin?.active) {
+        throw new HttpError(
+            403,
+            'TournamentHQ platform administrator access is required.',
+        )
+    }
+
+    return context
+}
+
+export async function requireOrganisationMember(
+    request: Request,
+    organisationId: string,
+): Promise<BillingAuthContext> {
+    const context =
+        await requireAuthenticatedUser(request)
+
+    const {
+        data: platformAdminData,
+        error: platformAdminError,
+    } = await context.admin
+        .from('platform_admins')
+        .select('active')
+        .eq('user_id', context.user.id)
+        .eq('active', true)
+        .maybeSingle()
+
+    if (platformAdminError) {
+        throw new HttpError(
+            500,
+            platformAdminError.message,
+        )
+    }
+
+    if (
+        (platformAdminData as PlatformAdminRow | null)
+            ?.active
+    ) {
+        return context
+    }
+
+    const {
+        data: membershipData,
+        error: membershipError,
+    } = await context.admin
+        .from('organisation_memberships')
+        .select('active')
+        .eq('organisation_id', organisationId)
+        .eq('user_id', context.user.id)
+        .eq('active', true)
+        .maybeSingle()
+
+    if (membershipError) {
+        throw new HttpError(
+            500,
+            membershipError.message,
+        )
+    }
+
+    if (!membershipData) {
+        throw new HttpError(
+            403,
+            'You do not have access to this organisation.',
+        )
+    }
+
+    return context
+}
+
