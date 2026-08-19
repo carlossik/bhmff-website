@@ -59,27 +59,27 @@ import type {
 
 const emptyForm:
     ClubSquadMemberFormValues = {
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    squad_number: '',
-    position: '',
-    registration_status:
-        'pending',
-    sign_on_fee_amount: '0',
-    sign_on_fee_status:
-        'not_due',
-    notes: '',
-    active: true,
-}
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        squad_number: '',
+        position: '',
+        registration_status:
+            'pending',
+        sign_on_fee_amount: '0',
+        sign_on_fee_status:
+            'not_due',
+        notes: '',
+        active: true,
+    }
 
 const registrationOptions:
-    Array<{
-        value:
-            ClubPlayerRegistrationStatus
-        label: string
-    }> = [
+Array<{
+    value:
+        ClubPlayerRegistrationStatus
+    label: string
+}> = [
     {
         value: 'pending',
         label: 'Pending',
@@ -99,10 +99,10 @@ const registrationOptions:
 ]
 
 const paymentOptions:
-    Array<{
-        value: ClubPaymentStatus
-        label: string
-    }> = [
+Array<{
+    value: ClubPaymentStatus
+    label: string
+}> = [
     {
         value: 'not_due',
         label: 'Not due',
@@ -160,7 +160,7 @@ function parseCsvLine(
             if (
                 quoted &&
                 line[index + 1] ===
-                '"'
+                    '"'
             ) {
                 current += '"'
                 index += 1
@@ -200,7 +200,7 @@ function normaliseRegistration(
             normalised,
     )
         ? normalised as
-            ClubPlayerRegistrationStatus
+              ClubPlayerRegistrationStatus
         : 'pending'
 }
 
@@ -220,7 +220,7 @@ function normalisePayment(
             normalised,
     )
         ? normalised as
-            ClubPaymentStatus
+              ClubPaymentStatus
         : 'not_due'
 }
 
@@ -229,6 +229,92 @@ function teamStorageKey(
     seasonId: string,
 ): string {
     return `tournamenthq-club-team:${organisationId}:${seasonId}`
+}
+
+
+type PlayerFormField =
+    | 'first_name'
+    | 'last_name'
+    | 'email'
+    | 'phone'
+    | 'squad_number'
+    | 'sign_on_fee_amount'
+
+type PlayerFormErrors = Partial<Record<PlayerFormField, string>>
+
+function isValidEmailAddress(value: string): boolean {
+    const trimmed = value.trim()
+    if (!trimmed) return true
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+}
+
+function isValidPhoneNumber(value: string): boolean {
+    const trimmed = value.trim()
+    if (!trimmed) return true
+    if (!/^[0-9+() .-]+$/.test(trimmed)) return false
+    if (trimmed.includes('+') && !trimmed.startsWith('+')) return false
+    if ((trimmed.match(/\+/g) ?? []).length > 1) return false
+    const digits = trimmed.replace(/\D/g, '').length
+    return digits >= 7 && digits <= 15
+}
+
+function validatePlayerForm(
+    values: ClubSquadMemberFormValues,
+): PlayerFormErrors {
+    const errors: PlayerFormErrors = {}
+
+    if (!values.first_name.trim()) {
+        errors.first_name = 'Enter the player’s first name.'
+    }
+
+    if (!values.last_name.trim()) {
+        errors.last_name = 'Enter the player’s last name.'
+    }
+
+    if (!isValidEmailAddress(values.email)) {
+        errors.email = 'Enter a valid email address or leave this blank.'
+    }
+
+    if (!isValidPhoneNumber(values.phone)) {
+        errors.phone = 'Enter a valid phone number containing 7 to 15 digits.'
+    }
+
+    if (values.squad_number.trim()) {
+        const squadNumber = Number(values.squad_number)
+        if (
+            !Number.isInteger(squadNumber) ||
+            squadNumber < 0 ||
+            squadNumber > 999
+        ) {
+            errors.squad_number =
+                'Squad number must be a whole number between 0 and 999.'
+        }
+    }
+
+    if (!values.sign_on_fee_amount.trim()) {
+        errors.sign_on_fee_amount =
+            'Enter the signing-on fee amount, or 0 if there is no fee.'
+    } else {
+        const amount = Number(values.sign_on_fee_amount)
+        if (!Number.isFinite(amount) || amount < 0) {
+            errors.sign_on_fee_amount =
+                'Signing-on fee must be 0 or a positive amount.'
+        }
+    }
+
+    return errors
+}
+
+const playerFieldErrorClassName =
+    'mt-1.5 block text-xs font-semibold text-red-300'
+
+function playerInputClassName(hasError: boolean): string {
+    return [
+        'mt-1 min-h-11 w-full rounded-xl bg-[#071009] px-3 text-white outline-none transition',
+        hasError
+            ? 'border border-red-400/70 focus:border-red-300 focus:ring-2 focus:ring-red-400/15'
+            : 'border border-white/10 focus:border-[#8cf566]/60 focus:ring-2 focus:ring-[#8cf566]/10',
+    ].join(' ')
 }
 
 export function SquadManager() {
@@ -316,6 +402,13 @@ export function SquadManager() {
         useState<string | null>(
             null,
         )
+
+
+    const [formErrors, setFormErrors] =
+        useState<PlayerFormErrors>({})
+
+    const [formSubmitError, setFormSubmitError] =
+        useState<string | null>(null)
 
     const selectedSeason =
         useMemo(
@@ -498,7 +591,7 @@ export function SquadManager() {
                     )
                 } catch (
                     caughtError
-                    ) {
+                ) {
                     console.error(
                         caughtError,
                     )
@@ -507,7 +600,7 @@ export function SquadManager() {
 
                     setError(
                         caughtError instanceof
-                        Error
+                            Error
                             ? caughtError.message
                             : 'Unable to load squad.',
                     )
@@ -531,7 +624,7 @@ export function SquadManager() {
 
                 setError(
                     caughtError instanceof
-                    Error
+                        Error
                         ? caughtError.message
                         : 'Unable to load seasons.',
                 )
@@ -550,7 +643,7 @@ export function SquadManager() {
 
                 setError(
                     caughtError instanceof
-                    Error
+                        Error
                         ? caughtError.message
                         : 'Unable to load teams for this season.',
                 )
@@ -590,7 +683,7 @@ export function SquadManager() {
                         ) ||
                     String(
                         member.squad_number ??
-                        '',
+                            '',
                     ).includes(
                         term,
                     ),
@@ -644,7 +737,7 @@ export function SquadManager() {
     >(
         key: K,
         value:
-        ClubSquadMemberFormValues[K],
+            ClubSquadMemberFormValues[K],
     ) {
         setForm(
             previous => ({
@@ -652,12 +745,31 @@ export function SquadManager() {
                 [key]: value,
             }),
         )
+
+        setFormSubmitError(null)
+
+        if (
+            key === 'first_name' ||
+            key === 'last_name' ||
+            key === 'email' ||
+            key === 'phone' ||
+            key === 'squad_number' ||
+            key === 'sign_on_fee_amount'
+        ) {
+            setFormErrors((current) => {
+                const next = { ...current }
+                delete next[key]
+                return next
+            })
+        }
     }
 
     function openCreate() {
         setEditingMember(null)
         setForm(emptyForm)
         setShowForm(true)
+        setFormErrors({})
+        setFormSubmitError(null)
         setError(null)
     }
 
@@ -668,11 +780,11 @@ export function SquadManager() {
 
         setForm({
             first_name:
-            member.player
-                .first_name,
+                member.player
+                    .first_name,
             last_name:
-            member.player
-                .last_name,
+                member.player
+                    .last_name,
             email:
                 member.player.email ??
                 '',
@@ -684,26 +796,28 @@ export function SquadManager() {
                 null
                     ? ''
                     : String(
-                        member.squad_number,
-                    ),
+                          member.squad_number,
+                      ),
             position:
                 member.position ??
                 '',
             registration_status:
-            member.registration_status,
+                member.registration_status,
             sign_on_fee_amount:
                 String(
                     member.sign_on_fee_amount,
                 ),
             sign_on_fee_status:
-            member.sign_on_fee_status,
+                member.sign_on_fee_status,
             notes:
                 member.notes ?? '',
             active:
-            member.active,
+                member.active,
         })
 
         setShowForm(true)
+        setFormErrors({})
+        setFormSubmitError(null)
         setError(null)
     }
 
@@ -717,25 +831,45 @@ export function SquadManager() {
             !seasonId ||
             !teamId
         ) {
-            setError(
+            setFormSubmitError(
                 'Select a season and team before adding players.',
             )
             return
         }
 
-        if (
-            !form.first_name.trim() ||
-            !form.last_name.trim()
-        ) {
-            setError(
-                'First name and last name are required.',
+        const nextFormErrors =
+            validatePlayerForm(form)
+
+        setFormErrors(nextFormErrors)
+        setFormSubmitError(null)
+
+        if (Object.keys(nextFormErrors).length > 0) {
+            const fieldOrder: PlayerFormField[] = [
+                'first_name',
+                'last_name',
+                'email',
+                'phone',
+                'squad_number',
+                'sign_on_fee_amount',
+            ]
+            const firstInvalid = fieldOrder.find(
+                field => Boolean(nextFormErrors[field]),
             )
+
+            if (firstInvalid) {
+                window.setTimeout(() => {
+                    document
+                        .getElementById(`squad-player-${firstInvalid}`)
+                        ?.focus()
+                }, 0)
+            }
             return
         }
 
         try {
             setSaving(true)
             setError(null)
+            setFormSubmitError(null)
 
             if (editingMember) {
                 await clubSquadService
@@ -756,6 +890,8 @@ export function SquadManager() {
             setShowForm(false)
             setEditingMember(null)
             setForm(emptyForm)
+            setFormErrors({})
+            setFormSubmitError(null)
 
             setNotice(
                 editingMember
@@ -769,9 +905,8 @@ export function SquadManager() {
                 caughtError,
             )
 
-            setError(
-                caughtError instanceof
-                Error
+            setFormSubmitError(
+                caughtError instanceof Error
                     ? caughtError.message
                     : 'Unable to save player.',
             )
@@ -807,7 +942,7 @@ export function SquadManager() {
 
             setError(
                 caughtError instanceof
-                Error
+                    Error
                     ? caughtError.message
                     : 'Unable to remove player.',
             )
@@ -840,18 +975,18 @@ export function SquadManager() {
                             .last_name,
                         member.player
                             .email ??
-                        '',
+                            '',
                         member.player
                             .phone ??
-                        '',
+                            '',
                         member.squad_number,
                         member.position ??
-                        '',
+                            '',
                         member.registration_status,
                         member.sign_on_fee_amount,
                         member.sign_on_fee_status,
                         member.notes ??
-                        '',
+                            '',
                     ]
                         .map(
                             csvEscape,
@@ -994,13 +1129,13 @@ export function SquadManager() {
                             const value =
                                 (
                                     name:
-                                    string,
+                                        string,
                                 ) =>
                                     values[
                                         headers.indexOf(
                                             name,
                                         )
-                                        ] ??
+                                    ] ??
                                     ''
 
                             return {
@@ -1057,7 +1192,7 @@ export function SquadManager() {
 
             for (
                 const row of rows
-                ) {
+            ) {
                 await clubSquadService
                     .createMember(
                         organisationId,
@@ -1065,17 +1200,17 @@ export function SquadManager() {
                         teamId,
                         {
                             first_name:
-                            row.first_name,
+                                row.first_name,
                             last_name:
-                            row.last_name,
+                                row.last_name,
                             email:
-                            row.email,
+                                row.email,
                             phone:
-                            row.phone,
+                                row.phone,
                             squad_number:
-                            row.squad_number,
+                                row.squad_number,
                             position:
-                            row.position,
+                                row.position,
                             registration_status:
                                 normaliseRegistration(
                                     row.registration_status,
@@ -1088,7 +1223,7 @@ export function SquadManager() {
                                     row.sign_on_fee_status,
                                 ),
                             notes:
-                            row.notes,
+                                row.notes,
                             active:
                                 true,
                         },
@@ -1111,7 +1246,7 @@ export function SquadManager() {
 
             setError(
                 caughtError instanceof
-                Error
+                    Error
                     ? caughtError.message
                     : 'Unable to import CSV.',
             )
@@ -1197,7 +1332,7 @@ export function SquadManager() {
                             !seasonId ||
                             !teamId ||
                             members.length ===
-                            0
+                                0
                         }
                         onClick={
                             exportCsv
@@ -1386,45 +1521,30 @@ export function SquadManager() {
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
                         <thead className="border-b border-white/10 bg-black/20 text-xs uppercase tracking-wide text-slate-500">
-                        <tr>
-                            <th className="px-4 py-3">
-                                #
-                            </th>
-                            <th className="px-4 py-3">
-                                Player
-                            </th>
-                            <th className="px-4 py-3">
-                                Position
-                            </th>
-                            <th className="px-4 py-3">
-                                Registration
-                            </th>
-                            <th className="px-4 py-3">
-                                Signing-on
-                            </th>
-                            <th className="px-4 py-3 text-right">
-                                Actions
-                            </th>
-                        </tr>
+                            <tr>
+                                <th className="px-4 py-3">
+                                    #
+                                </th>
+                                <th className="px-4 py-3">
+                                    Player
+                                </th>
+                                <th className="px-4 py-3">
+                                    Position
+                                </th>
+                                <th className="px-4 py-3">
+                                    Registration
+                                </th>
+                                <th className="px-4 py-3">
+                                    Signing-on
+                                </th>
+                                <th className="px-4 py-3 text-right">
+                                    Actions
+                                </th>
+                            </tr>
                         </thead>
 
                         <tbody className="divide-y divide-white/10">
-                        {loading && (
-                            <tr>
-                                <td
-                                    colSpan={
-                                        6
-                                    }
-                                    className="px-4 py-12 text-center text-slate-400"
-                                >
-                                    Loading squad...
-                                </td>
-                            </tr>
-                        )}
-
-                        {!loading &&
-                            (!seasonId ||
-                                !teamId) && (
+                            {loading && (
                                 <tr>
                                     <td
                                         colSpan={
@@ -1432,147 +1552,162 @@ export function SquadManager() {
                                         }
                                         className="px-4 py-12 text-center text-slate-400"
                                     >
-                                        Select a season and team to manage its squad.
+                                        Loading squad...
                                     </td>
                                 </tr>
                             )}
 
-                        {!loading &&
-                            seasonId &&
-                            teamId &&
-                            filteredMembers.length ===
-                            0 && (
-                                <tr>
-                                    <td
-                                        colSpan={
-                                            6
-                                        }
-                                        className="px-4 py-12 text-center"
-                                    >
-                                        <Users className="mx-auto h-7 w-7 text-[#8cf566]" />
-
-                                        <strong className="mt-3 block text-white">
-                                            No squad players yet.
-                                        </strong>
-
-                                        <button
-                                            type="button"
-                                            onClick={
-                                                openCreate
+                            {!loading &&
+                                (!seasonId ||
+                                    !teamId) && (
+                                    <tr>
+                                        <td
+                                            colSpan={
+                                                6
                                             }
-                                            className="mt-3 text-sm font-bold text-[#8cf566]"
+                                            className="px-4 py-12 text-center text-slate-400"
                                         >
-                                            Add the first player
-                                        </button>
-                                    </td>
-                                </tr>
-                            )}
-
-                        {!loading &&
-                            filteredMembers.map(
-                                member => (
-                                    <tr
-                                        key={
-                                            member.id
-                                        }
-                                        className="text-slate-300"
-                                    >
-                                        <td className="px-4 py-3 font-black text-white">
-                                            {member.squad_number ??
-                                                '—'}
+                                            Select a season and team to manage its squad.
                                         </td>
+                                    </tr>
+                                )}
 
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-3">
+                            {!loading &&
+                                seasonId &&
+                                teamId &&
+                                filteredMembers.length ===
+                                    0 && (
+                                    <tr>
+                                        <td
+                                            colSpan={
+                                                6
+                                            }
+                                            className="px-4 py-12 text-center"
+                                        >
+                                            <Users className="mx-auto h-7 w-7 text-[#8cf566]" />
+
+                                            <strong className="mt-3 block text-white">
+                                                No squad players yet.
+                                            </strong>
+
+                                            <button
+                                                type="button"
+                                                onClick={
+                                                    openCreate
+                                                }
+                                                className="mt-3 text-sm font-bold text-[#8cf566]"
+                                            >
+                                                Add the first player
+                                            </button>
+                                        </td>
+                                    </tr>
+                                )}
+
+                            {!loading &&
+                                filteredMembers.map(
+                                    member => (
+                                        <tr
+                                            key={
+                                                member.id
+                                            }
+                                            className="text-slate-300"
+                                        >
+                                            <td className="px-4 py-3 font-black text-white">
+                                                {member.squad_number ??
+                                                    '—'}
+                                            </td>
+
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
                                                     <span className="grid h-9 w-9 place-items-center rounded-full bg-white/5">
                                                         <UserRound className="h-4 w-4" />
                                                     </span>
 
-                                                <div>
-                                                    <strong className="block text-white">
-                                                        {
-                                                            member
-                                                                .player
-                                                                .first_name
-                                                        }{' '}
-                                                        {
-                                                            member
-                                                                .player
-                                                                .last_name
-                                                        }
-                                                    </strong>
-
-                                                    <span className="text-xs text-slate-500">
-                                                            {member
+                                                    <div>
+                                                        <strong className="block text-white">
+                                                            {
+                                                                member
                                                                     .player
-                                                                    .email ??
+                                                                    .first_name
+                                                            }{' '}
+                                                            {
+                                                                member
+                                                                    .player
+                                                                    .last_name
+                                                            }
+                                                        </strong>
+
+                                                        <span className="text-xs text-slate-500">
+                                                            {member
+                                                                .player
+                                                                .email ??
                                                                 'No email'}
                                                         </span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
+                                            </td>
 
-                                        <td className="px-4 py-3">
-                                            {member.position ??
-                                                '—'}
-                                        </td>
+                                            <td className="px-4 py-3">
+                                                {member.position ??
+                                                    '—'}
+                                            </td>
 
-                                        <td className="px-4 py-3">
-                                            {
-                                                registrationOptions.find(
-                                                    option =>
-                                                        option.value ===
-                                                        member.registration_status,
-                                                )
-                                                    ?.label
-                                            }
-                                        </td>
-
-                                        <td className="px-4 py-3">
-                                            £
-                                            {member.sign_on_fee_amount.toFixed(
-                                                2,
-                                            )}{' '}
-                                            ·{' '}
-                                            {
-                                                paymentOptions.find(
-                                                    option =>
-                                                        option.value ===
-                                                        member.sign_on_fee_status,
-                                                )
-                                                    ?.label
-                                            }
-                                        </td>
-
-                                        <td className="px-4 py-3 text-right">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    openEdit(
-                                                        member,
+                                            <td className="px-4 py-3">
+                                                {
+                                                    registrationOptions.find(
+                                                        option =>
+                                                            option.value ===
+                                                            member.registration_status,
                                                     )
+                                                        ?.label
                                                 }
-                                                className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#8cf566]"
-                                                title="Edit player"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </button>
+                                            </td>
 
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setMemberToRemove(
-                                                        member,
+                                            <td className="px-4 py-3">
+                                                £
+                                                {member.sign_on_fee_amount.toFixed(
+                                                    2,
+                                                )}{' '}
+                                                ·{' '}
+                                                {
+                                                    paymentOptions.find(
+                                                        option =>
+                                                            option.value ===
+                                                            member.sign_on_fee_status,
                                                     )
+                                                        ?.label
                                                 }
-                                                className="rounded-lg border border-red-400/20 px-3 py-2 text-xs font-bold text-red-200"
-                                            >
-                                                Remove
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ),
-                            )}
+                                            </td>
+
+                                            <td className="px-4 py-3 text-right">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        openEdit(
+                                                            member,
+                                                        )
+                                                    }
+                                                    className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#8cf566]"
+                                                    title="Edit player"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setMemberToRemove(
+                                                            member,
+                                                        )
+                                                    }
+                                                    className="rounded-lg border border-red-400/20 px-3 py-2 text-xs font-bold text-red-200"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ),
+                                )}
                         </tbody>
                     </table>
                 </div>
@@ -1585,6 +1720,7 @@ export function SquadManager() {
                             onSubmit={
                                 saveMember
                             }
+                            noValidate
                             className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-lime-900/60 bg-[#0b1510] shadow-2xl"
                         >
                             <header className="flex items-start justify-between gap-4 border-b border-white/10 bg-black/20 p-6">
@@ -1624,21 +1760,43 @@ export function SquadManager() {
                                     disabled={
                                         saving
                                     }
-                                    onClick={() =>
-                                        setShowForm(
-                                            false,
-                                        )
-                                    }
+                                    onClick={() => {
+                                        setShowForm(false)
+                                        setFormErrors({})
+                                        setFormSubmitError(null)
+                                    }}
                                     className="text-sm font-bold text-slate-400"
                                 >
                                     Close
                                 </button>
                             </header>
 
+                            <div className="px-6 pt-6">
+                                {(formSubmitError || Object.keys(formErrors).length > 0) && (
+                                    <div
+                                        role="alert"
+                                        className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+                                    >
+                                        <strong className="block font-black">
+                                            Please check the highlighted fields.
+                                        </strong>
+                                        {formSubmitError && (
+                                            <span className="mt-1 block text-red-200">
+                                                {formSubmitError}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="grid gap-4 p-6 md:grid-cols-2">
                                 <label className="text-sm font-semibold text-slate-300">
                                     First name
+                                    <span className="ml-1 text-red-400">*</span>
                                     <input
+                                        id="squad-player-first_name"
+                                        required
+                                        aria-invalid={Boolean(formErrors.first_name)}
                                         value={
                                             form.first_name
                                         }
@@ -1650,13 +1808,22 @@ export function SquadManager() {
                                                     .value,
                                             )
                                         }
-                                        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
+                                        className={playerInputClassName(Boolean(formErrors.first_name))}
                                     />
+                                    {formErrors.first_name && (
+                                        <span className={playerFieldErrorClassName}>
+                                            {formErrors.first_name}
+                                        </span>
+                                    )}
                                 </label>
 
                                 <label className="text-sm font-semibold text-slate-300">
                                     Last name
+                                    <span className="ml-1 text-red-400">*</span>
                                     <input
+                                        id="squad-player-last_name"
+                                        required
+                                        aria-invalid={Boolean(formErrors.last_name)}
                                         value={
                                             form.last_name
                                         }
@@ -1668,19 +1835,26 @@ export function SquadManager() {
                                                     .value,
                                             )
                                         }
-                                        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
+                                        className={playerInputClassName(Boolean(formErrors.last_name))}
                                     />
+                                    {formErrors.last_name && (
+                                        <span className={playerFieldErrorClassName}>
+                                            {formErrors.last_name}
+                                        </span>
+                                    )}
                                 </label>
 
                                 <label className="text-sm font-semibold text-slate-300">
                                     Squad number
                                     <input
+                                        id="squad-player-squad_number"
                                         type="number"
                                         min="0"
                                         max="999"
                                         value={
                                             form.squad_number
                                         }
+                                        aria-invalid={Boolean(formErrors.squad_number)}
                                         onChange={event =>
                                             updateForm(
                                                 'squad_number',
@@ -1689,8 +1863,13 @@ export function SquadManager() {
                                                     .value,
                                             )
                                         }
-                                        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
+                                        className={playerInputClassName(Boolean(formErrors.squad_number))}
                                     />
+                                    {formErrors.squad_number && (
+                                        <span className={playerFieldErrorClassName}>
+                                            {formErrors.squad_number}
+                                        </span>
+                                    )}
                                 </label>
 
                                 <label className="text-sm font-semibold text-slate-300">
@@ -1715,7 +1894,9 @@ export function SquadManager() {
                                 <label className="text-sm font-semibold text-slate-300">
                                     Email
                                     <input
+                                        id="squad-player-email"
                                         type="email"
+                                        aria-invalid={Boolean(formErrors.email)}
                                         value={
                                             form.email
                                         }
@@ -1727,13 +1908,21 @@ export function SquadManager() {
                                                     .value,
                                             )
                                         }
-                                        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
+                                        className={playerInputClassName(Boolean(formErrors.email))}
                                     />
+                                    {formErrors.email && (
+                                        <span className={playerFieldErrorClassName}>
+                                            {formErrors.email}
+                                        </span>
+                                    )}
                                 </label>
 
                                 <label className="text-sm font-semibold text-slate-300">
                                     Phone
                                     <input
+                                        id="squad-player-phone"
+                                        inputMode="tel"
+                                        aria-invalid={Boolean(formErrors.phone)}
                                         value={
                                             form.phone
                                         }
@@ -1745,8 +1934,13 @@ export function SquadManager() {
                                                     .value,
                                             )
                                         }
-                                        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
+                                        className={playerInputClassName(Boolean(formErrors.phone))}
                                     />
+                                    {formErrors.phone && (
+                                        <span className={playerFieldErrorClassName}>
+                                            {formErrors.phone}
+                                        </span>
+                                    )}
                                 </label>
 
                                 <label className="text-sm font-semibold text-slate-300">
@@ -1789,13 +1983,17 @@ export function SquadManager() {
 
                                 <label className="text-sm font-semibold text-slate-300">
                                     Signing-on fee (£)
+                                    <span className="ml-1 text-red-400">*</span>
                                     <input
+                                        id="squad-player-sign_on_fee_amount"
+                                        required
                                         type="number"
                                         min="0"
                                         step="0.01"
                                         value={
                                             form.sign_on_fee_amount
                                         }
+                                        aria-invalid={Boolean(formErrors.sign_on_fee_amount)}
                                         onChange={event =>
                                             updateForm(
                                                 'sign_on_fee_amount',
@@ -1804,8 +2002,13 @@ export function SquadManager() {
                                                     .value,
                                             )
                                         }
-                                        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
+                                        className={playerInputClassName(Boolean(formErrors.sign_on_fee_amount))}
                                     />
+                                    {formErrors.sign_on_fee_amount && (
+                                        <span className={playerFieldErrorClassName}>
+                                            {formErrors.sign_on_fee_amount}
+                                        </span>
+                                    )}
                                 </label>
 
                                 <label className="text-sm font-semibold text-slate-300">
@@ -1888,11 +2091,11 @@ export function SquadManager() {
                                     disabled={
                                         saving
                                     }
-                                    onClick={() =>
-                                        setShowForm(
-                                            false,
-                                        )
-                                    }
+                                    onClick={() => {
+                                        setShowForm(false)
+                                        setFormErrors({})
+                                        setFormSubmitError(null)
+                                    }}
                                     className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-bold text-white"
                                 >
                                     Cancel
@@ -1908,8 +2111,8 @@ export function SquadManager() {
                                     {saving
                                         ? 'Saving...'
                                         : editingMember
-                                            ? 'Save Changes'
-                                            : 'Add Player'}
+                                          ? 'Save Changes'
+                                          : 'Add Player'}
                                 </button>
                             </div>
                         </form>

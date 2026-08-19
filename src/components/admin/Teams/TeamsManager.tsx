@@ -80,18 +80,6 @@ export function TeamsManager({
     const isClubOrganisation =
         currentOrganisation.organisation_type === 'club'
 
-    const canonicalClub =
-        isClubOrganisation
-            ? clubs.find(
-                  (club) =>
-                      club.name.trim().localeCompare(
-                          currentOrganisation.name.trim(),
-                          undefined,
-                          { sensitivity: 'base' }
-                      ) === 0
-              ) ?? clubs[0] ?? null
-            : null
-
     const [venues, setVenues] =
         useState<TeamVenueOption[]>([])
 
@@ -172,6 +160,12 @@ export function TeamsManager({
         'success' | 'error' | 'info'
     >('success')
 
+
+    const [
+        teamModalError,
+        setTeamModalError,
+    ] = useState('')
+
     function showToast(
         message: string,
         type:
@@ -184,6 +178,13 @@ export function TeamsManager({
     }
 
     const loadClubs = useCallback(async () => {
+        if (isClubOrganisation) {
+            // Club workspaces own teams directly through organisation_id.
+            // They do not require a separate row in public.clubs.
+            setClubs([])
+            return
+        }
+
         const { data, error } =
             await supabase
                 .from('clubs')
@@ -197,84 +198,17 @@ export function TeamsManager({
                 })
 
         if (error) {
-            setToastMessage(error.message)
+            setToastMessage(
+                `TournamentHQ could not load clubs: ${error.message}`
+            )
             setToastType('error')
+            setClubs([])
             return
         }
 
-        let nextClubs =
-            (data ?? []) as ClubOption[]
-
-        if (
-            isClubOrganisation &&
-            nextClubs.length === 0
-        ) {
-            const {
-                data: createdClub,
-                error: createClubError,
-            } = await supabase
-                .from('clubs')
-                .insert({
-                    organisation_id:
-                        currentOrganisation.id,
-                    name:
-                        currentOrganisation.name.trim(),
-                })
-                .select('id, name')
-                .single()
-
-            if (createClubError) {
-                setToastMessage(
-                    `TournamentHQ could not initialise the club record: ${createClubError.message}`
-                )
-                setToastType('error')
-                return
-            }
-
-            nextClubs = [createdClub]
-        }
-
-        if (isClubOrganisation) {
-            const primaryClub =
-                nextClubs.find(
-                    (club) =>
-                        club.name.trim().localeCompare(
-                            currentOrganisation.name.trim(),
-                            undefined,
-                            { sensitivity: 'base' }
-                        ) === 0
-                ) ?? nextClubs[0] ?? null
-
-            if (primaryClub) {
-                setClubId((current) =>
-                    current || primaryClub.id
-                )
-
-                const { error: repairError } =
-                    await supabase
-                        .from('teams')
-                        .update({
-                            club_id: primaryClub.id,
-                        })
-                        .eq(
-                            'organisation_id',
-                            currentOrganisation.id
-                        )
-                        .is('club_id', null)
-
-                if (repairError) {
-                    setToastMessage(
-                        `The club was loaded, but existing teams could not be linked automatically: ${repairError.message}`
-                    )
-                    setToastType('error')
-                }
-            }
-        }
-
-        setClubs(nextClubs)
+        setClubs((data ?? []) as ClubOption[])
     }, [
         currentOrganisation.id,
-        currentOrganisation.name,
         isClubOrganisation,
     ])
 
@@ -311,12 +245,9 @@ export function TeamsManager({
     }, [loadClubs, loadVenues])
 
     function resetForm() {
+        setTeamModalError('')
         setEditingTeam(null)
-        setClubId(
-            isClubOrganisation
-                ? canonicalClub?.id ?? ''
-                : ''
-        )
+        setClubId('')
         setTeamName('')
         setAgeGroup('')
         setYearGroup('')
@@ -351,11 +282,7 @@ export function TeamsManager({
         team: DbTeam
     ) {
         setEditingTeam(team)
-        setClubId(
-            team.club_id ??
-                canonicalClub?.id ??
-                ''
-        )
+        setClubId(team.club_id ?? '')
         setTeamName(team.name)
         setAgeGroup(
             team.age_group ?? ''
@@ -448,13 +375,34 @@ export function TeamsManager({
                 .insert({
                     organisation_id:
                     currentOrganisation.id,
+                    competition_id: null,
                     name: venueName,
+                    address: null,
+                    postcode: null,
+                    notes: null,
                 })
                 .select('id, name')
                 .single()
 
         if (error) {
-            throw error
+            console.error(
+                'Failed to create organisation home venue:',
+                error
+            )
+
+            throw new Error(
+                [
+                    error.message,
+                    error.details,
+                    error.hint,
+                ]
+                    .filter(
+                        (value): value is string =>
+                            typeof value === 'string' &&
+                            value.trim().length > 0
+                    )
+                    .join(' · ')
+            )
         }
 
         const createdVenue =
@@ -480,25 +428,24 @@ export function TeamsManager({
     async function saveTeam(
         draft: TeamModalDraft
     ) {
-        const effectiveClubId =
+        const effectiveClubId: string | null =
             isClubOrganisation
-                ? canonicalClub?.id ?? draft.clubId
-                : draft.clubId
+                ? editingTeam?.club_id ?? null
+                : draft.clubId || null
 
-        if (!effectiveClubId) {
-            showToast(
-                isClubOrganisation
-                    ? 'Your club workspace is still initialising. Please try again in a moment.'
-                    : 'Select a club.',
-                'error'
+        if (
+            !isClubOrganisation &&
+            !effectiveClubId
+        ) {
+            setTeamModalError(
+                'Select the club this team belongs to.'
             )
             return
         }
 
         if (!draft.teamName.trim()) {
-            showToast(
-                'Team name is required.',
-                'error'
+            setTeamModalError(
+                'Enter the team name.'
             )
             return
         }
@@ -507,9 +454,8 @@ export function TeamsManager({
             !draft.createNewVenue &&
             !draft.primaryHomeVenueId
         ) {
-            showToast(
-                'A primary home venue is required.',
-                'error'
+            setTeamModalError(
+                'Select a primary home venue or choose Add new venue.'
             )
             return
         }
@@ -520,9 +466,8 @@ export function TeamsManager({
                 .groundName
                 .trim()
         ) {
-            showToast(
-                'Enter the ground or venue name.',
-                'error'
+            setTeamModalError(
+                'Enter the ground or venue name.'
             )
             return
         }
@@ -542,14 +487,14 @@ export function TeamsManager({
                 parsedYearGroup < 1900 ||
                 parsedYearGroup > 2200
             ) {
-                showToast(
-                    'Enter a valid year group.',
-                    'error'
+                setTeamModalError(
+                    'Enter a valid year group between 1900 and 2200.'
                 )
                 return
             }
         }
 
+        setTeamModalError('')
         setIsSaving(true)
 
         try {
@@ -647,12 +592,13 @@ export function TeamsManager({
                     : 'Team and home venue created successfully.'
             )
         } catch (error) {
-            showToast(
+            const message =
                 error instanceof Error
                     ? error.message
-                    : 'Failed to save team.',
-                'error'
-            )
+                    : 'Failed to save team.'
+
+            setTeamModalError(message)
+            showToast(message, 'error')
         } finally {
             setIsSaving(false)
         }
@@ -744,19 +690,6 @@ export function TeamsManager({
         }
     }
 
-    const displayTeams =
-        isClubOrganisation && canonicalClub
-            ? teams.map((team) =>
-                  team.club_id
-                      ? team
-                      : {
-                            ...team,
-                            club_id:
-                                canonicalClub.id,
-                        }
-              )
-            : teams
-
     return (
         <div className="space-y-6 font-sans">
             <Toast
@@ -788,10 +721,6 @@ export function TeamsManager({
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
                     type="button"
                     onClick={openAddTeamModal}
-                    disabled={
-                        isClubOrganisation &&
-                        !canonicalClub
-                    }
                 >
                     <Plus className="h-5 w-5" />
                     Add Team
@@ -799,7 +728,7 @@ export function TeamsManager({
             </section>
 
             <TeamsTable
-                teams={displayTeams}
+                teams={teams}
                 clubs={clubs}
                 onEdit={
                     openEditTeamModal
@@ -849,15 +778,18 @@ export function TeamsManager({
                     clubs={clubs}
                     venues={venues}
                     isSaving={isSaving}
+                    saveError={teamModalError}
                     clubSelectionLocked={
                         isClubOrganisation
                     }
                     lockedClubName={
-                        canonicalClub?.name ??
                         currentOrganisation.name
                     }
                     onClose={
                         closeTeamModal
+                    }
+                    onClearSaveError={() =>
+                        setTeamModalError('')
                     }
                     onSave={saveTeam}
                 />

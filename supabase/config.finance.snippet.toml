@@ -1,0 +1,28 @@
+# MERGE these sections into your existing supabase/config.toml.
+# Do NOT replace your complete config.toml with this snippet.
+#
+# These Finance functions are called from the authenticated TournamentHQ web
+# client through supabase.functions.invoke, so keep the platform JWT check on.
+# The functions also perform organisation/finance-role checks inside
+# _shared/clubFinance.ts.
+
+[functions.club-finance-dashboard]
+verify_jwt = true
+
+[functions.club-finance-charges]
+verify_jwt = true
+
+[functions.club-finance-payments]
+verify_jwt = true
+
+[functions.club-finance-expenses]
+verify_jwt = true
+
+[functions.club-finance-income]
+verify_jwt = true
+
+[functions.club-finance-ledger]
+verify_jwt = true
+
+[functions.club-finance-reports]
+verify_jwt = true

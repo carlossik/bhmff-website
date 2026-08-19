@@ -90,6 +90,7 @@ export type AdminModule =
     | 'Venues'
     | 'Sports Officials'
     | 'Fixtures'
+    | 'Match Centre'
     | 'Results'
     | 'Goals'
     | 'Sponsors'
@@ -100,6 +101,7 @@ export type AdminModule =
     | 'Opponents'
     | 'Squad'
     | 'Statistics'
+    | 'Club Finance'
     | 'Platform Operations'
 
 const organisationOwnerModules: readonly AdminModule[] = [
@@ -116,6 +118,7 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Venues',
     'Sports Officials',
     'Fixtures',
+    'Match Centre',
     'Results',
     'Goals',
     'Sponsors',
@@ -126,6 +129,7 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Opponents',
     'Squad',
     'Statistics',
+    'Club Finance',
 ]
 
 const roleModules: Record<
@@ -158,11 +162,13 @@ const roleModules: Record<
         'Venues',
         'Sports Officials',
         'Fixtures',
+        'Match Centre',
         'Results',
         'Goals',
         'Opponents',
         'Squad',
         'Statistics',
+        'Club Finance',
     ],
 
     super_admin:
@@ -186,6 +192,7 @@ export type OrganisationCapability =
     | 'public_site'
     | 'user_access'
     | 'ai_scheduling'
+    | 'club_finance'
 
 const organisationTypeCapabilities: Record<
     OrganisationType,
@@ -220,6 +227,7 @@ const organisationTypeCapabilities: Record<
         'sponsors',
         'public_site',
         'user_access',
+        'club_finance',
     ],
 }
 
@@ -238,6 +246,7 @@ const moduleCapabilities: Partial<
     Venues: 'fixture_management',
     'Sports Officials': 'officials_management',
     Fixtures: 'fixture_management',
+    'Match Centre': 'squad_management',
     Results: 'results_management',
     Goals: 'statistics',
     Sponsors: 'sponsors',
@@ -247,6 +256,7 @@ const moduleCapabilities: Partial<
     Opponents: 'opponent_management',
     Squad: 'squad_management',
     Statistics: 'statistics',
+    'Club Finance': 'club_finance',
 }
 
 export function getOrganisationCapabilities(

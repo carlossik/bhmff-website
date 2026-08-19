@@ -10,6 +10,7 @@ import OfficialsPage from '../pages/OfficialsPage'
 import {
     Activity,
     BadgeCheck,
+    Banknote,
     BarChart3,
     Bot,
     Building2,
@@ -17,6 +18,7 @@ import {
     ChevronDown,
     CircleAlert,
     CircleUserRound,
+    ClipboardList,
     CreditCard,
     ExternalLink,
     Flag,
@@ -44,6 +46,7 @@ import { TeamsManager } from './admin/Teams/TeamsManager'
 import ClubSeasonsManager from './admin/Seasons/ClubSeasonsManager'
 import { SquadManager } from './admin/Squad/SquadManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
+import { ClubMatchCentre } from './admin/MatchCentre/ClubMatchCentre'
 import { VenuesManager } from './admin/Venues/VenuesManager'
 import { ResultsManager } from './admin/Results/ResultsManager'
 import type { DbTeam } from './admin/Teams/teamTypes'
@@ -59,6 +62,7 @@ import { ClubProfileWebsiteManager } from './admin/ClubProfile/ClubProfileWebsit
 import { AdminHeader } from './admin/AdminHeader'
 import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTeamsManager'
 import { PlatformOperationsDashboard } from './admin/PlatformOperations/PlatformOperationsDashboard'
+import { ClubFinanceDashboard } from './admin/ClubFinance/ClubFinanceDashboard'
 import { TournamentHQBrand } from './common/TournamentHQBrand'
 import '../styles/adminTournamentHQTheme.css'
 
@@ -87,6 +91,7 @@ type NavigationSectionId =
     | 'competition'
     | 'tools'
     | 'operations'
+    | 'finance'
     | 'content'
     | 'platform'
     | 'administration'
@@ -193,12 +198,29 @@ const navigationSections: readonly NavigationSection[] = [
                 icon: CalendarDays,
             },
             {
+                module: 'Match Centre',
+                icon: ClipboardList,
+                featured: true,
+            },
+            {
                 module: 'Results',
                 icon: BarChart3,
             },
             {
                 module: 'Goals',
                 icon: Target,
+            },
+        ],
+    },
+    {
+        id: 'finance',
+        title: 'Finance',
+        icon: Banknote,
+        items: [
+            {
+                module: 'Club Finance',
+                icon: Banknote,
+                featured: true,
             },
         ],
     },
@@ -262,6 +284,7 @@ const defaultExpandedSections: Record<
     competition: true,
     tools: true,
     operations: true,
+    finance: true,
     content: false,
     platform: true,
     administration: false,
@@ -2270,11 +2293,17 @@ export function AdminPortal({
             case 'Fixtures':
                 return <FixturesManager />
 
+            case 'Match Centre':
+                return <ClubMatchCentre />
+
             case 'Results':
                 return <ResultsManager />
 
             case 'Goals':
                 return <GoalsManager />
+
+            case 'Club Finance':
+                return <ClubFinanceDashboard />
 
             case 'Sponsors':
                 return <SponsorsManager />

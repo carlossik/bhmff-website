@@ -55,9 +55,11 @@ type TeamModalProps = {
     clubs: ClubOption[]
     venues: TeamVenueOption[]
     isSaving: boolean
+    saveError?: string
     clubSelectionLocked?: boolean
     lockedClubName?: string
     onClose: () => void
+    onClearSaveError?: () => void
     onSave: (draft: TeamModalDraft) => void
 }
 
@@ -72,6 +74,31 @@ const optionClassName =
 
 const labelClassName =
     'block text-sm font-semibold text-[var(--thq-text,#ffffff)]/80'
+
+type TeamModalFieldErrors = Partial<Record<
+    | 'clubId'
+    | 'teamName'
+    | 'yearGroup'
+    | 'primaryHomeVenueId'
+    | 'groundName'
+    | 'logo',
+    string
+>>
+
+const errorTextClassName =
+    'mt-2 block text-xs font-semibold text-red-300'
+
+function inputClassName(hasError: boolean) {
+    return hasError
+        ? `${fieldClassName} !border-red-400/70 focus:!border-red-300 focus:!ring-red-400/20`
+        : fieldClassName
+}
+
+function validatedSelectClassName(hasError: boolean) {
+    return hasError
+        ? `${selectClassName} !border-red-400/70 focus:!border-red-300 focus:!ring-red-400/20`
+        : selectClassName
+}
 
 export function TeamModal({
                               mode,
@@ -93,9 +120,11 @@ export function TeamModal({
                               clubs,
                               venues,
                               isSaving,
+                              saveError = '',
                               clubSelectionLocked = false,
                               lockedClubName = '',
                               onClose,
+                              onClearSaveError,
                               onSave,
                           }: TeamModalProps) {
     /*
@@ -130,6 +159,9 @@ export function TeamModal({
 
     const [preview, setPreview] =
         useState(logoUrl)
+
+    const [fieldErrors, setFieldErrors] =
+        useState<TeamModalFieldErrors>({})
 
     useEffect(() => {
         const previousOverflow =
@@ -184,11 +216,112 @@ export function TeamModal({
             ...current,
             [key]: value,
         }))
+
+        onClearSaveError?.()
+
+        setFieldErrors((current) => {
+            const next = { ...current }
+
+            if (key === 'clubId') delete next.clubId
+            if (key === 'teamName') delete next.teamName
+            if (key === 'yearGroup') delete next.yearGroup
+            if (key === 'primaryHomeVenueId') {
+                delete next.primaryHomeVenueId
+            }
+            if (key === 'newVenueDraft') delete next.groundName
+            if (key === 'selectedLogo') delete next.logo
+
+            return next
+        })
+    }
+
+    function validateDraft(): TeamModalFieldErrors {
+        const nextErrors: TeamModalFieldErrors = {}
+
+        if (!clubSelectionLocked && !draft.clubId) {
+            nextErrors.clubId = 'Select the club this team belongs to.'
+        }
+
+        if (!draft.teamName.trim()) {
+            nextErrors.teamName = 'Enter the team name.'
+        }
+
+        if (draft.yearGroup.trim()) {
+            const parsedYear = Number(draft.yearGroup)
+
+            if (
+                !Number.isInteger(parsedYear) ||
+                parsedYear < 1900 ||
+                parsedYear > 2200
+            ) {
+                nextErrors.yearGroup =
+                    'Enter a valid year group between 1900 and 2200.'
+            }
+        }
+
+        if (draft.createNewVenue) {
+            if (!draft.newVenueDraft.groundName.trim()) {
+                nextErrors.groundName =
+                    'Enter the ground or venue name.'
+            }
+        } else if (!draft.primaryHomeVenueId) {
+            nextErrors.primaryHomeVenueId =
+                'Select a primary home venue or choose Add new venue.'
+        }
+
+        if (
+            draft.selectedLogo &&
+            !draft.selectedLogo.type.startsWith('image/')
+        ) {
+            nextErrors.logo = 'Select a valid image file for the team logo.'
+        }
+
+        return nextErrors
+    }
+
+    function focusFirstInvalidField(errors: TeamModalFieldErrors) {
+        const order: Array<keyof TeamModalFieldErrors> = [
+            'clubId',
+            'teamName',
+            'yearGroup',
+            'primaryHomeVenueId',
+            'groundName',
+            'logo',
+        ]
+
+        const first = order.find((key) => Boolean(errors[key]))
+        if (!first) return
+
+        const idByField: Record<keyof TeamModalFieldErrors, string> = {
+            clubId: 'team-club',
+            teamName: 'team-name',
+            yearGroup: 'team-year-group',
+            primaryHomeVenueId: 'team-home-venue',
+            groundName: 'team-new-venue-name',
+            logo: 'team-logo',
+        }
+
+        window.setTimeout(() => {
+            document.getElementById(idByField[first])?.focus()
+        }, 0)
+    }
+
+    function handleSave() {
+        const nextErrors = validateDraft()
+        setFieldErrors(nextErrors)
+
+        if (Object.keys(nextErrors).length > 0) {
+            focusFirstInvalidField(nextErrors)
+            return
+        }
+
+        onSave(draft)
     }
 
     function handleLogoChange(
         event: ChangeEvent<HTMLInputElement>
     ) {
+        onClearSaveError?.()
         const file =
             event.currentTarget.files?.[0] ??
             null
@@ -204,6 +337,15 @@ export function TeamModal({
     }
 
     function toggleVenueMode() {
+        onClearSaveError?.()
+
+        setFieldErrors((current) => {
+            const next = { ...current }
+            delete next.primaryHomeVenueId
+            delete next.groundName
+            return next
+        })
+
         setDraft((current) => ({
             ...current,
             createNewVenue:
@@ -266,7 +408,7 @@ export function TeamModal({
 
                             <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
                                 {clubSelectionLocked
-                                    ? 'Create or update a team for this club, set its home venue and control its public status.'
+                                    ? 'Create or update a team in this club workspace, set its home venue and control its public status.'
                                     : 'Create or update a team, assign its club and home venue, and control its public competition status.'}
                             </p>
                         </div>
@@ -284,18 +426,36 @@ export function TeamModal({
                 </header>
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+                    {(saveError || Object.keys(fieldErrors).length > 0) && (
+                        <div
+                            role="alert"
+                            className="mb-5 rounded-2xl border border-red-400/35 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+                        >
+                            <strong className="block font-black">
+                                {Object.keys(fieldErrors).length > 0
+                                    ? 'Please check the highlighted fields.'
+                                    : 'We could not save this team.'}
+                            </strong>
+                            {saveError && (
+                                <span className="mt-1 block text-red-200">
+                                    {saveError}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                         {clubSelectionLocked ? (
                             <div className="rounded-2xl border border-lime-700/30 bg-lime-400/5 px-4 py-3 md:col-span-2">
                                 <span className="text-xs font-bold uppercase tracking-[0.14em] text-lime-400">
-                                    Club
+                                    Club workspace
                                 </span>
                                 <p className="mt-1 text-sm font-bold text-white">
                                     {lockedClubName ||
                                         'Current club'}
                                 </p>
                                 <p className="mt-1 text-xs leading-5 text-slate-400">
-                                    This team is automatically linked to your club. You do not need to select it again.
+                                    This team belongs directly to this club workspace. No separate club record is required.
                                 </p>
                             </div>
                         ) : (
@@ -305,9 +465,11 @@ export function TeamModal({
                                     *
                                 </span>
                                 <select
-                                    className={selectClassName}
+                                    id="team-club"
+                                    className={validatedSelectClassName(Boolean(fieldErrors.clubId))}
                                     style={{ colorScheme: 'dark' }}
                                     value={draft.clubId}
+                                    aria-invalid={Boolean(fieldErrors.clubId)}
                                     disabled={isSaving}
                                     onChange={(event) =>
                                         updateDraft(
@@ -329,6 +491,11 @@ export function TeamModal({
                                         </option>
                                     ))}
                                 </select>
+                                {fieldErrors.clubId && (
+                                    <span className={errorTextClassName}>
+                                        {fieldErrors.clubId}
+                                    </span>
+                                )}
                             </label>
                         )}
 
@@ -338,9 +505,12 @@ export function TeamModal({
                                 *
                             </span>
                             <input
+                                id="team-name"
                                 autoFocus
-                                className={fieldClassName}
+                                required
+                                className={inputClassName(Boolean(fieldErrors.teamName))}
                                 value={draft.teamName}
+                                aria-invalid={Boolean(fieldErrors.teamName)}
                                 placeholder="e.g. U15 Reds"
                                 disabled={isSaving}
                                 onChange={(event) =>
@@ -350,6 +520,11 @@ export function TeamModal({
                                     )
                                 }
                             />
+                            {fieldErrors.teamName && (
+                                <span className={errorTextClassName}>
+                                    {fieldErrors.teamName}
+                                </span>
+                            )}
                         </label>
 
                         <label className={labelClassName}>
@@ -371,11 +546,13 @@ export function TeamModal({
                         <label className={labelClassName}>
                             Year group
                             <input
-                                className={fieldClassName}
+                                id="team-year-group"
+                                className={inputClassName(Boolean(fieldErrors.yearGroup))}
                                 type="number"
                                 min="1900"
                                 max="2200"
                                 value={draft.yearGroup}
+                                aria-invalid={Boolean(fieldErrors.yearGroup)}
                                 placeholder="e.g. 2011"
                                 disabled={isSaving}
                                 onChange={(event) =>
@@ -385,6 +562,11 @@ export function TeamModal({
                                     )
                                 }
                             />
+                            {fieldErrors.yearGroup && (
+                                <span className={errorTextClassName}>
+                                    {fieldErrors.yearGroup}
+                                </span>
+                            )}
                         </label>
 
                         <label className={labelClassName}>
@@ -524,8 +706,11 @@ export function TeamModal({
                                             *
                                         </span>
                                         <input
-                                            className={fieldClassName}
+                                            id="team-new-venue-name"
+                                            required
+                                            className={inputClassName(Boolean(fieldErrors.groundName))}
                                             value={draft.newVenueDraft.groundName}
+                                            aria-invalid={Boolean(fieldErrors.groundName)}
                                             placeholder="e.g. Meridian Sports Ground"
                                             disabled={isSaving}
                                             onChange={(event) =>
@@ -539,6 +724,11 @@ export function TeamModal({
                                                 )
                                             }
                                         />
+                                        {fieldErrors.groundName && (
+                                            <span className={errorTextClassName}>
+                                                {fieldErrors.groundName}
+                                            </span>
+                                        )}
                                     </label>
 
                                     <label className={labelClassName}>
@@ -577,9 +767,12 @@ export function TeamModal({
                                 <label className={`${labelClassName} mt-5`}>
                                     Existing venue or pitch
                                     <select
-                                        className={selectClassName}
+                                        id="team-home-venue"
+                                        required
+                                        className={validatedSelectClassName(Boolean(fieldErrors.primaryHomeVenueId))}
                                         style={{ colorScheme: 'dark' }}
                                         value={draft.primaryHomeVenueId}
+                                        aria-invalid={Boolean(fieldErrors.primaryHomeVenueId)}
                                         disabled={isSaving}
                                         onChange={(event) =>
                                             updateDraft(
@@ -601,6 +794,11 @@ export function TeamModal({
                                             </option>
                                         ))}
                                     </select>
+                                    {fieldErrors.primaryHomeVenueId && (
+                                        <span className={errorTextClassName}>
+                                            {fieldErrors.primaryHomeVenueId}
+                                        </span>
+                                    )}
                                 </label>
                             )}
                         </div>
@@ -623,7 +821,9 @@ export function TeamModal({
                                     Display on public website
                                 </span>
                                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                                    Make this team visible on public competition pages.
+                                    {clubSelectionLocked
+                                        ? 'Make this team visible on the club public website.'
+                                        : 'Make this team visible on public competition pages.'}
                                 </p>
                             </div>
                         </label>
@@ -649,13 +849,22 @@ export function TeamModal({
                                     />
                                 )}
 
-                                <input
-                                    className={`${fieldClassName} mt-0 file:mr-4 file:rounded-lg file:border-0 file:bg-lime-400 file:px-4 file:py-2 file:text-sm file:font-bold file:text-black hover:file:bg-lime-300`}
+                                <div className="w-full">
+                                    <input
+                                    id="team-logo"
+                                    className={`${inputClassName(Boolean(fieldErrors.logo))} mt-0 file:mr-4 file:rounded-lg file:border-0 file:bg-lime-400 file:px-4 file:py-2 file:text-sm file:font-bold file:text-black hover:file:bg-lime-300`}
                                     type="file"
                                     accept="image/*"
                                     disabled={isSaving}
                                     onChange={handleLogoChange}
+                                    aria-invalid={Boolean(fieldErrors.logo)}
                                 />
+                                    {fieldErrors.logo && (
+                                        <span className={errorTextClassName}>
+                                            {fieldErrors.logo}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -692,7 +901,7 @@ export function TeamModal({
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-500 px-5 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         type="button"
                         disabled={isSaving}
-                        onClick={() => onSave(draft)}
+                        onClick={handleSave}
                     >
                         <Save className="h-4 w-4" />
                         {isSaving
