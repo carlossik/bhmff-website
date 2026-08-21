@@ -6,16 +6,30 @@ import {
     type ChangeEvent,
 } from 'react'
 import {
-    ImagePlus,
+    ExternalLink,
+    Globe2,
+    Image as ImageIcon,
+    LoaderCircle,
     Palette,
+    Power,
+    PowerOff,
     Save,
     Trash2,
 } from 'lucide-react'
 
 import { useOrganisation } from '../../../context/OrganisationContext'
 import { supabase } from '../../../lib/supabaseClient'
+import { ConfirmDialog } from '../../common/ConfirmDialog/ConfirmDialog'
 
-type BrandingState = {
+type BrandingField =
+    | 'primary_colour'
+    | 'secondary_colour'
+    | 'accent_colour'
+    | 'background_colour'
+    | 'surface_colour'
+    | 'text_colour'
+
+type BrandingForm = {
     logo_url: string
     primary_colour: string
     secondary_colour: string
@@ -23,30 +37,26 @@ type BrandingState = {
     background_colour: string
     surface_colour: string
     text_colour: string
+}
+
+type OrganisationSettingsRow = {
+    logo_url: string | null
+    primary_colour: string | null
+    secondary_colour: string | null
+    accent_colour: string | null
+    background_colour: string | null
+    surface_colour: string | null
+    text_colour: string | null
     public_site_enabled: boolean
+    updated_at: string | null
 }
 
-type ColourField = {
-    field:
-        | 'primary_colour'
-        | 'secondary_colour'
-        | 'accent_colour'
-        | 'background_colour'
-        | 'surface_colour'
-        | 'text_colour'
-    label: string
+type WebsiteStatusRow = {
+    public_site_enabled: boolean
+    updated_at: string | null
 }
 
-const colourFields: ColourField[] = [
-    { field: 'primary_colour', label: 'Primary' },
-    { field: 'secondary_colour', label: 'Secondary' },
-    { field: 'accent_colour', label: 'Accent' },
-    { field: 'background_colour', label: 'Background' },
-    { field: 'surface_colour', label: 'Surface' },
-    { field: 'text_colour', label: 'Text' },
-]
-
-const defaults: BrandingState = {
+const DEFAULT_BRANDING: BrandingForm = {
     logo_url: '',
     primary_colour: '#84CC16',
     secondary_colour: '#0F172A',
@@ -54,150 +64,265 @@ const defaults: BrandingState = {
     background_colour: '#071006',
     surface_colour: '#10190F',
     text_colour: '#FFFFFF',
-    public_site_enabled: true,
 }
 
-function isHex(value: string) {
-    return /^#[0-9a-fA-F]{6}$/.test(value)
+const COLOUR_FIELDS: ReadonlyArray<{
+    field: BrandingField
+    label: string
+}> = [
+    {
+        field: 'primary_colour',
+        label: 'Primary',
+    },
+    {
+        field: 'secondary_colour',
+        label: 'Secondary',
+    },
+    {
+        field: 'accent_colour',
+        label: 'Accent',
+    },
+    {
+        field: 'background_colour',
+        label: 'Background',
+    },
+    {
+        field: 'surface_colour',
+        label: 'Surface',
+    },
+    {
+        field: 'text_colour',
+        label: 'Text',
+    },
+]
+
+function normaliseColour(
+    value: string | null,
+    fallback: string,
+): string {
+    const trimmed = value?.trim()
+
+    if (!trimmed) {
+        return fallback
+    }
+
+    return trimmed.toUpperCase()
+}
+
+function isValidHexColour(value: string): boolean {
+    return /^#[0-9A-F]{6}$/i.test(value.trim())
+}
+
+function formatUpdatedAt(value: string | null): string {
+    if (!value) {
+        return 'Not recorded'
+    }
+
+    const date = new Date(value)
+
+    if (Number.isNaN(date.getTime())) {
+        return 'Not recorded'
+    }
+
+    return new Intl.DateTimeFormat('en-GB', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(date)
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message
+    }
+
+    if (
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof error.message === 'string'
+    ) {
+        return error.message
+    }
+
+    return 'The setting could not be updated.'
 }
 
 export function ClubProfileWebsiteManager() {
-    const { currentOrganisation } =
-        useOrganisation()
+    const { currentOrganisation } = useOrganisation()
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-    const [form, setForm] =
-        useState<BrandingState>(defaults)
-    const [loading, setLoading] =
-        useState(true)
-    const [saving, setSaving] =
+    const [branding, setBranding] =
+        useState<BrandingForm>(DEFAULT_BRANDING)
+    const [websiteEnabled, setWebsiteEnabled] =
         useState(false)
-    const [uploading, setUploading] =
+    const [lastUpdatedAt, setLastUpdatedAt] =
+        useState<string | null>(null)
+
+    const [loading, setLoading] = useState(true)
+    const [savingBranding, setSavingBranding] =
         useState(false)
-    const [message, setMessage] =
-        useState('')
-    const [error, setError] =
-        useState('')
-    const fileInputRef =
-        useRef<HTMLInputElement | null>(null)
+    const [uploadingLogo, setUploadingLogo] =
+        useState(false)
+    const [updatingWebsite, setUpdatingWebsite] =
+        useState(false)
+    const [confirmDisable, setConfirmDisable] =
+        useState(false)
+
+    const [message, setMessage] = useState('')
+    const [errorMessage, setErrorMessage] = useState('')
+
+    const publicSiteUrl = useMemo(
+        () =>
+            `${window.location.origin}/${encodeURIComponent(
+                currentOrganisation.slug.trim(),
+            )}`,
+        [currentOrganisation.slug],
+    )
+
+    const previewStyle = useMemo(
+        () => ({
+            background: branding.background_colour,
+            color: branding.text_colour,
+            borderColor: `${branding.accent_colour}45`,
+        }),
+        [branding],
+    )
 
     useEffect(() => {
         let disposed = false
 
-        async function load() {
+        async function loadSettings() {
             setLoading(true)
-            setError('')
+            setMessage('')
+            setErrorMessage('')
 
-            const { data, error: loadError } =
-                await supabase
-                    .from('organisations')
-                    .select(`
-                        logo_url,
-                        primary_colour,
-                        secondary_colour,
-                        accent_colour,
-                        background_colour,
-                        surface_colour,
-                        text_colour,
-                        public_site_enabled
-                    `)
-                    .eq('id', currentOrganisation.id)
-                    .single()
+            const { data, error } = await supabase
+                .from('organisations')
+                .select(`
+                    logo_url,
+                    primary_colour,
+                    secondary_colour,
+                    accent_colour,
+                    background_colour,
+                    surface_colour,
+                    text_colour,
+                    public_site_enabled,
+                    updated_at
+                `)
+                .eq('id', currentOrganisation.id)
+                .single()
 
-            if (disposed) return
+            if (disposed) {
+                return
+            }
 
-            if (loadError) {
-                setError(loadError.message)
+            if (error) {
+                setErrorMessage(error.message)
                 setLoading(false)
                 return
             }
 
-            setForm({
-                logo_url: data.logo_url ?? '',
-                primary_colour:
-                    data.primary_colour ?? defaults.primary_colour,
-                secondary_colour:
-                    data.secondary_colour ?? defaults.secondary_colour,
-                accent_colour:
-                    data.accent_colour ?? defaults.accent_colour,
-                background_colour:
-                    data.background_colour ?? defaults.background_colour,
-                surface_colour:
-                    data.surface_colour ?? defaults.surface_colour,
-                text_colour:
-                    data.text_colour ?? defaults.text_colour,
-                public_site_enabled:
-                    data.public_site_enabled ?? true,
+            const row = data as OrganisationSettingsRow
+
+            setBranding({
+                logo_url: row.logo_url ?? '',
+                primary_colour: normaliseColour(
+                    row.primary_colour,
+                    DEFAULT_BRANDING.primary_colour,
+                ),
+                secondary_colour: normaliseColour(
+                    row.secondary_colour,
+                    DEFAULT_BRANDING.secondary_colour,
+                ),
+                accent_colour: normaliseColour(
+                    row.accent_colour,
+                    DEFAULT_BRANDING.accent_colour,
+                ),
+                background_colour: normaliseColour(
+                    row.background_colour,
+                    DEFAULT_BRANDING.background_colour,
+                ),
+                surface_colour: normaliseColour(
+                    row.surface_colour,
+                    DEFAULT_BRANDING.surface_colour,
+                ),
+                text_colour: normaliseColour(
+                    row.text_colour,
+                    DEFAULT_BRANDING.text_colour,
+                ),
             })
+            setWebsiteEnabled(row.public_site_enabled)
+            setLastUpdatedAt(row.updated_at)
             setLoading(false)
         }
 
-        void load()
+        void loadSettings()
 
         return () => {
             disposed = true
         }
     }, [currentOrganisation.id])
 
-    const previewStyle = useMemo(
-        () => ({
-            background: form.background_colour,
-            color: form.text_colour,
-            borderColor: `${form.accent_colour}45`,
-        }),
-        [form],
-    )
-
     function updateColour(
-        field: ColourField['field'],
+        field: BrandingField,
         value: string,
     ) {
-        setForm((current) => ({
+        setBranding((current) => ({
             ...current,
             [field]: value.toUpperCase(),
         }))
         setMessage('')
-        setError('')
+        setErrorMessage('')
     }
 
-    async function uploadLogo(
+    async function handleLogoUpload(
         event: ChangeEvent<HTMLInputElement>,
     ) {
         const file = event.target.files?.[0]
-        if (!file) return
 
-        const allowed = [
-            'image/png',
-            'image/jpeg',
-            'image/webp',
-            'image/svg+xml',
-        ]
+        if (!file) {
+            return
+        }
 
-        if (!allowed.includes(file.type)) {
-            setError('Use a PNG, JPG, WebP or SVG logo.')
+        if (
+            ![
+                'image/png',
+                'image/jpeg',
+                'image/webp',
+                'image/svg+xml',
+            ].includes(file.type)
+        ) {
+            setErrorMessage(
+                'Use a PNG, JPG, WebP or SVG logo.',
+            )
             event.target.value = ''
             return
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            setError('The logo must be 5 MB or smaller.')
+            setErrorMessage(
+                'The logo must be 5 MB or smaller.',
+            )
             event.target.value = ''
             return
         }
 
-        setUploading(true)
-        setError('')
+        setUploadingLogo(true)
         setMessage('')
+        setErrorMessage('')
 
         try {
             const extension =
-                file.name.split('.').pop()?.toLowerCase() || 'png'
-            const filePath =
-                `${currentOrganisation.id}/organisation-branding/${crypto.randomUUID()}.${extension}`
+                file.name
+                    .split('.')
+                    .pop()
+                    ?.toLowerCase() || 'png'
+            const path = `${currentOrganisation.id}/organisation-branding/${crypto.randomUUID()}.${extension}`
 
             const { error: uploadError } =
                 await supabase.storage
                     .from('organisation-assets')
-                    .upload(filePath, file, {
+                    .upload(path, file, {
                         cacheControl: '3600',
                         contentType: file.type,
                         upsert: false,
@@ -207,88 +332,222 @@ export function ClubProfileWebsiteManager() {
                 throw uploadError
             }
 
-            const { data } =
+            const { data: publicUrlData } =
                 supabase.storage
                     .from('organisation-assets')
-                    .getPublicUrl(filePath)
+                    .getPublicUrl(path)
 
-            if (!data.publicUrl) {
-                throw new Error('Supabase did not return a public logo URL.')
+            if (!publicUrlData.publicUrl) {
+                throw new Error(
+                    'Supabase did not return a public logo URL.',
+                )
             }
 
-            setForm((current) => ({
+            setBranding((current) => ({
                 ...current,
-                logo_url: data.publicUrl,
+                logo_url: publicUrlData.publicUrl,
             }))
-            setMessage('Logo uploaded. Save changes to publish it.')
-        } catch (uploadError) {
-            setError(
-                uploadError instanceof Error
-                    ? uploadError.message
-                    : 'The logo could not be uploaded.',
+            setMessage(
+                'Logo uploaded. Save Branding to publish it.',
             )
+        } catch (error) {
+            setErrorMessage(getErrorMessage(error))
         } finally {
-            setUploading(false)
+            setUploadingLogo(false)
             event.target.value = ''
         }
     }
 
-    async function save() {
-        const invalidColour =
-            colourFields.find(
-                ({ field }) =>
-                    !isHex(form[field]),
-            )
+    async function saveBranding() {
+        const invalidField = COLOUR_FIELDS.find(
+            ({ field }) =>
+                !isValidHexColour(branding[field]),
+        )
 
-        if (invalidColour) {
-            setError(
-                `${invalidColour.label} colour must be a six-digit hex value.`,
+        if (invalidField) {
+            setErrorMessage(
+                `${invalidField.label} colour must be a six-digit hex value.`,
             )
             return
         }
 
-        setSaving(true)
-        setError('')
+        setSavingBranding(true)
         setMessage('')
+        setErrorMessage('')
 
-        const { error: saveError } =
-            await supabase
+        const now = new Date().toISOString()
+
+        try {
+            const { data, error } = await supabase
                 .from('organisations')
                 .update({
                     logo_url:
-                        form.logo_url.trim() || null,
+                        branding.logo_url.trim() || null,
                     primary_colour:
-                        form.primary_colour,
+                        branding.primary_colour,
                     secondary_colour:
-                        form.secondary_colour,
+                        branding.secondary_colour,
                     accent_colour:
-                        form.accent_colour,
+                        branding.accent_colour,
                     background_colour:
-                        form.background_colour,
+                        branding.background_colour,
                     surface_colour:
-                        form.surface_colour,
-                    text_colour:
-                        form.text_colour,
-                    public_site_enabled:
-                        form.public_site_enabled,
+                        branding.surface_colour,
+                    text_colour: branding.text_colour,
+                    updated_at: now,
                 })
                 .eq('id', currentOrganisation.id)
+                .select(`
+                    logo_url,
+                    primary_colour,
+                    secondary_colour,
+                    accent_colour,
+                    background_colour,
+                    surface_colour,
+                    text_colour,
+                    public_site_enabled,
+                    updated_at
+                `)
+                .maybeSingle()
 
-        if (saveError) {
-            setError(saveError.message)
-            setSaving(false)
+            if (error) {
+                throw error
+            }
+
+            if (!data) {
+                throw new Error(
+                    'The branding update could not be verified.',
+                )
+            }
+
+            const verified = data as OrganisationSettingsRow
+
+            setBranding({
+                logo_url: verified.logo_url ?? '',
+                primary_colour: normaliseColour(
+                    verified.primary_colour,
+                    DEFAULT_BRANDING.primary_colour,
+                ),
+                secondary_colour: normaliseColour(
+                    verified.secondary_colour,
+                    DEFAULT_BRANDING.secondary_colour,
+                ),
+                accent_colour: normaliseColour(
+                    verified.accent_colour,
+                    DEFAULT_BRANDING.accent_colour,
+                ),
+                background_colour: normaliseColour(
+                    verified.background_colour,
+                    DEFAULT_BRANDING.background_colour,
+                ),
+                surface_colour: normaliseColour(
+                    verified.surface_colour,
+                    DEFAULT_BRANDING.surface_colour,
+                ),
+                text_colour: normaliseColour(
+                    verified.text_colour,
+                    DEFAULT_BRANDING.text_colour,
+                ),
+            })
+            setWebsiteEnabled(
+                verified.public_site_enabled,
+            )
+            setLastUpdatedAt(verified.updated_at)
+            setMessage(
+                'Club branding saved successfully.',
+            )
+        } catch (error) {
+            setErrorMessage(getErrorMessage(error))
+        } finally {
+            setSavingBranding(false)
+        }
+    }
+
+    async function updateWebsiteStatus(
+        enabled: boolean,
+    ) {
+        if (updatingWebsite) {
             return
         }
 
-        setMessage('Club branding and public website settings saved.')
-        setSaving(false)
+        const previousValue = websiteEnabled
+
+        setUpdatingWebsite(true)
+        setMessage('')
+        setErrorMessage('')
+
+        const now = new Date().toISOString()
+
+        try {
+            const { data, error } = await supabase
+                .from('organisations')
+                .update({
+                    public_site_enabled: enabled,
+                    updated_at: now,
+                })
+                .eq('id', currentOrganisation.id)
+                .select(
+                    'public_site_enabled,updated_at',
+                )
+                .maybeSingle()
+
+            if (error) {
+                throw error
+            }
+
+            if (!data) {
+                throw new Error(
+                    'The public website setting could not be verified.',
+                )
+            }
+
+            const verified = data as WebsiteStatusRow
+
+            if (
+                verified.public_site_enabled !== enabled
+            ) {
+                throw new Error(
+                    'Supabase returned a different website status than requested.',
+                )
+            }
+
+            setWebsiteEnabled(
+                verified.public_site_enabled,
+            )
+            setLastUpdatedAt(verified.updated_at)
+            setMessage(
+                enabled
+                    ? 'Public website is now LIVE.'
+                    : 'Public website is now OFFLINE.',
+            )
+        } catch (error) {
+            setWebsiteEnabled(previousValue)
+            setErrorMessage(getErrorMessage(error))
+        } finally {
+            setUpdatingWebsite(false)
+        }
+    }
+
+    function requestWebsiteStatusChange() {
+        if (updatingWebsite) {
+            return
+        }
+
+        if (websiteEnabled) {
+            setConfirmDisable(true)
+            return
+        }
+
+        void updateWebsiteStatus(true)
     }
 
     if (loading) {
         return (
             <div className="teamsEmptyState">
                 <h3>Loading club profile</h3>
-                <p>Loading your public website branding.</p>
+                <p>
+                    Loading your public website settings.
+                </p>
             </div>
         )
     }
@@ -300,34 +559,149 @@ export function ClubProfileWebsiteManager() {
                     <h3>Club Profile &amp; Website</h3>
                     <p className="muted">
                         Manage the crest, colours and public-site appearance for{' '}
-                        <strong>{currentOrganisation.name}</strong>.
+                        <strong>
+                            {currentOrganisation.name}
+                        </strong>
+                        .
                     </p>
                 </div>
 
                 <button
                     type="button"
                     className="inline-flex items-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-black text-[var(--organisation-on-accent)] transition hover:brightness-110 disabled:opacity-60"
-                    disabled={saving || uploading}
-                    onClick={() => void save()}
+                    disabled={
+                        savingBranding ||
+                        uploadingLogo ||
+                        updatingWebsite
+                    }
+                    onClick={() => void saveBranding()}
                 >
                     <Save className="h-4 w-4" />
-                    {saving ? 'Saving...' : 'Save Changes'}
+                    {savingBranding
+                        ? 'Saving Branding...'
+                        : 'Save Branding'}
                 </button>
             </div>
 
             {message && (
-                <p className="adminSuccessMessage">{message}</p>
+                <p className="adminSuccessMessage">
+                    {message}
+                </p>
             )}
-            {error && (
-                <p className="adminErrorMessage">{error}</p>
+
+            {errorMessage && (
+                <p className="adminErrorMessage">
+                    {errorMessage}
+                </p>
             )}
+
+            <section className="rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-4">
+                        <div
+                            className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${
+                                websiteEnabled
+                                    ? 'bg-emerald-500/15 text-emerald-300'
+                                    : 'bg-slate-500/15 text-slate-400'
+                            }`}
+                        >
+                            {websiteEnabled ? (
+                                <Globe2 className="h-6 w-6" />
+                            ) : (
+                                <PowerOff className="h-6 w-6" />
+                            )}
+                        </div>
+
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <h4 className="font-black">
+                                    Public Website
+                                </h4>
+                                <span
+                                    className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${
+                                        websiteEnabled
+                                            ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
+                                            : 'border-slate-600 bg-slate-800/60 text-slate-400'
+                                    }`}
+                                >
+                                    {updatingWebsite
+                                        ? 'Updating...'
+                                        : websiteEnabled
+                                          ? 'Live'
+                                          : 'Offline'}
+                                </span>
+                            </div>
+
+                            <p className="mt-2 max-w-3xl text-sm text-[var(--organisation-muted)]">
+                                {websiteEnabled
+                                    ? 'Your club website is currently visible to the public. Turning it off takes effect immediately.'
+                                    : 'Your club website is currently hidden from the public. Turning it on takes effect immediately.'}
+                            </p>
+
+                            <p className="mt-2 text-xs text-[var(--organisation-muted)] opacity-75">
+                                Last settings update:{' '}
+                                {formatUpdatedAt(lastUpdatedAt)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        {websiteEnabled && (
+                            <a
+                                href={publicSiteUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 rounded-xl border border-[var(--organisation-border)] px-4 py-2.5 text-sm font-bold no-underline transition hover:brightness-110"
+                                style={{
+                                    color: 'var(--organisation-text)',
+                                }}
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                View Public Site
+                            </a>
+                        )}
+
+                        <button
+                            type="button"
+                            aria-pressed={websiteEnabled}
+                            disabled={updatingWebsite}
+                            onClick={requestWebsiteStatusChange}
+                            className={`relative inline-flex min-w-[170px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                websiteEnabled
+                                    ? 'bg-rose-500/15 text-rose-200 ring-1 ring-inset ring-rose-400/30 hover:bg-rose-500/20'
+                                    : 'bg-emerald-500 text-slate-950 hover:brightness-110'
+                            }`}
+                        >
+                            {updatingWebsite ? (
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
+                            ) : websiteEnabled ? (
+                                <PowerOff className="h-4 w-4" />
+                            ) : (
+                                <Power className="h-4 w-4" />
+                            )}
+
+                            {updatingWebsite
+                                ? 'Updating...'
+                                : websiteEnabled
+                                  ? 'Take Website Offline'
+                                  : 'Make Website Live'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-sm text-[var(--organisation-muted)]">
+                    Website visibility is saved immediately. You do not need to click Save Branding after changing LIVE/OFFLINE status.
+                </div>
+            </section>
 
             <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
                 <section className="rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
                     <div className="flex items-center gap-3">
-                        <ImagePlus className="h-5 w-5 text-[var(--organisation-accent)]" />
+                        <ImageIcon className="h-5 w-5 text-[var(--organisation-accent)]" />
                         <div>
-                            <h4 className="font-black">Club crest / logo</h4>
+                            <h4 className="font-black">
+                                Club crest / logo
+                            </h4>
                             <p className="mt-1 text-sm text-[var(--organisation-muted)]">
                                 PNG, JPG, WebP or SVG. Maximum 5 MB.
                             </p>
@@ -335,9 +709,9 @@ export function ClubProfileWebsiteManager() {
                     </div>
 
                     <div className="mt-5 rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] p-5">
-                        {form.logo_url ? (
+                        {branding.logo_url ? (
                             <img
-                                src={form.logo_url}
+                                src={branding.logo_url}
                                 alt={`${currentOrganisation.name} logo`}
                                 className="mx-auto h-36 w-36 object-contain"
                             />
@@ -353,34 +727,45 @@ export function ClubProfileWebsiteManager() {
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/svg+xml"
                         className="hidden"
-                        onChange={(event) => void uploadLogo(event)}
+                        onChange={(event) =>
+                            void handleLogoUpload(event)
+                        }
                     />
 
                     <div className="mt-4 flex flex-wrap gap-3">
                         <button
                             type="button"
-                            className="inline-flex items-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-4 py-2.5 text-sm font-black text-[var(--organisation-on-accent)]"
-                            disabled={uploading}
-                            onClick={() => fileInputRef.current?.click()}
+                            className="inline-flex items-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-4 py-2.5 text-sm font-black text-[var(--organisation-on-accent)] disabled:opacity-60"
+                            disabled={uploadingLogo}
+                            onClick={() =>
+                                fileInputRef.current?.click()
+                            }
                         >
-                            <ImagePlus className="h-4 w-4" />
-                            {uploading
+                            {uploadingLogo ? (
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <ImageIcon className="h-4 w-4" />
+                            )}
+                            {uploadingLogo
                                 ? 'Uploading...'
-                                : form.logo_url
+                                : branding.logo_url
                                   ? 'Replace Logo'
                                   : 'Upload Logo'}
                         </button>
 
-                        {form.logo_url && (
+                        {branding.logo_url && (
                             <button
                                 type="button"
                                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--organisation-border)] px-4 py-2.5 text-sm font-bold"
-                                onClick={() =>
-                                    setForm((current) => ({
+                                onClick={() => {
+                                    setBranding((current) => ({
                                         ...current,
                                         logo_url: '',
                                     }))
-                                }
+                                    setMessage(
+                                        'Logo removed from the preview. Save Branding to publish the change.',
+                                    )
+                                }}
                             >
                                 <Trash2 className="h-4 w-4" />
                                 Remove Logo
@@ -393,61 +778,55 @@ export function ClubProfileWebsiteManager() {
                     <div className="flex items-center gap-3">
                         <Palette className="h-5 w-5 text-[var(--organisation-accent)]" />
                         <div>
-                            <h4 className="font-black">Public website colours</h4>
+                            <h4 className="font-black">
+                                Public website colours
+                            </h4>
                             <p className="mt-1 text-sm text-[var(--organisation-muted)]">
-                                These colours control the club's public-facing TournamentHQ site.
+                                These colours control the club&apos;s public-facing TournamentHQ site.
                             </p>
                         </div>
                     </div>
 
                     <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {colourFields.map(({ field, label }) => (
-                            <label
-                                key={field}
-                                className="rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] p-4"
-                            >
-                                <span className="text-sm font-black">{label}</span>
-                                <div className="mt-3 flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={form[field]}
-                                        onChange={(event) =>
-                                            updateColour(field, event.target.value)
-                                        }
-                                        className="h-11 w-14 cursor-pointer rounded-lg border border-[var(--organisation-border)] bg-transparent p-1"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={form[field]}
-                                        onChange={(event) =>
-                                            updateColour(field, event.target.value)
-                                        }
-                                        className="min-w-0 flex-1 rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-3 py-2 font-mono text-xs uppercase text-[var(--organisation-text)]"
-                                    />
-                                </div>
-                            </label>
-                        ))}
-                    </div>
+                        {COLOUR_FIELDS.map(
+                            ({ field, label }) => (
+                                <label
+                                    key={field}
+                                    className="rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] p-4"
+                                >
+                                    <span className="text-sm font-black">
+                                        {label}
+                                    </span>
 
-                    <label className="mt-5 flex items-start gap-3 rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] p-4">
-                        <input
-                            type="checkbox"
-                            checked={form.public_site_enabled}
-                            onChange={(event) =>
-                                setForm((current) => ({
-                                    ...current,
-                                    public_site_enabled: event.target.checked,
-                                }))
-                            }
-                            className="mt-1"
-                        />
-                        <span>
-                            <strong className="block">Enable public club website</strong>
-                            <span className="mt-1 block text-sm text-[var(--organisation-muted)]">
-                                Published fixtures, results, squad, media, news and sponsorship content remain available publicly.
-                            </span>
-                        </span>
-                    </label>
+                                    <div className="mt-3 flex items-center gap-3">
+                                        <input
+                                            type="color"
+                                            value={branding[field]}
+                                            onChange={(event) =>
+                                                updateColour(
+                                                    field,
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className="h-11 w-14 cursor-pointer rounded-lg border border-[var(--organisation-border)] bg-transparent p-1"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={branding[field]}
+                                            onChange={(event) =>
+                                                updateColour(
+                                                    field,
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className="min-w-0 flex-1 rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-3 py-2 font-mono text-xs uppercase text-[var(--organisation-text)]"
+                                            aria-label={`${label} colour hex value`}
+                                        />
+                                    </div>
+                                </label>
+                            ),
+                        )}
+                    </div>
                 </section>
             </div>
 
@@ -457,15 +836,17 @@ export function ClubProfileWebsiteManager() {
             >
                 <p
                     className="text-xs font-black uppercase tracking-[0.15em]"
-                    style={{ color: form.accent_colour }}
+                    style={{
+                        color: branding.accent_colour,
+                    }}
                 >
                     Live branding preview
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-4">
-                    {form.logo_url && (
+                    {branding.logo_url && (
                         <img
-                            src={form.logo_url}
+                            src={branding.logo_url}
                             alt="Club branding preview"
                             className="h-16 w-16 object-contain"
                         />
@@ -480,6 +861,30 @@ export function ClubProfileWebsiteManager() {
                     </div>
                 </div>
             </section>
+
+            {confirmDisable && (
+                <ConfirmDialog
+                    title="Take public website offline?"
+                    message={`This will immediately hide ${currentOrganisation.name}'s public website from visitors. Your admin data, teams, fixtures, results and content will remain safely stored and can be made public again at any time.`}
+                    confirmText={
+                        updatingWebsite
+                            ? 'Updating...'
+                            : 'Take Website Offline'
+                    }
+                    cancelText="Keep Website Live"
+                    onCancel={() => {
+                        if (!updatingWebsite) {
+                            setConfirmDisable(false)
+                        }
+                    }}
+                    onConfirm={() => {
+                        if (!updatingWebsite) {
+                            setConfirmDisable(false)
+                            void updateWebsiteStatus(false)
+                        }
+                    }}
+                />
+            )}
         </div>
     )
 }
