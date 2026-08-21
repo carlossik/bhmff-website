@@ -282,4 +282,12 @@ comment on function public.get_public_club_data(uuid) is
 revoke all on function public.get_public_club_data(uuid) from public;
 grant execute on function public.get_public_club_data(uuid) to anon, authenticated;
 
+-- The RPC above is now the ONLY public read boundary for club fixture rows.
+-- The legacy policy exposed every column on a published club_fixtures row to
+-- anonymous clients, including opponent contact details and private notes.
+-- RLS filters rows, not columns, so keeping that policy would defeat the
+-- field-level safety provided by the RPC.
+drop policy if exists club_fixtures_public_select
+    on public.club_fixtures;
+
 commit;
