@@ -16,6 +16,8 @@ import {
     FileText,
     HandCoins,
     LoaderCircle,
+    BellRing,
+    MessageSquareText,
     Plus,
     ReceiptText,
     RefreshCw,
@@ -28,6 +30,7 @@ import {
 } from 'lucide-react'
 
 import { useOrganisation } from '../../../context/OrganisationContext'
+import { CommunicationComposerModal } from '../Communications/CommunicationComposerModal'
 import { clubFinanceService } from '../../../services/clubFinanceService'
 import type {
     ClubFinanceCharge,
@@ -42,6 +45,9 @@ import type {
     ClubFinanceReport,
     ClubFinanceTeamPaymentModel,
 } from '../../../types/clubFinanceTypes'
+import type {
+    CommunicationRecipientDraft,
+} from '../../../types/communicationTypes'
 
 type FinanceTab =
     | 'overview'
@@ -328,6 +334,18 @@ export function ClubFinanceDashboard() {
     const [notice, setNotice] = useState<string | null>(null)
     const [search, setSearch] = useState('')
 
+    const [communicationOpen, setCommunicationOpen] = useState(false)
+    const [communicationRecipients, setCommunicationRecipients] =
+        useState<CommunicationRecipientDraft[]>([])
+    const [communicationTemplateCode, setCommunicationTemplateCode] =
+        useState('finance_payment_reminder')
+    const [communicationSourceType, setCommunicationSourceType] =
+        useState<string | null>(null)
+    const [communicationSourceId, setCommunicationSourceId] =
+        useState<string | null>(null)
+    const [communicationTitle, setCommunicationTitle] =
+        useState('Send payment reminder')
+
     const [paymentChargeId, setPaymentChargeId] = useState('')
     const [paymentPlayerId, setPaymentPlayerId] = useState('')
     const [paymentPurpose, setPaymentPurpose] = useState<PaymentPurposeSelection>('')
@@ -449,6 +467,227 @@ export function ClubFinanceDashboard() {
             dashboard?.access.role === 'team_manager' &&
             selectedTeamId !== null
         )
+
+    const communicationPlayer = useCallback(
+        (playerId: string) =>
+            referenceData.players.find(
+                (player) => player.id === playerId,
+            ) ?? null,
+        [referenceData.players],
+    )
+
+    const hasCommunicationContact = useCallback(
+        (playerId: string): boolean => {
+            const player = communicationPlayer(playerId)
+            return Boolean(
+                player?.email?.trim() ||
+                player?.phone?.trim(),
+            )
+        },
+        [communicationPlayer],
+    )
+
+    const overdueCommunicationStats = useMemo(() => {
+        const overduePlayers = new Set<string>()
+
+        for (const item of dashboard?.owing ?? []) {
+            if (item.overdue && item.outstandingAmount > 0) {
+                overduePlayers.add(item.playerId)
+            }
+        }
+
+        let email = 0
+        let mobile = 0
+        let contactable = 0
+
+        for (const playerId of overduePlayers) {
+            const player = communicationPlayer(playerId)
+            const hasEmail = Boolean(player?.email?.trim())
+            const hasMobile = Boolean(player?.phone?.trim())
+
+            if (hasEmail) email += 1
+            if (hasMobile) mobile += 1
+            if (hasEmail || hasMobile) contactable += 1
+        }
+
+        return {
+            total: overduePlayers.size,
+            email,
+            mobile,
+            contactable,
+            missingContact: overduePlayers.size - contactable,
+        }
+    }, [communicationPlayer, dashboard?.owing])
+
+    const openFinanceReminder = useCallback((item: {
+        id: string
+        playerId: string
+        playerName: string
+        chargeType: string
+        description: string | null
+        outstandingAmount: number
+        dueDate: string | null
+        overdue?: boolean
+        teamId?: string | null
+    }) => {
+        const player = communicationPlayer(item.playerId)
+
+        if (
+            !player?.email?.trim() &&
+            !player?.phone?.trim()
+        ) {
+            setNotice(
+                `No email address or mobile number is stored for ${item.playerName}. Add contact details before sending a reminder.`,
+            )
+            return
+        }
+
+        const overdue = item.overdue ?? (
+            Boolean(item.dueDate) &&
+            (item.dueDate ?? '') < today()
+        )
+        const feeDescription =
+            item.description?.trim() ||
+            chargeTypeLabel(item.chargeType)
+        const dueLine = item.dueDate
+            ? overdue
+                ? ` Payment was due on ${shortDate(item.dueDate)}.`
+                : ` Payment is due on ${shortDate(item.dueDate)}.`
+            : ''
+
+        setCommunicationRecipients([{
+            recipientName: item.playerName,
+            email: player?.email ?? null,
+            phone: player?.phone ?? null,
+            whatsappPhone: player?.phone ?? null,
+            playerId: item.playerId,
+            teamId: item.teamId ?? player?.teamId ?? null,
+            variables: {
+                amount_outstanding: money(
+                    item.outstandingAmount,
+                    currency,
+                ),
+                fee_description: feeDescription,
+                due_line: dueLine,
+            },
+        }])
+        setCommunicationTemplateCode(
+            overdue
+                ? 'finance_overdue_reminder'
+                : 'finance_payment_reminder',
+        )
+        setCommunicationSourceType('club_finance_charge')
+        setCommunicationSourceId(item.id)
+        setCommunicationTitle(
+            overdue
+                ? 'Send overdue payment reminder'
+                : 'Send payment reminder',
+        )
+        setCommunicationOpen(true)
+    }, [communicationPlayer, currency])
+
+    const openAllOverdueReminders = useCallback(() => {
+        if (!dashboard) return
+
+        type Aggregate = {
+            playerId: string
+            playerName: string
+            outstandingAmount: number
+            descriptions: Set<string>
+            oldestDueDate: string | null
+        }
+
+        const grouped = new Map<string, Aggregate>()
+
+        for (const item of dashboard.owing) {
+            if (!item.overdue || item.outstandingAmount <= 0) {
+                continue
+            }
+
+            const existing = grouped.get(item.playerId)
+            const description =
+                item.description?.trim() ||
+                chargeTypeLabel(item.chargeType)
+
+            if (existing) {
+                existing.outstandingAmount += item.outstandingAmount
+                existing.descriptions.add(description)
+                if (
+                    item.dueDate &&
+                    (
+                        !existing.oldestDueDate ||
+                        item.dueDate < existing.oldestDueDate
+                    )
+                ) {
+                    existing.oldestDueDate = item.dueDate
+                }
+            } else {
+                grouped.set(item.playerId, {
+                    playerId: item.playerId,
+                    playerName: item.playerName,
+                    outstandingAmount: item.outstandingAmount,
+                    descriptions: new Set([description]),
+                    oldestDueDate: item.dueDate,
+                })
+            }
+        }
+
+        const recipients = [...grouped.values()].map((item) => {
+            const player = communicationPlayer(item.playerId)
+            const descriptions = [...item.descriptions]
+            const feeDescription = descriptions.length === 1
+                ? descriptions[0]
+                : `${descriptions.length} outstanding fees`
+
+            return {
+                recipientName: item.playerName,
+                email: player?.email ?? null,
+                phone: player?.phone ?? null,
+                whatsappPhone: player?.phone ?? null,
+                playerId: item.playerId,
+                teamId: player?.teamId ?? null,
+                variables: {
+                    amount_outstanding: money(
+                        item.outstandingAmount,
+                        currency,
+                    ),
+                    fee_description: feeDescription,
+                    due_line: item.oldestDueDate
+                        ? ` The oldest balance was due on ${shortDate(item.oldestDueDate)}.`
+                        : '',
+                },
+            } satisfies CommunicationRecipientDraft
+        })
+
+        if (recipients.length === 0) {
+            setNotice('There are no overdue member balances to remind.')
+            return
+        }
+
+        if (
+            !recipients.some((recipient) =>
+                Boolean(
+                    recipient.email?.trim() ||
+                    recipient.phone?.trim() ||
+                    recipient.whatsappPhone?.trim(),
+                ),
+            )
+        ) {
+            setNotice(
+                'None of the overdue members currently has an email address or mobile number. Add contact details before sending reminders.',
+            )
+            return
+        }
+
+        setCommunicationRecipients(recipients)
+        setCommunicationTemplateCode('finance_overdue_reminder')
+        setCommunicationSourceType('club_finance_overdue_batch')
+        setCommunicationSourceId(null)
+        setCommunicationTitle(
+            `Remind ${recipients.length} overdue member${recipients.length === 1 ? '' : 's'}`,
+        )
+        setCommunicationOpen(true)
+    }, [communicationPlayer, currency, dashboard])
 
     const loadCore = useCallback(async (soft = false) => {
         if (!organisationId) return
@@ -1899,9 +2138,30 @@ export function ClubFinanceDashboard() {
                                         Players / members owing
                                     </h3>
                                 </div>
-                                <span className="rounded-lg bg-white/5 px-3 py-1 text-xs font-bold text-slate-300">
-                                    Overdue {money(summary.overdueTotal, currency)}
-                                </span>
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <span className="rounded-lg bg-white/5 px-3 py-1 text-xs font-bold text-slate-300">
+                                        Overdue {money(summary.overdueTotal, currency)}
+                                    </span>
+                                    {overdueCommunicationStats.total > 0 && (
+                                        <span
+                                            className="rounded-lg border border-sky-300/10 bg-sky-300/5 px-3 py-1 text-xs font-bold text-sky-200"
+                                            title={`${overdueCommunicationStats.email} with email · ${overdueCommunicationStats.mobile} with mobile · ${overdueCommunicationStats.missingContact} without contact details`}
+                                        >
+                                            Contactable {overdueCommunicationStats.contactable}/{overdueCommunicationStats.total}
+                                        </span>
+                                    )}
+                                    {fullFinanceAccess && overdueCommunicationStats.total > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={openAllOverdueReminders}
+                                            disabled={overdueCommunicationStats.contactable === 0}
+                                            className="inline-flex items-center gap-2 rounded-lg border border-[#8cf566]/25 bg-[#8cf566]/10 px-3 py-1.5 text-xs font-black text-[#8cf566] transition hover:bg-[#8cf566]/15 disabled:cursor-not-allowed disabled:opacity-45"
+                                        >
+                                            <BellRing className="h-3.5 w-3.5" />
+                                            Remind all overdue ({overdueCommunicationStats.total})
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="mt-4 overflow-x-auto">
@@ -1939,29 +2199,50 @@ export function ClubFinanceDashboard() {
                                                     {money(item.outstandingAmount, currency)}
                                                 </td>
                                                 <td className="py-3 text-right">
-                                                    {canCollectPayments && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => void openPayment({
-                                                                ...item,
-                                                                organisationId: organisationId ?? '',
-                                                                seasonId: selectedSeasonId ?? '',
-                                                                teamId: selectedTeamId ?? '',
-                                                                squadMemberId: null,
-                                                                fixtureId: null,
-                                                                matchEventId: null,
-                                                                payerId: null,
-                                                                chargeTypeId: null,
-                                                                feeRuleId: null,
-                                                                billingPeriod: null,
-                                                                currency,
-                                                                createdAt: '',
-                                                            })}
-                                                            className="rounded-lg border border-[#8cf566]/20 bg-[#8cf566]/10 px-3 py-1.5 text-xs font-black text-[#8cf566]"
-                                                        >
-                                                            Record payment
-                                                        </button>
-                                                    )}
+                                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                                        {fullFinanceAccess && (
+                                                            hasCommunicationContact(item.playerId) ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openFinanceReminder(item)}
+                                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300/20 bg-sky-300/10 px-3 py-1.5 text-xs font-black text-sky-200 transition hover:bg-sky-300/15"
+                                                                >
+                                                                    <MessageSquareText className="h-3.5 w-3.5" />
+                                                                    Notify
+                                                                </button>
+                                                            ) : (
+                                                                <span
+                                                                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-slate-500"
+                                                                    title="Add an email address or mobile number to this member before sending a reminder."
+                                                                >
+                                                                    No contact
+                                                                </span>
+                                                            )
+                                                        )}
+                                                        {canCollectPayments && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void openPayment({
+                                                                    ...item,
+                                                                    organisationId: organisationId ?? '',
+                                                                    seasonId: selectedSeasonId ?? '',
+                                                                    teamId: selectedTeamId ?? '',
+                                                                    squadMemberId: null,
+                                                                    fixtureId: null,
+                                                                    matchEventId: null,
+                                                                    payerId: null,
+                                                                    chargeTypeId: null,
+                                                                    feeRuleId: null,
+                                                                    billingPeriod: null,
+                                                                    currency,
+                                                                    createdAt: '',
+                                                                })}
+                                                                className="rounded-lg border border-[#8cf566]/20 bg-[#8cf566]/10 px-3 py-1.5 text-xs font-black text-[#8cf566]"
+                                                            >
+                                                                Record payment
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -2154,9 +2435,25 @@ export function ClubFinanceDashboard() {
                                         <td className="py-3 pr-4 font-black text-white">{money(charge.outstandingAmount, currency)}</td>
                                         <td className="py-3 pr-4"><span className={classNames('rounded-full border px-2 py-1 text-xs font-black', statusBadge(charge.status))}>{label(charge.status)}</span></td>
                                         <td className="py-3 text-right">
-                                            {canCollectPayments && charge.outstandingAmount > 0 && (
-                                                <button type="button" onClick={() => void openPayment(charge)} className="text-xs font-black text-[#8cf566] hover:underline">Payment</button>
-                                            )}
+                                            <div className="flex flex-wrap items-center justify-end gap-3">
+                                                {fullFinanceAccess && charge.outstandingAmount > 0 && (
+                                                    hasCommunicationContact(charge.playerId) ? (
+                                                        <button type="button" onClick={() => openFinanceReminder(charge)} className="inline-flex items-center gap-1.5 text-xs font-black text-sky-200 hover:text-sky-100">
+                                                            <MessageSquareText className="h-3.5 w-3.5" /> Notify
+                                                        </button>
+                                                    ) : (
+                                                        <span
+                                                            className="text-xs font-bold text-slate-600"
+                                                            title="Add an email address or mobile number to this member before sending a reminder."
+                                                        >
+                                                            No contact
+                                                        </span>
+                                                    )
+                                                )}
+                                                {canCollectPayments && charge.outstandingAmount > 0 && (
+                                                    <button type="button" onClick={() => void openPayment(charge)} className="text-xs font-black text-[#8cf566] hover:underline">Payment</button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -2499,6 +2796,25 @@ export function ClubFinanceDashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {organisationId && currentOrganisation && (
+                <CommunicationComposerModal
+                    open={communicationOpen}
+                    organisationId={organisationId}
+                    organisationName={currentOrganisation.name}
+                    recipients={communicationRecipients}
+                    defaultTemplateCode={communicationTemplateCode}
+                    sourceType={communicationSourceType}
+                    sourceId={communicationSourceId}
+                    title={communicationTitle}
+                    onClose={() => setCommunicationOpen(false)}
+                    onSent={(result) => {
+                        setNotice(
+                            `${result.accepted} reminder${result.accepted === 1 ? '' : 's'} accepted for delivery${result.skipped > 0 ? ` · ${result.skipped} skipped` : ''}${result.failed > 0 ? ` · ${result.failed} failed` : ''}.`,
+                        )
+                    }}
+                />
             )}
         </div>
     )

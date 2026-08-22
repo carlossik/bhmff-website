@@ -18,7 +18,6 @@ import {
     ChevronDown,
     CircleAlert,
     CircleUserRound,
-    ClipboardList,
     CreditCard,
     ExternalLink,
     Flag,
@@ -27,6 +26,7 @@ import {
     Layers3,
     LayoutDashboard,
     Mail,
+    MessagesSquare,
     MapPin,
     Newspaper,
     Palette,
@@ -46,7 +46,6 @@ import { TeamsManager } from './admin/Teams/TeamsManager'
 import ClubSeasonsManager from './admin/Seasons/ClubSeasonsManager'
 import { SquadManager } from './admin/Squad/SquadManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
-import { ClubMatchCentre } from './admin/MatchCentre/ClubMatchCentre'
 import { VenuesManager } from './admin/Venues/VenuesManager'
 import { ResultsManager } from './admin/Results/ResultsManager'
 import type { DbTeam } from './admin/Teams/teamTypes'
@@ -63,6 +62,7 @@ import { AdminHeader } from './admin/AdminHeader'
 import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTeamsManager'
 import { PlatformOperationsDashboard } from './admin/PlatformOperations/PlatformOperationsDashboard'
 import { ClubFinanceDashboard } from './admin/ClubFinance/ClubFinanceDashboard'
+import { CommunicationsManager } from './admin/Communications/CommunicationsManager'
 import { TournamentHQBrand } from './common/TournamentHQBrand'
 import '../styles/adminTournamentHQTheme.css'
 
@@ -88,6 +88,7 @@ import {
 
 type NavigationSectionId =
     | 'overview'
+    | 'communications'
     | 'competition'
     | 'tools'
     | 'operations'
@@ -118,6 +119,18 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Dashboard',
                 icon: LayoutDashboard,
+            },
+        ],
+    },
+    {
+        id: 'communications',
+        title: 'Communications',
+        icon: MessagesSquare,
+        items: [
+            {
+                module: 'Communications',
+                icon: MessagesSquare,
+                featured: true,
             },
         ],
     },
@@ -198,11 +211,6 @@ const navigationSections: readonly NavigationSection[] = [
                 icon: CalendarDays,
             },
             {
-                module: 'Match Centre',
-                icon: ClipboardList,
-                featured: true,
-            },
-            {
                 module: 'Results',
                 icon: BarChart3,
             },
@@ -281,6 +289,7 @@ const defaultExpandedSections: Record<
     boolean
 > = {
     overview: true,
+    communications: true,
     competition: true,
     tools: true,
     operations: true,
@@ -2293,9 +2302,6 @@ export function AdminPortal({
             case 'Fixtures':
                 return <FixturesManager />
 
-            case 'Match Centre':
-                return <ClubMatchCentre />
-
             case 'Results':
                 return <ResultsManager />
 
@@ -2304,6 +2310,9 @@ export function AdminPortal({
 
             case 'Club Finance':
                 return <ClubFinanceDashboard />
+
+            case 'Communications':
+                return <CommunicationsManager />
 
             case 'Sponsors':
                 return <SponsorsManager />

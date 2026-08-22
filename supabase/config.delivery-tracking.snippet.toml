@@ -1,0 +1,9 @@
+# Merge into supabase/config.toml
+
+[functions.communications]
+verify_jwt = true
+
+# Resend is an external provider and does not send a Supabase user JWT.
+# The function verifies Resend's Svix signature before doing any database work.
+[functions.resend-webhook]
+verify_jwt = false

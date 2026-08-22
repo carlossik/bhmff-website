@@ -90,7 +90,6 @@ export type AdminModule =
     | 'Venues'
     | 'Sports Officials'
     | 'Fixtures'
-    | 'Match Centre'
     | 'Results'
     | 'Goals'
     | 'Sponsors'
@@ -102,6 +101,7 @@ export type AdminModule =
     | 'Squad'
     | 'Statistics'
     | 'Club Finance'
+    | 'Communications'
     | 'Platform Operations'
 
 const organisationOwnerModules: readonly AdminModule[] = [
@@ -118,7 +118,6 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Venues',
     'Sports Officials',
     'Fixtures',
-    'Match Centre',
     'Results',
     'Goals',
     'Sponsors',
@@ -130,6 +129,7 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Squad',
     'Statistics',
     'Club Finance',
+    'Communications',
 ]
 
 const roleModules: Record<
@@ -162,13 +162,13 @@ const roleModules: Record<
         'Venues',
         'Sports Officials',
         'Fixtures',
-        'Match Centre',
         'Results',
         'Goals',
         'Opponents',
         'Squad',
         'Statistics',
         'Club Finance',
+        'Communications',
     ],
 
     super_admin:
@@ -193,6 +193,7 @@ export type OrganisationCapability =
     | 'user_access'
     | 'ai_scheduling'
     | 'club_finance'
+    | 'communications'
 
 const organisationTypeCapabilities: Record<
     OrganisationType,
@@ -212,6 +213,7 @@ const organisationTypeCapabilities: Record<
         'public_site',
         'user_access',
         'ai_scheduling',
+        'communications',
     ],
     club: [
         'season_management',
@@ -228,6 +230,7 @@ const organisationTypeCapabilities: Record<
         'public_site',
         'user_access',
         'club_finance',
+        'communications',
     ],
 }
 
@@ -246,7 +249,6 @@ const moduleCapabilities: Partial<
     Venues: 'fixture_management',
     'Sports Officials': 'officials_management',
     Fixtures: 'fixture_management',
-    'Match Centre': 'squad_management',
     Results: 'results_management',
     Goals: 'statistics',
     Sponsors: 'sponsors',
@@ -257,6 +259,7 @@ const moduleCapabilities: Partial<
     Squad: 'squad_management',
     Statistics: 'statistics',
     'Club Finance': 'club_finance',
+    Communications: 'communications',
 }
 
 export function getOrganisationCapabilities(
