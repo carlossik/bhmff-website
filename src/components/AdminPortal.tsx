@@ -8,9 +8,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Gavel } from 'lucide-react'
 import OfficialsPage from '../pages/OfficialsPage'
 import {
-    Activity,
     BadgeCheck,
-    Banknote,
     BarChart3,
     Bot,
     Building2,
@@ -26,7 +24,6 @@ import {
     Layers3,
     LayoutDashboard,
     Mail,
-    MessagesSquare,
     MapPin,
     Newspaper,
     Palette,
@@ -60,9 +57,6 @@ import OrganisationManager from './admin/Organisations/OrganisationManager'
 import { ClubProfileWebsiteManager } from './admin/ClubProfile/ClubProfileWebsiteManager'
 import { AdminHeader } from './admin/AdminHeader'
 import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTeamsManager'
-import { PlatformOperationsDashboard } from './admin/PlatformOperations/PlatformOperationsDashboard'
-import { ClubFinanceDashboard } from './admin/ClubFinance/ClubFinanceDashboard'
-import { CommunicationsManager } from './admin/Communications/CommunicationsManager'
 import { TournamentHQBrand } from './common/TournamentHQBrand'
 import '../styles/adminTournamentHQTheme.css'
 
@@ -81,20 +75,13 @@ import {
 
 import { useOrganisation } from '../context/OrganisationContext'
 import { useCompetition } from '../contexts/CompetitionContext'
-import {
-    captureProductionIssue,
-    installProductionTelemetry,
-} from '../services/productionTelemetry'
 
 type NavigationSectionId =
     | 'overview'
-    | 'communications'
     | 'competition'
     | 'tools'
     | 'operations'
-    | 'finance'
     | 'content'
-    | 'platform'
     | 'administration'
 
 type NavigationItem = {
@@ -119,18 +106,6 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Dashboard',
                 icon: LayoutDashboard,
-            },
-        ],
-    },
-    {
-        id: 'communications',
-        title: 'Communications',
-        icon: MessagesSquare,
-        items: [
-            {
-                module: 'Communications',
-                icon: MessagesSquare,
-                featured: true,
             },
         ],
     },
@@ -221,18 +196,6 @@ const navigationSections: readonly NavigationSection[] = [
         ],
     },
     {
-        id: 'finance',
-        title: 'Finance',
-        icon: Banknote,
-        items: [
-            {
-                module: 'Club Finance',
-                icon: Banknote,
-                featured: true,
-            },
-        ],
-    },
-    {
         id: 'content',
         title: 'Content & Commercial',
         icon: Newspaper,
@@ -252,17 +215,6 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Enquiries',
                 icon: Mail,
-            },
-        ],
-    },
-    {
-        id: 'platform',
-        title: 'TournamentHQ Platform',
-        icon: Activity,
-        items: [
-            {
-                module: 'Platform Operations',
-                icon: Activity,
             },
         ],
     },
@@ -289,13 +241,10 @@ const defaultExpandedSections: Record<
     boolean
 > = {
     overview: true,
-    communications: true,
     competition: true,
     tools: true,
     operations: true,
-    finance: true,
     content: false,
-    platform: true,
     administration: false,
 }
 
@@ -528,54 +477,61 @@ function getSubscriptionSummary(
     plan: SubscriptionPlan,
     status: SubscriptionStatus,
     billing: BillingSummary | null,
+    trialEnd: string | null,
 ): string {
     const periodEnd =
         formatBillingDate(
             billing?.currentPeriodEnd ?? null,
         )
+    const formattedTrialEnd =
+        formatBillingDate(trialEnd)
+    const planLabel =
+        formatSubscriptionPlan(plan)
+
+    if (status === 'trial') {
+        return formattedTrialEnd
+            ? `Your ${planLabel} 14-day free trial is active until ${formattedTrialEnd}. Your saved payment method will be charged when the trial ends unless you cancel before then.`
+            : `Your ${planLabel} 14-day free trial is active. Your saved payment method will be charged automatically when the trial ends unless you cancel before then.`
+    }
 
     if (
-        plan === 'professional' &&
         status === 'active' &&
         billing?.cancelAtPeriodEnd
     ) {
         return periodEnd
-            ? `Cancellation scheduled. Professional access remains available until ${periodEnd}.`
-            : 'Cancellation scheduled. Professional access remains available until the end of the current paid billing period.'
+            ? `Cancellation scheduled. ${planLabel} access remains available until ${periodEnd}.`
+            : `Cancellation scheduled. ${planLabel} access remains available until the end of the current paid billing period.`
     }
 
     if (status === 'past_due') {
-        return 'Your payment requires attention. Open billing to review the payment method and outstanding invoice.'
+        return `Your ${planLabel} payment requires attention. Open billing to review the payment method and outstanding invoice.`
     }
 
     if (status === 'suspended') {
-        return 'This workspace is currently suspended. Open billing to review the subscription or contact TournamentHQ support.'
+        return 'Subscription setup or payment recovery is incomplete. Your TournamentHQ data remains intact, but operational modules stay locked until billing is resolved.'
     }
 
     if (status === 'cancelled') {
-        return 'This paid subscription has ended. TournamentHQ is updating the workspace entitlement.'
-    }
-
-    if (
-        plan === 'starter' &&
-        billing?.stripeStatus === 'canceled'
-    ) {
-        return 'Your Professional subscription has ended and this workspace is now on the Starter plan.'
+        return `Your ${planLabel} subscription has ended. Your TournamentHQ data remains intact, but paid workspace features are locked until you restart a subscription.`
     }
 
     if (plan === 'professional') {
         if (periodEnd) {
-            return `Your Professional workspace is active. The current billing period runs until ${periodEnd}.`
+            return `Your Professional subscription is active. The current billing period runs until ${periodEnd}.`
         }
 
-        return 'Your Professional workspace is active with the paid TournamentHQ feature set and account limits.'
+        return 'Your Professional subscription is active with the paid TournamentHQ feature set and account limits.'
     }
 
     if (plan === 'enterprise') {
         return 'Your Enterprise workspace is active with organisation-specific limits and commercial terms.'
     }
 
-    return 'Your Starter workspace is active. Paid billing is not required for the Starter plan.'
+    if (periodEnd) {
+        return `Your Starter subscription is active. The current billing period runs until ${periodEnd}.`
+    }
+
+    return 'Your Starter subscription is active with the TournamentHQ Starter feature set and account limits.'
 }
 
 export function AdminPortal({
@@ -698,9 +654,20 @@ export function AdminPortal({
     const subscriptionStatus =
         effectiveProfile.currentOrganisation.subscription_status
 
+    const subscriptionAccessLocked =
+        !effectiveProfile.isPlatformAdmin &&
+        (
+            subscriptionStatus === 'suspended' ||
+            subscriptionStatus === 'cancelled'
+        )
+
     const canManageBilling =
-        subscriptionPlan === 'professional' ||
         billingSummary?.hasBillingCustomer === true
+
+    const trialEndLabel =
+        formatBillingDate(
+            effectiveProfile.currentOrganisation.trial_end,
+        )
 
     const billingPeriodEnd =
         formatBillingDate(
@@ -720,18 +687,26 @@ export function AdminPortal({
 
     const visibleTabs = useMemo(
         () =>
-            adminTabs.filter((tab) =>
-                canAccessModule(
+            adminTabs.filter((tab) => {
+                if (
+                    subscriptionAccessLocked &&
+                    tab !== 'Dashboard'
+                ) {
+                    return false
+                }
+
+                return canAccessModule(
                     activeRole,
                     tab,
                     effectiveProfile.isPlatformAdmin,
                     organisationType,
                 )
-            ),
+            }),
         [
             activeRole,
             effectiveProfile.isPlatformAdmin,
             organisationType,
+            subscriptionAccessLocked,
         ]
     )
 
@@ -850,15 +825,6 @@ export function AdminPortal({
         )
     }, [currentCompetitionId])
 
-    useEffect(
-        () => installProductionTelemetry({
-            organisationId:
-                currentOrganisation?.id ?? null,
-            component: 'AdminPortal',
-        }),
-        [currentOrganisation?.id],
-    )
-
     const loadTeams =
         useCallback(async () => {
             if (
@@ -890,11 +856,6 @@ export function AdminPortal({
                 console.error(
                     'Failed to load teams:',
                     error
-                )
-                void captureProductionIssue(
-                    'Failed to load teams',
-                    error,
-                    { module: 'Teams' },
                 )
                 setDbTeams([])
                 return
@@ -1032,14 +993,6 @@ export function AdminPortal({
                                 `Failed to load ${name} count:`,
                                 response.error
                             )
-                            void captureProductionIssue(
-                                `Failed to load ${name} count`,
-                                response.error,
-                                {
-                                    module: 'Dashboard',
-                                    resource: name,
-                                },
-                            )
                         }
                     }
                 )
@@ -1139,11 +1092,6 @@ export function AdminPortal({
                         'Failed to load competition teams count:',
                         competitionTeamsResponse.error
                     )
-                    void captureProductionIssue(
-                        'Failed to load competition teams count',
-                        competitionTeamsResponse.error,
-                        { module: 'Competition Teams' },
-                    )
                 }
 
                 if (groupsResponse.error) {
@@ -1151,22 +1099,12 @@ export function AdminPortal({
                         'Failed to load groups count:',
                         groupsResponse.error
                     )
-                    void captureProductionIssue(
-                        'Failed to load groups count',
-                        groupsResponse.error,
-                        { module: 'Groups' },
-                    )
                 }
 
                 if (fixturesResponse.error) {
                     console.error(
                         'Failed to load fixtures count:',
                         fixturesResponse.error
-                    )
-                    void captureProductionIssue(
-                        'Failed to load fixtures count',
-                        fixturesResponse.error,
-                        { module: 'Fixtures' },
                     )
                 }
 
@@ -1218,11 +1156,6 @@ export function AdminPortal({
                             'Failed to load results count:',
                             resultsResponse.error
                         )
-                        void captureProductionIssue(
-                            'Failed to load results count',
-                            resultsResponse.error,
-                            { module: 'Results' },
-                        )
                     } else {
                         resultsCount =
                             resultsResponse.count ??
@@ -1233,11 +1166,6 @@ export function AdminPortal({
                         console.error(
                             'Failed to load goals count:',
                             goalsResponse.error
-                        )
-                        void captureProductionIssue(
-                            'Failed to load goals count',
-                            goalsResponse.error,
-                            { module: 'Goals' },
                         )
                     } else {
                         goalsCount =
@@ -1308,11 +1236,6 @@ export function AdminPortal({
                     'Failed to load enquiry count:',
                     error
                 )
-                void captureProductionIssue(
-                    'Failed to load enquiry count',
-                    error,
-                    { module: 'Enquiries' },
-                )
                 setEnquiryCount(0)
                 return
             }
@@ -1373,11 +1296,6 @@ export function AdminPortal({
                 console.error(
                     'Failed to load billing summary:',
                     error,
-                )
-                void captureProductionIssue(
-                    'Failed to load billing summary',
-                    error,
-                    { module: 'Billing' },
                 )
 
                 setBillingSummary(null)
@@ -1874,11 +1792,6 @@ export function AdminPortal({
                 'Failed to open billing portal:',
                 error,
             )
-            void captureProductionIssue(
-                'Failed to open billing portal',
-                error,
-                { module: 'Billing' },
-            )
 
             setBillingPortalError(
                 error instanceof Error
@@ -1903,6 +1816,26 @@ export function AdminPortal({
     }
 
     function renderActiveModule() {
+        if (
+            subscriptionAccessLocked &&
+            activeTab !== 'Dashboard'
+        ) {
+            return (
+                <div className="teamsEmptyState">
+                    <h3>Subscription required</h3>
+                    <p>
+                        This workspace is currently locked. Complete or restart your TournamentHQ subscription to access operational modules.
+                    </p>
+                    <a
+                        href="/onboarding"
+                        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--thq-admin-accent)] px-5 py-3 text-sm font-black text-[var(--thq-admin-on-accent)] no-underline"
+                    >
+                        Continue to subscription
+                    </a>
+                </div>
+            )
+        }
+
         if (
             !canAccessModule(
                 activeRole,
@@ -1946,7 +1879,7 @@ export function AdminPortal({
                                 </p>
                             </div>
 
-                            {canAccessModule(
+                            {!subscriptionAccessLocked && canAccessModule(
                                 activeRole,
                                 'Articles',
                                 effectiveProfile.isPlatformAdmin,
@@ -2012,6 +1945,7 @@ export function AdminPortal({
                                             subscriptionPlan,
                                             subscriptionStatus,
                                             billingSummary,
+                                            effectiveProfile.currentOrganisation.trial_end,
                                         )}
                                     </p>
 
@@ -2026,7 +1960,7 @@ export function AdminPortal({
                                                     Payment needs attention
                                                 </strong>
                                                 <p className="mt-1 leading-6 text-amber-100/80">
-                                                    Your Professional access remains available while payment recovery is in progress. Open Manage Billing to update the payment method, complete any required authentication or pay the outstanding invoice.
+                                                    Your {formatSubscriptionPlan(subscriptionPlan)} access remains available while payment recovery is in progress. Open Manage Billing to update the payment method, complete any required authentication or pay the outstanding invoice.
                                                 </p>
                                             </div>
                                         </div>
@@ -2043,7 +1977,7 @@ export function AdminPortal({
                                                     Subscription requires action
                                                 </strong>
                                                 <p className="mt-1 leading-6 text-rose-100/80">
-                                                    Payment recovery has not completed. Your TournamentHQ data remains intact. Open Manage Billing to update payment details and resolve any outstanding invoice.
+                                                    Subscription setup or payment recovery has not completed. Your TournamentHQ data remains intact, but operational modules are locked until billing is resolved.
                                                 </p>
                                             </div>
                                         </div>
@@ -2057,13 +1991,15 @@ export function AdminPortal({
                                                 ? 'Loading billing cycle…'
                                                 : [
                                                       billingIntervalLabel,
-                                                      billingSummary?.cancelAtPeriodEnd
-                                                          ? billingPeriodEnd
-                                                              ? `Access until ${billingPeriodEnd}`
-                                                              : 'Ends after current billing period'
-                                                          : billingPeriodEnd
-                                                            ? `Renews ${billingPeriodEnd}`
-                                                            : null,
+                                                      subscriptionStatus === 'trial' && trialEndLabel
+                                                          ? `Trial ends ${trialEndLabel}`
+                                                          : billingSummary?.cancelAtPeriodEnd
+                                                            ? billingPeriodEnd
+                                                                ? `Access until ${billingPeriodEnd}`
+                                                                : 'Ends after current billing period'
+                                                            : billingPeriodEnd
+                                                              ? `Renews ${billingPeriodEnd}`
+                                                              : null,
                                                   ]
                                                       .filter(
                                                           (
@@ -2092,20 +2028,35 @@ export function AdminPortal({
                                     </p>
                                 </div>
 
-                                {canManageBilling && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            void openBillingPortal()
-                                        }}
-                                        disabled={billingPortalLoading}
-                                        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[color:var(--thq-admin-border)] bg-black/20 px-5 py-3 text-sm font-black text-[var(--thq-admin-text)] transition hover:border-[var(--thq-admin-accent)] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[var(--thq-admin-accent)] focus:ring-offset-2 focus:ring-offset-[var(--thq-admin-background)]"
-                                    >
-                                        <CreditCard className="h-4 w-4 text-[var(--thq-admin-accent)]" />
-                                        {billingPortalLoading
-                                            ? 'Opening Billing…'
-                                            : 'Manage Billing'}
-                                    </button>
+                                {(canManageBilling || subscriptionAccessLocked) && (
+                                    <div className="flex shrink-0 flex-wrap items-center gap-3">
+                                        {subscriptionAccessLocked && (
+                                            <a
+                                                href="/onboarding"
+                                                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--thq-admin-accent)] px-5 py-3 text-sm font-black text-[var(--thq-admin-on-accent)] no-underline transition hover:brightness-110"
+                                            >
+                                                {subscriptionStatus === 'cancelled'
+                                                    ? 'Restart Subscription'
+                                                    : 'Complete Subscription'}
+                                            </a>
+                                        )}
+
+                                        {canManageBilling && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    void openBillingPortal()
+                                                }}
+                                                disabled={billingPortalLoading}
+                                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--thq-admin-border)] bg-black/20 px-5 py-3 text-sm font-black text-[var(--thq-admin-text)] transition hover:border-[var(--thq-admin-accent)] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[var(--thq-admin-accent)] focus:ring-offset-2 focus:ring-offset-[var(--thq-admin-background)]"
+                                            >
+                                                <CreditCard className="h-4 w-4 text-[var(--thq-admin-accent)]" />
+                                                {billingPortalLoading
+                                                    ? 'Opening Billing…'
+                                                    : 'Manage Billing'}
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
 
@@ -2308,12 +2259,6 @@ export function AdminPortal({
             case 'Goals':
                 return <GoalsManager />
 
-            case 'Club Finance':
-                return <ClubFinanceDashboard />
-
-            case 'Communications':
-                return <CommunicationsManager />
-
             case 'Sponsors':
                 return <SponsorsManager />
 
@@ -2335,11 +2280,6 @@ export function AdminPortal({
             case 'Enquiries':
                 return (
                     <EnquiriesManager />
-                )
-
-            case 'Platform Operations':
-                return (
-                    <PlatformOperationsDashboard />
                 )
 
             case 'User Access':
