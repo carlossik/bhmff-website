@@ -42,6 +42,7 @@ export type Organisation = {
     text_colour: string | null
     subscription_plan: SubscriptionPlan
     subscription_status: SubscriptionStatus
+    trial_end: string | null
     max_users: number
     max_competitions: number
     created_at: string
@@ -90,6 +91,7 @@ export type AdminModule =
     | 'Venues'
     | 'Sports Officials'
     | 'Fixtures'
+    | 'Match Centre'
     | 'Results'
     | 'Goals'
     | 'Sponsors'
@@ -118,6 +120,7 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Venues',
     'Sports Officials',
     'Fixtures',
+    'Match Centre',
     'Results',
     'Goals',
     'Sponsors',
@@ -162,6 +165,7 @@ const roleModules: Record<
         'Venues',
         'Sports Officials',
         'Fixtures',
+        'Match Centre',
         'Results',
         'Goals',
         'Opponents',
@@ -249,6 +253,7 @@ const moduleCapabilities: Partial<
     Venues: 'fixture_management',
     'Sports Officials': 'officials_management',
     Fixtures: 'fixture_management',
+    'Match Centre': 'squad_management',
     Results: 'results_management',
     Goals: 'statistics',
     Sponsors: 'sponsors',
@@ -548,6 +553,7 @@ export async function getCurrentAdminProfile():
             text_colour,
             subscription_plan,
             subscription_status,
+            trial_end,
             max_users,
             max_competitions,
             created_at,

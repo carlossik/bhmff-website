@@ -79,6 +79,7 @@ type PlatformCustomer = {
     organisationType: string
     subscriptionPlan: string
     subscriptionStatus: string
+    trialEnd: string | null
     maxUsers: number
     maxCompetitions: number
     ownerName: string | null
@@ -117,6 +118,7 @@ type PlatformOverview = {
     professional: number
     enterprise: number
     activeSubscriptions: number
+    trialSubscriptions: number
     pastDue: number
     suspended: number
     scheduledCancellations: number
@@ -598,11 +600,11 @@ export function PlatformOperationsDashboard() {
                     />
                     <StatCard
                         icon={CreditCard}
-                        label="Active paid subscriptions"
+                        label="Live subscriptions"
                         value={formatNumber(
                             overview.activeSubscriptions,
                         )}
-                        detail={`${overview.professional} Professional workspaces · ${overview.scheduledCancellations} cancellation(s) scheduled`}
+                        detail={`${overview.starter} Starter · ${overview.professional} Professional · ${overview.trialSubscriptions} trial(s) · ${overview.scheduledCancellations} cancellation(s) scheduled`}
                     />
                     <StatCard
                         icon={Users}
@@ -682,7 +684,7 @@ export function PlatformOperationsDashboard() {
                         value={formatNumber(
                             revenue.liveBillingRecords,
                         )}
-                        detail={`${revenue.legacyOrTestBillingRecords} legacy/test record(s) excluded from production revenue`}
+                        detail={`${revenue.legacyOrTestBillingRecords} legacy/test record(s) excluded from production revenue · Starter and Professional live prices included`}
                     />
                 </div>
             </section>
@@ -1002,6 +1004,12 @@ export function PlatformOperationsDashboard() {
                                 [
                                     'Limits',
                                     `${selectedCustomer.maxUsers} users · ${selectedCustomer.maxCompetitions} competitions`,
+                                ],
+                                [
+                                    'Trial ends',
+                                    formatDateTime(
+                                        selectedCustomer.trialEnd,
+                                    ),
                                 ],
                                 [
                                     'Created',

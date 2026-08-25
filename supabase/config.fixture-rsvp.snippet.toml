@@ -1,0 +1,14 @@
+# Merge these entries into your existing supabase/config.toml.
+
+[functions.fixture-rsvp-admin]
+verify_jwt = true
+
+# Public secure-token RSVP page. Authentication is the 256-bit recipient token;
+# the function uses service-role access internally and exposes no anon table policy.
+[functions.fixture-rsvp]
+verify_jwt = false
+
+# Existing Resend webhook remains public at the gateway and verifies its Svix
+# signature inside the function.
+[functions.resend-webhook]
+verify_jwt = false

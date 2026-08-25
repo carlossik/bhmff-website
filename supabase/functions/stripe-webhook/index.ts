@@ -11,8 +11,10 @@ import {
     type OperationsEventSeverity,
 } from '../_shared/operationsLog.ts'
 import {
+    isServerSubscriptionPlanId,
     SERVER_SUBSCRIPTION_PLANS,
     type ServerBillingInterval,
+    type ServerSubscriptionPlanId,
 } from '../_shared/subscriptionPlans.ts'
 
 type BillingLookupRow = {
@@ -44,6 +46,12 @@ function getRequiredEnvironment(
     }
 
     return value
+}
+
+function getOptionalEnvironment(
+    name: string,
+): string | null {
+    return Deno.env.get(name)?.trim() || null
 }
 
 function getExpandableId(
@@ -116,6 +124,28 @@ function getInvoiceSubscriptionId(
     )
 }
 
+async function syncInvoiceSubscription(
+    invoice: Stripe.Invoice,
+    eventContext: StripeEventContext,
+): Promise<string | null> {
+    const subscriptionId =
+        getInvoiceSubscriptionId(invoice)
+
+    if (!subscriptionId) {
+        return null
+    }
+
+    const subscription =
+        await stripe.subscriptions.retrieve(
+            subscriptionId,
+        )
+
+    return syncSubscription(
+        subscription,
+        eventContext,
+    )
+}
+
 function resolveBillingInterval(
     subscription: Stripe.Subscription,
 ): ServerBillingInterval {
@@ -140,6 +170,92 @@ function resolveBillingInterval(
     return interval === 'year'
         ? 'annual'
         : 'monthly'
+}
+
+function resolveSubscriptionPlan(
+    subscription: Stripe.Subscription,
+): ServerSubscriptionPlanId {
+    const metadataPlan =
+        subscription.metadata.plan
+
+    if (
+        isServerSubscriptionPlanId(
+            metadataPlan,
+        )
+    ) {
+        return metadataPlan
+    }
+
+    const priceId =
+        subscription.items.data[0]
+            ?.price.id ?? null
+
+    if (priceId) {
+        const configuredPrices: Array<{
+            priceId: string | null
+            plan: ServerSubscriptionPlanId
+        }> = [
+            {
+                priceId:
+                    getOptionalEnvironment(
+                        'STRIPE_STARTER_MONTHLY_PRICE_ID',
+                    ),
+                plan: 'starter',
+            },
+            {
+                priceId:
+                    getOptionalEnvironment(
+                        'STRIPE_STARTER_ANNUAL_PRICE_ID',
+                    ),
+                plan: 'starter',
+            },
+            {
+                priceId:
+                    getOptionalEnvironment(
+                        'STRIPE_PROFESSIONAL_MONTHLY_PRICE_ID',
+                    ),
+                plan: 'professional',
+            },
+            {
+                priceId:
+                    getOptionalEnvironment(
+                        'STRIPE_PROFESSIONAL_ANNUAL_PRICE_ID',
+                    ),
+                plan: 'professional',
+            },
+        ]
+
+        const matched =
+            configuredPrices.find(
+                (candidate) =>
+                    candidate.priceId ===
+                    priceId,
+            )
+
+        if (matched) {
+            return matched.plan
+        }
+    }
+
+    throw new Error(
+        `Stripe subscription ${subscription.id} does not contain a supported TournamentHQ plan.`,
+    )
+}
+
+function shouldPublishPublicSite(
+    status: AppSubscriptionStatus,
+    plan: ServerSubscriptionPlanId,
+): boolean {
+    if (
+        status === 'cancelled' ||
+        status === 'suspended'
+    ) {
+        return false
+    }
+
+    return SERVER_SUBSCRIPTION_PLANS[
+        plan
+    ].publicSiteEnabled
 }
 
 async function findOrganisationId(
@@ -219,10 +335,16 @@ async function syncSubscription(
         resolveBillingInterval(
             subscription,
         )
+    const plan =
+        resolveSubscriptionPlan(
+            subscription,
+        )
     const appStatus =
         mapSubscriptionStatus(
             subscription.status,
         )
+    const entitlementPlan =
+        SERVER_SUBSCRIPTION_PLANS[plan]
     const cancellationScheduled =
         subscription.status !== 'canceled' &&
         (
@@ -279,51 +401,29 @@ async function syncSubscription(
         throw billingError
     }
 
-    const subscriptionEnded =
-        subscription.status === 'canceled'
-
-    const entitlementPlan =
-        subscriptionEnded
-            ? SERVER_SUBSCRIPTION_PLANS.starter
-            : SERVER_SUBSCRIPTION_PLANS.professional
-
     const {
         error: organisationError,
     } = await admin
         .from('organisations')
-        .update(
-            subscriptionEnded
-                ? {
-                      subscription_plan:
-                          'starter',
-                      subscription_status:
-                          'active',
-                      trial_end:
-                          null,
-                      max_users:
-                          entitlementPlan.maxUsers,
-                      max_competitions:
-                          entitlementPlan.maxCompetitions,
-                      public_site_enabled:
-                          entitlementPlan.publicSiteEnabled,
-                  }
-                : {
-                      subscription_plan:
-                          'professional',
-                      subscription_status:
-                          appStatus,
-                      trial_end:
-                          toIso(
-                              subscription.trial_end,
-                          ),
-                      max_users:
-                          entitlementPlan.maxUsers,
-                      max_competitions:
-                          entitlementPlan.maxCompetitions,
-                      public_site_enabled:
-                          entitlementPlan.publicSiteEnabled,
-                  },
-        )
+        .update({
+            subscription_plan:
+                plan,
+            subscription_status:
+                appStatus,
+            trial_end:
+                toIso(
+                    subscription.trial_end,
+                ),
+            max_users:
+                entitlementPlan.maxUsers,
+            max_competitions:
+                entitlementPlan.maxCompetitions,
+            public_site_enabled:
+                shouldPublishPublicSite(
+                    appStatus,
+                    plan,
+                ),
+        })
         .eq('id', organisationId)
 
     if (organisationError) {
@@ -331,28 +431,6 @@ async function syncSubscription(
     }
 
     return organisationId
-}
-
-async function syncInvoiceSubscription(
-    invoice: Stripe.Invoice,
-    eventContext: StripeEventContext,
-): Promise<string | null> {
-    const subscriptionId =
-        getInvoiceSubscriptionId(invoice)
-
-    if (!subscriptionId) {
-        return null
-    }
-
-    const subscription =
-        await stripe.subscriptions.retrieve(
-            subscriptionId,
-        )
-
-    return syncSubscription(
-        subscription,
-        eventContext,
-    )
 }
 
 function getEventSeverity(
@@ -405,8 +483,7 @@ function getEventMessage(
 function getStripeObjectId(
     event: Stripe.Event,
 ): string | null {
-    const value =
-        event.data.object as unknown
+    const value = event.data.object as unknown
 
     if (
         typeof value === 'object' &&

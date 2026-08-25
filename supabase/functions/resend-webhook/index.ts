@@ -211,6 +211,8 @@ Deno.serve(async (request) => {
         : event.created_at
 
     const admin = adminClient()
+    const detail = eventDetail(event)
+
     const { data, error } = await admin.rpc(
         'apply_resend_communication_event',
         {
@@ -218,13 +220,13 @@ Deno.serve(async (request) => {
             p_event_type: event.type,
             p_provider_message_id: emailId,
             p_event_created_at: eventCreatedAt,
-            p_detail: eventDetail(event),
+            p_detail: detail,
         },
     )
 
     if (error) {
         console.error(
-            'Unable to apply Resend delivery event:',
+            'Unable to apply Resend communication delivery event:',
             error,
         )
         // Return a retryable error. Resend uses at-least-once delivery.
@@ -234,8 +236,33 @@ Deno.serve(async (request) => {
         )
     }
 
+    const {
+        data: rsvpResult,
+        error: rsvpError,
+    } = await admin.rpc(
+        'apply_resend_fixture_rsvp_event',
+        {
+            p_event_type: event.type,
+            p_provider_message_id: emailId,
+            p_event_created_at: eventCreatedAt,
+            p_detail: detail,
+        },
+    )
+
+    if (rsvpError) {
+        console.error(
+            'Unable to apply Resend fixture RSVP delivery event:',
+            rsvpError,
+        )
+        return jsonResponse(
+            { error: 'Unable to process webhook.' },
+            500,
+        )
+    }
+
     return jsonResponse({
         ok: true,
         result: data,
+        fixtureRsvp: rsvpResult,
     })
 })

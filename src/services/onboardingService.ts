@@ -147,10 +147,10 @@ function applyOnboardingDefaults(
         organisation.enabled_modules.length >
         0
             ? [
-                ...new Set(
-                    organisation.enabled_modules,
-                ),
-            ]
+                  ...new Set(
+                      organisation.enabled_modules,
+                  ),
+              ]
             : DEFAULT_ENABLED_MODULES
 
     return {
@@ -161,7 +161,7 @@ function applyOnboardingDefaults(
         slug:
             createSlug(
                 organisation.slug ||
-                organisation.name,
+                    organisation.name,
             ),
         owner_name:
             organisation.owner_name.trim(),
@@ -177,58 +177,17 @@ function applyOnboardingDefaults(
             normaliseOptionalText(
                 organisation.logo_url,
             ),
-        trial_end:
-            normaliseOptionalText(
-                organisation.trial_end,
-            ),
+        // Billing is provisional until Stripe Checkout completes.
+        // The webhook applies the selected Starter or Professional plan
+        // and moves the workspace into trial/active state.
+        subscription_plan: 'starter',
+        subscription_status: 'suspended',
+        trial_end: '',
+        max_users: 2,
+        max_competitions: 1,
+        public_site_enabled: false,
         enabled_modules:
-        enabledModules,
-    }
-}
-
-async function ensureClubWorkspaceRecord(
-    organisation: Organisation,
-): Promise<void> {
-    if (organisation.organisation_type !== 'club') {
-        return
-    }
-
-    const {
-        data: existingClub,
-        error: existingClubError,
-    } = await supabase
-        .from('clubs')
-        .select('id')
-        .eq(
-            'organisation_id',
-            organisation.id,
-        )
-        .limit(1)
-        .maybeSingle()
-
-    if (existingClubError) {
-        throw existingClubError
-    }
-
-    if (existingClub) {
-        return
-    }
-
-    const { error: createClubError } =
-        await supabase
-            .from('clubs')
-            .insert({
-                organisation_id:
-                    organisation.id,
-                name:
-                    organisation.name.trim(),
-                badge_url:
-                    organisation.logo_url
-                        ?.trim() || null,
-            })
-
-    if (createClubError) {
-        throw createClubError
+            enabledModules,
     }
 }
 
@@ -276,11 +235,11 @@ async function inviteOrganisationOwner(
                 body: {
                     action: 'invite',
                     organisationId:
-                    organisation.id,
+                        organisation.id,
                     fullName:
-                    ownerName,
+                        ownerName,
                     email:
-                    ownerEmail,
+                        ownerEmail,
                     role:
                         'super_admin',
                     redirectUrl:
@@ -298,7 +257,7 @@ async function inviteOrganisationOwner(
     ) {
         throw new Error(
             data?.error ||
-            'The organisation owner invitation could not be sent.',
+                'The organisation owner invitation could not be sent.',
         )
     }
 
@@ -333,27 +292,6 @@ export async function createOrganisationOnboarding(
                 input.provisionalId,
             )
 
-        if (
-            createdOrganisation.organisation_type ===
-            'club'
-        ) {
-            try {
-                await ensureClubWorkspaceRecord(
-                    createdOrganisation,
-                )
-            } catch (clubBootstrapError) {
-                const message =
-                    clubBootstrapError instanceof
-                    Error
-                        ? clubBootstrapError.message
-                        : 'The club record could not be initialised.'
-
-                warnings.push(
-                    `The club workspace was created, but its club record could not be initialised automatically: ${message}`,
-                )
-            }
-        }
-
         try {
             const invitation =
                 await inviteOrganisationOwner(
@@ -364,15 +302,13 @@ export async function createOrganisationOnboarding(
 
             return {
                 organisation:
-                createdOrganisation,
+                    createdOrganisation,
                 ownerInvitationSent:
-                invitation.sent,
+                    invitation.sent,
                 ownerInvitationSkipped:
-                invitation.skipped,
+                    invitation.skipped,
                 nextStep:
-                    organisationData.organisation_type === 'club'
-                        ? 'complete_profile'
-                        : 'create_first_competition',
+                    'create_first_competition',
                 warnings,
             }
         } catch (invitationError) {
@@ -400,15 +336,13 @@ export async function createOrganisationOnboarding(
 
             return {
                 organisation:
-                createdOrganisation,
+                    createdOrganisation,
                 ownerInvitationSent:
                     false,
                 ownerInvitationSkipped:
                     false,
                 nextStep:
-                    organisationData.organisation_type === 'club'
-                        ? 'complete_profile'
-                        : 'create_first_competition',
+                    'create_first_competition',
                 warnings,
             }
         }
@@ -435,7 +369,7 @@ export async function createOrganisationOnboarding(
 
 export const onboardingService = {
     createOrganisation:
-    createOrganisationOnboarding,
+        createOrganisationOnboarding,
     applyDefaults:
-    applyOnboardingDefaults,
+        applyOnboardingDefaults,
 }

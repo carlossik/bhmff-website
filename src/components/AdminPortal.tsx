@@ -8,7 +8,9 @@ import type { LucideIcon } from 'lucide-react'
 import { Gavel } from 'lucide-react'
 import OfficialsPage from '../pages/OfficialsPage'
 import {
+    Activity,
     BadgeCheck,
+    Banknote,
     BarChart3,
     Bot,
     Building2,
@@ -16,6 +18,7 @@ import {
     ChevronDown,
     CircleAlert,
     CircleUserRound,
+    ClipboardList,
     CreditCard,
     ExternalLink,
     Flag,
@@ -24,6 +27,7 @@ import {
     Layers3,
     LayoutDashboard,
     Mail,
+    MessagesSquare,
     MapPin,
     Newspaper,
     Palette,
@@ -43,6 +47,7 @@ import { TeamsManager } from './admin/Teams/TeamsManager'
 import ClubSeasonsManager from './admin/Seasons/ClubSeasonsManager'
 import { SquadManager } from './admin/Squad/SquadManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
+import { ClubMatchCentre } from './admin/MatchCentre/ClubMatchCentre'
 import { VenuesManager } from './admin/Venues/VenuesManager'
 import { ResultsManager } from './admin/Results/ResultsManager'
 import type { DbTeam } from './admin/Teams/teamTypes'
@@ -57,6 +62,9 @@ import OrganisationManager from './admin/Organisations/OrganisationManager'
 import { ClubProfileWebsiteManager } from './admin/ClubProfile/ClubProfileWebsiteManager'
 import { AdminHeader } from './admin/AdminHeader'
 import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTeamsManager'
+import { PlatformOperationsDashboard } from './admin/PlatformOperations/PlatformOperationsDashboard'
+import { ClubFinanceDashboard } from './admin/ClubFinance/ClubFinanceDashboard'
+import { CommunicationsManager } from './admin/Communications/CommunicationsManager'
 import { TournamentHQBrand } from './common/TournamentHQBrand'
 import '../styles/adminTournamentHQTheme.css'
 
@@ -75,13 +83,20 @@ import {
 
 import { useOrganisation } from '../context/OrganisationContext'
 import { useCompetition } from '../contexts/CompetitionContext'
+import {
+    captureProductionIssue,
+    installProductionTelemetry,
+} from '../services/productionTelemetry'
 
 type NavigationSectionId =
     | 'overview'
+    | 'communications'
     | 'competition'
     | 'tools'
     | 'operations'
+    | 'finance'
     | 'content'
+    | 'platform'
     | 'administration'
 
 type NavigationItem = {
@@ -106,6 +121,18 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Dashboard',
                 icon: LayoutDashboard,
+            },
+        ],
+    },
+    {
+        id: 'communications',
+        title: 'Communications',
+        icon: MessagesSquare,
+        items: [
+            {
+                module: 'Communications',
+                icon: MessagesSquare,
+                featured: true,
             },
         ],
     },
@@ -186,12 +213,29 @@ const navigationSections: readonly NavigationSection[] = [
                 icon: CalendarDays,
             },
             {
+                module: 'Match Centre',
+                icon: ClipboardList,
+                featured: true,
+            },
+            {
                 module: 'Results',
                 icon: BarChart3,
             },
             {
                 module: 'Goals',
                 icon: Target,
+            },
+        ],
+    },
+    {
+        id: 'finance',
+        title: 'Finance',
+        icon: Banknote,
+        items: [
+            {
+                module: 'Club Finance',
+                icon: Banknote,
+                featured: true,
             },
         ],
     },
@@ -219,6 +263,17 @@ const navigationSections: readonly NavigationSection[] = [
         ],
     },
     {
+        id: 'platform',
+        title: 'TournamentHQ Platform',
+        icon: Activity,
+        items: [
+            {
+                module: 'Platform Operations',
+                icon: Activity,
+            },
+        ],
+    },
+    {
         id: 'administration',
         title: 'Administration',
         icon: CircleUserRound,
@@ -241,10 +296,13 @@ const defaultExpandedSections: Record<
     boolean
 > = {
     overview: true,
+    communications: true,
     competition: true,
     tools: true,
     operations: true,
+    finance: true,
     content: false,
+    platform: true,
     administration: false,
 }
 
@@ -825,6 +883,15 @@ export function AdminPortal({
         )
     }, [currentCompetitionId])
 
+    useEffect(
+        () => installProductionTelemetry({
+            organisationId:
+                currentOrganisation?.id ?? null,
+            component: 'AdminPortal',
+        }),
+        [currentOrganisation?.id],
+    )
+
     const loadTeams =
         useCallback(async () => {
             if (
@@ -856,6 +923,11 @@ export function AdminPortal({
                 console.error(
                     'Failed to load teams:',
                     error
+                )
+                void captureProductionIssue(
+                    'Failed to load teams',
+                    error,
+                    { module: 'Teams' },
                 )
                 setDbTeams([])
                 return
@@ -993,6 +1065,14 @@ export function AdminPortal({
                                 `Failed to load ${name} count:`,
                                 response.error
                             )
+                            void captureProductionIssue(
+                                `Failed to load ${name} count`,
+                                response.error,
+                                {
+                                    module: 'Dashboard',
+                                    resource: name,
+                                },
+                            )
                         }
                     }
                 )
@@ -1092,6 +1172,11 @@ export function AdminPortal({
                         'Failed to load competition teams count:',
                         competitionTeamsResponse.error
                     )
+                    void captureProductionIssue(
+                        'Failed to load competition teams count',
+                        competitionTeamsResponse.error,
+                        { module: 'Competition Teams' },
+                    )
                 }
 
                 if (groupsResponse.error) {
@@ -1099,12 +1184,22 @@ export function AdminPortal({
                         'Failed to load groups count:',
                         groupsResponse.error
                     )
+                    void captureProductionIssue(
+                        'Failed to load groups count',
+                        groupsResponse.error,
+                        { module: 'Groups' },
+                    )
                 }
 
                 if (fixturesResponse.error) {
                     console.error(
                         'Failed to load fixtures count:',
                         fixturesResponse.error
+                    )
+                    void captureProductionIssue(
+                        'Failed to load fixtures count',
+                        fixturesResponse.error,
+                        { module: 'Fixtures' },
                     )
                 }
 
@@ -1156,6 +1251,11 @@ export function AdminPortal({
                             'Failed to load results count:',
                             resultsResponse.error
                         )
+                        void captureProductionIssue(
+                            'Failed to load results count',
+                            resultsResponse.error,
+                            { module: 'Results' },
+                        )
                     } else {
                         resultsCount =
                             resultsResponse.count ??
@@ -1166,6 +1266,11 @@ export function AdminPortal({
                         console.error(
                             'Failed to load goals count:',
                             goalsResponse.error
+                        )
+                        void captureProductionIssue(
+                            'Failed to load goals count',
+                            goalsResponse.error,
+                            { module: 'Goals' },
                         )
                     } else {
                         goalsCount =
@@ -1236,6 +1341,11 @@ export function AdminPortal({
                     'Failed to load enquiry count:',
                     error
                 )
+                void captureProductionIssue(
+                    'Failed to load enquiry count',
+                    error,
+                    { module: 'Enquiries' },
+                )
                 setEnquiryCount(0)
                 return
             }
@@ -1296,6 +1406,11 @@ export function AdminPortal({
                 console.error(
                     'Failed to load billing summary:',
                     error,
+                )
+                void captureProductionIssue(
+                    'Failed to load billing summary',
+                    error,
+                    { module: 'Billing' },
                 )
 
                 setBillingSummary(null)
@@ -1792,6 +1907,11 @@ export function AdminPortal({
                 'Failed to open billing portal:',
                 error,
             )
+            void captureProductionIssue(
+                'Failed to open billing portal',
+                error,
+                { module: 'Billing' },
+            )
 
             setBillingPortalError(
                 error instanceof Error
@@ -2253,11 +2373,20 @@ export function AdminPortal({
             case 'Fixtures':
                 return <FixturesManager />
 
+            case 'Match Centre':
+                return <ClubMatchCentre />
+
             case 'Results':
                 return <ResultsManager />
 
             case 'Goals':
                 return <GoalsManager />
+
+            case 'Club Finance':
+                return <ClubFinanceDashboard />
+
+            case 'Communications':
+                return <CommunicationsManager />
 
             case 'Sponsors':
                 return <SponsorsManager />
@@ -2280,6 +2409,11 @@ export function AdminPortal({
             case 'Enquiries':
                 return (
                     <EnquiriesManager />
+                )
+
+            case 'Platform Operations':
+                return (
+                    <PlatformOperationsDashboard />
                 )
 
             case 'User Access':

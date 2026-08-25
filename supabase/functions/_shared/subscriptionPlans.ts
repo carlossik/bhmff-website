@@ -12,6 +12,8 @@ export type ServerPlanDefinition = {
     publicSiteEnabled: boolean
 }
 
+export const SUBSCRIPTION_TRIAL_DAYS = 14
+
 export const SERVER_SUBSCRIPTION_PLANS: Readonly<
     Record<
         ServerSubscriptionPlanId,

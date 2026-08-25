@@ -58,10 +58,16 @@ export interface ClubOpponent {
     updated_at: string
 }
 
+export interface ClubFixtureTeamOption {
+    id: string
+    name: string
+}
+
 export interface ClubFixtureSlot {
     id: string
     organisation_id: string
     season_id: string
+    team_id: string | null
     fixture_date: string
     slot_status: ClubFixtureSlotStatus
     slot_label: string | null
@@ -75,6 +81,7 @@ export interface ClubFixture {
     id: string
     organisation_id: string
     season_id: string
+    team_id: string | null
     slot_id: string | null
     opponent_id: string | null
     fixture_date: string
@@ -114,6 +121,7 @@ export interface ClubOpponentFormValues {
 }
 
 export interface ClubFixtureSlotFormValues {
+    team_id?: string
     fixture_date: string
     slot_status: ClubFixtureSlotStatus
     slot_label: string
@@ -122,8 +130,10 @@ export interface ClubFixtureSlotFormValues {
 }
 
 export interface ClubFixtureFormValues {
+    team_id?: string
     slot_id: string
     opponent_id: string
+    opponent_name: string
     fixture_date: string
     kickoff_time: string
     home_away: ClubHomeAway

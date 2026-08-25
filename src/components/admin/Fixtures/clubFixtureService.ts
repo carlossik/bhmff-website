@@ -4,6 +4,7 @@ import type {
     ClubFixtureFormValues,
     ClubFixtureSlot,
     ClubFixtureSlotFormValues,
+    ClubFixtureTeamOption,
     ClubOpponent,
     ClubOpponentFormValues,
     ClubSeason,
@@ -12,6 +13,15 @@ import type {
 
 type SupabaseErrorLike = {
     message: string
+}
+
+type TeamIdRow = {
+    team_id: string
+}
+
+type TeamRow = {
+    id: string
+    name: string
 }
 
 function throwSupabaseError(
@@ -54,6 +64,9 @@ function opponentPayload(values: ClubOpponentFormValues) {
 
 function slotPayload(values: ClubFixtureSlotFormValues) {
     return {
+        ...(values.team_id
+            ? { team_id: values.team_id }
+            : {}),
         fixture_date: values.fixture_date,
         slot_status: values.slot_status,
         slot_label: optionalText(values.slot_label),
@@ -65,6 +78,9 @@ function slotPayload(values: ClubFixtureSlotFormValues) {
 
 function fixturePayload(values: ClubFixtureFormValues) {
     return {
+        ...(values.team_id
+            ? { team_id: values.team_id }
+            : {}),
         slot_id: values.slot_id || null,
         opponent_id: values.opponent_id || null,
         fixture_date: values.fixture_date,
@@ -234,14 +250,142 @@ export const clubFixtureService = {
         return data as ClubOpponent
     },
 
-    async getSlots(
-        seasonId: string
-    ): Promise<ClubFixtureSlot[]> {
+    async findOrCreateOpponent(
+        organisationId: string,
+        opponentName: string
+    ): Promise<ClubOpponent> {
+        const normalisedName = opponentName.trim()
+
+        if (!normalisedName) {
+            throw new Error('Opponent name is required.')
+        }
+
+        const { data: existingRows, error: existingError } =
+            await supabase
+                .from('club_opponents')
+                .select('*')
+                .eq('organisation_id', organisationId)
+                .ilike('name', normalisedName)
+                .limit(1)
+
+        throwSupabaseError(
+            existingError,
+            'Failed to check club opponent'
+        )
+
+        const existing = (existingRows ?? [])[0] as
+            | ClubOpponent
+            | undefined
+
+        if (existing) {
+            return existing
+        }
+
         const { data, error } = await supabase
+            .from('club_opponents')
+            .insert({
+                organisation_id: organisationId,
+                name: normalisedName,
+                active: true,
+                updated_at: new Date().toISOString(),
+            })
+            .select('*')
+            .single()
+
+        if (error) {
+            // A concurrent admin may have created the same opponent.
+            const { data: retryRows, error: retryError } =
+                await supabase
+                    .from('club_opponents')
+                    .select('*')
+                    .eq('organisation_id', organisationId)
+                    .ilike('name', normalisedName)
+                    .limit(1)
+
+            throwSupabaseError(
+                retryError,
+                'Failed to recover club opponent'
+            )
+
+            const retry = (retryRows ?? [])[0] as
+                | ClubOpponent
+                | undefined
+
+            if (retry) {
+                return retry
+            }
+
+            throwSupabaseError(
+                error,
+                'Failed to create club opponent'
+            )
+        }
+
+        if (!data) {
+            throw new Error(
+                'The opponent was created but could not be returned.'
+            )
+        }
+
+        return data as ClubOpponent
+    },
+
+    async getTeamOptions(
+        organisationId: string,
+        seasonId: string
+    ): Promise<ClubFixtureTeamOption[]> {
+        const { data: links, error: linkError } = await supabase
+            .from('club_team_seasons')
+            .select('team_id')
+            .eq('organisation_id', organisationId)
+            .eq('season_id', seasonId)
+            .neq('status', 'archived')
+
+        throwSupabaseError(
+            linkError,
+            'Failed to load club team-season links'
+        )
+
+        const teamIds = ((links ?? []) as TeamIdRow[])
+            .map(row => row.team_id)
+            .filter(Boolean)
+
+        if (teamIds.length === 0) {
+            return []
+        }
+
+        const { data: teams, error: teamError } = await supabase
+            .from('teams')
+            .select('id,name')
+            .eq('organisation_id', organisationId)
+            .in('id', teamIds)
+            .order('name')
+
+        throwSupabaseError(
+            teamError,
+            'Failed to load club fixture teams'
+        )
+
+        return ((teams ?? []) as TeamRow[]).map(team => ({
+            id: team.id,
+            name: team.name,
+        }))
+    },
+
+    async getSlots(
+        seasonId: string,
+        teamId?: string
+    ): Promise<ClubFixtureSlot[]> {
+        let query = supabase
             .from('club_fixture_slots')
             .select('*')
             .eq('season_id', seasonId)
-            .order('fixture_date')
+
+        if (teamId) {
+            query = query.eq('team_id', teamId)
+        }
+
+        const { data, error } = await query.order('fixture_date')
 
         throwSupabaseError(
             error,
@@ -306,13 +450,21 @@ export const clubFixtureService = {
     },
 
     async getFixtures(
-        seasonId: string
+        seasonId: string,
+        teamId?: string
     ): Promise<ClubFixture[]> {
-        const { data, error } = await supabase
+        let query = supabase
             .from('club_fixtures')
             .select('*')
             .eq('season_id', seasonId)
+
+        if (teamId) {
+            query = query.eq('team_id', teamId)
+        }
+
+        const { data, error } = await query
             .order('fixture_date')
+            .order('kickoff_time')
 
         throwSupabaseError(
             error,
@@ -374,35 +526,6 @@ export const clubFixtureService = {
         }
 
         return data as ClubFixture
-    },
-
-
-    async bulkUpdateFixtures(
-        fixtureIds: string[],
-        changes: {
-            fixture_type?: ClubFixtureFormValues['fixture_type']
-            status?: ClubFixtureFormValues['status']
-            published?: boolean
-            home_away?: ClubFixtureFormValues['home_away']
-            venue_name?: string | null
-        }
-    ): Promise<void> {
-        if (fixtureIds.length === 0) return
-
-        const payload = {
-            ...changes,
-            updated_at: new Date().toISOString(),
-        }
-
-        const { error } = await supabase
-            .from('club_fixtures')
-            .update(payload)
-            .in('id', fixtureIds)
-
-        throwSupabaseError(
-            error,
-            'Failed to bulk update club fixtures'
-        )
     },
 
     async deleteFixture(

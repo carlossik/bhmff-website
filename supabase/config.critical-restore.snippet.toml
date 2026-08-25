@@ -1,0 +1,47 @@
+# Merge these stanzas into the existing supabase/config.toml.
+# Do not replace unrelated existing function settings.
+
+[functions.communications]
+verify_jwt = true
+
+[functions.resend-webhook]
+verify_jwt = false
+
+[functions.fixture-rsvp-admin]
+verify_jwt = true
+
+[functions.fixture-rsvp]
+verify_jwt = false
+
+[functions.get-platform-operations]
+verify_jwt = true
+
+[functions.log-client-error]
+verify_jwt = false
+
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.club-finance-income]
+verify_jwt = true
+
+[functions.club-finance-charges]
+verify_jwt = true
+
+[functions.club-finance-payments]
+verify_jwt = true
+
+[functions.club-finance-dashboard]
+verify_jwt = true
+
+[functions.club-finance-expenses]
+verify_jwt = true
+
+[functions.club-finance-ledger]
+verify_jwt = true
+
+[functions.club-finance-reports]
+verify_jwt = true

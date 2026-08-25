@@ -1,5 +1,7 @@
 import {
+    useCallback,
     useEffect,
+    useMemo,
     useState,
 } from 'react'
 import {
@@ -25,7 +27,6 @@ import { FixtureImportModal } from './FixtureImportModal'
 import { FixtureModal } from './FixtureModal'
 import { FixturesTable } from './FixturesTable'
 import { fixtureService } from './fixtureService'
-import { ClubFixturesManager } from './ClubFixturesManager'
 import type {
     Fixture,
     FixtureFormValues,
@@ -34,6 +35,14 @@ import type {
     FixtureTeam,
     FixtureVenue,
 } from './fixtureTypes'
+import { clubFixtureService } from './clubFixtureService'
+import type {
+    ClubFixture,
+    ClubFixtureFormValues,
+    ClubFixtureTeamOption,
+    ClubOpponent,
+    ClubSeason,
+} from './clubFixtureTypes'
 
 const emptyForm: FixtureFormValues = {
     stage: '',
@@ -167,7 +176,7 @@ function getAssignmentSelections(
     }
 }
 
-function CompetitionFixturesManager() {
+function CompetitionFixturesWorkspace() {
     const { currentOrganisation } =
         useOrganisation()
 
@@ -1267,9 +1276,595 @@ function CompetitionFixturesManager() {
     )
 }
 
+function getNextLocalDate(): string {
+    const date = new Date()
+    date.setDate(date.getDate() + 1)
+
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+}
+
+function createEmptyClubFixtureForm(
+    teamId: string
+): ClubFixtureFormValues {
+    return {
+        team_id: teamId,
+        slot_id: '',
+        opponent_id: '',
+        opponent_name: '',
+        fixture_date: getNextLocalDate(),
+        kickoff_time: '11:00',
+        home_away: 'home',
+        fixture_type: 'friendly',
+        venue_name: '',
+        venue_address: '',
+        status: 'confirmed',
+        opponent_contact_name: '',
+        opponent_contact_phone: '',
+        opponent_contact_email: '',
+        referee_name: '',
+        notes: '',
+        published: true,
+        cancellation_reason: '',
+        replaced_fixture_id: '',
+    }
+}
+
+function ClubFixturesWorkspace() {
+    const { currentOrganisation } = useOrganisation()
+    const organisationId = currentOrganisation?.id ?? null
+
+    const [seasons, setSeasons] = useState<ClubSeason[]>([])
+    const [seasonId, setSeasonId] = useState('')
+    const [teams, setTeams] = useState<ClubFixtureTeamOption[]>([])
+    const [teamId, setTeamId] = useState('')
+    const [fixtures, setFixtures] = useState<ClubFixture[]>([])
+    const [opponents, setOpponents] = useState<ClubOpponent[]>([])
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [showModal, setShowModal] = useState(false)
+    const [editingFixture, setEditingFixture] =
+        useState<ClubFixture | null>(null)
+    const [fixtureToDelete, setFixtureToDelete] =
+        useState<ClubFixture | null>(null)
+    const [formValues, setFormValues] =
+        useState<ClubFixtureFormValues>(
+            createEmptyClubFixtureForm('')
+        )
+    const [toastMessage, setToastMessage] = useState('')
+    const [toastType, setToastType] =
+        useState<ToastType>('success')
+
+    const selectedTeam = useMemo(
+        () => teams.find(team => team.id === teamId) ?? null,
+        [teamId, teams]
+    )
+
+    const opponentNames = useMemo(
+        () =>
+            new Map(
+                opponents.map(opponent => [
+                    opponent.id,
+                    opponent.name,
+                ])
+            ),
+        [opponents]
+    )
+
+    function showToast(
+        message: string,
+        type: ToastType = 'success'
+    ) {
+        setToastMessage(message)
+        setToastType(type)
+    }
+
+    const loadSeasons = useCallback(async () => {
+        if (!organisationId) {
+            setSeasons([])
+            setSeasonId('')
+            setLoading(false)
+            return
+        }
+
+        try {
+            const rows = await clubFixtureService.getSeasons(
+                organisationId
+            )
+            setSeasons(rows)
+            setSeasonId(previous => {
+                if (rows.some(season => season.id === previous)) {
+                    return previous
+                }
+
+                return (
+                    rows.find(season => season.status === 'active')?.id ??
+                    rows[0]?.id ??
+                    ''
+                )
+            })
+        } catch (error) {
+            setSeasons([])
+            setSeasonId('')
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to load club seasons.',
+                'error'
+            )
+        }
+    }, [organisationId])
+
+    const loadSeasonContext = useCallback(async () => {
+        if (!organisationId || !seasonId) {
+            setTeams([])
+            setTeamId('')
+            setOpponents([])
+            setFixtures([])
+            setLoading(false)
+            return
+        }
+
+        try {
+            setLoading(true)
+            const [teamRows, opponentRows] = await Promise.all([
+                clubFixtureService.getTeamOptions(
+                    organisationId,
+                    seasonId
+                ),
+                clubFixtureService.getOpponents(organisationId),
+            ])
+
+            setTeams(teamRows)
+            setOpponents(opponentRows)
+            setTeamId(previous => {
+                if (teamRows.some(team => team.id === previous)) {
+                    return previous
+                }
+
+                return teamRows[0]?.id ?? ''
+            })
+        } catch (error) {
+            setTeams([])
+            setTeamId('')
+            setOpponents([])
+            setFixtures([])
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to load the club fixture workspace.',
+                'error'
+            )
+        } finally {
+            setLoading(false)
+        }
+    }, [organisationId, seasonId])
+
+    const loadFixtures = useCallback(async () => {
+        if (!seasonId || !teamId) {
+            setFixtures([])
+            return
+        }
+
+        try {
+            setLoading(true)
+            const rows = await clubFixtureService.getFixtures(
+                seasonId,
+                teamId
+            )
+            setFixtures(rows)
+        } catch (error) {
+            setFixtures([])
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to load club fixtures.',
+                'error'
+            )
+        } finally {
+            setLoading(false)
+        }
+    }, [seasonId, teamId])
+
+    useEffect(() => {
+        setShowModal(false)
+        setEditingFixture(null)
+        setFixtureToDelete(null)
+        setToastMessage('')
+        void loadSeasons()
+    }, [loadSeasons])
+
+    useEffect(() => {
+        void loadSeasonContext()
+    }, [loadSeasonContext])
+
+    useEffect(() => {
+        void loadFixtures()
+    }, [loadFixtures])
+
+    function openCreateModal() {
+        if (!teamId) {
+            showToast(
+                'Select a team before creating a fixture.',
+                'error'
+            )
+            return
+        }
+
+        setEditingFixture(null)
+        setFormValues(createEmptyClubFixtureForm(teamId))
+        setShowModal(true)
+    }
+
+    function openEditModal(fixture: ClubFixture) {
+        setEditingFixture(fixture)
+        setFormValues({
+            team_id: fixture.team_id ?? teamId,
+            slot_id: fixture.slot_id ?? '',
+            opponent_id: fixture.opponent_id ?? '',
+            opponent_name: fixture.opponent_id
+                ? opponentNames.get(fixture.opponent_id) ?? ''
+                : '',
+            fixture_date: fixture.fixture_date,
+            kickoff_time: fixture.kickoff_time?.slice(0, 5) ?? '',
+            home_away: fixture.home_away,
+            fixture_type: fixture.fixture_type,
+            venue_name: fixture.venue_name ?? '',
+            venue_address: fixture.venue_address ?? '',
+            status: fixture.status,
+            opponent_contact_name:
+                fixture.opponent_contact_name ?? '',
+            opponent_contact_phone:
+                fixture.opponent_contact_phone ?? '',
+            opponent_contact_email:
+                fixture.opponent_contact_email ?? '',
+            referee_name: fixture.referee_name ?? '',
+            notes: fixture.notes ?? '',
+            published: fixture.published,
+            cancellation_reason:
+                fixture.cancellation_reason ?? '',
+            replaced_fixture_id:
+                fixture.replaced_fixture_id ?? '',
+        })
+        setShowModal(true)
+    }
+
+    function closeModal() {
+        if (saving) return
+        setShowModal(false)
+        setEditingFixture(null)
+        setFormValues(createEmptyClubFixtureForm(teamId))
+    }
+
+    function validateFixture(): boolean {
+        if (!organisationId || !seasonId || !teamId) {
+            showToast(
+                'Select an active season and team before saving a fixture.',
+                'error'
+            )
+            return false
+        }
+
+        if (!formValues.opponent_name.trim()) {
+            showToast('Opponent name is required.', 'error')
+            return false
+        }
+
+        if (!formValues.fixture_date) {
+            showToast('Fixture date is required.', 'error')
+            return false
+        }
+
+        return true
+    }
+
+    async function saveFixture() {
+        if (
+            !validateFixture() ||
+            !organisationId ||
+            !seasonId ||
+            !teamId
+        ) {
+            return
+        }
+
+        setSaving(true)
+
+        try {
+            const opponent =
+                await clubFixtureService.findOrCreateOpponent(
+                    organisationId,
+                    formValues.opponent_name
+                )
+
+            const values: ClubFixtureFormValues = {
+                ...formValues,
+                team_id: teamId,
+                opponent_id: opponent.id,
+                opponent_name: opponent.name,
+            }
+
+            if (editingFixture) {
+                await clubFixtureService.updateFixture(
+                    editingFixture.id,
+                    values
+                )
+            } else {
+                await clubFixtureService.createFixture(
+                    organisationId,
+                    seasonId,
+                    values
+                )
+            }
+
+            const refreshedOpponents =
+                await clubFixtureService.getOpponents(
+                    organisationId
+                )
+            setOpponents(refreshedOpponents)
+
+            closeModal()
+            await loadFixtures()
+            showToast(
+                editingFixture
+                    ? 'Fixture updated successfully.'
+                    : 'Fixture created successfully. It is now available to Match Centre and fixture RSVP.',
+                'success'
+            )
+        } catch (error) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to save the club fixture.',
+                'error'
+            )
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function deleteFixture() {
+        if (!fixtureToDelete) return
+
+        try {
+            setSaving(true)
+            await clubFixtureService.deleteFixture(
+                fixtureToDelete.id
+            )
+            setFixtureToDelete(null)
+            await loadFixtures()
+            showToast('Fixture deleted successfully.', 'success')
+        } catch (error) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to delete the fixture.',
+                'error'
+            )
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    if (!organisationId) {
+        return (
+            <section className="rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-14 text-center">
+                <CalendarDays className="mx-auto h-8 w-8 text-[var(--organisation-accent)]" />
+                <h3 className="mt-4 text-xl font-black text-[var(--organisation-text)]">
+                    Select a club
+                </h3>
+            </section>
+        )
+    }
+
+    return (
+        <div className="space-y-6 font-sans">
+            <Toast
+                message={toastMessage}
+                type={toastType}
+                onClose={() => setToastMessage('')}
+            />
+
+            <section className="rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-6">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
+                            Club Match Operations
+                        </p>
+                        <h3 className="mt-1 text-2xl font-black text-[var(--organisation-text)]">
+                            Fixtures
+                        </h3>
+                        <p className="mt-2 max-w-2xl text-sm text-[color:var(--organisation-text)]/60">
+                            Create fixtures using the same TournamentHQ fixture workflow. Club fixtures feed Match Centre, RSVP, results and the public site.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[520px]">
+                        <label className="text-sm font-semibold text-[var(--organisation-text)]">
+                            Season
+                            <select
+                                className="mt-2 w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-[var(--organisation-text)]"
+                                value={seasonId}
+                                onChange={event =>
+                                    setSeasonId(event.target.value)
+                                }
+                            >
+                                <option value="">Select season</option>
+                                {seasons.map(season => (
+                                    <option key={season.id} value={season.id}>
+                                        {season.season_label || season.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="text-sm font-semibold text-[var(--organisation-text)]">
+                            Team
+                            <select
+                                className="mt-2 w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-[var(--organisation-text)]"
+                                value={teamId}
+                                onChange={event =>
+                                    setTeamId(event.target.value)
+                                }
+                                disabled={!seasonId || teams.length === 0}
+                            >
+                                <option value="">Select team</option>
+                                {teams.map(team => (
+                                    <option key={team.id} value={team.id}>
+                                        {team.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                <div className="mt-5 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={openCreateModal}
+                        disabled={!seasonId || !teamId || loading}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 py-3 text-sm font-bold text-[var(--organisation-on-accent)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        <Plus className="h-5 w-5" />
+                        Add Fixture
+                    </button>
+                </div>
+            </section>
+
+            {!seasonId ? (
+                <section className="rounded-3xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[color:var(--organisation-text)]/60">
+                    Select a season to manage fixtures.
+                </section>
+            ) : !teamId ? (
+                <section className="rounded-3xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[color:var(--organisation-text)]/60">
+                    No team is linked to this season yet. Add/link a team before creating fixtures.
+                </section>
+            ) : loading ? (
+                <section className="rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[color:var(--organisation-text)]/60">
+                    Loading fixtures...
+                </section>
+            ) : fixtures.length === 0 ? (
+                <section className="rounded-3xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center">
+                    <CalendarDays className="mx-auto h-8 w-8 text-[var(--organisation-accent)]" />
+                    <h3 className="mt-4 text-lg font-black text-[var(--organisation-text)]">
+                        No fixtures yet
+                    </h3>
+                    <p className="mt-2 text-sm text-[color:var(--organisation-text)]/60">
+                        Add the first fixture for {selectedTeam?.name ?? 'this team'}.
+                    </p>
+                </section>
+            ) : (
+                <section className="overflow-hidden rounded-3xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)]">
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[900px]">
+                            <thead className="border-b border-[var(--organisation-border)] bg-black/20 text-left text-xs uppercase tracking-[0.12em] text-[color:var(--organisation-text)]/55">
+                                <tr>
+                                    <th className="px-5 py-4">Date</th>
+                                    <th className="px-5 py-4">Fixture</th>
+                                    <th className="px-5 py-4">Venue</th>
+                                    <th className="px-5 py-4">Type</th>
+                                    <th className="px-5 py-4">Status</th>
+                                    <th className="px-5 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--organisation-border)]">
+                                {fixtures.map(fixture => {
+                                    const opponent = fixture.opponent_id
+                                        ? opponentNames.get(fixture.opponent_id) ?? 'Opponent'
+                                        : 'Opponent'
+                                    const title = fixture.home_away === 'away'
+                                        ? `${opponent} vs ${selectedTeam?.name ?? currentOrganisation.name}`
+                                        : `${selectedTeam?.name ?? currentOrganisation.name} vs ${opponent}`
+
+                                    return (
+                                        <tr key={fixture.id}>
+                                            <td className="px-5 py-4 text-sm font-semibold text-[var(--organisation-text)]">
+                                                {fixture.fixture_date}
+                                                {fixture.kickoff_time && (
+                                                    <span className="ml-2 text-[color:var(--organisation-text)]/55">
+                                                        {fixture.kickoff_time.slice(0, 5)}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-4 font-bold text-[var(--organisation-text)]">
+                                                {title}
+                                            </td>
+                                            <td className="px-5 py-4 text-sm text-[color:var(--organisation-text)]/70">
+                                                {fixture.venue_name ?? 'TBC'}
+                                            </td>
+                                            <td className="px-5 py-4 text-sm capitalize text-[color:var(--organisation-text)]/70">
+                                                {fixture.fixture_type}
+                                            </td>
+                                            <td className="px-5 py-4 text-sm capitalize text-[color:var(--organisation-text)]/70">
+                                                {fixture.status}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openEditModal(fixture)}
+                                                        className="rounded-lg border border-[var(--organisation-border)] px-3 py-2 text-xs font-bold text-[var(--organisation-text)] hover:bg-white/5"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFixtureToDelete(fixture)}
+                                                        className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            )}
+
+            {showModal && selectedTeam && (
+                <FixtureModal
+                    context="club"
+                    mode={editingFixture ? 'edit' : 'create'}
+                    values={formValues}
+                    clubName={currentOrganisation.name}
+                    teamName={selectedTeam.name}
+                    isSaving={saving}
+                    onChange={setFormValues}
+                    onClose={closeModal}
+                    onSave={saveFixture}
+                />
+            )}
+
+            {fixtureToDelete && (
+                <ConfirmDialog
+                    title="Delete Fixture"
+                    message="Are you sure you want to delete this club fixture? Match Centre and RSVP records linked to it may also be affected."
+                    confirmText={saving ? 'Deleting...' : 'Delete'}
+                    cancelText="Cancel"
+                    onCancel={() => {
+                        if (!saving) setFixtureToDelete(null)
+                    }}
+                    onConfirm={deleteFixture}
+                />
+            )}
+        </div>
+    )
+}
+
 export function FixturesManager() {
     const { currentOrganisation } = useOrganisation()
-    return currentOrganisation.organisation_type === 'club'
-        ? <ClubFixturesManager />
-        : <CompetitionFixturesManager />
+
+    if (currentOrganisation?.organisation_type === 'club') {
+        return <ClubFixturesWorkspace />
+    }
+
+    return <CompetitionFixturesWorkspace />
 }

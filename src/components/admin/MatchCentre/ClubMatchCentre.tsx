@@ -6,28 +6,42 @@ import {
     type ChangeEvent,
 } from 'react'
 import {
+    BellRing,
     CalendarDays,
     Check,
     CheckCircle2,
     ChevronRight,
     CircleDot,
+    CircleHelp,
     Clock3,
     Crown,
     Goal,
     ListChecks,
     LoaderCircle,
+    MailCheck,
+    MailWarning,
     MapPin,
     RefreshCw,
     RotateCcw,
     Save,
+    Send,
     ShieldCheck,
     Shirt,
+    UserCheck,
     Users,
+    UserX,
     XCircle,
 } from 'lucide-react'
 
 import { useOrganisation } from '../../../context/OrganisationContext'
 import { TournamentHQBrand } from '../../common/TournamentHQBrand'
+import { clubFixtureAvailabilityService } from './clubFixtureAvailabilityService'
+import type {
+    ClubFixtureAvailability,
+    ClubFixtureAvailabilityPreview,
+    ClubFixtureAvailabilityRecipient,
+    ClubFixtureAvailabilityResponse,
+} from './clubFixtureAvailabilityTypes'
 import { clubMatchCentreService } from './clubMatchCentreService'
 import type {
     ClubMatchCentreFixture,
@@ -120,6 +134,96 @@ function statusClasses(status: string): string {
     }
 }
 
+function formatDateTime(value: string | null): string {
+    if (!value) return 'Not set'
+
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+
+    return new Intl.DateTimeFormat('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(date)
+}
+
+function toLocalDateTimeInput(value: string | null): string {
+    if (!value) return ''
+
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+
+    const local = new Date(
+        date.getTime() - date.getTimezoneOffset() * 60_000,
+    )
+
+    return local.toISOString().slice(0, 16)
+}
+
+function availabilityResponseClasses(
+    response: ClubFixtureAvailabilityResponse | null,
+    missingContact = false,
+): string {
+    if (missingContact) {
+        return 'border-slate-500/35 bg-slate-500/10 text-slate-300'
+    }
+
+    if (response === 'available') {
+        return 'border-lime-400/30 bg-lime-400/10 text-lime-300'
+    }
+
+    if (response === 'unavailable') {
+        return 'border-rose-400/30 bg-rose-400/10 text-rose-200'
+    }
+
+    if (response === 'maybe') {
+        return 'border-amber-400/30 bg-amber-400/10 text-amber-200'
+    }
+
+    return 'border-sky-400/25 bg-sky-400/10 text-sky-200'
+}
+
+function AvailabilityBadge({
+    recipient,
+}: {
+    recipient: ClubFixtureAvailabilityRecipient | null
+}) {
+    if (!recipient) {
+        return (
+            <span className="inline-flex rounded-full border border-slate-500/25 bg-slate-500/10 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                Not requested
+            </span>
+        )
+    }
+
+    const missingContact = !recipient.recipientEmail && !recipient.recipientPhone
+    const phoneOnly = !recipient.recipientEmail && Boolean(recipient.recipientPhone)
+    const label = missingContact
+        ? 'Missing contact'
+        : phoneOnly
+          ? 'Phone only'
+          : recipient.response === 'available'
+            ? 'Available'
+            : recipient.response === 'unavailable'
+              ? 'Unavailable'
+              : recipient.response === 'maybe'
+                ? 'Not sure'
+                : 'Awaiting RSVP'
+
+    return (
+        <span
+            className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${availabilityResponseClasses(
+                recipient.response,
+                missingContact,
+            )}`}
+        >
+            {label}
+        </span>
+    )
+}
+
 function createDraft(
     roster: ClubMatchCentreRosterPlayer[],
     matchSquad: ClubMatchCentreSquad | null,
@@ -209,11 +313,19 @@ export function ClubMatchCentre() {
     const [matchSquad, setMatchSquad] = useState<ClubMatchCentreSquad | null>(null)
     const [draft, setDraft] = useState<PlayerDraftByMemberId>({})
     const [notes, setNotes] = useState('')
+    const [availability, setAvailability] =
+        useState<ClubFixtureAvailability | null>(null)
+    const [availabilityPreview, setAvailabilityPreview] =
+        useState<ClubFixtureAvailabilityPreview | null>(null)
+    const [responseDeadline, setResponseDeadline] = useState('')
+    const [availabilityNote, setAvailabilityNote] = useState('')
 
     const [loadingSeasons, setLoadingSeasons] = useState(false)
     const [loadingTeams, setLoadingTeams] = useState(false)
     const [loadingFixtures, setLoadingFixtures] = useState(false)
     const [loadingSquad, setLoadingSquad] = useState(false)
+    const [loadingAvailability, setLoadingAvailability] = useState(false)
+    const [availabilityBusy, setAvailabilityBusy] = useState(false)
     const [saving, setSaving] = useState(false)
 
     const [error, setError] = useState<string | null>(null)
@@ -232,6 +344,17 @@ export function ClubMatchCentre() {
     const selectedFixture = useMemo(
         () => fixtures.find((fixture) => fixture.id === fixtureId) ?? null,
         [fixtureId, fixtures],
+    )
+
+    const availabilityByMemberId = useMemo(
+        () =>
+            new Map(
+                (availability?.recipients ?? []).map((recipient) => [
+                    recipient.squadMemberId,
+                    recipient,
+                ]),
+            ),
+        [availability?.recipients],
     )
 
     const selectedPlayers = useMemo(
@@ -439,6 +562,54 @@ export function ClubMatchCentre() {
         }
     }, [fixtureId, organisationId, seasonId, teamId])
 
+    const loadAvailability = useCallback(async () => {
+        if (!organisationId || !fixtureId) {
+            setAvailability(null)
+            setAvailabilityPreview(null)
+            setResponseDeadline('')
+            setAvailabilityNote('')
+            return
+        }
+
+        try {
+            setLoadingAvailability(true)
+
+            const [nextAvailability, nextPreview] =
+                await Promise.all([
+                    clubFixtureAvailabilityService.getAvailability(
+                        organisationId,
+                        fixtureId,
+                    ),
+                    clubFixtureAvailabilityService.getPreview(
+                        organisationId,
+                        fixtureId,
+                    ),
+                ])
+
+            setAvailability(nextAvailability)
+            setAvailabilityPreview(nextPreview)
+            setResponseDeadline(
+                toLocalDateTimeInput(
+                    nextAvailability?.responseDeadline ?? null,
+                ),
+            )
+            setAvailabilityNote(
+                nextAvailability?.messageNote ?? '',
+            )
+        } catch (caughtError) {
+            console.error(caughtError)
+            setAvailability(null)
+            setAvailabilityPreview(null)
+            setError(
+                caughtError instanceof Error
+                    ? caughtError.message
+                    : 'Unable to load player availability.',
+            )
+        } finally {
+            setLoadingAvailability(false)
+        }
+    }, [fixtureId, organisationId])
+
     useEffect(() => {
         setSeasons([])
         setSeasonId('')
@@ -450,6 +621,10 @@ export function ClubMatchCentre() {
         setMatchSquad(null)
         setDraft({})
         setNotes('')
+        setAvailability(null)
+        setAvailabilityPreview(null)
+        setResponseDeadline('')
+        setAvailabilityNote('')
         setError(null)
         setNotice(null)
         void loadSeasons()
@@ -464,6 +639,9 @@ export function ClubMatchCentre() {
         setMatchSquad(null)
         setDraft({})
         setNotes('')
+        setAvailability(null)
+        setResponseDeadline('')
+        setAvailabilityNote('')
         void loadTeams()
     }, [loadTeams])
 
@@ -474,12 +652,19 @@ export function ClubMatchCentre() {
         setMatchSquad(null)
         setDraft({})
         setNotes('')
+        setAvailability(null)
+        setResponseDeadline('')
+        setAvailabilityNote('')
         void loadFixtures()
     }, [loadFixtures])
 
     useEffect(() => {
         void loadSelectedMatch()
     }, [loadSelectedMatch])
+
+    useEffect(() => {
+        void loadAvailability()
+    }, [loadAvailability])
 
     function updatePlayerDraft(
         squadMemberId: string,
@@ -598,6 +783,94 @@ export function ClubMatchCentre() {
         })
     }
 
+    function availabilityDeadlineIso(): string | null {
+        if (!responseDeadline.trim()) return null
+
+        const date = new Date(responseDeadline)
+        if (Number.isNaN(date.getTime())) {
+            throw new Error('Enter a valid RSVP deadline.')
+        }
+
+        if (date.getTime() <= Date.now()) {
+            throw new Error('The RSVP deadline must be in the future.')
+        }
+
+        return date.toISOString()
+    }
+
+    async function sendAvailabilityRequest(): Promise<void> {
+        if (!organisationId || !selectedFixture) {
+            setError('Select a fixture before sending an availability request.')
+            return
+        }
+
+        try {
+            setAvailabilityBusy(true)
+            setError(null)
+            setNotice(null)
+
+            const result = await clubFixtureAvailabilityService.sendRequest({
+                organisationId,
+                fixtureId: selectedFixture.id,
+                responseDeadline: availabilityDeadlineIso(),
+                messageNote: availabilityNote,
+            })
+
+            await loadAvailability()
+
+            const missing = result.missingContact > 0
+                ? ` ${result.missingContact} eligible player${result.missingContact === 1 ? '' : 's'} had no email or phone number.`
+                : ''
+            const phoneOnly = result.phoneOnly > 0
+                ? ` ${result.phoneOnly} player${result.phoneOnly === 1 ? '' : 's'} had phone contact only and need manual follow-up until SMS/WhatsApp delivery is enabled.`
+                : ''
+            const failed = result.failed > 0
+                ? ` ${result.failed} email${result.failed === 1 ? '' : 's'} could not be submitted.`
+                : ''
+
+            setNotice(`${result.message}${missing}${phoneOnly}${failed}`)
+        } catch (caughtError) {
+            console.error(caughtError)
+            setError(
+                caughtError instanceof Error
+                    ? caughtError.message
+                    : 'Unable to send the availability request.',
+            )
+        } finally {
+            setAvailabilityBusy(false)
+        }
+    }
+
+    async function sendAvailabilityReminder(): Promise<void> {
+        if (!organisationId || !selectedFixture || !availability) {
+            setError('Send the first availability request before sending a reminder.')
+            return
+        }
+
+        try {
+            setAvailabilityBusy(true)
+            setError(null)
+            setNotice(null)
+
+            const result = await clubFixtureAvailabilityService.sendReminder(
+                organisationId,
+                selectedFixture.id,
+            )
+
+            await loadAvailability()
+            setNotice(result.message)
+        } catch (caughtError) {
+            console.error(caughtError)
+            setError(
+                caughtError instanceof Error
+                    ? caughtError.message
+                    : 'Unable to send the availability reminder.',
+            )
+        } finally {
+            setAvailabilityBusy(false)
+        }
+    }
+
     async function saveSquad(
         status: 'draft' | 'confirmed',
         options?: { reopening?: boolean },
@@ -648,7 +921,7 @@ export function ClubMatchCentre() {
                 })),
             })
 
-            await Promise.all([loadFixtures(), loadSelectedMatch()])
+            await Promise.all([loadFixtures(), loadSelectedMatch(), loadAvailability()])
 
             setNotice(
                 options?.reopening
@@ -688,7 +961,7 @@ export function ClubMatchCentre() {
                                 Match Centre
                             </h2>
                             <p className="mt-1 max-w-3xl text-sm leading-6 text-[color:var(--organisation-text)]/70">
-                                Open a club fixture, prepare its matchday squad and confirm starters, substitutes, captain and goalkeeper before match activity is recorded.
+                                Open a club fixture, request player availability, then prepare and confirm the matchday squad before match activity is recorded.
                             </p>
                         </div>
                     </div>
@@ -755,14 +1028,15 @@ export function ClubMatchCentre() {
                             void Promise.all([
                                 loadFixtures(),
                                 loadSelectedMatch(),
+                                loadAvailability(),
                             ])
                         }}
-                        disabled={!teamId || loadingFixtures || loadingSquad}
+                        disabled={!teamId || loadingFixtures || loadingSquad || loadingAvailability}
                         className="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--organisation-border)] bg-black/20 px-4 text-sm font-bold text-[var(--organisation-accent)] transition hover:bg-white/5 disabled:opacity-50"
                     >
                         <RefreshCw
                             className={`h-4 w-4 ${
-                                loadingFixtures || loadingSquad
+                                loadingFixtures || loadingSquad || loadingAvailability
                                     ? 'animate-spin'
                                     : ''
                             }`}
@@ -981,6 +1255,263 @@ export function ClubMatchCentre() {
                                     </div>
                                 </div>
 
+                                <div className="border-b border-[color:var(--organisation-border)] bg-black/10 p-6">
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div className="max-w-3xl">
+                                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--organisation-accent)]">
+                                                Player Availability
+                                            </p>
+                                            <h4 className="mt-1 text-lg font-black">
+                                                Fixture RSVP
+                                            </h4>
+                                            <p className="mt-1 text-sm leading-6 text-[color:var(--organisation-text)]/60">
+                                                Request availability from active registered players and trialists. Payment status does not affect RSVP eligibility. The secure reply link works for players or parents/guardians without a TournamentHQ account.
+                                            </p>
+                                        </div>
+
+                                        {availability && (
+                                            <button
+                                                type="button"
+                                                onClick={() => void loadAvailability()}
+                                                disabled={loadingAvailability || availabilityBusy}
+                                                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[color:var(--organisation-border)] bg-black/20 px-4 text-xs font-black text-[var(--organisation-accent)] transition hover:bg-white/5 disabled:opacity-50"
+                                            >
+                                                <RefreshCw className={`h-4 w-4 ${loadingAvailability ? 'animate-spin' : ''}`} />
+                                                Refresh responses
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {availabilityPreview && !loadingAvailability && (
+                                        <div className={`mt-5 rounded-2xl border p-4 ${availabilityPreview.canSend ? 'border-lime-400/25 bg-lime-400/5' : 'border-amber-400/25 bg-amber-400/5'}`}>
+                                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                                <div>
+                                                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--organisation-accent)]">
+                                                        {availabilityPreview.playersPerSide}-a-side readiness
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-[color:var(--organisation-text)]/70">
+                                                        {availabilityPreview.message}
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                                                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">
+                                                        Eligible {availabilityPreview.eligiblePlayers}
+                                                    </span>
+                                                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">
+                                                        Registered {availabilityPreview.registeredPlayers}
+                                                    </span>
+                                                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">
+                                                        Trialists {availabilityPreview.trialists}
+                                                    </span>
+                                                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">
+                                                        Contactable {availabilityPreview.contactablePlayers}
+                                                    </span>
+                                                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">
+                                                        Email ready {availabilityPreview.emailReadyPlayers}
+                                                    </span>
+                                                    {availabilityPreview.phoneOnlyPlayers > 0 && (
+                                                        <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-amber-200">
+                                                            Phone only {availabilityPreview.phoneOnlyPlayers}
+                                                        </span>
+                                                    )}
+                                                    {availabilityPreview.missingContactPlayers > 0 && (
+                                                        <span className="rounded-full border border-rose-400/25 bg-rose-400/10 px-3 py-1.5 text-rose-200">
+                                                            No contact {availabilityPreview.missingContactPlayers}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {loadingAvailability ? (
+                                        <div className="mt-5 flex items-center gap-2 rounded-2xl border border-[color:var(--organisation-border)] bg-black/15 px-4 py-4 text-sm text-[color:var(--organisation-text)]/60">
+                                            <LoaderCircle className="h-4 w-4 animate-spin text-[var(--organisation-accent)]" />
+                                            Loading player availability...
+                                        </div>
+                                    ) : !availability ? (
+                                        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] xl:items-end">
+                                            <label className="space-y-2">
+                                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-[color:var(--organisation-text)]/55">
+                                                    RSVP deadline (optional)
+                                                </span>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={responseDeadline}
+                                                    onChange={(event: ChangeEvent<HTMLInputElement>) => setResponseDeadline(event.target.value)}
+                                                    min={toLocalDateTimeInput(new Date().toISOString())}
+                                                    disabled={availabilityBusy}
+                                                    className="min-h-11 w-full rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 text-sm outline-none focus:border-[var(--organisation-accent)] disabled:opacity-50"
+                                                />
+                                            </label>
+
+                                            <label className="space-y-2">
+                                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-[color:var(--organisation-text)]/55">
+                                                    Message to players / parents (optional)
+                                                </span>
+                                                <input
+                                                    type="text"
+                                                    value={availabilityNote}
+                                                    onChange={(event: ChangeEvent<HTMLInputElement>) => setAvailabilityNote(event.target.value)}
+                                                    placeholder="e.g. Please arrive 45 minutes before kick-off in club tracksuit."
+                                                    disabled={availabilityBusy}
+                                                    className="min-h-11 w-full rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 text-sm outline-none focus:border-[var(--organisation-accent)] disabled:opacity-50"
+                                                />
+                                            </label>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => void sendAvailabilityRequest()}
+                                                disabled={availabilityBusy || !availabilityPreview?.canSend || ['cancelled', 'abandoned', 'played', 'postponed'].includes(selectedFixture.status)}
+                                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-5 text-sm font-black text-[var(--organisation-on-accent)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {availabilityBusy ? (
+                                                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Send className="h-4 w-4" />
+                                                )}
+                                                Send availability request
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-5 space-y-4">
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                                                <div className="rounded-xl border border-lime-400/25 bg-lime-400/10 p-3">
+                                                    <div className="flex items-center gap-2 text-lime-300">
+                                                        <UserCheck className="h-4 w-4" />
+                                                        <strong className="text-xl font-black">{availability.summary.available}</strong>
+                                                    </div>
+                                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-lime-100/65">Available</p>
+                                                </div>
+                                                <div className="rounded-xl border border-rose-400/25 bg-rose-400/10 p-3">
+                                                    <div className="flex items-center gap-2 text-rose-200">
+                                                        <UserX className="h-4 w-4" />
+                                                        <strong className="text-xl font-black">{availability.summary.unavailable}</strong>
+                                                    </div>
+                                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-rose-100/65">Unavailable</p>
+                                                </div>
+                                                <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 p-3">
+                                                    <div className="flex items-center gap-2 text-amber-200">
+                                                        <CircleHelp className="h-4 w-4" />
+                                                        <strong className="text-xl font-black">{availability.summary.maybe}</strong>
+                                                    </div>
+                                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-100/65">Not sure</p>
+                                                </div>
+                                                <div className="rounded-xl border border-sky-400/25 bg-sky-400/10 p-3">
+                                                    <div className="flex items-center gap-2 text-sky-200">
+                                                        <BellRing className="h-4 w-4" />
+                                                        <strong className="text-xl font-black">{availability.summary.awaiting}</strong>
+                                                    </div>
+                                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-sky-100/65">Awaiting</p>
+                                                </div>
+                                                <div className="rounded-xl border border-slate-500/25 bg-slate-500/10 p-3">
+                                                    <div className="flex items-center gap-2 text-slate-300">
+                                                        <MailWarning className="h-4 w-4" />
+                                                        <strong className="text-xl font-black">{availability.summary.missingContact}</strong>
+                                                    </div>
+                                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-300/65">No contact</p>
+                                                </div>
+                                                <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 p-3">
+                                                    <div className="flex items-center gap-2 text-amber-200">
+                                                        <MailWarning className="h-4 w-4" />
+                                                        <strong className="text-xl font-black">{availability.summary.phoneOnly}</strong>
+                                                    </div>
+                                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-100/65">Phone only</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--organisation-border)] bg-black/15 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                                <div className="text-xs leading-5 text-[color:var(--organisation-text)]/60">
+                                                    <p>
+                                                        Sent: <strong className="text-[var(--organisation-text)]">{formatDateTime(availability.sentAt)}</strong>
+                                                    </p>
+                                                    <p>
+                                                        RSVP deadline: <strong className="text-[var(--organisation-text)]">{formatDateTime(availability.responseDeadline)}</strong>
+                                                    </p>
+                                                    {availability.lastReminderAt && (
+                                                        <p>
+                                                            Last reminder: <strong className="text-[var(--organisation-text)]">{formatDateTime(availability.lastReminderAt)}</strong>
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void sendAvailabilityRequest()}
+                                                        disabled={availabilityBusy || !availabilityPreview?.canSendNew || availability.status !== 'active'}
+                                                        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--organisation-accent)] px-4 text-xs font-black text-[var(--organisation-on-accent)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
+                                                    >
+                                                        {availabilityBusy ? (
+                                                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <Send className="h-4 w-4" />
+                                                        )}
+                                                        Send to new players ({availabilityPreview?.newSendablePlayers ?? 0})
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void sendAvailabilityReminder()}
+                                                        disabled={availabilityBusy || availability.summary.awaiting === 0 || availability.status !== 'active'}
+                                                        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--organisation-accent)] bg-[color:var(--organisation-accent)]/10 px-4 text-xs font-black text-[var(--organisation-accent)] transition hover:bg-[color:var(--organisation-accent)]/15 disabled:cursor-not-allowed disabled:opacity-40"
+                                                    >
+                                                        {availabilityBusy ? (
+                                                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <BellRing className="h-4 w-4" />
+                                                        )}
+                                                        Remind awaiting ({availability.summary.awaiting})
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="overflow-hidden rounded-2xl border border-[color:var(--organisation-border)]">
+                                                <div className="border-b border-[color:var(--organisation-border)] bg-black/15 px-4 py-3">
+                                                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[color:var(--organisation-text)]/55">
+                                                        Player responses · {availability.summary.total}
+                                                    </p>
+                                                </div>
+                                                <div className="max-h-72 divide-y divide-[color:var(--organisation-border)] overflow-y-auto">
+                                                    {availability.recipients.map((recipient) => (
+                                                        <div key={recipient.id} className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                                                            <div className="min-w-0">
+                                                                <p className="truncate font-bold">{recipient.playerName}</p>
+                                                                <p className="mt-0.5 truncate text-xs text-[color:var(--organisation-text)]/45">
+                                                                    {recipient.recipientEmail ?? recipient.recipientPhone ?? 'No email or phone number'}
+                                                                    {recipient.respondedByName ? ` · replied by ${recipient.respondedByName}` : ''}
+                                                                </p>
+                                                                {recipient.responseNote && (
+                                                                    <p className="mt-1 text-xs italic text-[color:var(--organisation-text)]/60">
+                                                                        “{recipient.responseNote}”
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <AvailabilityBadge recipient={recipient} />
+                                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold ${
+                                                                ['failed', 'bounced', 'complained'].includes(recipient.deliveryStatus)
+                                                                    ? 'text-rose-300'
+                                                                    : recipient.deliveryStatus === 'delivered' || recipient.deliveryStatus === 'read'
+                                                                      ? 'text-lime-300'
+                                                                      : 'text-[color:var(--organisation-text)]/45'
+                                                            }`}>
+                                                                {recipient.deliveryStatus === 'delivered' || recipient.deliveryStatus === 'read' ? (
+                                                                    <MailCheck className="h-3.5 w-3.5" />
+                                                                ) : recipient.deliveryStatus === 'failed' || recipient.deliveryStatus === 'bounced' ? (
+                                                                    <MailWarning className="h-3.5 w-3.5" />
+                                                                ) : (
+                                                                    <Send className="h-3.5 w-3.5" />
+                                                                )}
+                                                                {titleCase(recipient.deliveryStatus)}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
                                 {isCompleted && (
                                     <div className="mx-6 mt-6 rounded-2xl border border-sky-400/25 bg-sky-400/10 px-4 py-3 text-sm font-semibold text-sky-100">
                                         This matchday squad is completed and is read-only. Match activity is preserved as historical data.
@@ -1139,6 +1670,13 @@ export function ClubMatchCentre() {
                                                                                 ? ' · Inactive season member'
                                                                                 : ''}
                                                                         </p>
+                                                                        {availability && (
+                                                                            <div className="mt-1.5">
+                                                                                <AvailabilityBadge
+                                                                                    recipient={availabilityByMemberId.get(player.squadMemberId) ?? null}
+                                                                                />
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </div>

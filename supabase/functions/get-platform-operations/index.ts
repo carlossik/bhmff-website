@@ -17,6 +17,7 @@ type OrganisationRow = {
     organisation_type: string
     subscription_plan: string
     subscription_status: string
+    trial_end: string | null
     max_users: number
     max_competitions: number
     owner_name: string | null
@@ -96,11 +97,29 @@ type Diagnostic = {
     message: string
 }
 
+type BillingPlan = 'starter' | 'professional'
+type BillingInterval = 'monthly' | 'annual'
+
 type PriceSnapshot = {
     id: string
     unitAmount: number | null
     currency: string | null
+    plan: BillingPlan
+    interval: BillingInterval
 }
+
+type PriceConfig = {
+    environmentName: string
+    plan: BillingPlan
+    interval: BillingInterval
+}
+
+const priceConfigs: readonly PriceConfig[] = [
+    { environmentName: 'STRIPE_STARTER_MONTHLY_PRICE_ID', plan: 'starter', interval: 'monthly' },
+    { environmentName: 'STRIPE_STARTER_ANNUAL_PRICE_ID', plan: 'starter', interval: 'annual' },
+    { environmentName: 'STRIPE_PROFESSIONAL_MONTHLY_PRICE_ID', plan: 'professional', interval: 'monthly' },
+    { environmentName: 'STRIPE_PROFESSIONAL_ANNUAL_PRICE_ID', plan: 'professional', interval: 'annual' },
+]
 
 function optionalEnvironment(
     name: string,
@@ -158,20 +177,17 @@ function isAtRiskStripeStatus(
 
 function isProductionBilling(
     billing: BillingRow,
-    monthlyPriceId: string | null,
-    annualPriceId: string | null,
+    productionPriceIds: ReadonlySet<string>,
 ): boolean {
     if (billing.stripe_livemode === true) {
         return true
     }
 
-    if (!billing.stripe_price_id) {
-        return false
-    }
-
-    return (
-        billing.stripe_price_id === monthlyPriceId ||
-        billing.stripe_price_id === annualPriceId
+    return Boolean(
+        billing.stripe_price_id &&
+        productionPriceIds.has(
+            billing.stripe_price_id,
+        ),
     )
 }
 
@@ -184,12 +200,9 @@ function addCount(
 
 async function loadPriceSnapshot(
     stripe: Stripe,
-    priceId: string | null,
-): Promise<PriceSnapshot | null> {
-    if (!priceId) {
-        return null
-    }
-
+    config: PriceConfig,
+    priceId: string,
+): Promise<PriceSnapshot> {
     const price =
         await stripe.prices.retrieve(priceId)
 
@@ -199,47 +212,45 @@ async function loadPriceSnapshot(
         currency: price.currency
             ? price.currency.toUpperCase()
             : null,
+        plan: config.plan,
+        interval: config.interval,
     }
 }
 
 function moneyContribution(
     billing: BillingRow,
-    monthlyPrice: PriceSnapshot | null,
-    annualPrice: PriceSnapshot | null,
+    pricesById: ReadonlyMap<string, PriceSnapshot>,
 ): {
     annualMinor: number
     known: boolean
 } {
-    if (
-        monthlyPrice &&
-        billing.stripe_price_id ===
-            monthlyPrice.id &&
-        monthlyPrice.unitAmount !== null
-    ) {
-        return {
-            annualMinor:
-                monthlyPrice.unitAmount * 12,
-            known: true,
-        }
+    if (!billing.stripe_price_id) {
+        return { annualMinor: 0, known: false }
     }
 
-    if (
-        annualPrice &&
-        billing.stripe_price_id ===
-            annualPrice.id &&
-        annualPrice.unitAmount !== null
-    ) {
-        return {
-            annualMinor:
-                annualPrice.unitAmount,
-            known: true,
-        }
+    const price = pricesById.get(
+        billing.stripe_price_id,
+    )
+
+    if (!price || price.unitAmount === null) {
+        return { annualMinor: 0, known: false }
     }
 
     return {
-        annualMinor: 0,
-        known: false,
+        annualMinor:
+            price.interval === 'monthly'
+                ? price.unitAmount * 12
+                : price.unitAmount,
+        known: true,
     }
+}
+
+function paidPlanLabel(
+    value: string,
+): string {
+    if (value === 'starter') return 'Starter'
+    if (value === 'professional') return 'Professional'
+    return value
 }
 
 Deno.serve(async (request) => {
@@ -327,6 +338,7 @@ Deno.serve(async (request) => {
                     organisation_type,
                     subscription_plan,
                     subscription_status,
+                    trial_end,
                     max_users,
                     max_competitions,
                     owner_name,
@@ -477,13 +489,22 @@ Deno.serve(async (request) => {
             },
         )
 
-        const monthlyPriceId =
-            optionalEnvironment(
-                'STRIPE_PROFESSIONAL_MONTHLY_PRICE_ID',
-            )
-        const annualPriceId =
-            optionalEnvironment(
-                'STRIPE_PROFESSIONAL_ANNUAL_PRICE_ID',
+        const configuredPriceEntries =
+            priceConfigs.map((config) => ({
+                config,
+                priceId:
+                    optionalEnvironment(
+                        config.environmentName,
+                    ),
+            }))
+        const configuredPriceIds =
+            new Set(
+                configuredPriceEntries
+                    .map((entry) => entry.priceId)
+                    .filter(
+                        (value): value is string =>
+                            Boolean(value),
+                    ),
             )
         const stripeSecretKey =
             optionalEnvironment(
@@ -498,43 +519,42 @@ Deno.serve(async (request) => {
                 'Stripe billing health has not been checked.',
             checkedAt: generatedAt,
         }
-        let monthlyPrice: PriceSnapshot | null = null
-        let annualPrice: PriceSnapshot | null = null
+        let configuredPrices: PriceSnapshot[] = []
+
+        const missingPriceNames =
+            configuredPriceEntries
+                .filter((entry) => !entry.priceId)
+                .map(
+                    (entry) =>
+                        entry.config.environmentName,
+                )
 
         if (
             stripeSecretKey &&
-            monthlyPriceId &&
-            annualPriceId
+            missingPriceNames.length === 0
         ) {
             try {
                 const stripe =
                     new Stripe(stripeSecretKey)
 
-                const [
-                    loadedMonthlyPrice,
-                    loadedAnnualPrice,
-                ] = await Promise.all([
-                    loadPriceSnapshot(
-                        stripe,
-                        monthlyPriceId,
-                    ),
-                    loadPriceSnapshot(
-                        stripe,
-                        annualPriceId,
-                    ),
-                ])
-
-                monthlyPrice =
-                    loadedMonthlyPrice
-                annualPrice =
-                    loadedAnnualPrice
+                configuredPrices =
+                    await Promise.all(
+                        configuredPriceEntries.map(
+                            (entry) =>
+                                loadPriceSnapshot(
+                                    stripe,
+                                    entry.config,
+                                    entry.priceId as string,
+                                ),
+                        ),
+                    )
 
                 stripeHealth = {
                     id: 'stripe',
                     label: 'Stripe Billing',
                     status: 'healthy',
                     message:
-                        'Live Stripe credentials and Professional prices are reachable.',
+                        'Live Stripe credentials and Starter/Professional prices are reachable.',
                     checkedAt: generatedAt,
                 }
             } catch (error) {
@@ -554,19 +574,26 @@ Deno.serve(async (request) => {
                 id: 'stripe',
                 label: 'Stripe Billing',
                 status: 'degraded',
-                message:
-                    'One or more live Stripe billing secrets are not configured.',
+                message: !stripeSecretKey
+                    ? 'STRIPE_SECRET_KEY is not configured.'
+                    : `Missing live billing price configuration: ${missingPriceNames.join(', ')}.`,
                 checkedAt: generatedAt,
             }
         }
+
+        const pricesById =
+            new Map(
+                configuredPrices.map(
+                    (price) => [price.id, price],
+                ),
+            )
 
         const productionBillingRows =
             billingRows.filter(
                 (billing) =>
                     isProductionBilling(
                         billing,
-                        monthlyPriceId,
-                        annualPriceId,
+                        configuredPriceIds,
                     ),
             )
 
@@ -595,8 +622,7 @@ Deno.serve(async (request) => {
                 const contribution =
                     moneyContribution(
                         billing,
-                        monthlyPrice,
-                        annualPrice,
+                        pricesById,
                     )
                 activeAnnualMinor +=
                     contribution.annualMinor
@@ -611,8 +637,7 @@ Deno.serve(async (request) => {
                 const contribution =
                     moneyContribution(
                         billing,
-                        monthlyPrice,
-                        annualPrice,
+                        pricesById,
                     )
                 atRiskAnnualMinor +=
                     contribution.annualMinor
@@ -622,10 +647,9 @@ Deno.serve(async (request) => {
             },
         )
 
-        const currencies = [
-            monthlyPrice?.currency,
-            annualPrice?.currency,
-        ].filter(
+        const currencies = configuredPrices
+            .map((price) => price.currency)
+            .filter(
             (value): value is string =>
                 Boolean(value),
         )
@@ -650,9 +674,11 @@ Deno.serve(async (request) => {
                     billing &&
                     isProductionBilling(
                         billing,
-                        monthlyPriceId,
-                        annualPriceId,
+                        configuredPriceIds,
                     )
+                const isSelfServicePaidPlan =
+                    organisation.subscription_plan === 'starter' ||
+                    organisation.subscription_plan === 'professional'
 
                 if (
                     organisation.subscription_plan ===
@@ -663,29 +689,38 @@ Deno.serve(async (request) => {
                         id: `professional-no-billing-${organisation.id}`,
                         severity: 'critical',
                         code: 'professional_without_billing',
-                        organisationId:
-                            organisation.id,
-                        organisationName:
-                            organisation.name,
+                        organisationId: organisation.id,
+                        organisationName: organisation.name,
                         message:
                             'Professional entitlement exists without an organisation_billing record.',
                     })
                 } else if (
                     organisation.subscription_plan ===
-                        'professional' &&
+                        'starter' &&
+                    !billing
+                ) {
+                    diagnostics.push({
+                        id: `starter-no-billing-${organisation.id}`,
+                        severity: 'warning',
+                        code: 'starter_without_billing',
+                        organisationId: organisation.id,
+                        organisationName: organisation.name,
+                        message:
+                            'Starter workspace has no billing record. This may be a pre-paid-Starter legacy workspace or an incomplete billing journey and should be reviewed.',
+                    })
+                } else if (
+                    isSelfServicePaidPlan &&
                     billing &&
                     !productionBilling
                 ) {
                     diagnostics.push({
-                        id: `professional-non-live-${organisation.id}`,
+                        id: `paid-plan-non-live-${organisation.id}`,
                         severity: 'warning',
-                        code: 'professional_non_live_billing',
-                        organisationId:
-                            organisation.id,
-                        organisationName:
-                            organisation.name,
+                        code: 'paid_plan_non_live_billing',
+                        organisationId: organisation.id,
+                        organisationName: organisation.name,
                         message:
-                            'Professional entitlement is linked to a non-live or legacy Stripe billing record.',
+                            `${paidPlanLabel(organisation.subscription_plan)} entitlement is linked to a non-live or legacy Stripe billing record.`,
                     })
                 }
 
@@ -694,21 +729,40 @@ Deno.serve(async (request) => {
                     productionBilling &&
                     isActiveStripeStatus(
                         billing.stripe_status,
-                    ) &&
-                    organisation.subscription_plan !==
-                        'professional'
+                    )
                 ) {
-                    diagnostics.push({
-                        id: `paid-plan-mismatch-${organisation.id}`,
-                        severity: 'critical',
-                        code: 'active_stripe_plan_mismatch',
-                        organisationId:
-                            organisation.id,
-                        organisationName:
-                            organisation.name,
-                        message:
-                            'Stripe is active but the TournamentHQ entitlement is not Professional.',
-                    })
+                    const configuredPrice =
+                        billing.stripe_price_id
+                            ? pricesById.get(
+                                  billing.stripe_price_id,
+                              ) ?? null
+                            : null
+
+                    if (
+                        configuredPrice &&
+                        organisation.subscription_plan !==
+                            configuredPrice.plan
+                    ) {
+                        diagnostics.push({
+                            id: `paid-plan-mismatch-${organisation.id}`,
+                            severity: 'critical',
+                            code: 'active_stripe_plan_mismatch',
+                            organisationId: organisation.id,
+                            organisationName: organisation.name,
+                            message:
+                                `Stripe price resolves to ${paidPlanLabel(configuredPrice.plan)} but TournamentHQ entitlement is ${paidPlanLabel(organisation.subscription_plan)}.`,
+                        })
+                    } else if (!configuredPrice) {
+                        diagnostics.push({
+                            id: `unrecognised-live-price-${organisation.id}`,
+                            severity: 'warning',
+                            code: 'unrecognised_live_price',
+                            organisationId: organisation.id,
+                            organisationName: organisation.name,
+                            message:
+                                'Live Stripe billing uses a price that is not one of the configured Starter/Professional prices.',
+                        })
+                    }
                 }
 
                 if (
@@ -719,12 +773,10 @@ Deno.serve(async (request) => {
                         id: `scheduled-cancellation-${organisation.id}`,
                         severity: 'warning',
                         code: 'scheduled_cancellation',
-                        organisationId:
-                            organisation.id,
-                        organisationName:
-                            organisation.name,
+                        organisationId: organisation.id,
+                        organisationName: organisation.name,
                         message:
-                            'Professional subscription is scheduled to end at the current billing-period boundary.',
+                            `${paidPlanLabel(organisation.subscription_plan)} subscription is scheduled to end at the current billing-period boundary.`,
                     })
                 }
 
@@ -739,10 +791,8 @@ Deno.serve(async (request) => {
                         id: `billing-at-risk-${organisation.id}`,
                         severity: 'critical',
                         code: 'billing_at_risk',
-                        organisationId:
-                            organisation.id,
-                        organisationName:
-                            organisation.name,
+                        organisationId: organisation.id,
+                        organisationName: organisation.name,
                         message:
                             `Stripe billing status is ${billing.stripe_status ?? 'unknown'}.`,
                     })
@@ -766,10 +816,8 @@ Deno.serve(async (request) => {
                         id: `stale-checkout-${organisation.id}`,
                         severity: 'warning',
                         code: 'stale_checkout_pending',
-                        organisationId:
-                            organisation.id,
-                        organisationName:
-                            organisation.name,
+                        organisationId: organisation.id,
+                        organisationName: organisation.name,
                         message:
                             'Checkout has remained pending for more than two hours.',
                     })
@@ -883,8 +931,7 @@ Deno.serve(async (request) => {
                         billing
                             ? isProductionBilling(
                                   billing,
-                                  monthlyPriceId,
-                                  annualPriceId,
+                                  configuredPriceIds,
                               )
                             : false
 
@@ -900,6 +947,8 @@ Deno.serve(async (request) => {
                             organisation.subscription_plan,
                         subscriptionStatus:
                             organisation.subscription_status,
+                        trialEnd:
+                            organisation.trial_end,
                         maxUsers:
                             organisation.max_users,
                         maxCompetitions:
@@ -1022,6 +1071,8 @@ Deno.serve(async (request) => {
                     planCounts.enterprise ?? 0,
                 activeSubscriptions:
                     activeBillingRows.length,
+                trialSubscriptions:
+                    statusCounts.trial ?? 0,
                 pastDue:
                     statusCounts.past_due ?? 0,
                 suspended:
@@ -1061,8 +1112,7 @@ Deno.serve(async (request) => {
             revenue: {
                 available:
                     Boolean(
-                        monthlyPrice &&
-                        annualPrice &&
+                        configuredPrices.length === priceConfigs.length &&
                         currency,
                     ),
                 complete:

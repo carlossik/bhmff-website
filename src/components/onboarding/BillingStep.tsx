@@ -169,9 +169,9 @@ function hasBillingEntitlement(
 ): boolean {
     return (
         organisation.subscription_status ===
-        'trial' ||
+            'trial' ||
         organisation.subscription_status ===
-        'active'
+            'active'
     )
 }
 
@@ -257,10 +257,10 @@ function getPriceLabel(
 }
 
 export function BillingStep({
-                                organisationId,
-                                onBack,
-                                onContinue,
-                            }: BillingStepProps) {
+    organisationId,
+    onBack,
+    onContinue,
+}: BillingStepProps) {
     const [selectedPlan, setSelectedPlan] =
         useState<SelfServicePlan>(
             readSelectedPlanFromSearch,
@@ -322,9 +322,9 @@ export function BillingStep({
                     currentOrganisation &&
                     (
                         currentOrganisation.subscription_plan ===
-                        'starter' ||
+                            'starter' ||
                         currentOrganisation.subscription_plan ===
-                        'professional'
+                            'professional'
                     ) &&
                     hasBillingEntitlement(
                         currentOrganisation,
@@ -380,9 +380,9 @@ export function BillingStep({
                     ) {
                         if (
                             currentOrganisation.subscription_plan ===
-                            'starter' ||
+                                'starter' ||
                             currentOrganisation.subscription_plan ===
-                            'professional'
+                                'professional'
                         ) {
                             setSelectedPlan(
                                 currentOrganisation.subscription_plan,
@@ -467,7 +467,7 @@ export function BillingStep({
             if (!checkoutUrl) {
                 throw new Error(
                     data?.error ||
-                    'TournamentHQ could not start Stripe Checkout.',
+                        'TournamentHQ could not start Stripe Checkout.',
                 )
             }
 
@@ -559,8 +559,8 @@ export function BillingStep({
                         }}
                     >
                         Your TournamentHQ {formatPlanName(
-                        organisation.subscription_plan,
-                    )} workspace is ready
+                            organisation.subscription_plan,
+                        )} workspace is ready
                     </div>
 
                     <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400 sm:text-[15px]">
@@ -595,8 +595,8 @@ export function BillingStep({
                                 {isTrial && trialEnd
                                     ? `Your trial runs until ${trialEnd}. Stripe will attempt the first subscription payment when the trial ends unless you cancel before then.`
                                     : isTrial
-                                        ? 'Stripe will attempt the first subscription payment when the trial ends unless you cancel before then.'
-                                        : 'Your workspace now has the entitlements for your selected subscription.'}
+                                      ? 'Stripe will attempt the first subscription payment when the trial ends unless you cancel before then.'
+                                      : 'Your workspace now has the entitlements for your selected subscription.'}
                             </p>
                         </div>
 
@@ -704,25 +704,25 @@ export function BillingStep({
 
             {billingReturnState ===
                 'cancelled' && (
-                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
-                        Stripe Checkout was cancelled. Nothing has been charged. Choose a plan when you are ready to continue.
-                    </div>
-                )}
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
+                    Stripe Checkout was cancelled. Nothing has been charged. Choose a plan when you are ready to continue.
+                </div>
+            )}
 
             {billingReturnState ===
                 'success' &&
                 !billingReady && (
-                    <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100">
-                        <div className="flex items-center gap-3">
-                            {syncingBilling && (
-                                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                            )}
-                            <span>
+                <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100">
+                    <div className="flex items-center gap-3">
+                        {syncingBilling && (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                        )}
+                        <span>
                             Stripe Checkout completed. TournamentHQ is confirming your subscription and trial status.
                         </span>
-                        </div>
                     </div>
-                )}
+                </div>
+            )}
 
             {errorMessage && (
                 <div

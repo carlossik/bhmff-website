@@ -1,10 +1,10 @@
 import Stripe from 'npm:stripe@^22.0.0'
 
 import {
+    corsHeaders,
     errorResponse,
     HttpError,
     jsonResponse,
-    corsHeaders,
 } from '../_shared/http.ts'
 import {
     requireBillingAdmin,
@@ -12,27 +12,24 @@ import {
 import {
     isServerBillingInterval,
     isServerSubscriptionPlanId,
-    SERVER_SUBSCRIPTION_PLANS,
+    SUBSCRIPTION_TRIAL_DAYS,
     type ServerBillingInterval,
+    type ServerSubscriptionPlanId,
 } from '../_shared/subscriptionPlans.ts'
 
 type CheckoutRequest = {
     organisationId: string
-    plan: unknown
-    billingInterval: unknown
+    plan: ServerSubscriptionPlanId
+    billingInterval: ServerBillingInterval
+}
+
+type BillingRow = {
+    stripe_customer_id: string | null
 }
 
 type OrganisationRow = {
     id: string
     name: string
-    owner_email: string | null
-    subscription_plan: string
-    subscription_status: string
-}
-
-type BillingRow = {
-    stripe_customer_id: string | null
-    stripe_subscription_id: string | null
 }
 
 function isRecord(
@@ -54,23 +51,39 @@ function parseRequest(
         )
     }
 
-    if (
-        typeof value.organisationId !==
-            'string' ||
-        !value.organisationId.trim()
-    ) {
+    const organisationId =
+        typeof value.organisationId === 'string'
+            ? value.organisationId.trim()
+            : ''
+    const plan = value.plan
+    const billingInterval =
+        value.billingInterval ?? value.billing
+
+    if (!organisationId) {
         throw new HttpError(
             400,
             'Organisation ID is required.',
         )
     }
 
+    if (!isServerSubscriptionPlanId(plan)) {
+        throw new HttpError(
+            400,
+            'A supported TournamentHQ subscription plan is required.',
+        )
+    }
+
+    if (!isServerBillingInterval(billingInterval)) {
+        throw new HttpError(
+            400,
+            'A supported billing interval is required.',
+        )
+    }
+
     return {
-        organisationId:
-            value.organisationId.trim(),
-        plan: value.plan,
-        billingInterval:
-            value.billingInterval,
+        organisationId,
+        plan,
+        billingInterval,
     }
 }
 
@@ -88,33 +101,125 @@ function getRequiredEnvironment(
     return value
 }
 
+function normaliseOrigin(
+    value: string,
+): string | null {
+    try {
+        const url = new URL(value)
+
+        if (
+            url.protocol !== 'http:' &&
+            url.protocol !== 'https:'
+        ) {
+            return null
+        }
+
+        return url.origin
+    } catch {
+        return null
+    }
+}
+
+function isLocalDevelopmentOrigin(
+    origin: string,
+): boolean {
+    try {
+        const hostname =
+            new URL(origin).hostname.toLowerCase()
+
+        return (
+            hostname === 'localhost' ||
+            hostname === '127.0.0.1' ||
+            hostname === '[::1]' ||
+            hostname === '::1'
+        )
+    } catch {
+        return false
+    }
+}
+
 function getAppUrl(
     request: Request,
 ): string {
-    const configured =
+    const configuredValue =
         Deno.env.get(
             'TOURNAMENTHQ_APP_URL',
-        )?.trim()
-    const origin =
-        request.headers.get('origin')?.trim()
-    const value = configured || origin
+        )?.trim() ?? ''
+    const configuredOrigin =
+        configuredValue
+            ? normaliseOrigin(
+                  configuredValue,
+              )
+            : null
+    const requestOriginValue =
+        request.headers.get('origin')?.trim() ?? ''
+    const requestOrigin =
+        requestOriginValue
+            ? normaliseOrigin(
+                  requestOriginValue,
+              )
+            : null
 
-    if (!value) {
-        throw new Error(
-            'TOURNAMENTHQ_APP_URL is not configured.',
-        )
+    /*
+     * Stripe must return the browser to the same SaaS origin that
+     * started Checkout. This matters during local development because
+     * Supabase auth/session storage is origin-scoped: returning a local
+     * customer to the production hostname makes them appear signed out.
+     *
+     * Never accept an arbitrary caller-controlled redirect origin. We
+     * only allow the configured production app origin or loopback hosts
+     * used for local development.
+     */
+    if (requestOrigin) {
+        if (
+            configuredOrigin &&
+            requestOrigin === configuredOrigin
+        ) {
+            return requestOrigin
+        }
+
+        if (
+            isLocalDevelopmentOrigin(
+                requestOrigin,
+            )
+        ) {
+            return requestOrigin
+        }
     }
 
-    return value.replace(/\/$/, '')
+    if (configuredOrigin) {
+        return configuredOrigin
+    }
+
+    throw new Error(
+        'TOURNAMENTHQ_APP_URL is not configured and no safe request origin was supplied.',
+    )
 }
 
 function getPriceId(
-    interval: ServerBillingInterval,
+    plan: ServerSubscriptionPlanId,
+    billingInterval: ServerBillingInterval,
 ): string {
+    const environmentName =
+        plan === 'starter'
+            ? billingInterval === 'annual'
+                ? 'STRIPE_STARTER_ANNUAL_PRICE_ID'
+                : 'STRIPE_STARTER_MONTHLY_PRICE_ID'
+            : billingInterval === 'annual'
+              ? 'STRIPE_PROFESSIONAL_ANNUAL_PRICE_ID'
+              : 'STRIPE_PROFESSIONAL_MONTHLY_PRICE_ID'
+
     return getRequiredEnvironment(
-        interval === 'annual'
-            ? 'STRIPE_PROFESSIONAL_ANNUAL_PRICE_ID'
-            : 'STRIPE_PROFESSIONAL_MONTHLY_PRICE_ID',
+        environmentName,
+    )
+}
+
+function isCurrentSubscription(
+    subscription: Stripe.Subscription,
+): boolean {
+    return (
+        subscription.status !== 'canceled' &&
+        subscription.status !== 'incomplete_expired'
     )
 }
 
@@ -136,43 +241,20 @@ Deno.serve(async (request) => {
         const body = parseRequest(
             await request.json(),
         )
-
-        if (
-            !isServerSubscriptionPlanId(
-                body.plan,
-            )
-        ) {
-            throw new HttpError(
-                400,
-                'Choose Starter or Professional.',
-            )
-        }
-
-        if (
-            !isServerBillingInterval(
-                body.billingInterval,
-            )
-        ) {
-            throw new HttpError(
-                400,
-                'Choose monthly or annual billing.',
-            )
-        }
-
-        const { admin, user } =
-            await requireBillingAdmin(
-                request,
-                body.organisationId,
-            )
+        const {
+            admin,
+            user,
+        } = await requireBillingAdmin(
+            request,
+            body.organisationId,
+        )
 
         const {
             data: organisationData,
             error: organisationError,
         } = await admin
             .from('organisations')
-            .select(
-                'id, name, owner_email, subscription_plan, subscription_status',
-            )
+            .select('id, name')
             .eq('id', body.organisationId)
             .maybeSingle()
 
@@ -184,14 +266,12 @@ Deno.serve(async (request) => {
         }
 
         const organisation =
-            organisationData as
-                | OrganisationRow
-                | null
+            organisationData as OrganisationRow | null
 
         if (!organisation) {
             throw new HttpError(
                 404,
-                'Organisation not found.',
+                'TournamentHQ organisation not found.',
             )
         }
 
@@ -200,9 +280,7 @@ Deno.serve(async (request) => {
             error: billingError,
         } = await admin
             .from('organisation_billing')
-            .select(
-                'stripe_customer_id, stripe_subscription_id',
-            )
+            .select('stripe_customer_id')
             .eq(
                 'organisation_id',
                 body.organisationId,
@@ -216,153 +294,42 @@ Deno.serve(async (request) => {
             )
         }
 
-        const billing =
-            billingData as BillingRow | null
-
-        if (
-            body.plan === 'starter'
-        ) {
-            if (
-                billing
-                    ?.stripe_subscription_id
-            ) {
-                throw new HttpError(
-                    409,
-                    'This organisation already has a Stripe subscription. Use billing management to change or cancel it.',
-                )
-            }
-
-            const starter =
-                SERVER_SUBSCRIPTION_PLANS.starter
-
-            const { error: updateError } =
-                await admin
-                    .from('organisations')
-                    .update({
-                        subscription_plan:
-                            'starter',
-                        subscription_status:
-                            'active',
-                        trial_end: null,
-                        max_users:
-                            starter.maxUsers,
-                        max_competitions:
-                            starter.maxCompetitions,
-                        public_site_enabled:
-                            starter.publicSiteEnabled,
-                    })
-                    .eq(
-                        'id',
-                        body.organisationId,
-                    )
-
-            if (updateError) {
-                throw new HttpError(
-                    500,
-                    updateError.message,
-                )
-            }
-
-            const { error: billingUpsertError } =
-                await admin
-                    .from(
-                        'organisation_billing',
-                    )
-                    .upsert(
-                        {
-                            organisation_id:
-                                body.organisationId,
-                            stripe_status:
-                                'starter',
-                            updated_at:
-                                new Date().toISOString(),
-                        },
-                        {
-                            onConflict:
-                                'organisation_id',
-                        },
-                    )
-
-            if (billingUpsertError) {
-                throw new HttpError(
-                    500,
-                    billingUpsertError.message,
-                )
-            }
-
-            return jsonResponse({
-                kind: 'activated',
-            })
-        }
-
-        if (
-            organisation.subscription_plan ===
-                'professional' &&
-            organisation.subscription_status ===
-                'active'
-        ) {
-            return jsonResponse({
-                kind: 'activated',
-            })
-        }
-
-        if (
-            billing
-                ?.stripe_subscription_id
-        ) {
-            throw new HttpError(
-                409,
-                'A Stripe subscription already exists for this organisation. Open billing management instead of creating another checkout.',
-            )
-        }
-
         const stripe = new Stripe(
             getRequiredEnvironment(
                 'STRIPE_SECRET_KEY',
             ),
         )
+        const billing =
+            billingData as BillingRow | null
 
         let customerId =
-            billing?.stripe_customer_id ??
-            null
+            billing?.stripe_customer_id ?? null
 
         if (!customerId) {
             const customer =
                 await stripe.customers.create({
                     email:
-                        organisation.owner_email ??
-                        user.email ??
-                        undefined,
-                    name: organisation.name,
+                        user.email ?? undefined,
+                    name:
+                        organisation.name,
                     metadata: {
                         organisation_id:
-                            organisation.id,
+                            body.organisationId,
                     },
                 })
 
             customerId = customer.id
-        }
 
-        const priceId = getPriceId(
-            body.billingInterval,
-        )
-        const appUrl = getAppUrl(request)
-
-        const { error: billingUpsertError } =
-            await admin
+            const {
+                error: customerSaveError,
+            } = await admin
                 .from('organisation_billing')
                 .upsert(
                     {
                         organisation_id:
-                            organisation.id,
+                            body.organisationId,
                         stripe_customer_id:
                             customerId,
-                        stripe_price_id:
-                            priceId,
-                        billing_interval:
-                            body.billingInterval,
-                        stripe_status:
-                            'checkout_pending',
                         updated_at:
                             new Date().toISOString(),
                     },
@@ -372,11 +339,63 @@ Deno.serve(async (request) => {
                     },
                 )
 
-        if (billingUpsertError) {
-            throw new HttpError(
-                500,
-                billingUpsertError.message,
+            if (customerSaveError) {
+                throw new HttpError(
+                    500,
+                    customerSaveError.message,
+                )
+            }
+        }
+
+        const previousSubscriptions =
+            await stripe.subscriptions.list({
+                customer: customerId,
+                status: 'all',
+                limit: 100,
+            })
+
+        const currentSubscription =
+            previousSubscriptions.data.find(
+                isCurrentSubscription,
             )
+
+        if (currentSubscription) {
+            throw new HttpError(
+                409,
+                'This organisation already has a current TournamentHQ subscription. Use Manage Billing instead of starting another checkout.',
+            )
+        }
+
+        const trialEligible =
+            previousSubscriptions.data.length === 0
+        const priceId = getPriceId(
+            body.plan,
+            body.billingInterval,
+        )
+        const appUrl = getAppUrl(request)
+        const metadata = {
+            organisation_id:
+                body.organisationId,
+            plan:
+                body.plan,
+            billing_interval:
+                body.billingInterval,
+        }
+
+        const subscriptionData:
+            Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+                metadata,
+            }
+
+        if (trialEligible) {
+            subscriptionData.trial_period_days =
+                SUBSCRIPTION_TRIAL_DAYS
+            subscriptionData.trial_settings = {
+                end_behavior: {
+                    missing_payment_method:
+                        'cancel',
+                },
+            }
         }
 
         const session =
@@ -384,7 +403,7 @@ Deno.serve(async (request) => {
                 mode: 'subscription',
                 customer: customerId,
                 client_reference_id:
-                    organisation.id,
+                    body.organisationId,
                 line_items: [
                     {
                         price: priceId,
@@ -392,37 +411,31 @@ Deno.serve(async (request) => {
                     },
                 ],
                 allow_promotion_codes: true,
+                payment_method_collection:
+                    'always',
                 success_url:
                     `${appUrl}/onboarding?billing=success&session_id={CHECKOUT_SESSION_ID}`,
                 cancel_url:
                     `${appUrl}/onboarding?billing=cancelled`,
-                metadata: {
-                    organisation_id:
-                        organisation.id,
-                    plan: 'professional',
-                    billing_interval:
-                        body.billingInterval,
-                },
-                subscription_data: {
-                    metadata: {
-                        organisation_id:
-                            organisation.id,
-                        plan: 'professional',
-                        billing_interval:
-                            body.billingInterval,
-                    },
-                },
+                metadata,
+                subscription_data:
+                    subscriptionData,
             })
 
         if (!session.url) {
-            throw new Error(
-                'Stripe did not return a Checkout URL.',
+            throw new HttpError(
+                500,
+                'Stripe did not return a checkout URL.',
             )
         }
 
         return jsonResponse({
-            kind: 'checkout',
             url: session.url,
+            trialEligible,
+            trialDays:
+                trialEligible
+                    ? SUBSCRIPTION_TRIAL_DAYS
+                    : 0,
         })
     } catch (error) {
         return errorResponse(error)

@@ -9,7 +9,7 @@ import type {
     CommunicationTemplate,
     SendCommunicationInput,
     SendCommunicationResult,
-} from '../../../../TournamentHQ_Communications_Phase4_3_SmartRecipients_AutoRouting_20260822/TournamentHQ_Communications_Phase4_3_SmartRecipients_AutoRouting_20260822/src/types/communicationTypes'
+} from '../types/communicationTypes'
 
 type FunctionErrorResponse = {
     error?: unknown

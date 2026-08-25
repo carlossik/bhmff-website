@@ -1,6 +1,7 @@
 export type ClubPlayerRegistrationStatus =
     | 'pending'
     | 'registered'
+    | 'trialist'
     | 'not_registered'
     | 'inactive'
 
