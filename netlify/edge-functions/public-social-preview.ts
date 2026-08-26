@@ -43,12 +43,6 @@ const APP_HOSTS =
         'app.tournamenthq.co.uk',
     ])
 
-const BHMFF_HOSTS =
-    new Set([
-        'bhmff.co.uk',
-        'www.bhmff.co.uk',
-    ])
-
 const MARKETING_HOSTS =
     new Set([
         'tournamenthq.co.uk',
@@ -182,30 +176,6 @@ function getOrganisationRoute(
 
     if (MARKETING_HOSTS.has(hostname)) {
         return null
-    }
-
-    if (BHMFF_HOSTS.has(hostname)) {
-        const firstSegment =
-            url.pathname
-                .split('/')
-                .filter(Boolean)[0]
-                ?.trim()
-                .toLowerCase() ?? ''
-
-        if (
-            firstSegment &&
-            RESERVED_PUBLIC_PATHS.has(
-                firstSegment,
-            )
-        ) {
-            return null
-        }
-
-        return {
-            slug: 'bhmff',
-            canonicalUrl:
-                `${url.protocol}//${url.host}${url.pathname}`,
-        }
     }
 
     const isPreviewHost =
