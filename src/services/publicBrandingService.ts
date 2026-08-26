@@ -58,23 +58,6 @@ function toAbsolutePublicUrl(
 }
 
 function getCanonicalPublicUrl(): string {
-    const hostname =
-        window.location.hostname
-            .trim()
-            .toLowerCase()
-
-    if (
-        hostname === 'bhmff.co.uk' ||
-        hostname === 'www.bhmff.co.uk'
-    ) {
-        const pathname =
-            window.location.pathname === '/'
-                ? '/'
-                : window.location.pathname
-
-        return `https://bhmff.co.uk${pathname}`
-    }
-
     return `${window.location.origin}${window.location.pathname}`
 }
 

@@ -7,13 +7,4 @@ export default defineConfig({
         react(),
         tailwindcss(),
     ],
-    build: {
-        rolldownOptions: {
-            input: [
-                'index.html',
-                'bhmff/index.html',
-                'bhmff-domain/index.html',
-            ],
-        },
-    },
 })
