@@ -1,1 +1,13 @@
-/*    /index.html   200
+# BHMFF public-site entry points must return crawler-visible metadata before
+# the generic SPA fallback. These 200 rewrites preserve the visitor URL.
+/bhmff       /bhmff/index.html          200!
+/bhmff/*     /bhmff/index.html          200!
+
+# The existing BHMFF custom domain is served by the same SaaS deployment.
+# Existing static assets keep their normal files; public SPA routes receive
+# the BHMFF metadata shell with a domain-correct canonical URL.
+https://bhmff.co.uk/*       /bhmff-domain/index.html   200
+https://www.bhmff.co.uk/*   /bhmff-domain/index.html   200
+
+# Generic TournamentHQ SPA fallback. Keep this last.
+/*           /index.html                200

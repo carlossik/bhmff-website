@@ -67,5 +67,5 @@ export function getOrganisationPublicSiteUrl(
             organisationSlug.trim(),
         );
 
-    return `${normalisedOrigin}/o/${encodedSlug}`;
+    return `${normalisedOrigin}/${encodedSlug}`;
 }

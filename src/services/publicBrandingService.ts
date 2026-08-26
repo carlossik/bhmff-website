@@ -37,6 +37,47 @@ function normaliseOptionalText(
     return value?.trim() ?? ''
 }
 
+function toAbsolutePublicUrl(
+    value: string,
+): string {
+    if (
+        typeof window === 'undefined' ||
+        !value.trim()
+    ) {
+        return value
+    }
+
+    try {
+        return new URL(
+            value,
+            window.location.origin,
+        ).href
+    } catch {
+        return value
+    }
+}
+
+function getCanonicalPublicUrl(): string {
+    const hostname =
+        window.location.hostname
+            .trim()
+            .toLowerCase()
+
+    if (
+        hostname === 'bhmff.co.uk' ||
+        hostname === 'www.bhmff.co.uk'
+    ) {
+        const pathname =
+            window.location.pathname === '/'
+                ? '/'
+                : window.location.pathname
+
+        return `https://bhmff.co.uk${pathname}`
+    }
+
+    return `${window.location.origin}${window.location.pathname}`
+}
+
 function createShortName(
     organisationName: string,
 ): string {
@@ -228,6 +269,14 @@ function applyManifest(
 function applyCommonBranding(
     branding: PublicBrowserBranding,
 ): void {
+    const canonicalUrl =
+        getCanonicalPublicUrl()
+
+    const absoluteImageUrl =
+        toAbsolutePublicUrl(
+            branding.faviconUrl,
+        )
+
     document.title =
         branding.title
 
@@ -289,12 +338,36 @@ function applyCommonBranding(
         branding.description,
     )
 
+    setLinkHref(
+        'link[rel="canonical"]',
+        {
+            rel: 'canonical',
+        },
+        canonicalUrl,
+    )
+
     setMetaContent(
         'meta[property="og:image"]',
         {
             property: 'og:image',
         },
-        branding.faviconUrl,
+        absoluteImageUrl,
+    )
+
+    setMetaContent(
+        'meta[property="og:image:secure_url"]',
+        {
+            property: 'og:image:secure_url',
+        },
+        absoluteImageUrl,
+    )
+
+    setMetaContent(
+        'meta[property="og:image:alt"]',
+        {
+            property: 'og:image:alt',
+        },
+        branding.title,
     )
 
     setMetaContent(
@@ -310,7 +383,15 @@ function applyCommonBranding(
         {
             property: 'og:url',
         },
-        window.location.href,
+        canonicalUrl,
+    )
+
+    setMetaContent(
+        'meta[property="og:site_name"]',
+        {
+            property: 'og:site_name',
+        },
+        'TournamentHQ',
     )
 
     setMetaContent(
@@ -343,7 +424,15 @@ function applyCommonBranding(
         {
             name: 'twitter:image',
         },
-        branding.faviconUrl,
+        absoluteImageUrl,
+    )
+
+    setMetaContent(
+        'meta[name="twitter:image:alt"]',
+        {
+            name: 'twitter:image:alt',
+        },
+        branding.title,
     )
 
     applyManifest(

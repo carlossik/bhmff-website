@@ -7,4 +7,9 @@ export default defineConfig({
         react(),
         tailwindcss(),
     ],
+    input: [
+        'index.html',
+        'bhmff/index.html',
+        'bhmff-domain/index.html',
+    ],
 })
