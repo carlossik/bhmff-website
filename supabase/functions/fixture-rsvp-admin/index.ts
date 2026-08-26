@@ -24,6 +24,7 @@ type FixtureRow = {
     kickoff_time: string | null
     home_away: 'home' | 'away' | 'neutral'
     fixture_type: string
+    match_format: '5v5' | '7v7' | '9v9' | '11v11'
     venue_name: string | null
     venue_address: string | null
     status: string
@@ -357,7 +358,7 @@ async function loadFixture(
 ): Promise<FixtureRow> {
     const { data, error } = await context.admin
         .from('club_fixtures')
-        .select('id,organisation_id,season_id,team_id,opponent_id,fixture_date,kickoff_time,home_away,fixture_type,venue_name,venue_address,status,notes')
+        .select('id,organisation_id,season_id,team_id,opponent_id,fixture_date,kickoff_time,home_away,fixture_type,match_format,venue_name,venue_address,status,notes')
         .eq('id', fixtureId)
         .eq('organisation_id', context.organisationId)
         .maybeSingle()
@@ -393,21 +394,22 @@ type EligibilitySnapshot = {
     missingContactPlayers: number
 }
 
-function inferPlayersPerSide(ageGroup: string | null): number {
-    if (!ageGroup) return 11
-
-    const match = ageGroup.toLowerCase().match(/(?:u|under\s*)?(\d{1,2})/)
-    const age = match ? Number(match[1]) : Number.NaN
-
-    if (!Number.isFinite(age)) return 11
-    if (age <= 8) return 5
-    if (age <= 10) return 7
-    if (age <= 12) return 9
-    return 11
+function getPlayersPerSide(matchFormat: FixtureRow['match_format']): number {
+    switch (matchFormat) {
+        case '5v5': return 5
+        case '7v7': return 7
+        case '9v9': return 9
+        case '11v11': return 11
+    }
 }
 
-function minimumPlayersToSend(playersPerSide: number): number {
-    return Math.max(1, playersPerSide - 1)
+function minimumPlayersToSend(matchFormat: FixtureRow['match_format']): number {
+    switch (matchFormat) {
+        case '5v5': return 4
+        case '7v7': return 5
+        case '9v9': return 6
+        case '11v11': return 7
+    }
 }
 
 function cleanContact(value: string | null): string | null {
@@ -582,8 +584,8 @@ async function buildPreview(
         recipients.map((recipient) => [recipient.squad_member_id, recipient]),
     )
 
-    const playersPerSide = inferPlayersPerSide(teamContext.ageGroup)
-    const minimumToSend = minimumPlayersToSend(playersPerSide)
+    const playersPerSide = getPlayersPerSide(fixture.match_format)
+    const minimumToSend = minimumPlayersToSend(fixture.match_format)
     const responded = recipients.filter((recipient) => Boolean(recipient.response)).length
     const alreadySent = recipients.filter(hasPreviouslyBeenSent).length
     const awaitingResponse = recipients.filter(
@@ -601,11 +603,11 @@ async function buildPreview(
         eligibility.emailReadyPlayers >= minimumToSend
     const canSend = enoughEligiblePlayers && enoughEmailRecipients
     const canSendNew =
-        Boolean(existingRequest) && canSend && newSendablePlayers > 0
+        Boolean(existingRequest) && newSendablePlayers > 0
 
     let message = ''
     if (!enoughEligiblePlayers) {
-        message = `You need at least ${playersPerSide} eligible players in the squad for a ${playersPerSide}-a-side match. RSVP sending is enabled once at least ${minimumToSend} players are registered or marked as trialists.`
+        message = `This is a ${fixture.match_format} match. TournamentHQ needs at least ${minimumToSend} eligible players before the first RSVP can be sent.`
     } else if (!enoughEmailRecipients) {
         message = `You have ${eligibility.players.length} eligible players, but only ${eligibility.emailReadyPlayers} can currently receive an automated RSVP email. Add player or parent/guardian email addresses until at least ${minimumToSend} can be sent. Phone-only contacts are retained for manual follow-up.`
     } else if (existingRequest && newSendablePlayers > 0) {
@@ -623,6 +625,7 @@ async function buildPreview(
         teamId: fixture.team_id,
         teamName: teamContext.teamName,
         ageGroup: teamContext.ageGroup,
+        matchFormat: fixture.match_format,
         playersPerSide,
         minimumToSend,
         eligiblePlayers: eligibility.players.length,
@@ -988,21 +991,23 @@ Deno.serve(async (request) => {
             teamAndOpponentNames(context, fixture),
             loadExistingRequest(context, fixture.id),
         ])
-        const playersPerSide = inferPlayersPerSide(teamContext.ageGroup)
-        const minimumToSend = minimumPlayersToSend(playersPerSide)
+        const playersPerSide = getPlayersPerSide(fixture.match_format)
+        const minimumToSend = minimumPlayersToSend(fixture.match_format)
 
         if (
             action === 'send' &&
+            !existingBeforeSend &&
             eligibility.players.length < minimumToSend
         ) {
             throw new RsvpAdminError(
                 409,
-                `You need at least ${playersPerSide} eligible players in the squad for a ${playersPerSide}-a-side match. Add registered players or trialists first. RSVP sending is enabled once at least ${minimumToSend} are eligible.`,
+                `This is a ${fixture.match_format} match. Add registered players or trialists until at least ${minimumToSend} eligible players are available before sending the first RSVP.`,
             )
         }
 
         if (
             action === 'send' &&
+            !existingBeforeSend &&
             eligibility.emailReadyPlayers < minimumToSend
         ) {
             throw new RsvpAdminError(

@@ -442,3 +442,14 @@ entrypoint = "./functions/create-billing-portal-session/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/stripe-webhook/index.ts"
+[functions.fixture-rsvp-admin]
+verify_jwt = true
+
+[functions.fixture-rsvp]
+verify_jwt = false
+
+[functions.trialist-admin]
+verify_jwt = true
+
+[functions.trialist-response]
+verify_jwt = false

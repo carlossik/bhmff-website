@@ -35,6 +35,7 @@ import {
     Sparkles,
     Target,
     Trophy,
+    UserPlus,
     Users,
 } from 'lucide-react'
 
@@ -46,6 +47,7 @@ import { ClubsManager } from './admin/Clubs/ClubsManager'
 import { TeamsManager } from './admin/Teams/TeamsManager'
 import ClubSeasonsManager from './admin/Seasons/ClubSeasonsManager'
 import { SquadManager } from './admin/Squad/SquadManager'
+import { TrialCentreManager } from './admin/TrialCentre/TrialCentreManager'
 import { FixturesManager } from './admin/Fixtures/FixturesManager'
 import { ClubMatchCentre } from './admin/MatchCentre/ClubMatchCentre'
 import { VenuesManager } from './admin/Venues/VenuesManager'
@@ -160,6 +162,11 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Squad',
                 icon: Users,
+            },
+            {
+                module: 'Trial Centre',
+                icon: UserPlus,
+                featured: true,
             },
             {
                 module: 'Clubs',
@@ -2372,6 +2379,9 @@ export function AdminPortal({
 
             case 'Fixtures':
                 return <FixturesManager />
+
+            case 'Trial Centre':
+                return <TrialCentreManager />
 
             case 'Match Centre':
                 return <ClubMatchCentre />

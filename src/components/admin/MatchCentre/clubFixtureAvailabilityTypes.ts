@@ -69,6 +69,7 @@ export interface ClubFixtureAvailabilityPreview {
     teamId: string
     teamName: string
     ageGroup: string | null
+    matchFormat: '5v5' | '7v7' | '9v9' | '11v11'
     playersPerSide: number
     minimumToSend: number
     eligiblePlayers: number

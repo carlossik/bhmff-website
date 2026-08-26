@@ -101,6 +101,7 @@ export type AdminModule =
     | 'User Access'
     | 'Opponents'
     | 'Squad'
+    | 'Trial Centre'
     | 'Statistics'
     | 'Club Finance'
     | 'Communications'
@@ -130,6 +131,7 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'User Access',
     'Opponents',
     'Squad',
+    'Trial Centre',
     'Statistics',
     'Club Finance',
     'Communications',
@@ -170,6 +172,7 @@ const roleModules: Record<
         'Goals',
         'Opponents',
         'Squad',
+        'Trial Centre',
         'Statistics',
         'Club Finance',
         'Communications',
@@ -187,6 +190,7 @@ export type OrganisationCapability =
     | 'team_management'
     | 'opponent_management'
     | 'squad_management'
+    | 'trial_management'
     | 'officials_management'
     | 'results_management'
     | 'statistics'
@@ -225,6 +229,7 @@ const organisationTypeCapabilities: Record<
         'team_management',
         'opponent_management',
         'squad_management',
+        'trial_management',
         'officials_management',
         'results_management',
         'statistics',
@@ -262,6 +267,7 @@ const moduleCapabilities: Partial<
     'User Access': 'user_access',
     Opponents: 'opponent_management',
     Squad: 'squad_management',
+    'Trial Centre': 'trial_management',
     Statistics: 'statistics',
     'Club Finance': 'club_finance',
     Communications: 'communications',

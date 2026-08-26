@@ -4,6 +4,15 @@ export type FixtureStatus =
     | 'completed'
     | 'cancelled'
 
+export type MatchFormat = '5v5' | '7v7' | '9v9' | '11v11'
+
+export const MATCH_FORMATS: readonly MatchFormat[] = [
+    '5v5',
+    '7v7',
+    '9v9',
+    '11v11',
+]
+
 export type FixtureOfficialSelections = {
     referee_official_id: string
     assistant_referee_1_official_id: string
@@ -21,6 +30,7 @@ export type Fixture = {
     stage: string
     kickoff_time: string | null
     status: FixtureStatus
+    match_format: MatchFormat
     created_at: string | null
 }
 
@@ -50,14 +60,7 @@ export type FixtureGroupMembership = {
     competition_team_id: string
 }
 
-export type Competition = {
-    id: string
-    name: string
-    status: string
-}
-
-export type FixtureFormValues =
-    FixtureOfficialSelections & {
+export type FixtureFormValues = FixtureOfficialSelections & {
     stage: string
     group_id: string
     home_competition_team_id: string
@@ -65,4 +68,5 @@ export type FixtureFormValues =
     venue_id: string
     kickoff_time: string
     status: FixtureStatus
+    match_format?: MatchFormat
 }

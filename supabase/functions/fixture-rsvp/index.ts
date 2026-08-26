@@ -40,6 +40,7 @@ type FixtureRow = {
     kickoff_time: string | null
     home_away: 'home' | 'away' | 'neutral'
     fixture_type: string
+    match_format: '5v5' | '7v7' | '9v9' | '11v11'
     venue_name: string | null
     venue_address: string | null
     status: string
@@ -207,7 +208,7 @@ async function loadContext(token: string): Promise<PageContext | null> {
             .maybeSingle(),
         admin
             .from('club_fixtures')
-            .select('id,team_id,opponent_id,fixture_date,kickoff_time,home_away,fixture_type,venue_name,venue_address,status')
+            .select('id,team_id,opponent_id,fixture_date,kickoff_time,home_away,fixture_type,match_format,venue_name,venue_address,status')
             .eq('id', recipient.fixture_id)
             .maybeSingle(),
         admin
@@ -332,7 +333,7 @@ ${existingStatus}
 <div class="key">Club</div><div>${escapeHtml(context.organisationName)}</div>
 <div class="key">Date</div><div><strong>${escapeHtml(formatDate(context.fixture.fixture_date))}</strong></div>
 <div class="key">Kick-off</div><div>${escapeHtml(context.fixture.kickoff_time?.slice(0, 5) || 'TBC')}</div>
-<div class="key">Fixture</div><div>${escapeHtml(titleCase(context.fixture.home_away))} · ${escapeHtml(titleCase(context.fixture.fixture_type))}</div>
+<div class="key">Fixture</div><div>${escapeHtml(titleCase(context.fixture.home_away))} · ${escapeHtml(titleCase(context.fixture.fixture_type))} · ${escapeHtml(context.fixture.match_format)}</div>
 ${venue ? `<div class="key">Venue</div><div>${venue}</div>` : ''}
 ${deadline ? `<div class="key">Reply by</div><div><strong>${escapeHtml(deadline)}</strong></div>` : ''}
 </div>

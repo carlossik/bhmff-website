@@ -87,6 +87,7 @@ function fixturePayload(values: ClubFixtureFormValues) {
         kickoff_time: values.kickoff_time || null,
         home_away: values.home_away,
         fixture_type: values.fixture_type,
+        match_format: values.match_format,
         venue_name: optionalText(values.venue_name),
         venue_address: optionalText(values.venue_address),
         status: values.status,

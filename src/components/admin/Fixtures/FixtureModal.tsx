@@ -19,12 +19,14 @@ import type {
     FixtureGroup,
     FixtureGroupMembership,
     FixtureStatus,
+    MatchFormat,
     FixtureTeam,
     FixtureVenue,
 } from './fixtureTypes'
 import type {
     ClubFixtureFormValues,
     ClubFixtureStatus,
+    MatchFormat as ClubMatchFormat,
     ClubFixtureType,
     ClubHomeAway,
 } from './clubFixtureTypes'
@@ -51,6 +53,8 @@ const stages = [
     'Third Place Playoff',
     'Grand Final',
 ]
+
+const matchFormats: readonly MatchFormat[] = ['5v5', '7v7', '9v9', '11v11']
 
 const statuses: FixtureStatus[] = [
     'scheduled',
@@ -522,6 +526,21 @@ function CompetitionFixtureModal({
                                     </select>
                                 </label>
 
+                                <label className={labelClassName}>
+                                    Match format
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.match_format ?? '11v11'}
+                                        onChange={(event) =>
+                                            updateField('match_format', event.target.value as MatchFormat)
+                                        }
+                                    >
+                                        {matchFormats.map((format) => (
+                                            <option key={format} value={format}>{format}</option>
+                                        ))}
+                                    </select>
+                                </label>
+
                                 {isGroupStage && (
                                     <label className={`${labelClassName} md:col-span-2`}>
                                         Competition group
@@ -939,6 +958,8 @@ type SharedFixtureModalProps =
     | CompetitionFixtureModalProps
     | ClubFixtureModalProps
 
+const clubMatchFormats: readonly ClubMatchFormat[] = ['5v5', '7v7', '9v9', '11v11']
+
 const clubStatuses: Array<{
     value: ClubFixtureStatus
     label: string
@@ -1194,6 +1215,21 @@ function ClubFixtureModal({
                                             <option key={option.value} value={option.value}>
                                                 {option.label}
                                             </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className={labelClassName}>
+                                    Match format
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.match_format}
+                                        onChange={(event) =>
+                                            updateField('match_format', event.target.value as ClubMatchFormat)
+                                        }
+                                    >
+                                        {clubMatchFormats.map((format) => (
+                                            <option key={format} value={format}>{format}</option>
                                         ))}
                                     </select>
                                 </label>

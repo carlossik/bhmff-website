@@ -170,9 +170,24 @@ async function getPublishedArticles(
 }
 
 async function getPublishedMedia(
-    organisationId: string,
+    organisation: Organisation,
     competitionIds: string[],
 ): Promise<PublicMediaItem[]> {
+    /*
+     * Club media belongs to the club organisation first. A club does not need
+     * a competition in order to publish videos, galleries or other media.
+     *
+     * Competition-organiser media remains restricted to competitions that are
+     * themselves published. This mirrors the public RLS policy and prevents a
+     * public page from depending on the visitor being authenticated.
+     */
+    if (
+        organisation.organisation_type !== "club" &&
+        competitionIds.length === 0
+    ) {
+        return [];
+    }
+
     let query = supabase
         .from("media")
         .select(`
@@ -195,7 +210,7 @@ async function getPublishedMedia(
         `)
         .eq(
             "organisation_id",
-            organisationId,
+            organisation.id,
         )
         .eq("status", "published")
         .order("featured", {
@@ -209,18 +224,16 @@ async function getPublishedMedia(
             ascending: false,
         });
 
-    if (competitionIds.length === 1) {
-        query = query.eq(
-            "competition_id",
-            competitionIds[0],
-        );
-    } else if (
-        competitionIds.length > 1
-    ) {
-        query = query.in(
-            "competition_id",
-            competitionIds,
-        );
+    if (organisation.organisation_type !== "club") {
+        query = competitionIds.length === 1
+            ? query.eq(
+                  "competition_id",
+                  competitionIds[0],
+              )
+            : query.in(
+                  "competition_id",
+                  competitionIds,
+              );
     }
 
     const { data, error } =
@@ -382,7 +395,7 @@ export const organisationPublicService = {
                 competitionIds,
             ),
             getPublishedMedia(
-                organisation.id,
+                organisation,
                 competitionIds,
             ),
         ]);

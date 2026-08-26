@@ -33,6 +33,8 @@ export type ClubHomeAway =
     | 'away'
     | 'neutral'
 
+export type MatchFormat = '5v5' | '7v7' | '9v9' | '11v11'
+
 export interface ClubSeason {
     id: string
     organisation_id: string
@@ -88,6 +90,7 @@ export interface ClubFixture {
     kickoff_time: string | null
     home_away: ClubHomeAway
     fixture_type: ClubFixtureType
+    match_format: MatchFormat
     venue_name: string | null
     venue_address: string | null
     status: ClubFixtureStatus
@@ -138,6 +141,7 @@ export interface ClubFixtureFormValues {
     kickoff_time: string
     home_away: ClubHomeAway
     fixture_type: ClubFixtureType
+    match_format: MatchFormat
     venue_name: string
     venue_address: string
     status: ClubFixtureStatus

@@ -33,6 +33,7 @@ type MediaViewModel = {
     description: string;
     mediaType: string;
     mediaUrl: string;
+    embedUrl: string;
     thumbnailUrl: string;
     createdAt: string;
     featured: boolean;
@@ -99,12 +100,25 @@ function normaliseMediaType(
 function mapMediaItem(
     item: PublicMediaItem,
 ): MediaViewModel {
-    const mediaType = normaliseMediaType(
+    const mediaUrl = getString(item, [
+        "youtube_url",
+        "media_url",
+        "url",
+    ]);
+    const embedUrl = getString(item, [
+        "embed_url",
+    ]);
+    const declaredType = normaliseMediaType(
         getString(item, [
             "media_type",
             "type",
+            "category",
         ]),
     );
+    const mediaType =
+        mediaUrl || embedUrl
+            ? "video"
+            : declaredType;
 
     return {
         id: item.id,
@@ -112,19 +126,16 @@ function mapMediaItem(
             getString(item, [
                 "title",
             ]) ||
-            "Competition media",
+            "Organisation media",
         description:
             getString(item, [
                 "description",
                 "summary",
             ]) ||
-            "Official competition media coverage.",
+            "Official media coverage.",
         mediaType,
-        mediaUrl:
-            getString(item, [
-                "media_url",
-                "url",
-            ]),
+        mediaUrl: mediaUrl || embedUrl,
+        embedUrl,
         thumbnailUrl:
             getString(item, [
                 "thumbnail_url",
@@ -132,8 +143,8 @@ function mapMediaItem(
             ]),
         createdAt:
             getString(item, [
-                "created_at",
                 "published_at",
+                "created_at",
             ]),
         featured:
             getBoolean(item, [
@@ -178,15 +189,16 @@ function getYoutubeEmbedUrl(
 
     try {
         const url = new URL(value);
+        const hostname =
+            url.hostname.toLowerCase();
 
         if (
-            url.hostname.includes(
-                "youtu.be",
-            )
+            hostname === "youtu.be" ||
+            hostname.endsWith(".youtu.be")
         ) {
             const id = url.pathname
-                .replace("/", "")
-                .trim();
+                .split("/")
+                .filter(Boolean)[0] ?? "";
 
             return id
                 ? `https://www.youtube.com/embed/${id}`
@@ -194,9 +206,10 @@ function getYoutubeEmbedUrl(
         }
 
         if (
-            url.hostname.includes(
-                "youtube.com",
-            )
+            hostname === "youtube.com" ||
+            hostname.endsWith(".youtube.com") ||
+            hostname === "youtube-nocookie.com" ||
+            hostname.endsWith(".youtube-nocookie.com")
         ) {
             if (
                 url.pathname.startsWith(
@@ -206,7 +219,17 @@ function getYoutubeEmbedUrl(
                 return value;
             }
 
-            const id = url.searchParams.get("v");
+            const pathParts = url.pathname
+                .split("/")
+                .filter(Boolean);
+            const pathId =
+                pathParts[0] === "shorts" ||
+                pathParts[0] === "live"
+                    ? pathParts[1] ?? ""
+                    : "";
+            const id =
+                url.searchParams.get("v") ??
+                pathId;
 
             return id
                 ? `https://www.youtube.com/embed/${id}`
@@ -220,15 +243,15 @@ function getYoutubeEmbedUrl(
 }
 
 export function PublicMediaPage({
-                                    organisationName,
-                                    media = [],
-                                    backgroundColour,
-                                    surfaceColour,
-                                    textColour,
-                                    accentColour,
-                                    accentTextColour,
-                                    basePath,
-                                }: PublicMediaPageProps) {
+    organisationName,
+    media = [],
+    backgroundColour,
+    surfaceColour,
+    textColour,
+    accentColour,
+    accentTextColour,
+    basePath,
+}: PublicMediaPageProps) {
     const [searchTerm, setSearchTerm] =
         useState("");
 
@@ -278,9 +301,9 @@ export function PublicMediaPage({
             (item) => {
                 const typeMatches =
                     activeFilter ===
-                    "all" ||
+                        "all" ||
                     item.mediaType ===
-                    activeFilter;
+                        activeFilter;
 
                 const searchMatches =
                     !normalisedSearch ||
@@ -315,9 +338,9 @@ export function PublicMediaPage({
             className="min-h-screen"
             style={{
                 background:
-                backgroundColour,
+                    backgroundColour,
                 color:
-                textColour,
+                    textColour,
             }}
         >
             <section
@@ -332,14 +355,14 @@ export function PublicMediaPage({
                     className="mx-auto"
                     style={{
                         width:
-                        pageWidth,
+                            pageWidth,
                     }}
                 >
                     <p
                         className="text-xs font-black uppercase tracking-[0.2em]"
                         style={{
                             color:
-                            accentColour,
+                                accentColour,
                         }}
                     >
                         Official Coverage
@@ -366,14 +389,14 @@ export function PublicMediaPage({
                     className="mx-auto"
                     style={{
                         width:
-                        pageWidth,
+                            pageWidth,
                     }}
                 >
                     <div
                         className="flex flex-col gap-4 rounded-2xl border p-4 lg:flex-row lg:items-center lg:justify-between"
                         style={{
                             background:
-                            surfaceColour,
+                                surfaceColour,
                             borderColor:
                                 `${accentColour}35`,
                         }}
@@ -396,7 +419,7 @@ export function PublicMediaPage({
                                 className="w-full rounded-xl border border-white/10 bg-black/20 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-current"
                                 style={{
                                     color:
-                                    textColour,
+                                        textColour,
                                 }}
                             />
                         </div>
@@ -420,10 +443,10 @@ export function PublicMediaPage({
                                 },
                             ].map(
                                 ({
-                                     value,
-                                     label,
-                                     icon: Icon,
-                                 }) => (
+                                    value,
+                                    label,
+                                    icon: Icon,
+                                }) => (
                                     <button
                                         key={value}
                                         type="button"
@@ -469,14 +492,14 @@ export function PublicMediaPage({
                         className="mx-auto"
                         style={{
                             width:
-                            pageWidth,
+                                pageWidth,
                         }}
                     >
                         <article
                             className="grid overflow-hidden rounded-2xl border lg:grid-cols-[1.35fr_1fr]"
                             style={{
                                 background:
-                                surfaceColour,
+                                    surfaceColour,
                                 borderColor:
                                     `${accentColour}35`,
                             }}
@@ -494,7 +517,7 @@ export function PublicMediaPage({
                                         background:
                                             `${accentColour}18`,
                                         color:
-                                        accentColour,
+                                            accentColour,
                                     }}
                                 >
                                     Featured Media
@@ -524,9 +547,9 @@ export function PublicMediaPage({
                                         className="mt-7 inline-flex w-fit items-center gap-2 rounded-xl px-5 py-3 font-black transition hover:opacity-90"
                                         style={{
                                             background:
-                                            accentColour,
+                                                accentColour,
                                             color:
-                                            accentTextColour,
+                                                accentTextColour,
                                             textDecoration:
                                                 "none",
                                         }}
@@ -548,7 +571,7 @@ export function PublicMediaPage({
                     className="mx-auto"
                     style={{
                         width:
-                        pageWidth,
+                            pageWidth,
                     }}
                 >
                     {filteredItems.length === 0 ? (
@@ -556,7 +579,7 @@ export function PublicMediaPage({
                             className="rounded-2xl border p-12 text-center"
                             style={{
                                 background:
-                                surfaceColour,
+                                    surfaceColour,
                                 borderColor:
                                     `${accentColour}35`,
                             }}
@@ -586,7 +609,7 @@ export function PublicMediaPage({
                                         className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border transition hover:-translate-y-0.5"
                                         style={{
                                             background:
-                                            surfaceColour,
+                                                surfaceColour,
                                             borderColor:
                                                 `${accentColour}35`,
                                         }}
@@ -603,16 +626,16 @@ export function PublicMediaPage({
                                                     className="text-xs font-black uppercase tracking-[0.16em]"
                                                     style={{
                                                         color:
-                                                        accentColour,
+                                                            accentColour,
                                                     }}
                                                 >
                                                     {item.mediaType ===
                                                     "video"
                                                         ? "Video"
                                                         : item.mediaType ===
-                                                        "image"
-                                                            ? "Image"
-                                                            : "Media"}
+                                                            "image"
+                                                          ? "Image"
+                                                          : "Media"}
                                                 </span>
 
                                                 {item.createdAt ? (
@@ -641,7 +664,7 @@ export function PublicMediaPage({
                                                         className="inline-flex items-center gap-2 text-sm font-black no-underline"
                                                         style={{
                                                             color:
-                                                            accentColour,
+                                                                accentColour,
                                                         }}
                                                     >
                                                         View Media
@@ -665,7 +688,7 @@ export function PublicMediaPage({
                     className="mx-auto rounded-2xl border p-8 text-center sm:p-12"
                     style={{
                         width:
-                        pageWidth,
+                            pageWidth,
                         borderColor:
                             `${accentColour}40`,
                         background: `linear-gradient(135deg, ${surfaceColour}, ${accentColour}14)`,
@@ -675,7 +698,7 @@ export function PublicMediaPage({
                         className="text-xs font-black uppercase tracking-[0.18em]"
                         style={{
                             color:
-                            accentColour,
+                                accentColour,
                         }}
                     >
                         Stay Connected
@@ -696,9 +719,9 @@ export function PublicMediaPage({
                         className="mt-6 inline-flex rounded-xl px-6 py-3 font-black transition hover:opacity-90"
                         style={{
                             background:
-                            accentColour,
+                                accentColour,
                             color:
-                            accentTextColour,
+                                accentTextColour,
                             textDecoration:
                                 "none",
                         }}
@@ -718,16 +741,17 @@ type MediaVisualProps = {
 };
 
 function FeaturedMediaVisual({
-                                 item,
-                                 backgroundColour,
-                                 accentColour,
-                             }: MediaVisualProps) {
+    item,
+    backgroundColour,
+    accentColour,
+}: MediaVisualProps) {
     const embedUrl =
         item.mediaType ===
         "video"
-            ? getYoutubeEmbedUrl(
-                item.mediaUrl,
-            )
+            ? item.embedUrl ||
+              getYoutubeEmbedUrl(
+                  item.mediaUrl,
+              )
             : "";
 
     if (embedUrl) {
@@ -748,7 +772,7 @@ function FeaturedMediaVisual({
         item.thumbnailUrl ||
         (
             item.mediaType ===
-            "image" &&
+                "image" &&
             item.mediaUrl
         )
     ) {
@@ -789,10 +813,10 @@ function FeaturedMediaVisual({
 }
 
 function MediaCardVisual({
-                             item,
-                             backgroundColour,
-                             accentColour,
-                         }: MediaVisualProps) {
+    item,
+    backgroundColour,
+    accentColour,
+}: MediaVisualProps) {
     const image =
         item.thumbnailUrl ||
         (
@@ -813,13 +837,13 @@ function MediaCardVisual({
 
                 {item.mediaType ===
                     "video" && (
-                        <div className="absolute inset-0 grid place-items-center bg-black/20">
-                            <PlayCircle
-                                size={54}
-                                color="#ffffff"
-                            />
-                        </div>
-                    )}
+                    <div className="absolute inset-0 grid place-items-center bg-black/20">
+                        <PlayCircle
+                            size={54}
+                            color="#ffffff"
+                        />
+                    </div>
+                )}
             </div>
         );
     }

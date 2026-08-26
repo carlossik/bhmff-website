@@ -52,6 +52,7 @@ const emptyForm: FixtureFormValues = {
     venue_id: '',
     kickoff_time: '',
     status: 'scheduled',
+    match_format: '11v11',
     referee_official_id: '',
     assistant_referee_1_official_id: '',
     assistant_referee_2_official_id: '',
@@ -454,6 +455,7 @@ function CompetitionFixturesWorkspace() {
                         fixture.kickoff_time
                     ),
                 status: fixture.status,
+                match_format: fixture.match_format ?? '11v11',
                 ...getAssignmentSelections(
                     assignments
                 ),
@@ -1299,6 +1301,7 @@ function createEmptyClubFixtureForm(
         kickoff_time: '11:00',
         home_away: 'home',
         fixture_type: 'friendly',
+        match_format: '11v11',
         venue_name: '',
         venue_address: '',
         status: 'confirmed',
@@ -1512,6 +1515,7 @@ function ClubFixturesWorkspace() {
             kickoff_time: fixture.kickoff_time?.slice(0, 5) ?? '',
             home_away: fixture.home_away,
             fixture_type: fixture.fixture_type,
+            match_format: fixture.match_format ?? '11v11',
             venue_name: fixture.venue_name ?? '',
             venue_address: fixture.venue_address ?? '',
             status: fixture.status,

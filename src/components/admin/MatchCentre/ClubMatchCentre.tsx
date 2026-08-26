@@ -1287,7 +1287,7 @@ export function ClubMatchCentre() {
                                             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                                 <div>
                                                     <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--organisation-accent)]">
-                                                        {availabilityPreview.playersPerSide}-a-side readiness
+                                                        {availabilityPreview.matchFormat} readiness
                                                     </p>
                                                     <p className="mt-1 text-sm text-[color:var(--organisation-text)]/70">
                                                         {availabilityPreview.message}
