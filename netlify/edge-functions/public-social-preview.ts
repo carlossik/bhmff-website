@@ -431,7 +431,7 @@ function resolveImageUrl(
     }
 
     return new URL(
-        '/assets/tournamenthq-logo.png',
+        '/assets/tournamenthq-social-preview.png',
         requestUrl.origin,
     ).href
 }
@@ -474,6 +474,13 @@ function applySocialMetadata(
             organisation,
             requestUrl,
         )
+
+    const usesTournamentHQFallbackImage =
+        imageUrl ===
+        new URL(
+            '/assets/tournamenthq-social-preview.png',
+            requestUrl.origin,
+        ).href
 
     const themeColour =
         organisation.primary_colour
@@ -600,6 +607,29 @@ function applySocialMetadata(
                 `${organisationName} logo`,
         },
     ]
+
+    if (usesTournamentHQFallbackImage) {
+        metas.push(
+            {
+                attributeName: 'property',
+                attributeValue:
+                    'og:image:type',
+                content: 'image/png',
+            },
+            {
+                attributeName: 'property',
+                attributeValue:
+                    'og:image:width',
+                content: '1200',
+            },
+            {
+                attributeName: 'property',
+                attributeValue:
+                    'og:image:height',
+                content: '630',
+            },
+        )
+    }
 
     for (const meta of metas) {
         nextHtml =
