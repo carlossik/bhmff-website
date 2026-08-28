@@ -19,6 +19,16 @@ import {
 } from 'lucide-react'
 
 import { supabase } from '../../lib/supabaseClient'
+import {
+    appendAcquisitionQueryParameters,
+    getAcquisitionUserMetadata,
+    getCurrentAcquisitionAttribution,
+    type AcquisitionAttribution,
+} from '../../lib/acquisition'
+import {
+    trackSaasAnalyticsEvent,
+    trackSaasAnalyticsMilestone,
+} from '../../lib/saasAnalytics'
 
 type SignupStatus =
     | 'idle'
@@ -35,9 +45,15 @@ type SignupPlan =
     | 'professional'
     | 'enterprise'
 
+type SignupBillingInterval =
+    | 'monthly'
+    | 'annual'
+
 type SignupIntent = {
     organisationType: SignupOrganisationType
     plan: SignupPlan
+    billingInterval: SignupBillingInterval | null
+    acquisition: AcquisitionAttribution
 }
 
 function isOrganisationType(
@@ -60,12 +76,23 @@ function isSignupPlan(
     )
 }
 
+function isSignupBillingInterval(
+    value: string | null,
+): value is SignupBillingInterval {
+    return (
+        value === 'monthly' ||
+        value === 'annual'
+    )
+}
+
 function getSignupIntent(): SignupIntent {
     if (typeof window === 'undefined') {
         return {
             organisationType:
                 'competition_organiser',
             plan: 'trial',
+            billingInterval: null,
+            acquisition: {},
         }
     }
 
@@ -79,6 +106,9 @@ function getSignupIntent(): SignupIntent {
     const requestedPlan =
         params.get('plan')
 
+    const requestedBillingInterval =
+        params.get('billing')
+
     return {
         organisationType:
             isOrganisationType(requestedType)
@@ -87,6 +117,14 @@ function getSignupIntent(): SignupIntent {
         plan: isSignupPlan(requestedPlan)
             ? requestedPlan
             : 'trial',
+        billingInterval:
+            isSignupBillingInterval(
+                requestedBillingInterval,
+            )
+                ? requestedBillingInterval
+                : null,
+        acquisition:
+            getCurrentAcquisitionAttribution(),
     }
 }
 
@@ -97,6 +135,18 @@ function createOnboardingPath(
         type: intent.organisationType,
         plan: intent.plan,
     })
+
+    if (intent.billingInterval) {
+        params.set(
+            'billing',
+            intent.billingInterval,
+        )
+    }
+
+    appendAcquisitionQueryParameters(
+        params,
+        intent.acquisition,
+    )
 
     return `/onboarding?${params.toString()}`
 }
@@ -186,6 +236,21 @@ export function SignupPage() {
         Object.values(
             passwordChecks,
         ).every(Boolean)
+
+    useEffect(() => {
+        trackSaasAnalyticsMilestone(
+            `signup-view:${intent.organisationType}:${intent.plan}`,
+            'signup_view',
+            {
+                organisation_type:
+                    intent.organisationType,
+                plan: intent.plan,
+                billing_interval:
+                    intent.billingInterval ??
+                    undefined,
+            },
+        )
+    }, [intent])
 
     useEffect(() => {
         let isMounted = true
@@ -333,6 +398,15 @@ export function SignupPage() {
                                     intent.organisationType,
                                 signup_plan:
                                     intent.plan,
+                                ...(intent.billingInterval
+                                    ? {
+                                          signup_billing_interval:
+                                              intent.billingInterval,
+                                      }
+                                    : {}),
+                                ...getAcquisitionUserMetadata(
+                                    intent.acquisition,
+                                ),
                             },
                         },
                     },
@@ -341,6 +415,19 @@ export function SignupPage() {
             if (error) {
                 throw error
             }
+
+            trackSaasAnalyticsEvent(
+                'sign_up',
+                {
+                    method: 'email',
+                    organisation_type:
+                        intent.organisationType,
+                    plan: intent.plan,
+                    billing_interval:
+                        intent.billingInterval ??
+                        undefined,
+                },
+            )
 
             if (data.session) {
                 window.location.replace(

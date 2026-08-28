@@ -26,6 +26,9 @@ import {
 import {
     SetupWizardHeader,
 } from '../../pages/onboarding/SetupWizardHeader'
+import {
+    trackSaasAnalyticsMilestone,
+} from '../../lib/saasAnalytics'
 
 const CURRENT_ORGANISATION_KEY =
     'tournamenthq-current-organisation'
@@ -173,6 +176,16 @@ export function OrganisationStep({
                 result.organisation,
             )
             setEditing(false)
+
+            trackSaasAnalyticsMilestone(
+                `organisation-created:${result.organisation.id}`,
+                'organisation_created',
+                {
+                    organisation_type:
+                        result.organisation
+                            .organisation_type,
+                },
+            )
 
             if (result.warnings.length > 0) {
                 setMessage(

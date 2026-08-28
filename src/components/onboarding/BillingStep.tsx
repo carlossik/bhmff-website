@@ -26,6 +26,10 @@ import type {
 import {
     supabase,
 } from '../../lib/supabaseClient'
+import {
+    trackSaasAnalyticsEvent,
+    trackSaasAnalyticsMilestone,
+} from '../../lib/saasAnalytics'
 
 type BillingStepProps = {
     organisationId: string | null
@@ -429,6 +433,44 @@ export function BillingStep({
         synchroniseCheckout,
     ])
 
+    useEffect(() => {
+        if (!organisation) {
+            return
+        }
+
+        if (
+            organisation.subscription_status ===
+            'trial'
+        ) {
+            trackSaasAnalyticsMilestone(
+                `trial-start:${organisation.id}`,
+                'trial_start',
+                {
+                    organisation_type:
+                        organisation.organisation_type,
+                    plan:
+                        organisation.subscription_plan,
+                },
+            )
+        }
+
+        if (
+            organisation.subscription_status ===
+            'active'
+        ) {
+            trackSaasAnalyticsMilestone(
+                `paid-subscription:${organisation.id}`,
+                'paid_subscription_active',
+                {
+                    organisation_type:
+                        organisation.organisation_type,
+                    plan:
+                        organisation.subscription_plan,
+                },
+            )
+        }
+    }, [organisation])
+
     async function startCheckout(): Promise<void> {
         if (
             !organisationId ||
@@ -470,6 +512,17 @@ export function BillingStep({
                         'TournamentHQ could not start Stripe Checkout.',
                 )
             }
+
+            trackSaasAnalyticsEvent(
+                'begin_checkout',
+                {
+                    plan: selectedPlan,
+                    billing_interval:
+                        billingInterval,
+                    organisation_type:
+                        organisation?.organisation_type,
+                },
+            )
 
             window.location.assign(
                 checkoutUrl,

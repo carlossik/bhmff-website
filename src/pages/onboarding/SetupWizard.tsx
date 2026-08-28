@@ -48,6 +48,9 @@ import {
     supabase,
 } from '../../lib/supabaseClient'
 import {
+    trackSaasAnalyticsMilestone,
+} from '../../lib/saasAnalytics'
+import {
     SetupWizardLayout,
 } from './SetupWizardLayout'
 
@@ -210,6 +213,31 @@ export function SetupWizard() {
         wizard.draft.organisationId,
         wizard.isReady,
         wizard.reset,
+    ])
+
+    useEffect(() => {
+        if (
+            accessState !== 'authenticated' ||
+            !wizard.isReady ||
+            !journeyReady
+        ) {
+            return
+        }
+
+        trackSaasAnalyticsMilestone(
+            `onboarding-start:${wizard.draft.startedAt}`,
+            'onboarding_start',
+            {
+                organisation_type:
+                    organisationType,
+            },
+        )
+    }, [
+        accessState,
+        journeyReady,
+        organisationType,
+        wizard.draft.startedAt,
+        wizard.isReady,
     ])
 
     function recordOrganisation(

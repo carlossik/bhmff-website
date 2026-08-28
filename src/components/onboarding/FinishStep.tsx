@@ -29,6 +29,12 @@ import {
 import {
     SetupWizardHeader,
 } from '../../pages/onboarding/SetupWizardHeader'
+import {
+    acquisitionService,
+} from '../../services/acquisitionService'
+import {
+    trackSaasAnalyticsMilestone,
+} from '../../lib/saasAnalytics'
 
 const CURRENT_ORGANISATION_KEY =
     'tournamenthq-current-organisation'
@@ -50,6 +56,28 @@ export function FinishStep({
         useState<Competition | null>(null)
     const [loading, setLoading] =
         useState(true)
+
+    useEffect(() => {
+        if (!organisationId) {
+            return
+        }
+
+        void acquisitionService
+            .markOnboardingCompleted(
+                organisationId,
+            )
+            .catch((error: unknown) => {
+                console.warn(
+                    'Unable to record onboarding completion:',
+                    error,
+                )
+            })
+
+        trackSaasAnalyticsMilestone(
+            `onboarding-complete:${organisationId}`,
+            'onboarding_complete',
+        )
+    }, [organisationId])
 
     useEffect(() => {
         let mounted = true
