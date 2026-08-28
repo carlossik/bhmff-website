@@ -807,46 +807,67 @@ export function PublicOrganisationLayout({
                     }}
                 >
                     <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-3">
-                        <a
-                            href={
-                                basePath || "/"
-                            }
-                            className="flex items-center gap-3 no-underline"
-                            style={{
-                                color:
-                                theme.textColour,
-                            }}
-                        >
-                            {resolvedOrganisation.logo_url ? (
-                                <img
-                                    src={
-                                        resolvedOrganisation.logo_url
-                                    }
-                                    alt={`${resolvedOrganisation.name} logo`}
-                                    className="h-12 w-12 rounded-xl object-contain"
-                                />
-                            ) : (
-                                <div
-                                    className="grid h-12 w-12 place-items-center rounded-xl font-black"
-                                    style={{
-                                        background:
-                                        theme.accentColour,
-                                        color:
-                                        theme.accentTextColour,
-                                    }}
-                                >
-                                    {resolvedOrganisation.name
-                                        .charAt(0)
-                                        .toUpperCase()}
-                                </div>
-                            )}
+                        <div className="flex min-w-0 items-center gap-3">
+                            <a
+                                href={
+                                    basePath || "/"
+                                }
+                                className="flex shrink-0 items-center no-underline"
+                                style={{
+                                    color:
+                                    theme.textColour,
+                                }}
+                            >
+                                {resolvedOrganisation.logo_url ? (
+                                    <img
+                                        src={
+                                            resolvedOrganisation.logo_url
+                                        }
+                                        alt={`${resolvedOrganisation.name} logo`}
+                                        className="h-12 w-12 rounded-xl object-contain"
+                                    />
+                                ) : (
+                                    <div
+                                        className="grid h-12 w-12 place-items-center rounded-xl font-black"
+                                        style={{
+                                            background:
+                                            theme.accentColour,
+                                            color:
+                                            theme.accentTextColour,
+                                        }}
+                                    >
+                                        {resolvedOrganisation.name
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                    </div>
+                                )}
+                            </a>
 
                             <div className="min-w-0">
-                                <strong className="block truncate text-base">
+                                <a
+                                    href={
+                                        basePath || "/"
+                                    }
+                                    className="block truncate text-base font-black no-underline"
+                                    style={{
+                                        color:
+                                        theme.textColour,
+                                    }}
+                                >
                                     {resolvedOrganisation.name}
-                                </strong>
+                                </a>
 
-                                <span className="mt-1 flex items-center gap-2 text-xs font-semibold opacity-60">
+                                <a
+                                    href="https://tournamenthq.co.uk"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-label="Visit TournamentHQ"
+                                    className="mt-1 flex w-fit items-center gap-2 text-xs font-semibold no-underline opacity-60 transition hover:opacity-100"
+                                    style={{
+                                        color:
+                                        theme.textColour,
+                                    }}
+                                >
                                     <span>Powered By</span>
                                     <img
                                         src="/assets/tournamenthq-logo.png"
@@ -860,9 +881,9 @@ export function PublicOrganisationLayout({
                                             flexShrink: 0,
                                         }}
                                     />
-                                </span>
+                                </a>
                             </div>
-                        </a>
+                        </div>
 
                         <nav
                             aria-label="Public site navigation"

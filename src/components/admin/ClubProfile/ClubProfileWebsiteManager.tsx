@@ -40,6 +40,7 @@ type BrandingForm = {
 }
 
 type OrganisationSettingsRow = {
+    name: string
     logo_url: string | null
     primary_colour: string | null
     secondary_colour: string | null
@@ -151,6 +152,9 @@ export function ClubProfileWebsiteManager() {
     const { currentOrganisation } = useOrganisation()
     const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+    const [clubName, setClubName] = useState(
+        currentOrganisation.name,
+    )
     const [branding, setBranding] =
         useState<BrandingForm>(DEFAULT_BRANDING)
     const [websiteEnabled, setWebsiteEnabled] =
@@ -199,6 +203,7 @@ export function ClubProfileWebsiteManager() {
             const { data, error } = await supabase
                 .from('organisations')
                 .select(`
+                    name,
                     logo_url,
                     primary_colour,
                     secondary_colour,
@@ -224,6 +229,7 @@ export function ClubProfileWebsiteManager() {
 
             const row = data as OrganisationSettingsRow
 
+            setClubName(row.name)
             setBranding({
                 logo_url: row.logo_url ?? '',
                 primary_colour: normaliseColour(
@@ -348,7 +354,7 @@ export function ClubProfileWebsiteManager() {
                 logo_url: publicUrlData.publicUrl,
             }))
             setMessage(
-                'Logo uploaded. Save Branding to publish it.',
+                'Logo uploaded. Save Profile & Branding to publish it.',
             )
         } catch (error) {
             setErrorMessage(getErrorMessage(error))
@@ -359,6 +365,13 @@ export function ClubProfileWebsiteManager() {
     }
 
     async function saveBranding() {
+        const resolvedClubName = clubName.trim()
+
+        if (!resolvedClubName) {
+            setErrorMessage('Club name is required.')
+            return
+        }
+
         const invalidField = COLOUR_FIELDS.find(
             ({ field }) =>
                 !isValidHexColour(branding[field]),
@@ -381,6 +394,7 @@ export function ClubProfileWebsiteManager() {
             const { data, error } = await supabase
                 .from('organisations')
                 .update({
+                    name: resolvedClubName,
                     logo_url:
                         branding.logo_url.trim() || null,
                     primary_colour:
@@ -398,6 +412,7 @@ export function ClubProfileWebsiteManager() {
                 })
                 .eq('id', currentOrganisation.id)
                 .select(`
+                    name,
                     logo_url,
                     primary_colour,
                     secondary_colour,
@@ -422,6 +437,7 @@ export function ClubProfileWebsiteManager() {
 
             const verified = data as OrganisationSettingsRow
 
+            setClubName(verified.name)
             setBranding({
                 logo_url: verified.logo_url ?? '',
                 primary_colour: normaliseColour(
@@ -578,8 +594,8 @@ export function ClubProfileWebsiteManager() {
                 >
                     <Save className="h-4 w-4" />
                     {savingBranding
-                        ? 'Saving Branding...'
-                        : 'Save Branding'}
+                        ? 'Saving Profile...'
+                        : 'Save Profile & Branding'}
                 </button>
             </div>
 
@@ -594,6 +610,34 @@ export function ClubProfileWebsiteManager() {
                     {errorMessage}
                 </p>
             )}
+
+            <section className="rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
+                <div className="max-w-2xl">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--organisation-accent)]">
+                        Club identity
+                    </p>
+                    <h4 className="mt-2 font-black">
+                        Public club name
+                    </h4>
+                    <p className="mt-2 text-sm leading-6 text-[var(--organisation-muted)]">
+                        Update the club name shown in the admin portal and on the public club website.
+                    </p>
+                    <label className="mt-5 block text-sm font-bold text-[var(--organisation-text)]">
+                        Club name
+                        <input
+                            type="text"
+                            value={clubName}
+                            disabled={savingBranding || uploadingLogo}
+                            onChange={(event) => {
+                                setClubName(event.currentTarget.value)
+                                setMessage('')
+                                setErrorMessage('')
+                            }}
+                            className="mt-2 w-full rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-[var(--organisation-text)] outline-none transition focus:border-[var(--organisation-accent)] focus:ring-2 focus:ring-[var(--organisation-accent)]/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                    </label>
+                </div>
+            </section>
 
             <section className="rounded-2xl border border-[var(--organisation-border)] bg-[var(--organisation-surface)] p-5">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -690,7 +734,7 @@ export function ClubProfileWebsiteManager() {
                 </div>
 
                 <div className="mt-4 rounded-xl border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-3 text-sm text-[var(--organisation-muted)]">
-                    Website visibility is saved immediately. You do not need to click Save Branding after changing LIVE/OFFLINE status.
+                    Website visibility is saved immediately. You do not need to click Save Profile & Branding after changing LIVE/OFFLINE status.
                 </div>
             </section>
 
@@ -763,7 +807,7 @@ export function ClubProfileWebsiteManager() {
                                         logo_url: '',
                                     }))
                                     setMessage(
-                                        'Logo removed from the preview. Save Branding to publish the change.',
+                                        'Logo removed from the preview. Save Profile & Branding to publish the change.',
                                     )
                                 }}
                             >

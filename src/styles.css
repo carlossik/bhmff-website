@@ -3520,3 +3520,75 @@
     font-weight: 700;
     letter-spacing: .02em;
 }
+
+/* ==========================================================
+   TournamentHQ admin responsive selector hardening
+   ========================================================== */
+@media (max-width: 900px) {
+    .adminHeaderRow {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 22px;
+    }
+
+    .adminAccount {
+        width: 100%;
+        justify-content: space-between;
+        white-space: normal;
+    }
+
+    .adminUser {
+        min-width: 0;
+        text-align: left;
+    }
+
+    .adminUser strong,
+    .adminUserEmail {
+        overflow-wrap: anywhere;
+    }
+
+    .adminToolbar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .adminToolbar > .competitionSelector,
+    .adminToolbar .competitionSelector {
+        display: grid;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        gap: 8px;
+        margin: 0;
+    }
+
+    .adminToolbar .competitionSelector label {
+        margin: 0;
+    }
+
+    .adminToolbar .competitionSelector select {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        margin: 0;
+    }
+}
+
+@media (max-width: 560px) {
+    .adminHeaderRow img[alt="TournamentHQ"] {
+        max-width: min(100%, 280px);
+        height: auto;
+    }
+
+    .adminAccount {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .adminToolbar {
+        border-radius: 14px;
+        padding: 13px;
+    }
+}

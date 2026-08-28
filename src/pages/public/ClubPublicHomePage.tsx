@@ -215,7 +215,9 @@ export function ClubPublicHomePage({
     )
 
     useEffect(() => {
-        if (!organisationId) {
+        const resolvedOrganisationId = organisationId ?? ''
+
+        if (!resolvedOrganisationId) {
             setClubData(emptyClubData)
             setLoading(false)
             return
@@ -229,7 +231,7 @@ export function ClubPublicHomePage({
                 setErrorMessage(null)
 
                 const data = await clubPublicService.getClubPublicData(
-                    organisationId,
+                    resolvedOrganisationId,
                 )
 
                 if (!disposed) {
@@ -445,7 +447,44 @@ export function ClubPublicHomePage({
         [clubData.fixtures, clubData.squad, clubData.teams],
     )
 
-    const currentContextName = selectedTeam?.name ?? organisationName
+    const isSingleTeamClub = clubData.teams.length === 1
+    const isExplicitTeamPage = Boolean(
+        selectedTeamId && selectedTeam && !isSingleTeamClub,
+    )
+
+    const publicTeamById = useMemo(() => {
+        const map = new Map(
+            clubData.teams.map((team) => [team.id, team]),
+        )
+
+        if (isSingleTeamClub && clubData.teams[0]) {
+            const onlyTeam = clubData.teams[0]
+            map.set(onlyTeam.id, {
+                ...onlyTeam,
+                name: organisationName,
+                logoUrl:
+                    organisationLogoUrl ?? onlyTeam.logoUrl,
+            })
+        }
+
+        return map
+    }, [
+        clubData.teams,
+        isSingleTeamClub,
+        organisationLogoUrl,
+        organisationName,
+    ])
+
+    const currentContextName =
+        isExplicitTeamPage && selectedTeam
+            ? selectedTeam.name
+            : organisationName
+
+    const currentContextLogoUrl =
+        isExplicitTeamPage && selectedTeam
+            ? selectedTeam.logoUrl ?? organisationLogoUrl
+            : organisationLogoUrl ?? selectedTeam?.logoUrl
+
     const isMultiTeamOverview =
         clubData.teams.length > 1 && selectedTeam === null
 
@@ -476,10 +515,52 @@ export function ClubPublicHomePage({
                     .club-public-site {
                         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                     }
+
                     .club-public-site h1,
                     .club-public-site h2,
                     .club-public-site h3 {
                         font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+                    }
+
+                    .club-public-hero-card {
+                        padding: clamp(1.5rem, 3vw, 2.5rem);
+                    }
+
+                    .club-public-hero-lockup {
+                        display: grid;
+                        grid-template-columns: minmax(8.5rem, 12rem) minmax(0, 1fr);
+                        align-items: center;
+                        gap: clamp(1.5rem, 3vw, 2.5rem);
+                    }
+
+                    .club-public-hero-badge {
+                        width: clamp(8.5rem, 12vw, 12rem);
+                        height: clamp(8.5rem, 12vw, 12rem);
+                    }
+
+                    .club-public-hero-title {
+                        margin-top: 0.75rem;
+                        font-size: clamp(2.35rem, 4.4vw, 4.45rem);
+                        line-height: 0.96;
+                        letter-spacing: -0.045em;
+                        text-transform: none;
+                    }
+
+                    @media (max-width: 640px) {
+                        .club-public-hero-lockup {
+                            grid-template-columns: 1fr;
+                            text-align: center;
+                        }
+
+                        .club-public-hero-badge {
+                            justify-self: center;
+                            width: clamp(7.25rem, 34vw, 9.5rem);
+                            height: clamp(7.25rem, 34vw, 9.5rem);
+                        }
+
+                        .club-public-hero-title {
+                            font-size: clamp(2.2rem, 11vw, 3.5rem);
+                        }
                     }
                 `}</style>
 
@@ -489,33 +570,29 @@ export function ClubPublicHomePage({
                 >
                     <div className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
                         <div
-                            className="rounded-2xl border p-6 sm:p-8"
+                            className="club-public-hero-card rounded-2xl border"
                             style={cardStyle}
                         >
-                            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                                {(selectedTeam?.logoUrl ?? organisationLogoUrl) ? (
+                            <div className="club-public-hero-lockup">
+                                {currentContextLogoUrl ? (
                                     <img
-                                        src={
-                                            selectedTeam?.logoUrl ??
-                                            organisationLogoUrl ??
-                                            undefined
-                                        }
+                                        src={currentContextLogoUrl}
                                         alt={`${currentContextName} badge`}
-                                        className="h-24 w-24 shrink-0 rounded-2xl object-contain"
+                                        className="club-public-hero-badge shrink-0 rounded-2xl object-contain"
                                     />
                                 ) : null}
 
-                                <div>
+                                <div className="min-w-0 flex-1">
                                     <p
                                         className="text-xs font-black uppercase tracking-[0.14em]"
                                         style={{ color: accentColour }}
                                     >
-                                        {selectedTeam
+                                        {isExplicitTeamPage
                                             ? `Official ${organisationName} Team`
-                                            : 'Official Club Website'}
+                                            : `Official ${organisationName} Club`}
                                     </p>
 
-                                    <h1 className="mt-2 text-4xl font-black uppercase tracking-[-0.04em] sm:text-5xl lg:text-6xl">
+                                    <h1 className="club-public-hero-title max-w-4xl break-words font-black">
                                         {currentContextName}
                                     </h1>
 
@@ -537,7 +614,7 @@ export function ClubPublicHomePage({
                                         </span>
                                     )}
 
-                                    {selectedTeam && clubData.teams.length > 1 && (
+                                    {isExplicitTeamPage && clubData.teams.length > 1 && (
                                         <a
                                             href={`${basePath}/teams#teams`}
                                             className="ml-2 mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-bold no-underline"
@@ -562,14 +639,14 @@ export function ClubPublicHomePage({
                                     fixture={nextFixture}
                                     fixtureTitle={getFixtureTitle(
                                         nextFixture,
-                                        teamById,
+                                        publicTeamById,
                                         currentContextName,
                                     )}
                                     teamName={
                                         isMultiTeamOverview
                                             ? getTeamLabel(
                                                   nextFixture,
-                                                  teamById,
+                                                  publicTeamById,
                                                   organisationName,
                                               )
                                             : null
@@ -621,20 +698,26 @@ export function ClubPublicHomePage({
                         </p>
                     ) : clubData.teams.length > 0 ? (
                         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {teamSummaries.map((summary) => (
-                                <ClubTeamCard
-                                    key={summary.team.id}
-                                    team={summary.team}
-                                    href={`${basePath}/teams/${encodeURIComponent(
-                                        summary.team.id,
-                                    )}`}
-                                    accentColour={accentColour}
-                                    surfaceColour={surfaceColour}
-                                    textColour={textColour}
-                                    playerCount={summary.playerCount}
-                                    nextFixtureLabel={summary.nextFixtureLabel}
-                                />
-                            ))}
+                            {teamSummaries.map((summary) => {
+                                const displayTeam =
+                                    publicTeamById.get(summary.team.id) ??
+                                    summary.team
+
+                                return (
+                                    <ClubTeamCard
+                                        key={summary.team.id}
+                                        team={displayTeam}
+                                        href={`${basePath}/teams/${encodeURIComponent(
+                                            summary.team.id,
+                                        )}`}
+                                        accentColour={accentColour}
+                                        surfaceColour={surfaceColour}
+                                        textColour={textColour}
+                                        playerCount={summary.playerCount}
+                                        nextFixtureLabel={summary.nextFixtureLabel}
+                                    />
+                                )
+                            })}
                         </div>
                     ) : (
                         <p
@@ -654,7 +737,7 @@ export function ClubPublicHomePage({
                         Season Overview
                     </p>
                     <h2 className="mt-1 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
-                        {selectedTeam ? 'Team at a glance' : 'Club at a glance'}
+                        {isExplicitTeamPage ? 'Team at a glance' : 'Club at a glance'}
                     </h2>
 
                     <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -734,7 +817,7 @@ export function ClubPublicHomePage({
                                         >
                                             {getTeamLabel(
                                                 fixture,
-                                                teamById,
+                                                publicTeamById,
                                                 organisationName,
                                             )}
                                         </p>
@@ -742,7 +825,7 @@ export function ClubPublicHomePage({
                                     <p className="font-black">
                                         {getFixtureTitle(
                                             fixture,
-                                            teamById,
+                                            publicTeamById,
                                             currentContextName,
                                         )}
                                     </p>
@@ -816,7 +899,7 @@ export function ClubPublicHomePage({
                                             >
                                                 {getTeamLabel(
                                                     fixture,
-                                                    teamById,
+                                                    publicTeamById,
                                                     organisationName,
                                                 )}
                                             </p>
@@ -824,7 +907,7 @@ export function ClubPublicHomePage({
                                         <p className="font-black">
                                             {getFixtureTitle(
                                                 fixture,
-                                                teamById,
+                                                publicTeamById,
                                                 currentContextName,
                                             )}
                                         </p>
@@ -869,20 +952,26 @@ export function ClubPublicHomePage({
 
                     {isMultiTeamOverview ? (
                         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {teamSummaries.map((summary) => (
-                                <ClubTeamCard
-                                    key={`squad-${summary.team.id}`}
-                                    team={summary.team}
-                                    href={`${basePath}/teams/${encodeURIComponent(
-                                        summary.team.id,
-                                    )}#squad`}
-                                    accentColour={accentColour}
-                                    surfaceColour={surfaceColour}
-                                    textColour={textColour}
-                                    playerCount={summary.playerCount}
-                                    nextFixtureLabel={summary.nextFixtureLabel}
-                                />
-                            ))}
+                            {teamSummaries.map((summary) => {
+                                const displayTeam =
+                                    publicTeamById.get(summary.team.id) ??
+                                    summary.team
+
+                                return (
+                                    <ClubTeamCard
+                                        key={`squad-${summary.team.id}`}
+                                        team={displayTeam}
+                                        href={`${basePath}/teams/${encodeURIComponent(
+                                            summary.team.id,
+                                        )}#squad`}
+                                        accentColour={accentColour}
+                                        surfaceColour={surfaceColour}
+                                        textColour={textColour}
+                                        playerCount={summary.playerCount}
+                                        nextFixtureLabel={summary.nextFixtureLabel}
+                                    />
+                                )
+                            })}
                         </div>
                     ) : (
                         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -961,7 +1050,7 @@ export function ClubPublicHomePage({
                     </div>
                 </section>
 
-                {!loading && clubData.teams.length > 1 && selectedTeam && (
+                {!loading && clubData.teams.length > 1 && isExplicitTeamPage && (
                     <section className="mx-auto max-w-7xl px-5 py-7">
                         <a
                             href={`${basePath}/teams#teams`}

@@ -155,7 +155,14 @@ export function ClubNextMatchCountdown({
                 </p>
             )}
 
-            <h2 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">
+            <h2
+                className="mt-2 font-black tracking-[-0.04em]"
+                style={{
+                    fontSize: 'clamp(1.55rem, 2.5vw, 2.9rem)',
+                    lineHeight: 1.05,
+                    textTransform: 'none',
+                }}
+            >
                 {fixtureTitle}
             </h2>
 

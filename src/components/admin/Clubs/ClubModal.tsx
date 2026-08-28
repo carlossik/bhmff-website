@@ -44,6 +44,20 @@ export function ClubModal({
     const nameInputRef =
         useRef<HTMLInputElement | null>(null)
 
+    useEffect(() => {
+        if (!open) {
+            return
+        }
+
+        setValues({
+            ...(initialValues ?? emptyClubForm),
+        })
+
+        window.requestAnimationFrame(() => {
+            nameInputRef.current?.focus()
+        })
+    }, [initialValues, open])
+
     if (!open) {
         return null
     }
