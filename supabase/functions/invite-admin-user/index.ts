@@ -22,6 +22,7 @@ type InviteRequest = {
     fullName: string
     email: string
     role: AdminRole
+    redirectUrl?: string
 }
 
 type ProfileRow = {
@@ -212,8 +213,14 @@ Deno.serve(async (request) => {
             )
         }
 
+        const redirectSearchParams =
+            new URLSearchParams({
+                invitation: 'true',
+                organisationId: organisationId ?? '',
+            })
+
         const redirectUrl =
-            `${applicationBaseUrl}/admin/set-password?invitation=true`
+            `${applicationBaseUrl}/admin/set-password?${redirectSearchParams.toString()}`
 
         if (!isValidAction(action)) {
             throw new Error(
@@ -258,7 +265,7 @@ Deno.serve(async (request) => {
             error: organisationError,
         } = await adminClient
             .from('organisations')
-            .select('id, name, status')
+            .select('id, name, status, organisation_type')
             .eq('id', organisationId)
             .maybeSingle()
 
@@ -343,7 +350,9 @@ Deno.serve(async (request) => {
             return jsonResponse(
                 {
                     error:
-                        'Only an active Organisation Admin can manage users for this organisation.',
+                        organisation.organisation_type === 'club'
+                ? 'Only an active Club Admin can manage users for this club.'
+                : 'Only an active Organisation Admin can manage users for this organisation.',
                 },
                 403,
             )
@@ -506,6 +515,13 @@ Deno.serve(async (request) => {
                             data: {
                                 full_name:
                                 fullName,
+                                organisation_id:
+                                organisationId,
+                                organisation_name:
+                                organisation.name,
+                                organisation_type:
+                                organisation.organisation_type,
+                                role,
                             },
                         },
                     )

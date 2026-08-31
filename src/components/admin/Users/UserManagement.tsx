@@ -18,10 +18,10 @@ import {
 import { ConfirmDialog } from "../../common/ConfirmDialog";
 import { Toast } from "../../common/Toast";
 
-import {
-    formatAdminRole,
-    type AdminProfile,
-    type AdminRole,
+import type {
+    AdminProfile,
+    AdminRole,
+    OrganisationType,
 } from "../../../services/accessControl";
 
 import { userService } from "./userService";
@@ -50,18 +50,12 @@ type BrandedModalProps = {
     disabled?: boolean;
 };
 
-const roleOptions: readonly RoleOption[] = [
+const competitionRoleOptions: readonly RoleOption[] = [
     {
-        value: "content_editor",
-        label: "Content Editor",
+        value: "super_admin",
+        label: "Competition Admin",
         description:
-            "Can create, edit, preview, publish, unpublish and archive articles for this organisation. Cannot access any other operational modules.",
-    },
-    {
-        value: "match_official",
-        label: "Match Official",
-        description:
-            "Can manage match results, goals and permitted match media.",
+            "Full competition administration, commercial content and user-access control for this organisation.",
     },
     {
         value: "competition_manager",
@@ -70,12 +64,61 @@ const roleOptions: readonly RoleOption[] = [
             "Can manage competitions, clubs, teams, fixtures, venues, results and competition operations.",
     },
     {
-        value: "super_admin",
-        label: "Super Admin",
+        value: "match_official",
+        label: "Match Official",
         description:
-            "Full organisation administration, commercial content and user-access control.",
+            "Can manage match results, goals and permitted match media.",
+    },
+    {
+        value: "content_editor",
+        label: "Content Editor",
+        description:
+            "Can create, edit, preview, publish, unpublish and archive articles for this organisation. Cannot access any other operational modules.",
     },
 ];
+
+const clubRoleOptions: readonly RoleOption[] = [
+    {
+        value: "super_admin",
+        label: "Club Admin",
+        description:
+            "Full club administration, club website settings, finance, communications and user-access control.",
+    },
+    {
+        value: "competition_manager",
+        label: "Club Operations Manager",
+        description:
+            "Can manage seasons, teams, fixtures, Match Centre, squad operations, results, statistics, communications and club finance where the club plan allows it.",
+    },
+    {
+        value: "match_official",
+        label: "Match Centre Reporter",
+        description:
+            "Can record matchday results, goals and permitted match media for club fixtures.",
+    },
+    {
+        value: "content_editor",
+        label: "Club Content & Media Editor",
+        description:
+            "Can manage club articles and public website content without access to finance, squads or user administration.",
+    },
+];
+
+function getRoleOptions(
+    organisationType: OrganisationType,
+): readonly RoleOption[] {
+    return organisationType === "club"
+        ? clubRoleOptions
+        : competitionRoleOptions;
+}
+
+function getDefaultInviteRole(
+    organisationType: OrganisationType,
+): AdminRole {
+    return organisationType === "club"
+        ? "competition_manager"
+        : "content_editor";
+}
 
 const initialInviteForm: InviteUserFormValues = {
     fullName: "",
@@ -241,6 +284,13 @@ export function UserManagement({
     const organisationName =
         currentProfile.currentOrganisation.name;
 
+    const organisationType =
+        currentProfile.currentOrganisation
+            .organisation_type;
+
+    const isClubOrganisation =
+        organisationType === "club";
+
     const [users, setUsers] =
         useState<AdminUser[]>([]);
 
@@ -331,12 +381,41 @@ export function UserManagement({
         setEditingUser(null);
         setUserPendingDelete(null);
         setShowInviteModal(false);
-        setInviteValues(
-            initialInviteForm,
-        );
+        setInviteValues({
+            ...initialInviteForm,
+            role: getDefaultInviteRole(
+                organisationType,
+            ),
+        });
 
         void loadUsers();
-    }, [loadUsers]);
+    }, [loadUsers, organisationType]);
+
+    const roleOptions = useMemo(
+        () => getRoleOptions(organisationType),
+        [organisationType],
+    );
+
+    const roleLabelByValue = useMemo(
+        () =>
+            new Map(
+                roleOptions.map((role) => [
+                    role.value,
+                    role.label,
+                ]),
+            ),
+        [roleOptions],
+    );
+
+    const accessContextLabel =
+        isClubOrganisation
+            ? "club"
+            : "competition";
+
+    const inviteButtonLabel =
+        isClubOrganisation
+            ? "Invite Club User"
+            : "Invite Competition User";
 
     const stats = useMemo(
         () => [
@@ -381,11 +460,14 @@ export function UserManagement({
 
     const openInviteModal =
         useCallback(() => {
-            setInviteValues(
-                initialInviteForm,
-            );
+            setInviteValues({
+                ...initialInviteForm,
+                role: getDefaultInviteRole(
+                    organisationType,
+                ),
+            });
             setShowInviteModal(true);
-        }, []);
+        }, [organisationType]);
 
     const closeInviteModal =
         useCallback(() => {
@@ -394,10 +476,13 @@ export function UserManagement({
             }
 
             setShowInviteModal(false);
-            setInviteValues(
-                initialInviteForm,
-            );
-        }, [saving]);
+            setInviteValues({
+                ...initialInviteForm,
+                role: getDefaultInviteRole(
+                    organisationType,
+                ),
+            });
+        }, [saving, organisationType]);
 
     const closeEditModal =
         useCallback(() => {
@@ -494,14 +579,19 @@ export function UserManagement({
                 fullName,
                 email,
                 role: inviteValues.role,
-                redirectUrl: `${adminBaseUrl}/admin/set-password?invitation=true`,
+                redirectUrl: `${adminBaseUrl}/admin/set-password?invitation=true&organisationId=${encodeURIComponent(
+                    organisationId,
+                )}`,
             });
 
 
             setShowInviteModal(false);
-            setInviteValues(
-                initialInviteForm,
-            );
+            setInviteValues({
+                ...initialInviteForm,
+                role: getDefaultInviteRole(
+                    organisationType,
+                ),
+            });
 
             await loadUsers();
 
@@ -619,6 +709,14 @@ export function UserManagement({
         }
 
         try {
+            const adminBaseUrl =
+                (
+                    import.meta.env.VITE_ADMIN_URL as
+                        | string
+                        | undefined
+                )?.replace(/\/$/, "") ??
+                window.location.origin;
+
             await userService.inviteUser(
                 {
                     organisationId,
@@ -627,7 +725,9 @@ export function UserManagement({
                     email: user.email,
                     role: user.role,
                     redirectUrl:
-                        `${import.meta.env.VITE_ADMIN_URL}/admin/set-password?invitation=true`,
+                        `${adminBaseUrl}/admin/set-password?invitation=true&organisationId=${encodeURIComponent(
+                            organisationId,
+                        )}`,
                 },
                 "resend_setup",
             );
@@ -706,7 +806,7 @@ export function UserManagement({
                     </h2>
 
                     <p className="mt-2 text-sm text-slate-400">
-                        Manage organisation-specific access for{" "}
+                        Manage {accessContextLabel}-specific access for{" "}
                         <strong className="text-white">
                             {organisationName}
                         </strong>
@@ -720,7 +820,7 @@ export function UserManagement({
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-400 px-5 py-3 font-black text-black transition hover:bg-lime-300"
                 >
                     <UserPlus size={18} />
-                    Invite User
+                    {inviteButtonLabel}
                 </button>
             </section>
 
@@ -778,9 +878,9 @@ export function UserManagement({
                                                     user.role,
                                                 )}`}
                                             >
-                                                {formatAdminRole(
+                                                {roleLabelByValue.get(
                                                     user.role,
-                                                )}
+                                                ) ?? user.role}
                                             </span>
 
                                             <span
@@ -907,13 +1007,13 @@ export function UserManagement({
 
             {showInviteModal && (
                 <BrandedModal
-                    title={`Invite User to ${organisationName}`}
+                    title={`${inviteButtonLabel} to ${organisationName}`}
                     eyebrow="TournamentHQ User Access"
                     disabled={saving}
                     onClose={closeInviteModal}
                 >
                     <p className="text-sm leading-6 text-slate-400">
-                        The user will receive access specifically to{" "}
+                        The user will receive {accessContextLabel}-specific access to{" "}
                         <strong className="text-white">
                             {organisationName}
                         </strong>

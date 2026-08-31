@@ -127,6 +127,49 @@ function removeAuthParametersFromAddressBar() {
     )
 }
 
+const INVITATION_SESSION_TIMEOUT_MS = 6000
+const INVITATION_SESSION_POLL_MS = 150
+
+function sleep(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => {
+        window.setTimeout(resolve, milliseconds)
+    })
+}
+
+function isAuthSessionMissingError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+        return false
+    }
+
+    return (
+        error.name === 'AuthSessionMissingError' ||
+        error.message === 'Auth session missing!'
+    )
+}
+
+async function waitForInvitationSession(): Promise<Session | null> {
+    const startedAt = Date.now()
+
+    while (Date.now() - startedAt < INVITATION_SESSION_TIMEOUT_MS) {
+        const {
+            data: { session },
+            error,
+        } = await supabase.auth.getSession()
+
+        if (session) {
+            return session
+        }
+
+        if (error && !isAuthSessionMissingError(error)) {
+            throw error
+        }
+
+        await sleep(INVITATION_SESSION_POLL_MS)
+    }
+
+    return null
+}
+
 export function SetPasswordPage() {
     const navigate = useNavigate()
 
@@ -276,96 +319,86 @@ export function SetPasswordPage() {
                 accessToken && refreshToken
             )
 
-            /*
-             * Never accept a session that merely happens to
-             * exist in the browser.
-             *
-             * The page must contain authentication evidence
-             * originating from the invitation link.
-             */
-            if (
-                !hasPkceCode &&
-                !hasImplicitTokens
-            ) {
-                if (!isInvitation) {
-                    throw new Error(
-                        'This invitation link is invalid, has expired or has already been used. Ask an administrator to send a new invitation.'
-                    )
-                }
-
-                const {
-                    data: { session },
-                } = await supabase.auth.getSession()
-
-                if (!session) {
-                    throw new Error(
-                        'This invitation link is invalid, has expired or has already been used. Ask an administrator to send a new invitation.'
-                    )
-                }
-
-                return {
-                    session,
-                    user: session.user,
-                }
-            }
-
-            /*
-             * Remove the previous browser user's local session
-             * before activating the invited account.
-             */
-            const { error: signOutError } =
-                await supabase.auth.signOut({
-                    scope: 'local',
-                })
-
-            if (signOutError) {
-                console.warn(
-                    'Unable to clear the previous local session:',
-                    signOutError.message
-                )
-            }
-
             let session: Session | null = null
 
-            if (code) {
-                const {
-                    data,
-                    error,
-                } =
-                    await supabase.auth.exchangeCodeForSession(
-                        code
-                    )
+            if (hasPkceCode && code) {
+                try {
+                    const {
+                        data,
+                        error,
+                    } =
+                        await supabase.auth.exchangeCodeForSession(
+                            code
+                        )
 
-                if (error) {
-                    throw error
+                    if (error) {
+                        throw error
+                    }
+
+                    session = data.session
+                } catch (error) {
+                    /*
+                     * Supabase may auto-detect and consume an
+                     * invite redirect session before this component
+                     * reads the URL. In that case, the code exchange
+                     * can report that the session is missing even
+                     * though the browser session has already been
+                     * established. Fall back to the stored session
+                     * before declaring the invite invalid.
+                     */
+                    if (!isAuthSessionMissingError(error)) {
+                        throw error
+                    }
+
+                    session = await waitForInvitationSession()
                 }
-
-                session = data.session
             } else if (
+                hasImplicitTokens &&
                 accessToken &&
                 refreshToken
             ) {
-                const {
-                    data,
-                    error,
-                } =
-                    await supabase.auth.setSession({
-                        access_token:
-                        accessToken,
-                        refresh_token:
-                        refreshToken,
-                    })
+                try {
+                    const {
+                        data,
+                        error,
+                    } =
+                        await supabase.auth.setSession({
+                            access_token:
+                            accessToken,
+                            refresh_token:
+                            refreshToken,
+                        })
 
-                if (error) {
-                    throw error
+                    if (error) {
+                        throw error
+                    }
+
+                    session = data.session
+                } catch (error) {
+                    if (!isAuthSessionMissingError(error)) {
+                        throw error
+                    }
+
+                    session = await waitForInvitationSession()
                 }
-
-                session = data.session
+            } else if (isInvitation) {
+                /*
+                 * The Supabase client is configured with
+                 * detectSessionInUrl. When it succeeds before React
+                 * mounts this page, the visible URL may only contain
+                 * invitation=true. Wait briefly for that recovered
+                 * session rather than failing immediately.
+                 */
+                session = await waitForInvitationSession()
+            } else {
+                throw new Error(
+                    'This invitation link is invalid, has expired or has already been used. Ask an administrator to send a new invitation.'
+                )
             }
 
             if (!session) {
                 throw new Error(
-                    'TournamentHQ could not establish the invited account session.'
+                    'TournamentHQ could not establish the invited account session. This invitation link may have expired or already been used. Ask an administrator to send a new invitation.'
                 )
             }
 
