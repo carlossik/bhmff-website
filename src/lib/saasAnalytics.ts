@@ -49,9 +49,12 @@ function gtagCommand(
     pushGtagArguments(command, ...args)
 }
 
-function getAnalyticsConsent():
+export type SaasAnalyticsConsentValue =
     | 'granted'
     | 'denied'
+
+export function getSaasAnalyticsConsent():
+    | SaasAnalyticsConsentValue
     | null {
     if (typeof document === 'undefined') {
         return null
@@ -83,7 +86,7 @@ function getAnalyticsConsent():
 }
 
 function applyConsent(): void {
-    const consent = getAnalyticsConsent()
+    const consent = getSaasAnalyticsConsent()
 
     gtagCommand('consent', 'default', {
         ad_storage: 'denied',
@@ -144,7 +147,101 @@ export function initialiseSaasAnalytics(): void {
     ensureDataLayer()
     applyConsent()
 
-    if (getAnalyticsConsent() === 'granted') {
+    if (getSaasAnalyticsConsent() === 'granted') {
+        loadGa4()
+    }
+}
+
+
+function getConsentCookieDomain(): string | null {
+    if (typeof window === 'undefined') {
+        return null
+    }
+
+    const hostname =
+        window.location.hostname
+            .trim()
+            .toLowerCase()
+
+    if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.endsWith('.localhost')
+    ) {
+        return null
+    }
+
+    if (
+        hostname === 'tournamenthq.co.uk' ||
+        hostname === 'app.tournamenthq.co.uk' ||
+        hostname.endsWith('.tournamenthq.co.uk')
+    ) {
+        return '.tournamenthq.co.uk'
+    }
+
+    return null
+}
+
+function writeConsentCookie(
+    consent: SaasAnalyticsConsentValue,
+): void {
+    if (typeof document === 'undefined') {
+        return
+    }
+
+    const cookieParts = [
+        `${CONSENT_COOKIE_NAME}=${consent}`,
+        'Path=/',
+        'Max-Age=31536000',
+        'SameSite=Lax',
+    ]
+
+    const domain = getConsentCookieDomain()
+
+    if (domain) {
+        cookieParts.push(`Domain=${domain}`)
+    }
+
+    if (
+        typeof window !== 'undefined' &&
+        window.location.protocol === 'https:'
+    ) {
+        cookieParts.push('Secure')
+    }
+
+    document.cookie = cookieParts.join('; ')
+}
+
+function consentCommandValue(
+    consent: SaasAnalyticsConsentValue,
+) {
+    return {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: consent,
+        functionality_storage: 'granted',
+        security_storage: 'granted',
+    }
+}
+
+export function setSaasAnalyticsConsent(
+    consent: SaasAnalyticsConsentValue,
+): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    writeConsentCookie(consent)
+    ensureDataLayer()
+
+    gtagCommand(
+        'consent',
+        'update',
+        consentCommandValue(consent),
+    )
+
+    if (consent === 'granted') {
         loadGa4()
     }
 }
@@ -165,7 +262,7 @@ export function trackSaasAnalyticsEvent(
 ): void {
     if (
         !SAAS_ANALYTICS_CONFIGURED ||
-        getAnalyticsConsent() !== 'granted'
+        getSaasAnalyticsConsent() !== 'granted'
     ) {
         return
     }
@@ -206,7 +303,7 @@ export function trackSaasAnalyticsMilestone(
 
         if (
             SAAS_ANALYTICS_CONFIGURED &&
-            getAnalyticsConsent() === 'granted'
+            getSaasAnalyticsConsent() === 'granted'
         ) {
             window.localStorage.setItem(
                 storageKey,
