@@ -11,6 +11,7 @@ import {
     type OperationsEventSeverity,
 } from '../_shared/operationsLog.ts'
 import {
+    getServerPlanModules,
     isServerSubscriptionPlanId,
     SERVER_SUBSCRIPTION_PLANS,
     type ServerBillingInterval,
@@ -19,6 +20,10 @@ import {
 
 type BillingLookupRow = {
     organisation_id: string
+}
+
+type OrganisationTypeLookupRow = {
+    organisation_type: string | null
 }
 
 type AppSubscriptionStatus =
@@ -353,6 +358,30 @@ async function syncSubscription(
         )
 
     const {
+        data: organisationData,
+        error: organisationLookupError,
+    } = await admin
+        .from('organisations')
+        .select('organisation_type')
+        .eq('id', organisationId)
+        .maybeSingle()
+
+    if (organisationLookupError) {
+        throw organisationLookupError
+    }
+
+    const organisationType =
+        (organisationData as OrganisationTypeLookupRow | null)
+            ?.organisation_type ??
+        'competition_organiser'
+
+    const enabledModules =
+        getServerPlanModules(
+            plan,
+            organisationType,
+        )
+
+    const {
         error: billingError,
     } = await admin
         .from('organisation_billing')
@@ -423,6 +452,8 @@ async function syncSubscription(
                     appStatus,
                     plan,
                 ),
+            enabled_modules:
+                enabledModules,
         })
         .eq('id', organisationId)
 

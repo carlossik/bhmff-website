@@ -32,6 +32,13 @@ import {
     defaultOrganisation,
 } from './organisationTypes'
 
+import {
+    getPlanLimits,
+    getPlanModuleDefinitions,
+    getPlanModules,
+    normaliseSubscriptionPlan,
+} from '../../../config/planEntitlements'
+
 type OrganisationFormProps = {
     organisation?: Organisation
     saving: boolean
@@ -43,6 +50,7 @@ type OrganisationFormProps = {
     showSubscriptionControls?: boolean
     initialOrganisationType?: OrganisationFormData['organisation_type']
     fixedOrganisationType?: OrganisationFormData['organisation_type']
+    initialSubscriptionPlan?: OrganisationFormData['subscription_plan']
 }
 
 type FormErrors = Partial<
@@ -342,6 +350,130 @@ function FieldError({
     )
 }
 
+type EntityCopy = {
+    lower: string
+    title: string
+    administrationLabel: string
+    createTitle: string
+    editTitle: string
+    introDescription: string
+    detailsTitle: string
+    detailsDescription: string
+    nameLabel: string
+    slugLabel: string
+    statusLabel: string
+    logoTitle: string
+    logoDescription: string
+    livePreviewTitle: string
+    submitCreateTitle: string
+    submitSaveTitle: string
+    createButtonLabel: string
+    creatingButtonLabel: string
+    updateButtonLabel: string
+    updatingButtonLabel: string
+    nameRequiredMessage: string
+    slugRequiredMessage: string
+    saveErrorMessage: string
+}
+
+function getEntityCopy(
+    organisationType: OrganisationFormData['organisation_type'],
+    onboardingWorkspace: boolean,
+): EntityCopy {
+    if (organisationType === 'club') {
+        return {
+            lower: 'club',
+            title: 'Club',
+            administrationLabel: onboardingWorkspace
+                ? 'Club setup'
+                : 'Club administration',
+            createTitle: onboardingWorkspace
+                ? 'Create your club'
+                : 'Add club',
+            editTitle: 'Edit club',
+            introDescription: onboardingWorkspace
+                ? 'Add the basic club details. Teams, squads, fixtures, finance and communications can be added later from the Club Portal.'
+                : 'Complete the club, administrator and branding details for your TournamentHQ workspace.',
+            detailsTitle: 'Club details',
+            detailsDescription:
+                'Club identity, public URL and public-site availability.',
+            nameLabel: 'Club name',
+            slugLabel: 'Club URL slug',
+            statusLabel: 'Club status',
+            logoTitle: 'Club logo',
+            logoDescription: 'Upload the club crest or brand mark.',
+            livePreviewTitle: 'Club portal',
+            submitCreateTitle: 'Create this club',
+            submitSaveTitle: 'Save club changes',
+            createButtonLabel: 'Create club',
+            creatingButtonLabel: 'Creating club...',
+            updateButtonLabel: 'Update club',
+            updatingButtonLabel: 'Updating club...',
+            nameRequiredMessage: 'Enter the club name.',
+            slugRequiredMessage: 'Enter the club URL slug.',
+            saveErrorMessage: 'Unable to save club.',
+        }
+    }
+
+    if (onboardingWorkspace) {
+        return {
+            lower: 'organiser account',
+            title: 'Organiser account',
+            administrationLabel: 'Competition organiser setup',
+            createTitle: 'Create organiser account',
+            editTitle: 'Edit organiser account',
+            introDescription:
+                'Add the basic organiser details. Competitions, teams, fixtures, results and public pages can be created later from the dashboard.',
+            detailsTitle: 'Organiser account details',
+            detailsDescription:
+                'Your organiser identity, public URL and public-site availability.',
+            nameLabel: 'Organiser account name',
+            slugLabel: 'Public URL slug',
+            statusLabel: 'Account status',
+            logoTitle: 'Account logo',
+            logoDescription: 'Upload a logo or brand mark for your competitions.',
+            livePreviewTitle: 'Competition portal',
+            submitCreateTitle: 'Create this organiser account',
+            submitSaveTitle: 'Save organiser account changes',
+            createButtonLabel: 'Create account',
+            creatingButtonLabel: 'Creating account...',
+            updateButtonLabel: 'Update account',
+            updatingButtonLabel: 'Updating account...',
+            nameRequiredMessage: 'Enter the organiser account name.',
+            slugRequiredMessage: 'Enter the public URL slug.',
+            saveErrorMessage: 'Unable to save organiser account.',
+        }
+    }
+
+    return {
+        lower: 'organisation',
+        title: 'Organisation',
+        administrationLabel: 'Organisation administration',
+        createTitle: 'Add organisation',
+        editTitle: 'Edit organisation',
+        introDescription:
+            'Complete the organisation, administrator, subscription and branding details in one place.',
+        detailsTitle: 'Organisation details',
+        detailsDescription:
+            'Workspace identity, status and public-site availability.',
+        nameLabel: 'Organisation name',
+        slugLabel: 'Organisation slug',
+        statusLabel: 'Organisation status',
+        logoTitle: 'Organisation logo',
+        logoDescription: 'Upload the customer brand mark.',
+        livePreviewTitle: 'Organisation portal',
+        submitCreateTitle: 'Create this organisation',
+        submitSaveTitle: 'Save organisation changes',
+        createButtonLabel: 'Create organisation',
+        creatingButtonLabel: 'Creating organisation...',
+        updateButtonLabel: 'Update organisation',
+        updatingButtonLabel: 'Updating organisation...',
+        nameRequiredMessage: 'Enter the organisation name.',
+        slugRequiredMessage: 'Enter the organisation slug.',
+        saveErrorMessage: 'Unable to save organisation.',
+    }
+}
+
 function SectionHeading({
                             icon: Icon,
                             title,
@@ -378,6 +510,7 @@ export function OrganisationForm({
     showSubscriptionControls = true,
     initialOrganisationType,
     fixedOrganisationType,
+    initialSubscriptionPlan,
 }: OrganisationFormProps) {
     const logoInputRef =
         useRef<HTMLInputElement | null>(null)
@@ -404,34 +537,113 @@ export function OrganisationForm({
     )
 
     useEffect(() => {
-        setForm(
-            organisation
-                ? {
-                    ...mapOrganisationToForm(
-                        organisation
+        if (organisation) {
+            const mapped = mapOrganisationToForm(
+                organisation,
+            )
+            const resolvedOrganisationType =
+                fixedOrganisationType ??
+                organisation.organisation_type
+            const resolvedPlan =
+                normaliseSubscriptionPlan(
+                    mapped.subscription_plan,
+                )
+            const planModules =
+                getPlanModules(
+                    resolvedPlan,
+                    resolvedOrganisationType,
+                )
+
+            setForm({
+                ...mapped,
+                organisation_type:
+                    resolvedOrganisationType,
+                subscription_plan:
+                    resolvedPlan,
+                enabled_modules:
+                    mapped.enabled_modules.length > 0
+                        ? mapped.enabled_modules.filter(
+                              (module) =>
+                                  planModules.includes(
+                                      module,
+                                  ),
+                          )
+                        : planModules,
+            })
+        } else {
+            const resolvedOrganisationType =
+                fixedOrganisationType ??
+                initialOrganisationType ??
+                defaultOrganisation.organisation_type
+            const resolvedPlan =
+                normaliseSubscriptionPlan(
+                    initialSubscriptionPlan ??
+                        defaultOrganisation.subscription_plan,
+                )
+            const planLimits =
+                getPlanLimits(resolvedPlan)
+
+            setForm({
+                ...defaultOrganisation,
+                organisation_type:
+                    resolvedOrganisationType,
+                subscription_plan:
+                    resolvedPlan,
+                max_users:
+                    planLimits.maxUsers,
+                max_competitions:
+                    planLimits.maxCompetitions,
+                enabled_modules:
+                    getPlanModules(
+                        resolvedPlan,
+                        resolvedOrganisationType,
                     ),
-                    organisation_type:
-                        fixedOrganisationType ??
-                        organisation.organisation_type,
-                }
-                : {
-                    ...defaultOrganisation,
-                    organisation_type:
-                        fixedOrganisationType ??
-                        initialOrganisationType ??
-                        defaultOrganisation.organisation_type,
-                    enabled_modules: [
-                        ...defaultOrganisation.enabled_modules,
-                    ],
-                }
-        )
+            })
+        }
 
         setErrors({})
     }, [
         organisation,
         initialOrganisationType,
         fixedOrganisationType,
+        initialSubscriptionPlan,
     ])
+
+    const isClubForm =
+        form.organisation_type === 'club'
+
+    const isOnboardingWorkspaceForm =
+        showSubscriptionControls === false &&
+        Boolean(fixedOrganisationType)
+
+    const entityCopy = getEntityCopy(
+        form.organisation_type,
+        isOnboardingWorkspaceForm,
+    )
+
+    const planModuleDefinitions = useMemo(
+        () =>
+            getPlanModuleDefinitions(
+                form.subscription_plan,
+                form.organisation_type,
+            ),
+        [
+            form.subscription_plan,
+            form.organisation_type,
+        ],
+    )
+
+    const selectedPlanModules = useMemo(
+        () =>
+            getPlanModules(
+                form.subscription_plan,
+                form.organisation_type,
+            ),
+        [
+            form.subscription_plan,
+            form.organisation_type,
+        ],
+    )
 
     function updateField<
         K extends keyof OrganisationFormData,
@@ -447,6 +659,55 @@ export function OrganisationForm({
         setErrors((previous) => ({
             ...previous,
             [field]: undefined,
+            submit: undefined,
+        }))
+    }
+
+    function applyOrganisationType(
+        organisationType: OrganisationFormData['organisation_type'],
+    ) {
+        setForm((previous) => ({
+            ...previous,
+            organisation_type:
+                organisationType,
+            enabled_modules:
+                getPlanModules(
+                    previous.subscription_plan,
+                    organisationType,
+                ),
+        }))
+
+        setErrors((previous) => ({
+            ...previous,
+            submit: undefined,
+        }))
+    }
+
+    function applySubscriptionPlan(
+        plan: OrganisationFormData['subscription_plan'],
+    ) {
+        const resolvedPlan =
+            normaliseSubscriptionPlan(plan)
+        const planLimits =
+            getPlanLimits(resolvedPlan)
+
+        setForm((previous) => ({
+            ...previous,
+            subscription_plan:
+                resolvedPlan,
+            max_users:
+                planLimits.maxUsers,
+            max_competitions:
+                planLimits.maxCompetitions,
+            enabled_modules:
+                getPlanModules(
+                    resolvedPlan,
+                    previous.organisation_type,
+                ),
+        }))
+
+        setErrors((previous) => ({
+            ...previous,
             submit: undefined,
         }))
     }
@@ -569,12 +830,12 @@ export function OrganisationForm({
 
         if (!safeTrim(form.name)) {
             nextErrors.name =
-                'Enter the organisation name.'
+                entityCopy.nameRequiredMessage
         }
 
         if (!safeTrim(form.slug)) {
             nextErrors.slug =
-                'Enter the organisation slug.'
+                entityCopy.slugRequiredMessage
         } else if (
             !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
                 safeTrim(form.slug)
@@ -652,11 +913,15 @@ export function OrganisationForm({
                             .toLowerCase(),
                     owner_phone:
                         safeTrim(form.owner_phone),
-                    enabled_modules: [
-                        ...(Array.isArray(form.enabled_modules)
-                            ? form.enabled_modules
-                            : []),
-                    ],
+                    enabled_modules:
+                        isOnboardingWorkspaceForm
+                            ? selectedPlanModules
+                            : form.enabled_modules.filter(
+                                  (module) =>
+                                      selectedPlanModules.includes(
+                                          module,
+                                      ),
+                              ),
                 },
                 organisation
                     ? undefined
@@ -667,32 +932,37 @@ export function OrganisationForm({
                 submit:
                     error instanceof Error
                         ? error.message
-                        : 'Unable to save organisation.',
+                        : entityCopy.saveErrorMessage,
             })
         }
     }
 
     function toggleModule(
-        module: string
+        module: string,
     ) {
+        if (
+            !selectedPlanModules.includes(module) ||
+            module === 'Dashboard'
+        ) {
+            return
+        }
+
         const enabled =
             form.enabled_modules.includes(
-                module
+                module,
             )
 
         updateField(
             'enabled_modules',
             enabled
                 ? form.enabled_modules.filter(
-                    (item) =>
-                        item !== module
-                )
+                      (item) =>
+                          item !== module,
+                  )
                 : [
-                    ...(Array.isArray(form.enabled_modules)
-                            ? form.enabled_modules
-                            : []),
-                    module,
-                ]
+                      ...form.enabled_modules,
+                      module,
+                  ],
         )
     }
 
@@ -732,8 +1002,6 @@ export function OrganisationForm({
 
     const controlsDisabled =
         saving || uploadingLogo
-    const isClubForm =
-        form.organisation_type === 'club'
 
     return (
         <form
@@ -750,25 +1018,17 @@ export function OrganisationForm({
 
                         <div>
                             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-lime-400">
-                                {isClubForm
-                                    ? 'Club administration'
-                                    : 'Organisation administration'}
+                                {entityCopy.administrationLabel}
                             </p>
 
                             <h2 className="mt-2 text-3xl font-bold normal-case text-white">
                                 {organisation
-                                    ? isClubForm
-                                        ? 'Edit club'
-                                        : 'Edit organisation'
-                                    : isClubForm
-                                      ? 'Add club'
-                                      : 'Add organisation'}
+                                    ? entityCopy.editTitle
+                                    : entityCopy.createTitle}
                             </h2>
 
                             <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-                                {isClubForm
-                                    ? 'Complete the club, administrator and branding details for your TournamentHQ workspace.'
-                                    : 'Complete the organisation, administrator, subscription and branding details in one place.'}
+                                {entityCopy.introDescription}
                             </p>
                         </div>
                     </div>
@@ -782,7 +1042,7 @@ export function OrganisationForm({
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-900/60 bg-black/20 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-lime-500/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        {isClubForm && !organisation
+                        {!organisation && fixedOrganisationType
                             ? 'Back'
                             : 'Back to organisations'}
                     </button>
@@ -794,23 +1054,17 @@ export function OrganisationForm({
                     <SectionHeading
                         icon={Building2}
                         title={
-                            isClubForm
-                                ? 'Club details'
-                                : 'Organisation details'
+                            entityCopy.detailsTitle
                         }
                         description={
-                            isClubForm
-                                ? 'Club identity, status and public-site availability.'
-                                : 'Workspace identity, status and public-site availability.'
+                            entityCopy.detailsDescription
                         }
                     />
 
                     <div className="grid gap-5 md:grid-cols-2">
                         <label>
                             <span className={labelClassName}>
-                                {isClubForm
-                                    ? 'Club name'
-                                    : 'Organisation name'}
+                                {entityCopy.nameLabel}
                                 <span className="ml-1 text-red-400">
                                     *
                                 </span>
@@ -852,9 +1106,7 @@ export function OrganisationForm({
 
                         <label>
                             <span className={labelClassName}>
-                                {isClubForm
-                                    ? 'Club slug'
-                                    : 'Organisation slug'}
+                                {entityCopy.slugLabel}
                                 <span className="ml-1 text-red-400">
                                     *
                                 </span>
@@ -886,7 +1138,7 @@ export function OrganisationForm({
 
                         <label>
                             <span className={labelClassName}>
-                                Organisation status
+                                {entityCopy.statusLabel}
                             </span>
 
                             <select
@@ -926,9 +1178,8 @@ export function OrganisationForm({
                                     value={form.organisation_type}
                                     disabled={controlsDisabled}
                                     onChange={(event) =>
-                                        updateField(
-                                            'organisation_type',
-                                            event.target.value as OrganisationFormData['organisation_type']
+                                        applyOrganisationType(
+                                            event.target.value as OrganisationFormData['organisation_type'],
                                         )
                                     }
                                     className={selectClassName}
@@ -1084,8 +1335,8 @@ export function OrganisationForm({
                 <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
                     <SectionHeading
                         icon={ImagePlus}
-                        title="Organisation logo"
-                        description="Upload the customer brand mark."
+                        title={entityCopy.logoTitle}
+                        description={entityCopy.logoDescription}
                     />
 
                     <div className="flex items-center gap-4">
@@ -1186,9 +1437,8 @@ export function OrganisationForm({
                                         controlsDisabled
                                     }
                                     onChange={(event) =>
-                                        updateField(
-                                            'subscription_plan',
-                                            event.target.value as OrganisationFormData['subscription_plan']
+                                        applySubscriptionPlan(
+                                            event.target.value as OrganisationFormData['subscription_plan'],
                                         )
                                     }
                                     className={selectClassName}
@@ -1303,64 +1553,82 @@ export function OrganisationForm({
                         </div>
                     </section>
                 )}
-                <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
-                    <SectionHeading
-                        icon={Check}
-                        title="Enabled modules"
-                        description={
-                            isClubForm
-                                ? 'Choose the features available to this club workspace.'
-                                : 'Choose the features available to this organisation.'
-                        }
-                    />
-
-                    <div className="grid grid-cols-2 gap-2">
-                        {defaultOrganisation.enabled_modules.map(
-                            (module) => {
-                                const enabled =
-                                    form.enabled_modules.includes(
-                                        module
-                                    )
-
-                                return (
-                                    <button
-                                        key={module}
-                                        type="button"
-                                        disabled={
-                                            controlsDisabled
-                                        }
-                                        onClick={() =>
-                                            toggleModule(
-                                                module
-                                            )
-                                        }
-                                        className={[
-                                            'flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition',
-                                            enabled
-                                                ? 'border-lime-700/50 bg-lime-500/10 text-lime-200'
-                                                : 'border-lime-900/40 bg-black/20 text-slate-400 hover:border-lime-700/50',
-                                        ].join(' ')}
-                                    >
-                                        <span className="truncate">
-                                            {module}
-                                        </span>
-
-                                        <span
-                                            className={[
-                                                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                                                enabled
-                                                    ? 'border-lime-400 bg-lime-400 text-[#071006]'
-                                                    : 'border-slate-600 text-transparent',
-                                            ].join(' ')}
-                                        >
-                                            <Check className="h-3.5 w-3.5" />
-                                        </span>
-                                    </button>
-                                )
+                {!isOnboardingWorkspaceForm && (
+                    <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-4">
+                        <SectionHeading
+                            icon={Check}
+                            title="Plan modules"
+                            description={
+                                isClubForm
+                                    ? 'Modules available to this club under the selected plan.'
+                                    : 'Modules available to this organiser account under the selected plan.'
                             }
-                        )}
-                    </div>
-                </section>
+                        />
+
+                        <div className="mb-4 rounded-2xl border border-sky-500/20 bg-sky-500/[0.06] px-4 py-3 text-xs font-semibold leading-5 text-sky-100">
+                            Changing the plan updates this module set automatically. Use the toggles only for deliberate support exceptions within the selected plan.
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            {planModuleDefinitions.map(
+                                (definition) => {
+                                    const enabled =
+                                        form.enabled_modules.includes(
+                                            definition.key,
+                                        )
+                                    const locked =
+                                        definition.key ===
+                                        'Dashboard'
+
+                                    return (
+                                        <button
+                                            key={definition.key}
+                                            type="button"
+                                            disabled={
+                                                controlsDisabled ||
+                                                locked
+                                            }
+                                            title={
+                                                definition.description
+                                            }
+                                            onClick={() =>
+                                                toggleModule(
+                                                    definition.key,
+                                                )
+                                            }
+                                            className={[
+                                                'flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition',
+                                                enabled
+                                                    ? 'border-lime-700/50 bg-lime-500/10 text-lime-200'
+                                                    : 'border-lime-900/40 bg-black/20 text-slate-400 hover:border-lime-700/50',
+                                                locked
+                                                    ? 'cursor-not-allowed opacity-80'
+                                                    : '',
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' ')}
+                                        >
+                                            <span className="truncate">
+                                                {definition.label}
+                                            </span>
+
+                                            <span
+                                                className={[
+                                                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                                                    enabled
+                                                        ? 'border-lime-400 bg-lime-400 text-[#071006]'
+                                                        : 'border-slate-600 text-transparent',
+                                                ].join(' ')}
+                                            >
+                                                <Check className="h-3.5 w-3.5" />
+                                            </span>
+                                        </button>
+                                    )
+                                },
+                            )}
+                        </div>
+                    </section>
+                )}
 
                 <section className="rounded-3xl border border-lime-900/50 bg-[#10190f] p-6 xl:col-span-12">
                     <SectionHeading
@@ -1553,9 +1821,7 @@ export function OrganisationForm({
                                         </p>
 
                                         <h4 className="mt-1 text-base font-bold text-white">
-                                            {isClubForm
-                                                ? 'Club portal'
-                                                : 'Organisation portal'}
+                                            {entityCopy.livePreviewTitle}
                                         </h4>
                                     </div>
 
@@ -1605,9 +1871,7 @@ export function OrganisationForm({
                                             <div>
                                                 <strong className="block text-sm">
                                                     {form.name ||
-                                                        (isClubForm
-                                                            ? 'Your club'
-                                                            : 'Your organisation')}
+                                                        `Your ${entityCopy.lower}`}
                                                 </strong>
 
                                                 <span className="text-xs opacity-70">
@@ -1735,12 +1999,14 @@ export function OrganisationForm({
                 <div>
                     <h3 className="m-0 text-lg font-bold normal-case text-white">
                         {organisation
-                            ? 'Save organisation changes'
-                            : 'Create this organisation'}
+                            ? entityCopy.submitSaveTitle
+                            : entityCopy.submitCreateTitle}
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-400">
-                        All details above will be validated before saving.
+                        {isOnboardingWorkspaceForm
+                            ? 'You can update these details later from your dashboard.'
+                            : 'All details above will be validated before saving.'}
                     </p>
                 </div>
 
@@ -1767,11 +2033,11 @@ export function OrganisationForm({
 
                         {saving
                             ? organisation
-                                ? 'Updating organisation...'
-                                : 'Creating organisation...'
+                                ? entityCopy.updatingButtonLabel
+                                : entityCopy.creatingButtonLabel
                             : organisation
-                                ? 'Update organisation'
-                                : 'Create organisation'}
+                                ? entityCopy.updateButtonLabel
+                                : entityCopy.createButtonLabel}
                     </button>
                 </div>
             </section>

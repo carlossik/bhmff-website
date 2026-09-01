@@ -43,6 +43,7 @@ function AdminThemeBridge({
 const ONBOARDING_ACCESS_MESSAGES = new Set([
     'Your account does not have an administrator profile.',
     'Your account is not assigned to an active organisation.',
+    'Your self-service setup is incomplete.',
 ])
 
 function shouldContinueOnboarding(
@@ -54,6 +55,69 @@ function shouldContinueOnboarding(
             error.message.trim(),
         )
     )
+}
+
+function getMetadataString(
+    metadata: Record<string, unknown>,
+    key: string,
+): string | null {
+    const value = metadata[key]
+
+    return typeof value === 'string' &&
+        value.trim()
+        ? value.trim()
+        : null
+}
+
+function getOnboardingContinuationPath(
+    session: Session,
+): string {
+    const metadata =
+        session.user.user_metadata as
+            | Record<string, unknown>
+            | null
+            | undefined
+
+    const params = new URLSearchParams()
+
+    if (metadata) {
+        const organisationType = getMetadataString(
+            metadata,
+            'signup_organisation_type',
+        )
+
+        if (
+            organisationType ===
+                'competition_organiser' ||
+            organisationType === 'club'
+        ) {
+            params.set('type', organisationType)
+        }
+
+        const plan = getMetadataString(
+            metadata,
+            'signup_plan',
+        )
+
+        if (plan) {
+            params.set('plan', plan)
+        }
+
+        const billing = getMetadataString(
+            metadata,
+            'signup_billing_interval',
+        )
+
+        if (billing) {
+            params.set('billing', billing)
+        }
+    }
+
+    const query = params.toString()
+
+    return query
+        ? `/onboarding?${query}`
+        : '/onboarding'
 }
 
 export function AdminPage() {
@@ -157,7 +221,9 @@ export function AdminPage() {
                     ) {
                         setAccessError('')
                         navigate(
-                            '/onboarding',
+                            getOnboardingContinuationPath(
+                                activeSession,
+                            ),
                             {
                                 replace: true,
                             },

@@ -12,6 +12,10 @@ type AdminRole =
     | 'competition_manager'
     | 'super_admin'
 
+type OrganisationType =
+    | 'club'
+    | 'competition_organiser'
+
 type InviteAction =
     | 'invite'
     | 'resend_setup'
@@ -30,6 +34,56 @@ type ProfileRow = {
     full_name: string | null
     email: string | null
     active: boolean
+}
+
+type OrganisationRow = {
+    id: string
+    name: string
+    status: string
+    organisation_type: OrganisationType
+}
+
+type CommunicationSettingsRow = {
+    sender_name: string | null
+    reply_to_email: string | null
+}
+
+type BrandingIdentity = {
+    senderName: string
+    replyToEmail: string | null
+}
+
+type BrandedEmailInput = {
+    apiKey: string
+    fromEmail: string
+    to: string
+    recipientName: string
+    senderName: string
+    replyToEmail: string | null
+    organisationName: string
+    organisationType: OrganisationType
+    role: AdminRole
+    actionLink: string
+    actionKind: 'invite' | 'password_setup'
+}
+
+type AuthLinkData = {
+    user: {
+        id: string
+    } | null
+    properties: {
+        action_link?: string
+    } | null
+}
+
+function isRecord(
+    value: unknown,
+): value is Record<string, unknown> {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+    )
 }
 
 function isValidRole(
@@ -69,6 +123,273 @@ function jsonResponse(
     )
 }
 
+function htmlEscape(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
+function plainText(value: string): string {
+    return value
+        .replace(/[<>]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
+function cleanSenderName(
+    value: string | null | undefined,
+    fallback: string,
+): string {
+    const cleaned = plainText(
+        value?.trim() || fallback,
+    ).replace(/"/g, "'")
+
+    return cleaned.slice(0, 80) || 'TournamentHQ'
+}
+
+function brandedFromAddress(
+    senderName: string,
+    fromEmail: string,
+): string {
+    return `${cleanSenderName(senderName, 'TournamentHQ')} <${fromEmail}>`
+}
+
+function roleLabel(
+    role: AdminRole,
+    organisationType: OrganisationType,
+): string {
+    if (organisationType === 'club') {
+        switch (role) {
+            case 'super_admin':
+                return 'Club Admin'
+            case 'competition_manager':
+                return 'Club Operations Manager'
+            case 'match_official':
+                return 'Match Centre Reporter'
+            case 'content_editor':
+                return 'Club Content & Media Editor'
+        }
+    }
+
+    switch (role) {
+        case 'super_admin':
+            return 'Competition Admin'
+        case 'competition_manager':
+            return 'Competition Manager'
+        case 'match_official':
+            return 'Match Official'
+        case 'content_editor':
+            return 'Content Editor'
+    }
+}
+
+function workspaceLabel(
+    organisationType: OrganisationType,
+): string {
+    return organisationType === 'club'
+        ? 'club workspace'
+        : 'competition workspace'
+}
+
+function buildInviteHtml(
+    input: BrandedEmailInput,
+): string {
+    const organisationName = htmlEscape(
+        input.organisationName,
+    )
+    const recipientName = htmlEscape(
+        input.recipientName,
+    )
+    const senderName = htmlEscape(
+        input.senderName,
+    )
+    const inviteUrl = htmlEscape(
+        input.actionLink,
+    )
+    const role = htmlEscape(
+        roleLabel(
+            input.role,
+            input.organisationType,
+        ),
+    )
+    const workspace = htmlEscape(
+        workspaceLabel(
+            input.organisationType,
+        ),
+    )
+    const actionText =
+        input.actionKind === 'invite'
+            ? 'Accept invitation'
+            : 'Set your password'
+
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${organisationName} invitation</title>
+</head>
+<body style="margin:0;background:#071106;color:#f8fff4;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#071106;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#0d1c0b;border:1px solid #26451c;border-radius:24px;overflow:hidden;">
+          <tr>
+            <td style="padding:28px 30px 18px;border-bottom:1px solid #203d17;">
+              <p style="margin:0 0 10px;color:#9bea20;font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;">TournamentHQ Access</p>
+              <h1 style="margin:0;color:#ffffff;font-size:28px;line-height:1.15;">You've been invited to ${organisationName}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 30px;">
+              <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#d7e8d0;">Hi ${recipientName},</p>
+              <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#d7e8d0;">${senderName} has invited you to access the ${organisationName} ${workspace} on TournamentHQ.</p>
+              <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#d7e8d0;">Your role: <strong style="color:#ffffff;">${role}</strong></p>
+              <p style="margin:0 0 28px;">
+                <a href="${inviteUrl}" style="display:inline-block;background:#9bea20;color:#071106;text-decoration:none;font-weight:900;border-radius:999px;padding:14px 22px;">${htmlEscape(actionText)}</a>
+              </p>
+              <p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:#a9bca2;">If the button does not work, copy and paste this link into your browser:</p>
+              <p style="margin:0;font-size:13px;line-height:1.5;word-break:break-all;color:#bdfc55;">${inviteUrl}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 30px;background:#091607;border-top:1px solid #203d17;color:#91a88a;font-size:12px;line-height:1.5;">
+              This invitation was sent by ${senderName} via TournamentHQ.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+function buildInviteText(
+    input: BrandedEmailInput,
+): string {
+    const actionText =
+        input.actionKind === 'invite'
+            ? 'Accept invitation'
+            : 'Set your password'
+
+    return [
+        `Hi ${input.recipientName},`,
+        '',
+        `${input.senderName} has invited you to access the ${input.organisationName} ${workspaceLabel(input.organisationType)} on TournamentHQ.`,
+        `Role: ${roleLabel(input.role, input.organisationType)}`,
+        '',
+        `${actionText}: ${input.actionLink}`,
+        '',
+        `This invitation was sent by ${input.senderName} via TournamentHQ.`,
+    ].join('\n')
+}
+
+async function sendBrandedEmail(
+    input: BrandedEmailInput,
+): Promise<void> {
+    const response = await fetch(
+        'https://api.resend.com/emails',
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${input.apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: brandedFromAddress(
+                    input.senderName,
+                    input.fromEmail,
+                ),
+                to: [input.to],
+                subject:
+                    input.actionKind === 'invite'
+                        ? `You're invited to ${input.organisationName} on TournamentHQ`
+                        : `Set up your ${input.organisationName} TournamentHQ access`,
+                html: buildInviteHtml(input),
+                text: buildInviteText(input),
+                reply_to:
+                    input.replyToEmail ?? undefined,
+            }),
+        },
+    )
+
+    if (!response.ok) {
+        const detail = await response.text()
+        throw new Error(
+            `Resend could not send the branded invitation email (${response.status}): ${detail.slice(0, 500)}`,
+        )
+    }
+}
+
+function authLinkData(
+    value: unknown,
+): AuthLinkData {
+    if (!isRecord(value)) {
+        return {
+            user: null,
+            properties: null,
+        }
+    }
+
+    const rawUser = value.user
+    const rawProperties = value.properties
+
+    return {
+        user:
+            isRecord(rawUser) &&
+            typeof rawUser.id === 'string'
+                ? {
+                    id: rawUser.id,
+                }
+                : null,
+        properties:
+            isRecord(rawProperties)
+                ? {
+                    action_link:
+                        typeof rawProperties.action_link === 'string'
+                            ? rawProperties.action_link
+                            : undefined,
+                }
+                : null,
+    }
+}
+
+async function loadBrandingIdentity(
+    adminClient: ReturnType<typeof createClient>,
+    organisationId: string,
+    fallbackName: string,
+): Promise<BrandingIdentity> {
+    const {
+        data,
+        error,
+    } = await adminClient
+        .from('communication_settings')
+        .select('sender_name, reply_to_email')
+        .eq('organisation_id', organisationId)
+        .maybeSingle()
+
+    if (error) {
+        throw error
+    }
+
+    const settings = data as
+        | CommunicationSettingsRow
+        | null
+
+    return {
+        senderName: cleanSenderName(
+            settings?.sender_name,
+            fallbackName,
+        ),
+        replyToEmail:
+            settings?.reply_to_email?.trim() || null,
+    }
+}
+
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') {
         return new Response('ok', {
@@ -94,6 +415,15 @@ Deno.serve(async (request) => {
             Deno.env.get(
                 'TOURNAMENTHQ_APP_URL',
             )?.replace(/\/$/, '')
+
+        const resendApiKey =
+            Deno.env.get('RESEND_API_KEY')?.trim()
+
+        const resendFromEmail =
+            (
+                Deno.env.get('THQ_EMAIL_FROM') ??
+                Deno.env.get('RESEND_FROM_EMAIL')
+            )?.trim()
 
         if (
             !supabaseUrl ||
@@ -261,7 +591,7 @@ Deno.serve(async (request) => {
         }
 
         const {
-            data: organisation,
+            data: organisationData,
             error: organisationError,
         } = await adminClient
             .from('organisations')
@@ -272,6 +602,11 @@ Deno.serve(async (request) => {
         if (organisationError) {
             throw organisationError
         }
+
+        const organisation =
+            organisationData as
+                | OrganisationRow
+                | null
 
         if (!organisation) {
             throw new Error(
@@ -287,6 +622,19 @@ Deno.serve(async (request) => {
                 'Users cannot be invited to an inactive organisation.',
             )
         }
+
+        const brandingIdentity =
+            await loadBrandingIdentity(
+                adminClient,
+                organisationId,
+                organisation.name,
+            )
+
+        const customEmailAvailable =
+            Boolean(
+                resendApiKey &&
+                resendFromEmail,
+            )
 
         const {
             data: inviterProfile,
@@ -351,8 +699,8 @@ Deno.serve(async (request) => {
                 {
                     error:
                         organisation.organisation_type === 'club'
-                ? 'Only an active Club Admin can manage users for this club.'
-                : 'Only an active Organisation Admin can manage users for this organisation.',
+                            ? 'Only an active Club Admin can manage users for this club.'
+                            : 'Only an active Organisation Admin can manage users for this organisation.',
                 },
                 403,
             )
@@ -419,20 +767,88 @@ Deno.serve(async (request) => {
                 )
             }
 
-            const {
-                error: resetError,
-            } =
-                await publicClient.auth
-                    .resetPasswordForEmail(
-                        email,
-                        {
-                            redirectTo:
+            if (
+                customEmailAvailable &&
+                resendApiKey &&
+                resendFromEmail
+            ) {
+                const {
+                    data: recoveryData,
+                    error: recoveryError,
+                } = await adminClient.auth.admin.generateLink({
+                    type: 'recovery',
+                    email,
+                    options: {
+                        redirectTo:
                             redirectUrl,
+                        data: {
+                            full_name:
+                                fullName,
+                            organisation_id:
+                                organisationId,
+                            organisation_name:
+                                organisation.name,
+                            organisation_type:
+                                organisation.organisation_type,
+                            role,
                         },
+                    },
+                })
+
+                if (recoveryError) {
+                    throw recoveryError
+                }
+
+                const linkData =
+                    authLinkData(
+                        recoveryData,
                     )
 
-            if (resetError) {
-                throw resetError
+                const actionLink =
+                    linkData.properties
+                        ?.action_link
+
+                if (!actionLink) {
+                    throw new Error(
+                        'Supabase did not return a password setup link.',
+                    )
+                }
+
+                await sendBrandedEmail({
+                    apiKey: resendApiKey,
+                    fromEmail: resendFromEmail,
+                    to: email,
+                    recipientName:
+                        fullName,
+                    senderName:
+                        brandingIdentity.senderName,
+                    replyToEmail:
+                        brandingIdentity.replyToEmail,
+                    organisationName:
+                        organisation.name,
+                    organisationType:
+                        organisation.organisation_type,
+                    role,
+                    actionLink,
+                    actionKind:
+                        'password_setup',
+                })
+            } else {
+                const {
+                    error: resetError,
+                } =
+                    await publicClient.auth
+                        .resetPasswordForEmail(
+                            email,
+                            {
+                                redirectTo:
+                                    redirectUrl,
+                            },
+                        )
+
+                if (resetError) {
+                    throw resetError
+                }
             }
 
             return jsonResponse(
@@ -440,19 +856,23 @@ Deno.serve(async (request) => {
                     success: true,
                     action,
                     userId:
-                    existingProfile.id,
+                        existingProfile.id,
                     email,
                     organisationId,
+                    brandedEmail:
+                        customEmailAvailable,
                 },
                 200,
             )
         }
 
         let userId: string
+        let existingUser = false
 
         if (existingProfile) {
             userId =
                 existingProfile.id
+            existingUser = true
 
             const {
                 data: duplicateMembership,
@@ -491,7 +911,7 @@ Deno.serve(async (request) => {
                 .from('profiles')
                 .update({
                     full_name:
-                    fullName,
+                        fullName,
                     updated_at:
                         new Date()
                             .toISOString(),
@@ -500,6 +920,103 @@ Deno.serve(async (request) => {
 
             if (profileUpdateError) {
                 throw profileUpdateError
+            }
+        } else if (
+            customEmailAvailable &&
+            resendApiKey &&
+            resendFromEmail
+        ) {
+            const {
+                data: inviteData,
+                error: inviteError,
+            } = await adminClient.auth.admin.generateLink({
+                type: 'invite',
+                email,
+                options: {
+                    redirectTo:
+                        redirectUrl,
+                    data: {
+                        full_name:
+                            fullName,
+                        organisation_id:
+                            organisationId,
+                        organisation_name:
+                            organisation.name,
+                        organisation_type:
+                            organisation.organisation_type,
+                        role,
+                    },
+                },
+            })
+
+            if (inviteError) {
+                throw inviteError
+            }
+
+            const linkData =
+                authLinkData(
+                    inviteData,
+                )
+
+            if (!linkData.user) {
+                throw new Error(
+                    'The invitation was created without a user account.',
+                )
+            }
+
+            const actionLink =
+                linkData.properties
+                    ?.action_link
+
+            if (!actionLink) {
+                throw new Error(
+                    'Supabase did not return an invitation link.',
+                )
+            }
+
+            await sendBrandedEmail({
+                apiKey: resendApiKey,
+                fromEmail: resendFromEmail,
+                to: email,
+                recipientName:
+                    fullName,
+                senderName:
+                    brandingIdentity.senderName,
+                replyToEmail:
+                    brandingIdentity.replyToEmail,
+                organisationName:
+                    organisation.name,
+                organisationType:
+                    organisation.organisation_type,
+                role,
+                actionLink,
+                actionKind: 'invite',
+            })
+
+            userId = linkData.user.id
+
+            const {
+                error: profileError,
+            } = await adminClient
+                .from('profiles')
+                .upsert(
+                    {
+                        id: userId,
+                        full_name:
+                            fullName,
+                        email,
+                        active: true,
+                        updated_at:
+                            new Date()
+                                .toISOString(),
+                    },
+                    {
+                        onConflict: 'id',
+                    },
+                )
+
+            if (profileError) {
+                throw profileError
             }
         } else {
             const {
@@ -511,16 +1028,16 @@ Deno.serve(async (request) => {
                         email,
                         {
                             redirectTo:
-                            redirectUrl,
+                                redirectUrl,
                             data: {
                                 full_name:
-                                fullName,
+                                    fullName,
                                 organisation_id:
-                                organisationId,
+                                    organisationId,
                                 organisation_name:
-                                organisation.name,
+                                    organisation.name,
                                 organisation_type:
-                                organisation.organisation_type,
+                                    organisation.organisation_type,
                                 role,
                             },
                         },
@@ -547,7 +1064,7 @@ Deno.serve(async (request) => {
                     {
                         id: userId,
                         full_name:
-                        fullName,
+                            fullName,
                         email,
                         active: true,
                         updated_at:
@@ -572,9 +1089,9 @@ Deno.serve(async (request) => {
             )
             .insert({
                 organisation_id:
-                organisationId,
+                    organisationId,
                 user_id:
-                userId,
+                    userId,
                 role,
                 active: true,
                 updated_at:
@@ -594,11 +1111,10 @@ Deno.serve(async (request) => {
                 email,
                 organisationId,
                 organisationName:
-                organisation.name,
-                existingUser:
-                    Boolean(
-                        existingProfile,
-                    ),
+                    organisation.name,
+                existingUser,
+                brandedEmail:
+                    customEmailAvailable,
             },
             200,
         )

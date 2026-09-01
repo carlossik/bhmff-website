@@ -7,6 +7,10 @@ import type {
     OrganisationFormData,
     SubscriptionPlan,
 } from '../organisationTypes'
+import {
+    getPlanLimits,
+    getPlanModules,
+} from '../../../../config/planEntitlements'
 
 type StepSubscriptionProps = {
     form: OrganisationFormData
@@ -32,15 +36,15 @@ const plans: Array<{
         name: 'Starter',
         description:
             'Essential competition management for smaller organisations.',
-        users: 5,
-        competitions: 2,
+        users: 2,
+        competitions: 1,
     },
     {
         id: 'professional',
         name: 'Professional',
         description:
             'Advanced content, media and operational tools for growing organisations.',
-        users: 20,
+        users: 10,
         competitions: 10,
         recommended: true,
     },
@@ -60,16 +64,30 @@ export function StepSubscription({
     onChange,
 }: StepSubscriptionProps) {
     function selectPlan(
-        plan: (typeof plans)[number]
+        plan: (typeof plans)[number],
     ) {
+        const limits = getPlanLimits(
+            plan.id,
+        )
+
         onChange(
             'subscription_plan',
-            plan.id
+            plan.id,
         )
-        onChange('max_users', plan.users)
+        onChange(
+            'max_users',
+            limits.maxUsers,
+        )
         onChange(
             'max_competitions',
-            plan.competitions
+            limits.maxCompetitions,
+        )
+        onChange(
+            'enabled_modules',
+            getPlanModules(
+                plan.id,
+                form.organisation_type,
+            ),
         )
     }
 

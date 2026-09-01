@@ -716,6 +716,23 @@ export function AdminPortal({
     const subscriptionPlan =
         effectiveProfile.currentOrganisation.subscription_plan
 
+    const canUseModule = useCallback(
+        (module: AdminModule) =>
+            canAccessModule(
+                activeRole,
+                module,
+                effectiveProfile.isPlatformAdmin,
+                organisationType,
+                subscriptionPlan,
+            ),
+        [
+            activeRole,
+            effectiveProfile.isPlatformAdmin,
+            organisationType,
+            subscriptionPlan,
+        ],
+    )
+
     const subscriptionStatus =
         effectiveProfile.currentOrganisation.subscription_status
 
@@ -760,17 +777,12 @@ export function AdminPortal({
                     return false
                 }
 
-                return canAccessModule(
-                    activeRole,
+                return canUseModule(
                     tab,
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             }),
         [
-            activeRole,
-            effectiveProfile.isPlatformAdmin,
-            organisationType,
+            canUseModule,
             subscriptionAccessLocked,
         ]
     )
@@ -903,11 +915,8 @@ export function AdminPortal({
         useCallback(async () => {
             if (
                 !currentOrganisation ||
-                !canAccessModule(
-                    activeRole,
+                !canUseModule(
                     'Teams',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 setDbTeams([])
@@ -944,10 +953,8 @@ export function AdminPortal({
                 (data ?? []) as DbTeam[]
             )
         }, [
-            activeRole,
+            canUseModule,
             currentOrganisation,
-            effectiveProfile.isPlatformAdmin,
-            organisationType,
         ])
 
     const loadOrganisationStats =
@@ -1317,11 +1324,8 @@ export function AdminPortal({
         useCallback(async () => {
             if (
                 !currentOrganisation?.id ||
-                !canAccessModule(
-                    activeRole,
+                !canUseModule(
                     'Enquiries',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 setEnquiryCount(0)
@@ -1359,10 +1363,8 @@ export function AdminPortal({
 
             setEnquiryCount(count ?? 0)
         }, [
-            activeRole,
+            canUseModule,
             currentOrganisation?.id,
-            effectiveProfile.isPlatformAdmin,
-            organisationType,
         ])
 
     const loadBillingSummary =
@@ -1463,11 +1465,8 @@ export function AdminPortal({
             }> = []
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Clubs',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1479,11 +1478,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Teams',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1496,11 +1492,8 @@ export function AdminPortal({
 
             if (
                 !isClub &&
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Venues',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1512,11 +1505,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Sponsors',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1528,11 +1518,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Articles',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1544,11 +1531,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Media',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1560,11 +1544,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Enquiries',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1576,12 +1557,10 @@ export function AdminPortal({
 
             return items
         }, [
-            activeRole,
-            effectiveProfile.isPlatformAdmin,
+            canUseModule,
             enquiryCount,
             isClub,
             organisationStats,
-            organisationType,
         ])
 
     const competitionStatItems =
@@ -1597,11 +1576,8 @@ export function AdminPortal({
             }> = []
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Competition Teams',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1614,11 +1590,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Groups',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1630,11 +1603,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Fixtures',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1646,11 +1616,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Results',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1662,11 +1629,8 @@ export function AdminPortal({
             }
 
             if (
-                canAccessModule(
-                    activeRole,
+                canUseModule(
                     'Goals',
-                    effectiveProfile.isPlatformAdmin,
-                    organisationType,
                 )
             ) {
                 items.push({
@@ -1679,11 +1643,9 @@ export function AdminPortal({
 
             return items
         }, [
-            activeRole,
+            canUseModule,
             competitionStats,
-            effectiveProfile.isPlatformAdmin,
             isClub,
-            organisationType,
         ])
 
     function getStatisticIcon(
@@ -1964,11 +1926,8 @@ export function AdminPortal({
         }
 
         if (
-            !canAccessModule(
-                activeRole,
+            !canUseModule(
                 activeTab,
-                effectiveProfile.isPlatformAdmin,
-                organisationType,
             )
         ) {
             return (
@@ -2006,11 +1965,8 @@ export function AdminPortal({
                                 </p>
                             </div>
 
-                            {!subscriptionAccessLocked && canAccessModule(
-                                activeRole,
+                            {!subscriptionAccessLocked && canUseModule(
                                 'Articles',
-                                effectiveProfile.isPlatformAdmin,
-                                organisationType,
                             ) && (
                                 <button
                                     type="button"

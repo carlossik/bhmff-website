@@ -29,9 +29,7 @@ function getStepLabels(
             : 'Organisation',
         billing: 'Plan & Billing',
         branding: 'Branding',
-        competition: isClub
-            ? 'Club Setup'
-            : 'Competition',
+        competition: 'Quick Start',
         finish: 'Finish',
     }
 }

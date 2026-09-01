@@ -8,6 +8,10 @@ import {
 import {
     requirePlatformAdmin,
 } from '../_shared/auth.ts'
+import {
+    getServerPlanModules,
+    isServerSubscriptionPlanId,
+} from '../_shared/subscriptionPlans.ts'
 
 type OrganisationRow = {
     id: string
@@ -20,6 +24,7 @@ type OrganisationRow = {
     trial_end: string | null
     max_users: number
     max_competitions: number
+    enabled_modules: string[] | null
     owner_name: string | null
     owner_email: string | null
     owner_phone: string | null
@@ -49,6 +54,23 @@ type MembershipRow = {
     user_id: string
     role: string
     active: boolean
+}
+
+type ProfileOperationsRow = {
+    id: string
+    full_name: string | null
+    email: string | null
+    role: string
+    active: boolean
+}
+
+type AuthUserSnapshot = {
+    id: string
+    email: string | null
+    createdAt: string | null
+    emailConfirmedAt: string | null
+    lastSignInAt: string | null
+    userMetadata: Record<string, unknown>
 }
 
 type OperationsEventRow = {
@@ -253,6 +275,71 @@ function paidPlanLabel(
     return value
 }
 
+function getMetadataString(
+    metadata: Record<string, unknown>,
+    key: string,
+): string | null {
+    const value = metadata[key]
+
+    return typeof value === 'string' &&
+        value.trim()
+        ? value.trim()
+        : null
+}
+
+function isSelfServiceSignupMetadata(
+    metadata: Record<string, unknown>,
+): boolean {
+    const organisationType = getMetadataString(
+        metadata,
+        'signup_organisation_type',
+    )
+    const plan = getMetadataString(
+        metadata,
+        'signup_plan',
+    )
+
+    return (
+        organisationType === 'competition_organiser' ||
+        organisationType === 'club' ||
+        Boolean(plan)
+    )
+}
+
+function snapshotAuthUser(
+    user: {
+        id: string
+        email?: string | null
+        created_at?: string | null
+        email_confirmed_at?: string | null
+        confirmed_at?: string | null
+        last_sign_in_at?: string | null
+        user_metadata?: Record<string, unknown>
+    },
+): AuthUserSnapshot {
+    return {
+        id: user.id,
+        email: user.email ?? null,
+        createdAt: user.created_at ?? null,
+        emailConfirmedAt:
+            user.email_confirmed_at ??
+            user.confirmed_at ??
+            null,
+        lastSignInAt:
+            user.last_sign_in_at ?? null,
+        userMetadata:
+            user.user_metadata ?? {},
+    }
+}
+
+function formatUserLabel(
+    user: AuthUserSnapshot,
+): string {
+    return user.email
+        ? `${user.email} (${user.id})`
+        : user.id
+}
+
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') {
         return new Response('ok', {
@@ -277,6 +364,7 @@ Deno.serve(async (request) => {
         const generatedAt =
             new Date().toISOString()
         const now = Date.now()
+        const diagnostics: Diagnostic[] = []
 
         const authHealth: HealthItem = {
             id: 'auth',
@@ -341,6 +429,7 @@ Deno.serve(async (request) => {
                     trial_end,
                     max_users,
                     max_competitions,
+                    enabled_modules,
                     owner_name,
                     owner_email,
                     owner_phone,
@@ -428,6 +517,58 @@ Deno.serve(async (request) => {
             (eventsResponse.data ?? []) as
                 OperationsEventRow[]
 
+        const profilesResponse =
+            await admin
+                .from('profiles')
+                .select(`
+                    id,
+                    full_name,
+                    email,
+                    role,
+                    active
+                `)
+
+        if (profilesResponse.error) {
+            throw profilesResponse.error
+        }
+
+        const profiles =
+            (profilesResponse.data ?? []) as
+                ProfileOperationsRow[]
+
+        let recentAuthUsers: AuthUserSnapshot[] = []
+
+        try {
+            const {
+                data: authUsersData,
+                error: authUsersError,
+            } = await admin.auth.admin.listUsers({
+                page: 1,
+                perPage: 200,
+            })
+
+            if (authUsersError) {
+                throw authUsersError
+            }
+
+            recentAuthUsers =
+                (authUsersData.users ?? []).map(
+                    snapshotAuthUser,
+                )
+        } catch (error) {
+            diagnostics.push({
+                id: 'auth-user-audit-unavailable',
+                severity: 'warning',
+                code: 'auth_user_audit_unavailable',
+                organisationId: null,
+                organisationName: null,
+                message:
+                    error instanceof Error
+                        ? `Unable to inspect recent Supabase Auth users for onboarding continuity: ${error.message}`
+                        : 'Unable to inspect recent Supabase Auth users for onboarding continuity.',
+            })
+        }
+
         const organisationById =
             new Map(
                 organisations.map(
@@ -446,8 +587,17 @@ Deno.serve(async (request) => {
                     ],
                 ),
             )
+        const profilesByUserId =
+            new Map(
+                profiles.map((profile) => [
+                    profile.id,
+                    profile,
+                ]),
+            )
 
         const memberCountByOrganisation =
+            new Map<string, number>()
+        const activeMembershipCountByUser =
             new Map<string, number>()
         const uniqueActiveUsers =
             new Set<string>()
@@ -465,8 +615,93 @@ Deno.serve(async (request) => {
                         ) ?? 0
                     ) + 1,
                 )
+                activeMembershipCountByUser.set(
+                    membership.user_id,
+                    (
+                        activeMembershipCountByUser.get(
+                            membership.user_id,
+                        ) ?? 0
+                    ) + 1,
+                )
             },
         )
+
+        recentAuthUsers
+            .filter((user) => {
+                if (!user.emailConfirmedAt) {
+                    return false
+                }
+
+                if (!user.createdAt) {
+                    return false
+                }
+
+                return isWithinDays(
+                    user.createdAt,
+                    60,
+                    now,
+                )
+            })
+            .forEach((user) => {
+                if (
+                    !isSelfServiceSignupMetadata(
+                        user.userMetadata,
+                    )
+                ) {
+                    return
+                }
+
+                const profile =
+                    profilesByUserId.get(user.id) ??
+                    null
+                const activeMemberships =
+                    activeMembershipCountByUser.get(
+                        user.id,
+                    ) ?? 0
+                const userLabel =
+                    formatUserLabel(user)
+
+                if (!profile) {
+                    diagnostics.push({
+                        id: `verified-signup-no-profile-${user.id}`,
+                        severity: 'critical',
+                        code: 'verified_signup_without_profile',
+                        organisationId: null,
+                        organisationName: null,
+                        message:
+                            `Verified self-service signup ${userLabel} has no profile row and may be unable to continue onboarding.`,
+                    })
+                    return
+                }
+
+                if (
+                    !profile.active &&
+                    activeMemberships === 0
+                ) {
+                    diagnostics.push({
+                        id: `inactive-signup-no-membership-${user.id}`,
+                        severity: 'critical',
+                        code: 'inactive_signup_without_membership',
+                        organisationId: null,
+                        organisationName: null,
+                        message:
+                            `Verified self-service signup ${userLabel} has an inactive profile and no active organisation membership. They should be redirected back to onboarding, not shown Access unavailable.`,
+                    })
+                    return
+                }
+
+                if (activeMemberships === 0) {
+                    diagnostics.push({
+                        id: `verified-signup-no-workspace-${user.id}`,
+                        severity: 'warning',
+                        code: 'verified_signup_without_workspace',
+                        organisationId: null,
+                        organisationName: null,
+                        message:
+                            `Verified self-service signup ${userLabel} has not created or joined an active organisation yet. Follow up if they do not complete onboarding.`,
+                    })
+                }
+            })
 
         const planCounts: Record<string, number> = {}
         const statusCounts: Record<string, number> = {}
@@ -662,14 +897,89 @@ Deno.serve(async (request) => {
                 ? currencies[0]
                 : null
 
-        const diagnostics: Diagnostic[] = []
-
         organisations.forEach(
             (organisation) => {
                 const billing =
                     billingByOrganisation.get(
                         organisation.id,
                     ) ?? null
+
+                if (
+                    isServerSubscriptionPlanId(
+                        organisation.subscription_plan,
+                    )
+                ) {
+                    const expectedModules =
+                        getServerPlanModules(
+                            organisation.subscription_plan,
+                            organisation.organisation_type,
+                        )
+                    const actualModules =
+                        Array.isArray(
+                            organisation.enabled_modules,
+                        )
+                            ? organisation.enabled_modules
+                            : []
+                    const missingModules =
+                        expectedModules.filter(
+                            (module) =>
+                                !actualModules.includes(
+                                    module,
+                                ),
+                        )
+                    const extraModules =
+                        actualModules.filter(
+                            (module) =>
+                                !expectedModules.includes(
+                                    module,
+                                ),
+                        )
+
+                    if (
+                        actualModules.length === 0
+                    ) {
+                        diagnostics.push({
+                            id: `plan-modules-empty-${organisation.id}`,
+                            severity: 'warning',
+                            code: 'plan_modules_empty',
+                            organisationId:
+                                organisation.id,
+                            organisationName:
+                                organisation.name,
+                            message:
+                                `${paidPlanLabel(organisation.subscription_plan)} ${organisation.organisation_type === 'club' ? 'club' : 'competition'} workspace has no enabled_modules configuration. Refresh the plan entitlement before wider testing.`,
+                        })
+                    } else if (
+                        missingModules.length > 0
+                    ) {
+                        diagnostics.push({
+                            id: `plan-modules-missing-${organisation.id}`,
+                            severity: 'warning',
+                            code: 'plan_modules_missing',
+                            organisationId:
+                                organisation.id,
+                            organisationName:
+                                organisation.name,
+                            message:
+                                `${paidPlanLabel(organisation.subscription_plan)} ${organisation.organisation_type === 'club' ? 'club' : 'competition'} workspace is missing plan modules: ${missingModules.slice(0, 6).join(', ')}${missingModules.length > 6 ? '…' : ''}.`,
+                        })
+                    }
+
+                    if (extraModules.length > 0) {
+                        diagnostics.push({
+                            id: `plan-modules-extra-${organisation.id}`,
+                            severity: 'warning',
+                            code: 'plan_modules_extra',
+                            organisationId:
+                                organisation.id,
+                            organisationName:
+                                organisation.name,
+                            message:
+                                `${paidPlanLabel(organisation.subscription_plan)} ${organisation.organisation_type === 'club' ? 'club' : 'competition'} workspace has modules outside the plan: ${extraModules.slice(0, 6).join(', ')}${extraModules.length > 6 ? '…' : ''}.`,
+                        })
+                    }
+                }
+
                 const productionBilling =
                     billing &&
                     isProductionBilling(

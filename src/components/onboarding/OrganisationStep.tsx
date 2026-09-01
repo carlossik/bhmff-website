@@ -1,5 +1,6 @@
 import {
     useEffect,
+    useMemo,
     useState,
 } from 'react'
 
@@ -29,6 +30,9 @@ import {
 import {
     trackSaasAnalyticsMilestone,
 } from '../../lib/saasAnalytics'
+import {
+    normaliseSubscriptionPlan,
+} from '../../config/planEntitlements'
 
 const CURRENT_ORGANISATION_KEY =
     'tournamenthq-current-organisation'
@@ -51,6 +55,58 @@ function getErrorMessage(
         : 'Unable to complete the organisation setup.'
 }
 
+function getInitialSubscriptionPlan() {
+    if (typeof window === 'undefined') {
+        return 'starter'
+    }
+
+    return normaliseSubscriptionPlan(
+        new URLSearchParams(
+            window.location.search,
+        ).get('plan'),
+    )
+}
+
+function getWorkspaceCopy(
+    organisationType: OrganisationType,
+) {
+    if (organisationType === 'club') {
+        return {
+            lower: 'club',
+            setupTitle: 'Your club',
+            setupDescription:
+                'Add the basic club details now. You can add teams, squads, fixtures, finance and communications later from the Club Portal.',
+            loadingLabel: 'club',
+            createdTitle: 'Club created',
+            createdDescription:
+                'Your TournamentHQ club workspace is ready. Check the details below, then continue to choose your plan and billing frequency.',
+            updatedMessage: 'Club details updated successfully.',
+            ownerInviteMessage:
+                'Club workspace created and the owner invitation was sent.',
+            createdMessage: 'Club workspace created successfully.',
+            summaryLabel: 'Club',
+            editLabel: 'club',
+        }
+    }
+
+    return {
+        lower: 'organiser account',
+        setupTitle: 'Your organiser account',
+        setupDescription:
+            'Add the basic organiser details now. You can create competitions, teams, fixtures and public pages later from the dashboard.',
+        loadingLabel: 'organiser account',
+        createdTitle: 'Organiser account created',
+        createdDescription:
+            'Your TournamentHQ organiser account is ready. Check the details below, then continue to choose your plan and billing frequency.',
+        updatedMessage: 'Organiser account details updated successfully.',
+        ownerInviteMessage:
+            'Organiser account created and the owner invitation was sent.',
+        createdMessage: 'Organiser account created successfully.',
+        summaryLabel: 'Organiser account',
+        editLabel: 'organiser account',
+    }
+}
+
 export function OrganisationStep({
     organisationId,
     requestedOrganisationType,
@@ -70,6 +126,11 @@ export function OrganisationStep({
         useState<string | null>(null)
     const [errorMessage, setErrorMessage] =
         useState<string | null>(null)
+
+    const initialSubscriptionPlan = useMemo(
+        getInitialSubscriptionPlan,
+        [],
+    )
 
     useEffect(() => {
         let mounted = true
@@ -152,10 +213,7 @@ export function OrganisationStep({
                 setOrganisation(updated)
                 setEditing(false)
                 setMessage(
-                    updated.organisation_type ===
-                        'club'
-                        ? 'Club details updated successfully.'
-                        : 'Organisation details updated successfully.',
+                    workspaceCopy.updatedMessage,
                 )
                 onCreated(updated)
                 return
@@ -195,19 +253,11 @@ export function OrganisationStep({
                 result.ownerInvitationSent
             ) {
                 setMessage(
-                    result.organisation
-                        .organisation_type ===
-                    'club'
-                        ? 'Club workspace created and the owner invitation was sent.'
-                        : 'Organisation created and the owner invitation was sent.',
+                    workspaceCopy.ownerInviteMessage,
                 )
             } else {
                 setMessage(
-                    result.organisation
-                        .organisation_type ===
-                    'club'
-                        ? 'Club workspace created successfully.'
-                        : 'Organisation created successfully.',
+                    workspaceCopy.createdMessage,
                 )
             }
 
@@ -228,9 +278,9 @@ export function OrganisationStep({
     const effectiveOrganisationType =
         organisation?.organisation_type ??
         requestedOrganisationType
-    const isClub =
-        effectiveOrganisationType ===
-        'club'
+    const workspaceCopy = getWorkspaceCopy(
+        effectiveOrganisationType,
+    )
 
     if (loading) {
         return (
@@ -238,9 +288,7 @@ export function OrganisationStep({
                 <div className="text-center">
                     <Loader2 className="mx-auto h-7 w-7 animate-spin text-[var(--organisation-accent,#84cc16)]" />
                     <p className="mt-3 text-sm text-[var(--organisation-muted)]">
-                        Loading your {isClub
-                            ? 'club'
-                            : 'organisation'} setup...
+                        Loading your {workspaceCopy.loadingLabel} setup...
                     </p>
                 </div>
             </div>
@@ -252,16 +300,8 @@ export function OrganisationStep({
             <div>
                 <div className="mb-6">
                     <SetupWizardHeader
-                        title={
-                            isClub
-                                ? 'Your club'
-                                : 'Your organisation'
-                        }
-                        description={
-                            isClub
-                                ? 'Create the club workspace that will manage your teams, squads, fixtures, results, public website, administrators and branding.'
-                                : 'Create the organisation workspace that will own your competitions, public website, administrators and branding.'
-                        }
+                        title={workspaceCopy.setupTitle}
+                        description={workspaceCopy.setupDescription}
                     />
                 </div>
 
@@ -287,6 +327,9 @@ export function OrganisationStep({
                     fixedOrganisationType={
                         requestedOrganisationType
                     }
+                    initialSubscriptionPlan={
+                        initialSubscriptionPlan
+                    }
                     onSave={handleSave}
                     onCancel={
                         organisation
@@ -302,16 +345,8 @@ export function OrganisationStep({
     return (
         <div>
             <SetupWizardHeader
-                title={
-                    isClub
-                        ? 'Club workspace created'
-                        : 'Organisation created'
-                }
-                description={
-                    isClub
-                        ? 'Your TournamentHQ club workspace is provisioned. Review the details below, then continue to choose your plan and billing frequency.'
-                        : 'Your TournamentHQ tenant is provisioned. Review the details below, then continue to choose your plan and billing frequency.'
-                }
+                title={workspaceCopy.createdTitle}
+                description={workspaceCopy.createdDescription}
             />
 
             {message && (
@@ -338,9 +373,7 @@ export function OrganisationStep({
 
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.14em] text-lime-400">
-                                    {isClub
-                                        ? 'Club'
-                                        : 'Organisation'}
+                                    {workspaceCopy.summaryLabel}
                                 </p>
                                 <h2 className="m-0 mt-1 text-xl font-black text-[var(--organisation-text)]">
                                     {organisation.name}
@@ -375,9 +408,7 @@ export function OrganisationStep({
                         }
                         className="rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.06]"
                     >
-                        Edit {isClub
-                            ? 'club'
-                            : 'organisation'}
+                        Edit {workspaceCopy.editLabel}
                     </button>
 
                     <button

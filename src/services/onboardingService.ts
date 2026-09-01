@@ -10,6 +10,11 @@ import {
     type Organisation,
     type OrganisationFormData,
 } from '../components/admin/Organisations/organisationTypes'
+import {
+    getPlanLimits,
+    getPlanModules,
+    normaliseSubscriptionPlan,
+} from '../config/planEntitlements'
 
 export type OnboardingNextStep =
     | 'create_first_competition'
@@ -36,9 +41,6 @@ type InviteResponse = {
     existingUser?: boolean
 }
 
-const DEFAULT_ENABLED_MODULES = [
-    ...defaultOrganisation.enabled_modules,
-]
 
 function normaliseOptionalText(
     value: string,
@@ -143,15 +145,14 @@ function validateInput(
 function applyOnboardingDefaults(
     organisation: OrganisationFormData,
 ): OrganisationFormData {
-    const enabledModules =
-        organisation.enabled_modules.length >
-        0
-            ? [
-                  ...new Set(
-                      organisation.enabled_modules,
-                  ),
-              ]
-            : DEFAULT_ENABLED_MODULES
+    const organisationType =
+        organisation.organisation_type
+    const requestedPlan =
+        normaliseSubscriptionPlan(
+            organisation.subscription_plan,
+        )
+    const planLimits =
+        getPlanLimits(requestedPlan)
 
     return {
         ...defaultOrganisation,
@@ -177,17 +178,23 @@ function applyOnboardingDefaults(
             normaliseOptionalText(
                 organisation.logo_url,
             ),
-        // Billing is provisional until Stripe Checkout completes.
-        // The webhook applies the selected Starter or Professional plan
-        // and moves the workspace into trial/active state.
-        subscription_plan: 'starter',
+        // Billing remains locked until Stripe Checkout completes,
+        // but the requested plan controls limits and modules from
+        // the start of the onboarding journey.
+        subscription_plan:
+            requestedPlan,
         subscription_status: 'suspended',
         trial_end: '',
-        max_users: 2,
-        max_competitions: 1,
+        max_users:
+            planLimits.maxUsers,
+        max_competitions:
+            planLimits.maxCompetitions,
         public_site_enabled: false,
         enabled_modules:
-            enabledModules,
+            getPlanModules(
+                requestedPlan,
+                organisationType,
+            ),
     }
 }
 

@@ -1,4 +1,7 @@
 import { supabase } from '../lib/supabaseClient'
+import {
+    isModuleEntitledForPlan,
+} from '../config/planEntitlements'
 
 export type AdminRole =
     | 'content_editor'
@@ -45,6 +48,7 @@ export type Organisation = {
     trial_end: string | null
     max_users: number
     max_competitions: number
+    enabled_modules: string[]
     created_at: string
     updated_at: string
 }
@@ -296,7 +300,9 @@ export function canAccessModule(
     module: AdminModule,
     isPlatformAdmin = false,
     organisationType: OrganisationType =
-    'competition_organiser',
+        'competition_organiser',
+    subscriptionPlan: SubscriptionPlan =
+        'professional',
 ): boolean {
     if (
         module === 'Organisations' ||
@@ -306,6 +312,17 @@ export function canAccessModule(
     }
 
     if (!roleModules[role].includes(module)) {
+        return false
+    }
+
+    if (
+        !isPlatformAdmin &&
+        !isModuleEntitledForPlan(
+            subscriptionPlan,
+            organisationType,
+            module,
+        )
+    ) {
         return false
     }
 
@@ -366,6 +383,42 @@ function getStoredOrganisationId():
     } catch {
         return null
     }
+}
+
+
+function getMetadataString(
+    metadata: Record<string, unknown>,
+    key: string,
+): string | null {
+    const value = metadata[key]
+
+    return typeof value === 'string' &&
+        value.trim()
+        ? value.trim()
+        : null
+}
+
+function isSelfServiceSignupMetadata(
+    metadata: Record<string, unknown> | null | undefined,
+): boolean {
+    if (!metadata) {
+        return false
+    }
+
+    const organisationType = getMetadataString(
+        metadata,
+        'signup_organisation_type',
+    )
+    const plan = getMetadataString(
+        metadata,
+        'signup_plan',
+    )
+
+    return (
+        organisationType === 'competition_organiser' ||
+        organisationType === 'club' ||
+        Boolean(plan)
+    )
 }
 
 async function getPlatformAdminStatus(
@@ -507,7 +560,32 @@ export async function getCurrentAdminProfile():
     const profile =
         profileData as ProfileRow
 
+    const selfServiceSignup =
+        isSelfServiceSignupMetadata(
+            user.user_metadata as
+                | Record<string, unknown>
+                | null
+                | undefined,
+        )
+
+    let directMemberships:
+        OrganisationMembership[] | null = null
+
     if (!profile.active) {
+        if (selfServiceSignup) {
+            directMemberships =
+                await getActiveMemberships(
+                    user.id,
+                    false,
+                )
+
+            if (!directMemberships.length) {
+                throw new Error(
+                    'Your self-service setup is incomplete.',
+                )
+            }
+        }
+
         throw new Error(
             'Your administrator account is inactive.',
         )
@@ -519,10 +597,16 @@ export async function getCurrentAdminProfile():
         )
 
     const memberships =
-        await getActiveMemberships(
-            user.id,
-            isPlatformAdmin,
-        )
+        isPlatformAdmin
+            ? await getActiveMemberships(
+                  user.id,
+                  true,
+              )
+            : directMemberships ??
+              (await getActiveMemberships(
+                  user.id,
+                  false,
+              ))
 
     if (!memberships.length) {
         throw new Error(
@@ -562,6 +646,7 @@ export async function getCurrentAdminProfile():
             trial_end,
             max_users,
             max_competitions,
+            enabled_modules,
             created_at,
             updated_at
         `)
@@ -575,8 +660,16 @@ export async function getCurrentAdminProfile():
     }
 
     const organisations =
-        (
-            organisationData ?? []
+        (organisationData ?? []).map(
+            (organisation) => ({
+                ...organisation,
+                enabled_modules:
+                    Array.isArray(
+                        organisation.enabled_modules,
+                    )
+                        ? organisation.enabled_modules
+                        : [],
+            }),
         ) as Organisation[]
 
     const organisationsById =
