@@ -9,6 +9,7 @@ import { SignupPage } from './pages/Auth/SignupPage'
 import { HomePage } from './pages/Home/HomePage'
 import { SetupWizard } from './pages/onboarding/SetupWizard'
 import { PublicOrganisationLayout } from './pages/public/PublicOrganisationLayout'
+import { TournamentHqSupportLink } from './components/support/TournamentHqSupportLink'
 
 const RESERVED_PUBLIC_PATHS =
     new Set([
@@ -104,7 +105,12 @@ function App() {
         location.pathname ===
         '/signup'
     ) {
-        return <SignupPage />
+        return (
+            <>
+                <SignupPage />
+                <TournamentHqSupportLink context="signup" />
+            </>
+        )
     }
 
     if (
@@ -114,14 +120,24 @@ function App() {
             '/onboarding/',
         )
     ) {
-        return <SetupWizard />
+        return (
+            <>
+                <SetupWizard />
+                <TournamentHqSupportLink context="onboarding" />
+            </>
+        )
     }
 
     if (
         location.pathname ===
         '/admin/set-password'
     ) {
-        return <SetPasswordPage />
+        return (
+            <>
+                <SetPasswordPage />
+                <TournamentHqSupportLink context="admin" />
+            </>
+        )
     }
 
     if (
@@ -131,7 +147,12 @@ function App() {
             '/admin/',
         )
     ) {
-        return <AdminPage />
+        return (
+            <>
+                <AdminPage />
+                <TournamentHqSupportLink context="admin" />
+            </>
+        )
     }
 
     const legacyOrganisationPath =
