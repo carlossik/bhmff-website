@@ -149,6 +149,8 @@ export function FinishStep({
     const isClub =
         organisation?.organisation_type ===
         'club'
+    const hasCompetition =
+        Boolean(competition)
 
     return (
         <div>
@@ -161,7 +163,9 @@ export function FinishStep({
                 description={
                     isClub
                         ? 'Your club setup is complete. Open the Club Portal to add teams, squads and fixtures, or preview your public club website.'
-                        : 'The core setup is complete. You can enter the admin workspace now, or open the public organisation site to see the customer-facing experience.'
+                        : hasCompetition
+                          ? 'The core setup is complete. You can enter the admin workspace now, or open the public organisation site to see the customer-facing experience.'
+                          : 'Your account and organisation are ready. You can add the first competition from the Admin Portal when you are ready.'
                 }
             />
 
@@ -194,7 +198,7 @@ export function FinishStep({
                         {isClub
                             ? 'Ready to configure in the Club Portal'
                             : competition?.name ??
-                              'Created'}
+                              'Add from Admin Portal'}
                     </p>
                 </article>
 
@@ -220,12 +224,16 @@ export function FinishStep({
                 <h2 className="mt-2 text-xl font-black text-[var(--organisation-text)]">
                     {isClub
                         ? 'Add your teams and organise the club from one workspace.'
-                        : 'Add teams, then let the AI Tournament Director build your fixture programme.'}
+                        : hasCompetition
+                          ? 'Add teams, then let the AI Tournament Director build your fixture programme.'
+                          : 'Create your first competition when you are ready.'}
                 </h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--organisation-muted)]">
                     {isClub
                         ? 'Use the Club Portal to manage teams, squads, seasons, fixtures, results, officials, content, media and the public club experience. No competition record is required for the club journey.'
-                        : 'Your competition is now available to the rest of the TournamentHQ workflow, including teams, groups, venues, officials, fixture import and intelligent scheduling.'}
+                        : hasCompetition
+                          ? 'Your competition is now available to the rest of the TournamentHQ workflow, including teams, groups, venues, officials, fixture import and intelligent scheduling.'
+                          : 'You can enter the dashboard now and add a competition later from Competition Setup. This keeps onboarding short and lets customers continue without facing a long form.'}
                 </p>
             </section>
 

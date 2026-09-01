@@ -1,7 +1,9 @@
 import {
-    CalendarDays,
+    ChevronDown,
+    CheckCircle2,
     Globe2,
     Loader2,
+    Settings2,
     ShieldCheck,
     UsersRound,
 } from 'lucide-react'
@@ -29,6 +31,14 @@ type ClubSetupStepProps = {
     onFinish: () => void
 }
 
+const quickStartItems = [
+    'Add teams',
+    'Invite coaches and club officials',
+    'Build squads and seasons',
+    'Add fixtures and Match Centre updates',
+    'Configure club payments when ready',
+] as const
+
 export function ClubSetupStep({
     organisationId,
     onBack,
@@ -38,6 +48,8 @@ export function ClubSetupStep({
         useState<Organisation | null>(null)
     const [loading, setLoading] =
         useState(true)
+    const [advancedOpen, setAdvancedOpen] =
+        useState(false)
     const [errorMessage, setErrorMessage] =
         useState<string | null>(null)
 
@@ -107,8 +119,8 @@ export function ClubSetupStep({
     return (
         <div>
             <SetupWizardHeader
-                title="Set up your club & teams"
-                description="Your club workspace is ready. Finish onboarding now, then add your teams, squads, fixtures, results and club content from the TournamentHQ Club Portal."
+                title="Club quick start"
+                description="Your club workspace is ready. Finish now and add teams, squads, fixtures, payments and content from the Club Portal when you are ready."
             />
 
             {errorMessage && (
@@ -121,54 +133,93 @@ export function ClubSetupStep({
             )}
 
             {organisation && (
-                <section className="mt-8 rounded-3xl border border-lime-900/60 bg-[#071006] p-6 sm:p-8">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-lime-400">
-                        Club workspace
-                    </p>
-                    <h2 className="mt-2 text-3xl font-black text-white">
-                        {organisation.name}
-                    </h2>
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                        TournamentHQ will keep the club as the ownership boundary while your teams, seasons and match operations sit underneath it.
-                    </p>
+                <section className="mt-8 overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)]">
+                    <div className="border-b border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-5 py-5 sm:px-6">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 items-start gap-4">
+                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--organisation-accent,#84cc16)]/10 text-[var(--organisation-accent,#84cc16)]">
+                                    <UsersRound className="h-6 w-6" />
+                                </div>
 
-                    <div className="mt-7 grid gap-4 md:grid-cols-3">
-                        <article className="rounded-2xl border border-lime-900/50 bg-white/[0.025] p-5">
-                            <UsersRound className="h-6 w-6 text-lime-400" />
-                            <h3 className="mt-4 text-base font-black text-white">
-                                Teams & squads
-                            </h3>
-                            <p className="mt-2 text-sm leading-6 text-slate-400">
-                                Add and manage the teams and players that belong to your club.
-                            </p>
-                        </article>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--organisation-accent,#84cc16)]">
+                                        Club workspace
+                                    </p>
+                                    <h2 className="mt-2 truncate text-2xl font-black text-[var(--organisation-text)] sm:text-3xl">
+                                        {organisation.name}
+                                    </h2>
+                                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--organisation-muted)]">
+                                        No extra setup is required today. You can complete onboarding and configure the club step by step inside the dashboard.
+                                    </p>
+                                </div>
+                            </div>
 
-                        <article className="rounded-2xl border border-lime-900/50 bg-white/[0.025] p-5">
-                            <CalendarDays className="h-6 w-6 text-lime-400" />
-                            <h3 className="mt-4 text-base font-black text-white">
-                                Club operations
-                            </h3>
-                            <p className="mt-2 text-sm leading-6 text-slate-400">
-                                Organise seasons, fixtures, results and the operational calendar.
-                            </p>
-                        </article>
-
-                        <article className="rounded-2xl border border-lime-900/50 bg-white/[0.025] p-5">
-                            <Globe2 className="h-6 w-6 text-lime-400" />
-                            <h3 className="mt-4 text-base font-black text-white">
-                                Public club site
-                            </h3>
-                            <p className="mt-2 text-sm leading-6 text-slate-400">
-                                Publish the club experience using the branding you have just configured.
-                            </p>
-                        </article>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-emerald-200">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Ready
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
-                        <p className="text-sm leading-6 text-emerald-100">
-                            No competition needs to be created for a club account. Club teams and club operations are managed directly from the Club Portal.
-                        </p>
+                    <div className="space-y-5 p-5 sm:p-6">
+                        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                            <div className="flex items-start gap-3">
+                                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
+                                <div>
+                                    <h3 className="text-sm font-black text-emerald-100">
+                                        Finish now, configure later
+                                    </h3>
+                                    <p className="mt-1 text-sm leading-6 text-emerald-100/80">
+                                        Teams, squads, fixtures, finance, communications and website content can all be added after onboarding. The customer does not need to complete everything before reaching the dashboard.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setAdvancedOpen(
+                                    (current) => !current,
+                                )
+                            }
+                            className="flex w-full items-center justify-between rounded-2xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-4 py-3 text-left text-sm font-black text-[var(--organisation-text)] transition hover:bg-white/[0.06]"
+                            aria-expanded={advancedOpen}
+                        >
+                            <span className="inline-flex items-center gap-2">
+                                <Settings2 className="h-4 w-4 text-[var(--organisation-accent,#84cc16)]" />
+                                What can I set up later?
+                            </span>
+                            <ChevronDown
+                                className={[
+                                    'h-4 w-4 transition-transform',
+                                    advancedOpen
+                                        ? 'rotate-180'
+                                        : '',
+                                ].join(' ')}
+                            />
+                        </button>
+
+                        {advancedOpen && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {quickStartItems.map(
+                                    (item) => (
+                                        <div
+                                            key={item}
+                                            className="flex items-center gap-3 rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-4 py-3 text-sm font-semibold text-[var(--organisation-muted)]"
+                                        >
+                                            <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--organisation-accent,#84cc16)]" />
+                                            {item}
+                                        </div>
+                                    ),
+                                )}
+
+                                <div className="flex items-center gap-3 rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] px-4 py-3 text-sm font-semibold text-[var(--organisation-muted)]">
+                                    <Globe2 className="h-4 w-4 shrink-0 text-[var(--organisation-accent,#84cc16)]" />
+                                    Publish the public club website
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </section>
             )}
@@ -181,7 +232,7 @@ export function ClubSetupStep({
                     }
                     onBack={onBack}
                     onNext={onFinish}
-                    nextLabel="Finish club setup"
+                    nextLabel="Finish now"
                 />
             </div>
         </div>
