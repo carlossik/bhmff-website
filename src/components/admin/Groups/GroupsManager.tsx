@@ -14,6 +14,7 @@ import type {
 const emptyForm: GroupFormValues = {
     name: '',
     sort_order: '1',
+    match_day: '',
     competition_team_ids: [],
 }
 
@@ -178,6 +179,7 @@ export function GroupsManager() {
         setFormValues({
             name: group.name,
             sort_order: String(group.sort_order),
+            match_day: group.match_day ?? '',
             competition_team_ids: memberships
                 .filter(
                     (membership) =>
@@ -467,6 +469,13 @@ export function GroupsManager() {
                                                     ? 'Published'
                                                     : 'Draft'}
                                             </span>
+
+                                            {group.match_day && (
+                                                <span className="badge">
+                                                    {group.match_day.charAt(0).toUpperCase() +
+                                                        group.match_day.slice(1)}
+                                                </span>
+                                            )}
                                         </div>
 
                                         <h4>{group.name}</h4>

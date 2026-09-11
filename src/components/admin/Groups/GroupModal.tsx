@@ -5,11 +5,12 @@ import {
     X,
 } from 'lucide-react'
 
-import type {
-    CompetitionGroup,
-    GroupFormValues,
-    GroupMembership,
-    GroupTeam,
+import {
+    GROUP_MATCH_DAYS,
+    type CompetitionGroup,
+    type GroupFormValues,
+    type GroupMembership,
+    type GroupTeam,
 } from './groupTypes'
 
 type GroupModalProps = {
@@ -256,6 +257,53 @@ export function GroupModal({
                                 </p>
                             </div>
                         )}
+
+                        <label className={labelClassName}>
+                            Match day
+
+                            <select
+                                className={fieldClassName}
+                                value={values.match_day}
+                                disabled={isSaving}
+                                onChange={(event) =>
+                                    onChange({
+                                        ...values,
+                                        match_day:
+                                            event.currentTarget.value as GroupFormValues['match_day'],
+                                    })
+                                }
+                            >
+                                <option value="">
+                                    Use competition start day
+                                </option>
+
+                                {GROUP_MATCH_DAYS.map(
+                                    (matchDay) => (
+                                        <option
+                                            key={matchDay}
+                                            value={matchDay}
+                                        >
+                                            {matchDay.charAt(0).toUpperCase() +
+                                                matchDay.slice(1)}
+                                        </option>
+                                    )
+                                )}
+                            </select>
+
+                            <span className="mt-2 block text-xs font-normal text-slate-500">
+                                Fixtures generated for this group will start on this weekday and keep the configured interval between rounds.
+                            </span>
+                        </label>
+
+                        <div className="rounded-xl border border-lime-900/50 bg-black/20 px-4 py-3">
+                            <p className="text-sm font-semibold text-slate-300">
+                                Scheduling fallback
+                            </p>
+
+                            <p className="mt-2 text-sm text-slate-400">
+                                If no match day is selected, TournamentHQ keeps the existing behaviour and uses the competition start day.
+                            </p>
+                        </div>
 
                         <div className="md:col-span-2">
                             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

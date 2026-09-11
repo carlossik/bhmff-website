@@ -67,7 +67,7 @@ export const groupService = {
         const { data, error } = await supabase
             .from('groups')
             .select(
-                'id, competition_id, name, sort_order, published, created_at'
+                'id, competition_id, name, sort_order, published, match_day, permitted_match_days, created_at'
             )
             .eq('competition_id', competitionId)
             .order('sort_order', { ascending: true })
@@ -149,6 +149,7 @@ export const groupService = {
                 competition_id: competitionId,
                 name: values.name.trim(),
                 sort_order: Number(values.sort_order),
+                match_day: values.match_day || null,
                 published: false,
             })
             .select('id')
@@ -191,6 +192,7 @@ export const groupService = {
             .update({
                 name: values.name.trim(),
                 sort_order: Number(values.sort_order),
+                match_day: values.match_day || null,
             })
             .eq('id', groupId)
 

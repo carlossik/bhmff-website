@@ -20,6 +20,8 @@ export type GeneratorGroup = {
     id: string
     name: string
     sort_order: number
+    match_day: string | null
+    permitted_match_days: string[]
 }
 
 export type GeneratorCompetitionTeam = {

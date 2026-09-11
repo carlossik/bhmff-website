@@ -136,6 +136,46 @@ function toCompetitionStartDateTime(
     return `${startDate}T10:00`
 }
 
+const MATCH_DAY_INDEX: Readonly<Record<string, number>> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+}
+
+function resolveGroupStartDate(
+    competitionStart: Date,
+    matchDay: string | null
+): Date {
+    const normalisedMatchDay =
+        matchDay?.trim().toLowerCase() ?? ''
+
+    const targetDay =
+        MATCH_DAY_INDEX[normalisedMatchDay]
+
+    if (targetDay === undefined) {
+        return new Date(
+            competitionStart.getTime()
+        )
+    }
+
+    const resolvedDate = new Date(
+        competitionStart.getTime()
+    )
+
+    const daysUntilTarget =
+        (targetDay - resolvedDate.getDay() + 7) % 7
+
+    resolvedDate.setDate(
+        resolvedDate.getDate() + daysUntilTarget
+    )
+
+    return resolvedDate
+}
+
 function formatKickoff(value: string) {
     return new Intl.DateTimeFormat('en-GB', {
         dateStyle: 'medium',
@@ -911,6 +951,12 @@ export function TournamentGenerator() {
             )
 
         for (const group of readyGroups) {
+            const groupStartDate =
+                resolveGroupStartDate(
+                    startDate,
+                    group.match_day
+                )
+
             const pairings =
                 mode === 'group_full'
                     ? generateSingleRoundRobin(
@@ -972,7 +1018,8 @@ export function TournamentGenerator() {
                                 pairing.homeTeamId,
                                 awayTeamId:
                                 pairing.awayTeamId,
-                                startDate,
+                                startDate:
+                                groupStartDate,
                             })
 
                         if (fixture) {

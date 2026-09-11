@@ -67,7 +67,7 @@ export const tournamentGeneratorService = {
     ): Promise<GeneratorGroup[]> {
         const { data, error } = await supabase
             .from('groups')
-            .select('id, name, sort_order')
+            .select('id, name, sort_order, match_day, permitted_match_days')
             .eq('competition_id', competitionId)
             .order('sort_order', {
                 ascending: true,
