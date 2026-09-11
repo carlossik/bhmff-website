@@ -370,9 +370,26 @@ async function syncSubscription(
         throw organisationLookupError
     }
 
+    if (!organisationData) {
+        console.warn(
+            'Stripe subscription references a TournamentHQ organisation that no longer exists:',
+            {
+                organisationId,
+                subscriptionId:
+                    subscription.id,
+                customerId,
+                stripeStatus:
+                    subscription.status,
+                eventId:
+                    eventContext.eventId,
+            },
+        )
+        return null
+    }
+
     const organisationType =
-        (organisationData as OrganisationTypeLookupRow | null)
-            ?.organisation_type ??
+        (organisationData as OrganisationTypeLookupRow)
+            .organisation_type ??
         'competition_organiser'
 
     const enabledModules =
