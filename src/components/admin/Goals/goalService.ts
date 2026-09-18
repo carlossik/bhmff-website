@@ -127,7 +127,7 @@ export const goalService = {
         competitionId: string,
         values: GoalFormValues
     ): Promise<void> {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('goals')
             .update({
                 competition_id: competitionId,
@@ -144,11 +144,19 @@ export const goalService = {
             })
             .eq('id', goalId)
             .eq('competition_id', competitionId)
+            .select('id')
+            .maybeSingle()
 
         throwSupabaseError(
             error,
             'Failed to update goal'
         )
+
+        if (!data) {
+            throw new Error(
+                'Goal was not updated. Refresh the page and try again.'
+            )
+        }
     },
 
     async deleteGoal(

@@ -122,7 +122,7 @@ export const resultService = {
         competitionId: string,
         values: ResultFormValues
     ): Promise<void> {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('results')
             .update({
                 competition_id: competitionId,
@@ -137,11 +137,19 @@ export const resultService = {
             })
             .eq('id', resultId)
             .eq('competition_id', competitionId)
+            .select('id')
+            .maybeSingle()
 
         throwSupabaseError(
             error,
             'Failed to update result'
         )
+
+        if (!data) {
+            throw new Error(
+                'Result was not updated. Refresh the page and try again.'
+            )
+        }
     },
 
     async deleteResult(
