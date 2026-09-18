@@ -391,6 +391,13 @@ export function ClubPublicHomePage({
         const totals = new Map<string, number>()
 
         scopedGoals.forEach((goal) => {
+            // Guest-player goals and opponent own goals have no TournamentHQ
+            // squad member. They still contribute to the match score, but must
+            // never be credited to a registered club player or Top Scorers.
+            if (!goal.squadMemberId) {
+                return
+            }
+
             totals.set(
                 goal.playerName,
                 (totals.get(goal.playerName) ?? 0) + 1,
