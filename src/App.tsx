@@ -5,6 +5,8 @@ import {
 
 import { AdminPage } from './pages/AdminPage'
 import { SetPasswordPage } from './pages/Auth/SetPasswordPage'
+import { ForgotPasswordPage } from './pages/Auth/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/Auth/ResetPasswordPage'
 import { SignupPage } from './pages/Auth/SignupPage'
 import { HomePage } from './pages/Home/HomePage'
 import { SetupWizard } from './pages/onboarding/SetupWizard'
@@ -107,8 +109,8 @@ function App() {
     ) {
         return (
             <>
-                <SignupPage />
                 <TournamentHqSupportLink context="signup" />
+                <SignupPage />
             </>
         )
     }
@@ -122,8 +124,32 @@ function App() {
     ) {
         return (
             <>
-                <SetupWizard />
                 <TournamentHqSupportLink context="onboarding" />
+                <SetupWizard />
+            </>
+        )
+    }
+
+    if (
+        location.pathname ===
+        '/admin/forgot-password'
+    ) {
+        return (
+            <>
+                <TournamentHqSupportLink context="admin" />
+                <ForgotPasswordPage />
+            </>
+        )
+    }
+
+    if (
+        location.pathname ===
+        '/admin/reset-password'
+    ) {
+        return (
+            <>
+                <TournamentHqSupportLink context="admin" />
+                <ResetPasswordPage />
             </>
         )
     }
@@ -134,8 +160,8 @@ function App() {
     ) {
         return (
             <>
-                <SetPasswordPage />
                 <TournamentHqSupportLink context="admin" />
+                <SetPasswordPage />
             </>
         )
     }
@@ -149,8 +175,8 @@ function App() {
     ) {
         return (
             <>
-                <AdminPage />
                 <TournamentHqSupportLink context="admin" />
+                <AdminPage />
             </>
         )
     }

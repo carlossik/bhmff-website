@@ -543,6 +543,64 @@ Deno.serve(async (request) => {
             )
         }
 
+        const requestedRedirectUrl =
+            body.redirectUrl?.trim()
+
+        let redirectOrigin =
+            parsedApplicationUrl.origin
+
+        if (requestedRedirectUrl) {
+            let parsedRequestedRedirect: URL
+
+            try {
+                parsedRequestedRedirect =
+                    new URL(requestedRedirectUrl)
+            } catch {
+                throw new Error(
+                    'The invitation redirect URL must be a valid absolute URL.',
+                )
+            }
+
+            const isConfiguredApplication =
+                parsedRequestedRedirect.origin ===
+                parsedApplicationUrl.origin
+
+            const isLocalDevelopment =
+                (
+                    parsedRequestedRedirect.hostname ===
+                        'localhost' ||
+                    parsedRequestedRedirect.hostname ===
+                        '127.0.0.1'
+                ) &&
+                (
+                    parsedRequestedRedirect.protocol ===
+                        'http:' ||
+                    parsedRequestedRedirect.protocol ===
+                        'https:'
+                )
+
+            if (
+                !isConfiguredApplication &&
+                !isLocalDevelopment
+            ) {
+                throw new Error(
+                    'The invitation redirect URL is not an allowed TournamentHQ origin.',
+                )
+            }
+
+            if (
+                parsedRequestedRedirect.pathname !==
+                '/admin/set-password'
+            ) {
+                throw new Error(
+                    'The invitation redirect URL must target the TournamentHQ password setup page.',
+                )
+            }
+
+            redirectOrigin =
+                parsedRequestedRedirect.origin
+        }
+
         const redirectSearchParams =
             new URLSearchParams({
                 invitation: 'true',
@@ -550,7 +608,7 @@ Deno.serve(async (request) => {
             })
 
         const redirectUrl =
-            `${applicationBaseUrl}/admin/set-password?${redirectSearchParams.toString()}`
+            `${redirectOrigin}/admin/set-password?${redirectSearchParams.toString()}`
 
         if (!isValidAction(action)) {
             throw new Error(

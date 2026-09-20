@@ -85,6 +85,7 @@ export type AdminModule =
     | 'Organisations'
     | 'Club Profile & Website'
     | 'Competitions'
+    | 'Tournament Rules'
     | 'Seasons'
     | 'Clubs'
     | 'Teams'
@@ -115,6 +116,7 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Dashboard',
     'Club Profile & Website',
     'Competitions',
+    'Tournament Rules',
     'Seasons',
     'Clubs',
     'Teams',
@@ -161,6 +163,7 @@ const roleModules: Record<
         'Dashboard',
         'Club Profile & Website',
         'Competitions',
+        'Tournament Rules',
         'Seasons',
         'Clubs',
         'Teams',
@@ -252,6 +255,7 @@ const moduleCapabilities: Partial<
 > = {
     'Club Profile & Website': 'public_site',
     Competitions: 'competition_management',
+    'Tournament Rules': 'competition_management',
     Seasons: 'season_management',
     Clubs: 'club_management',
     Teams: 'team_management',

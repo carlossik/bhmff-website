@@ -14,6 +14,7 @@ import {
 import { useCompetition } from '../../../contexts/CompetitionContext'
 import { useOrganisation } from '../../../context/OrganisationContext'
 import type { AdminProfile } from '../../../services/accessControl'
+import { CompetitionRulesContent } from '../../common/CompetitionRulesContent'
 import {
     acceptCompetitionRules,
     getCompetitionRules,
@@ -168,8 +169,8 @@ export function CompetitionRulesGate({
                 <div className="mt-6 rounded-2xl border border-[color:var(--thq-admin-border)] bg-black/20 p-4 sm:p-5">
                     <h3 className="text-lg font-black text-white">{rules.title}</h3>
                     {rules.rules_text && (
-                        <div className="mt-4 max-h-[24rem] overflow-auto whitespace-pre-wrap rounded-xl border border-[color:var(--thq-admin-border)] bg-black/25 p-4 text-sm leading-6 text-slate-200">
-                            {rules.rules_text}
+                        <div className="mt-4 max-h-[28rem] overflow-auto rounded-xl border border-[color:var(--thq-admin-border)] bg-black/25 p-4 text-slate-200 sm:p-5">
+                            <CompetitionRulesContent text={rules.rules_text} />
                         </div>
                     )}
                     {rules.rules_url && (

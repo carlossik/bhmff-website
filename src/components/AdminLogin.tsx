@@ -2,6 +2,10 @@ import {
     FormEvent,
     useState,
 } from 'react'
+import {
+    Eye,
+    EyeOff,
+} from 'lucide-react'
 import { login } from '../services/login'
 import { CkefaLogo } from './CkefaLogo'
 
@@ -17,6 +21,9 @@ export function AdminLogin({
 
     const [password, setPassword] =
         useState('')
+
+    const [showPassword, setShowPassword] =
+        useState(false)
 
     const [
         errorMessage,
@@ -109,19 +116,65 @@ export function AdminLogin({
                         <label>
                             Password
 
-                            <input
-                                type="password"
-                                value={password}
-                                autoComplete="current-password"
-                                onChange={(event) =>
-                                    setPassword(
-                                        event.target
-                                            .value
-                                    )
-                                }
-                                required
-                            />
+                            <span className="adminPasswordField">
+                                <input
+                                    type={
+                                        showPassword
+                                            ? 'text'
+                                            : 'password'
+                                    }
+                                    value={password}
+                                    autoComplete="current-password"
+                                    onChange={(event) =>
+                                        setPassword(
+                                            event.target
+                                                .value
+                                        )
+                                    }
+                                    required
+                                />
+
+                                <button
+                                    type="button"
+                                    className="adminPasswordToggle"
+                                    onClick={() =>
+                                        setShowPassword(
+                                            (current) =>
+                                                !current
+                                        )
+                                    }
+                                    aria-label={
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    }
+                                    title={
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    }
+                                >
+                                    {showPassword ? (
+                                        <EyeOff size={20} />
+                                    ) : (
+                                        <Eye size={20} />
+                                    )}
+                                </button>
+                            </span>
                         </label>
+
+                        <a
+                            className="adminAuthLink"
+                            href={
+                                email.trim()
+                                    ? `/admin/forgot-password?email=${encodeURIComponent(
+                                        email.trim()
+                                    )}`
+                                    : '/admin/forgot-password'
+                            }
+                        >
+                            Forgot password?
+                        </a>
 
                         {errorMessage && (
                             <p className="formError">

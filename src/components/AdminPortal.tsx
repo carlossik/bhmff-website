@@ -32,6 +32,7 @@ import {
     Newspaper,
     Palette,
     Shield,
+    ScrollText,
     Sparkles,
     Target,
     Trophy,
@@ -64,6 +65,8 @@ import OrganisationManager from './admin/Organisations/OrganisationManager'
 import { ClubProfileWebsiteManager } from './admin/ClubProfile/ClubProfileWebsiteManager'
 import { AdminHeader } from './admin/AdminHeader'
 import { CompetitionTeamsManager } from './admin/CompetitionTeams/CompetitionTeamsManager'
+import { CompetitionRulesManager } from './admin/CompetitionRules/CompetitionRulesManager'
+import { CompetitionRulesGate } from './admin/CompetitionRules/CompetitionRulesGate'
 import { PlatformOperationsDashboard } from './admin/PlatformOperations/PlatformOperationsDashboard'
 import { ClubFinanceDashboard } from './admin/ClubFinance/ClubFinanceDashboard'
 import { CommunicationsManager } from './admin/Communications/CommunicationsManager'
@@ -154,6 +157,11 @@ const navigationSections: readonly NavigationSection[] = [
             {
                 module: 'Competitions',
                 icon: Trophy,
+            },
+            {
+                module: 'Tournament Rules',
+                icon: ScrollText,
+                featured: true,
             },
             {
                 module: 'Seasons',
@@ -743,7 +751,12 @@ export function AdminPortal({
             subscriptionStatus === 'cancelled'
         )
 
+    const canViewBillingDetails =
+        effectiveProfile.isPlatformAdmin ||
+        activeRole === 'super_admin'
+
     const canManageBilling =
+        canViewBillingDetails &&
         billingSummary?.hasBillingCustomer === true
 
     const trialEndLabel =
@@ -1031,7 +1044,7 @@ export function AdminPortal({
                             organisationId
                         ),
                     supabase
-                        .from('media_items')
+                        .from('media')
                         .select('id', {
                             count: 'exact',
                             head: true,
@@ -1369,9 +1382,13 @@ export function AdminPortal({
 
     const loadBillingSummary =
         useCallback(async () => {
-            if (!currentOrganisation?.id) {
+            if (
+                !currentOrganisation?.id ||
+                !canViewBillingDetails
+            ) {
                 setBillingSummary(null)
                 setBillingSummaryError('')
+                setBillingSummaryLoading(false)
                 return
             }
 
@@ -1431,7 +1448,10 @@ export function AdminPortal({
             } finally {
                 setBillingSummaryLoading(false)
             }
-        }, [currentOrganisation?.id])
+        }, [
+            canViewBillingDetails,
+            currentOrganisation?.id,
+        ])
 
     useEffect(() => {
         if (!currentOrganisation?.id) {
@@ -1984,7 +2004,8 @@ export function AdminPortal({
                             )}
                         </div>
 
-                        <section className="mb-6 rounded-2xl border border-[color:var(--thq-admin-border)] bg-[var(--thq-admin-surface)] p-5 shadow-sm">
+                        {canViewBillingDetails ? (
+                            <section className="mb-6 rounded-2xl border border-[color:var(--thq-admin-border)] bg-[var(--thq-admin-surface)] p-5 shadow-sm">
                             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -2164,7 +2185,22 @@ export function AdminPortal({
                                     </span>
                                 </div>
                             )}
-                        </section>
+                            </section>
+                        ) : subscriptionAccessLocked ? (
+                            <section className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5 shadow-sm">
+                                <div className="flex items-start gap-3">
+                                    <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+                                    <div>
+                                        <h4 className="text-base font-black text-amber-100">
+                                            Workspace access is limited
+                                        </h4>
+                                        <p className="mt-2 text-sm leading-6 text-amber-100/80">
+                                            Contact your organisation administrator for assistance with workspace access.
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+                        ) : null}
 
                         <section>
                             <h4>
@@ -2284,6 +2320,11 @@ export function AdminPortal({
             case 'Competitions':
                 return (
                     <CompetitionManager />
+                )
+
+            case 'Tournament Rules':
+                return (
+                    <CompetitionRulesManager />
                 )
 
             case 'Seasons':
@@ -2493,23 +2534,25 @@ export function AdminPortal({
                                 )}
                             </span>
 
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                <span className="inline-flex items-center rounded-full border border-[color:var(--thq-admin-border)] bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--thq-admin-text)]">
-                                    {formatSubscriptionPlan(
-                                        subscriptionPlan,
-                                    )}
-                                </span>
+                            {canViewBillingDetails && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <span className="inline-flex items-center rounded-full border border-[color:var(--thq-admin-border)] bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--thq-admin-text)]">
+                                        {formatSubscriptionPlan(
+                                            subscriptionPlan,
+                                        )}
+                                    </span>
 
-                                <span
-                                    className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getSubscriptionStatusClasses(
-                                        subscriptionStatus,
-                                    )}`}
-                                >
-                                    {formatSubscriptionStatus(
-                                        subscriptionStatus,
-                                    )}
-                                </span>
-                            </div>
+                                    <span
+                                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getSubscriptionStatusClasses(
+                                            subscriptionStatus,
+                                        )}`}
+                                    >
+                                        {formatSubscriptionStatus(
+                                            subscriptionStatus,
+                                        )}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         <nav
@@ -2645,7 +2688,9 @@ export function AdminPortal({
                     </aside>
 
                     <main className="min-w-0">
-                        {renderActiveModule()}
+                        <CompetitionRulesGate profile={effectiveProfile}>
+                            {renderActiveModule()}
+                        </CompetitionRulesGate>
                     </main>
                 </div>
             </div>

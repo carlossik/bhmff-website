@@ -8,6 +8,7 @@ export type PlanModuleKey =
     | 'Organisations'
     | 'Club Profile & Website'
     | 'Competitions'
+    | 'Tournament Rules'
     | 'Seasons'
     | 'Clubs'
     | 'Teams'
@@ -47,6 +48,7 @@ export type PlanLimits = {
 const STARTER_COMPETITION_MODULES: readonly PlanModuleKey[] = [
     'Dashboard',
     'Competitions',
+    'Tournament Rules',
     'Clubs',
     'Teams',
     'Competition Teams',
@@ -119,6 +121,11 @@ export const PLAN_MODULE_DEFINITIONS: readonly PlanModuleDefinition[] = [
         key: 'Competitions',
         label: 'Competitions',
         description: 'Create and manage tournaments, leagues and competitions.',
+    },
+    {
+        key: 'Tournament Rules',
+        label: 'Tournament Rules',
+        description: 'Publish competition rules, require acceptance and audit acknowledgements.',
     },
     {
         key: 'Seasons',

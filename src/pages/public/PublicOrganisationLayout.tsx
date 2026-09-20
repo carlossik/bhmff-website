@@ -62,6 +62,10 @@ import {
 } from "./PublicTablesPage";
 
 import {
+    PublicRulesPage,
+} from "./PublicRulesPage";
+
+import {
     applyOrganisationBrowserBranding,
     resetTournamentHQBrowserBranding,
 } from "../../services/publicBrandingService";
@@ -482,6 +486,11 @@ export function PublicOrganisationLayout({
                   sectionId: "festival",
               },
               {
+                  label: "Tournament Rules",
+                  href: `${basePath}/rules`,
+                  sectionId: "",
+              },
+              {
                   label: "Fixtures",
                   href: `${basePath}#fixtures`,
                   sectionId: "fixtures",
@@ -632,6 +641,22 @@ export function PublicOrganisationLayout({
                         basePath={
                             basePath
                         }
+                    />
+                );
+
+            case `${basePath}/rules`:
+                return (
+                    <PublicRulesPage
+                        organisationId={
+                            resolvedOrganisation.id
+                        }
+                        organisationName={
+                            resolvedOrganisation.name
+                        }
+                        competitions={
+                            resolvedPublicData.competitions
+                        }
+                        {...commonPageProps}
                     />
                 );
 

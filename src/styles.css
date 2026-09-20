@@ -3592,3 +3592,63 @@
         padding: 13px;
     }
 }
+
+/* TournamentHQ admin authentication helpers */
+.adminPasswordField {
+    position: relative;
+    display: block;
+}
+
+.adminPasswordField input {
+    padding-right: 50px;
+}
+
+.adminPasswordToggle {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.adminPasswordToggle:hover,
+.adminPasswordToggle:focus-visible {
+    background: rgba(185,242,141,.08);
+    color: var(--light-green);
+    outline: none;
+}
+
+.adminAuthLink {
+    width: fit-content;
+    margin-top: -6px;
+    color: var(--light-green);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.adminAuthLink:hover,
+.adminAuthLink:focus-visible {
+    text-decoration: underline;
+}
+
+.adminAuthLinkCentered {
+    justify-self: center;
+    margin-top: 2px;
+}
+
+
+.formSuccess {
+    color: #c7ffab;
+    background: rgba(122,201,67,.10);
+    border: 1px solid rgba(185,242,141,.24);
+    border-radius: 12px;
+    padding: 10px 12px;
+}
