@@ -727,12 +727,9 @@ export function SquadManager() {
             return
         }
 
-        if (
-            !form.first_name.trim() ||
-            !form.last_name.trim()
-        ) {
+        if (!form.first_name.trim()) {
             setError(
-                'First name and last name are required.',
+                'First name is required. Last name is optional.',
             )
             return
         }
@@ -968,7 +965,6 @@ export function SquadManager() {
 
             const required = [
                 'first_name',
-                'last_name',
             ]
 
             if (
@@ -980,7 +976,7 @@ export function SquadManager() {
                 )
             ) {
                 throw new Error(
-                    'CSV must include first_name and last_name columns.',
+                    'CSV must include a first_name column. last_name is optional.',
                 )
             }
 
@@ -1054,8 +1050,7 @@ export function SquadManager() {
                     .filter(
                         (row: ClubSquadCsvRow) =>
                             Boolean(
-                                row.first_name.trim() &&
-                                row.last_name.trim(),
+                                row.first_name.trim(),
                             ),
                     )
 
@@ -1620,6 +1615,9 @@ export function SquadManager() {
                                         <p className="mt-1 text-xs text-slate-400">
                                             Player registration tracks the one-off signing-on fee only. Recurring payments follow the team payment policy.
                                         </p>
+                                        <p className="mt-1 text-xs font-semibold text-slate-300">
+                                            Fields marked <span className="text-[#8cf566]">*</span> are required. Last name is optional for grassroots players.
+                                        </p>
                                     </div>
                                 </div>
 
@@ -1639,9 +1637,18 @@ export function SquadManager() {
                                 </button>
                             </header>
 
+                            {error && (
+                                <div
+                                    role="alert"
+                                    className="mx-6 mt-5 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200"
+                                >
+                                    {error}
+                                </div>
+                            )}
+
                             <div className="grid gap-4 p-6 md:grid-cols-2">
                                 <label className="text-sm font-semibold text-slate-300">
-                                    First name
+                                    First name <span className="text-[#8cf566]">*</span>
                                     <input
                                         value={
                                             form.first_name
@@ -1654,12 +1661,14 @@ export function SquadManager() {
                                                     .value,
                                             )
                                         }
+                                        required
+                                        aria-required="true"
                                         className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
                                     />
                                 </label>
 
                                 <label className="text-sm font-semibold text-slate-300">
-                                    Last name
+                                    Last name <span className="text-xs font-normal text-slate-400">(optional)</span>
                                     <input
                                         value={
                                             form.last_name
