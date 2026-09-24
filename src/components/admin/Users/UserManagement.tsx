@@ -1028,34 +1028,32 @@ export function UserManagement({
                                         </button>
 
                                         {!isSuperAdmin && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        void toggleUserAccess(
-                                                            user,
-                                                        )
-                                                    }
-                                                    className="rounded-xl border border-amber-700/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-500/10"
-                                                >
-                                                    {user.active
-                                                        ? "Deactivate"
-                                                        : "Activate"}
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        requestUserRemoval(
-                                                            user,
-                                                        )
-                                                    }
-                                                    className="rounded-xl border border-red-800/60 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/10"
-                                                >
-                                                    Remove User
-                                                </button>
-                                            </>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void toggleUserAccess(
+                                                        user,
+                                                    )
+                                                }
+                                                className="rounded-xl border border-amber-700/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-500/10"
+                                            >
+                                                {user.active
+                                                    ? "Deactivate"
+                                                    : "Activate"}
+                                            </button>
                                         )}
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                requestUserRemoval(
+                                                    user,
+                                                )
+                                            }
+                                            className="rounded-xl border border-red-800/60 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/10"
+                                        >
+                                            Remove User
+                                        </button>
                                     </div>
                                 )}
                             </article>
