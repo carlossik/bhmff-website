@@ -124,6 +124,8 @@ const initialInviteForm: InviteUserFormValues = {
     fullName: "",
     email: "",
     role: "content_editor",
+    competitionId: "",
+    competitionTeamId: "",
 };
 
 function BrandedModal({
@@ -293,6 +295,9 @@ export function UserManagement({
 
     const [users, setUsers] =
         useState<AdminUser[]>([]);
+    const [competitionTeams, setCompetitionTeams] = useState<Array<{
+        id: string; competitionId: string; competitionName: string; name: string
+    }>>([]);
 
     const [
         editingUser,
@@ -353,6 +358,27 @@ export function UserManagement({
             "success" | "error" | "info"
         >("success");
 
+    function showAssignmentError() {
+        setToastType('error');
+        setToastMessage('Select the competition and the team this official represents.');
+    }
+
+    function assignmentSelector(value: string, onSelect: (competitionId: string, teamId: string) => void) {
+        return <label className="block text-sm font-bold text-lime-200 sm:col-span-2">
+            Official's competition and team *
+            <select value={value} disabled={saving} required className={inputClassName}
+                onChange={(event) => {
+                    const team = competitionTeams.find((candidate) => candidate.id === event.target.value);
+                    onSelect(team?.competitionId ?? '', team?.id ?? '');
+                }}>
+                <option value="">Select a team</option>
+                {competitionTeams.map((team) => <option key={team.id} value={team.id}>
+                    {team.competitionName} — {team.name}
+                </option>)}
+            </select>
+        </label>;
+    }
+
     const loadUsers =
         useCallback(async () => {
             setLoading(true);
@@ -364,6 +390,9 @@ export function UserManagement({
                     );
 
                 setUsers(data);
+                if (!isClubOrganisation) {
+                    setCompetitionTeams(await userService.getCompetitionTeams(organisationId));
+                }
             } catch (error) {
                 setUsers([]);
                 setToastType("error");
@@ -375,7 +404,7 @@ export function UserManagement({
             } finally {
                 setLoading(false);
             }
-        }, [organisationId]);
+        }, [organisationId, isClubOrganisation]);
 
     useEffect(() => {
         setEditingUser(null);
@@ -440,6 +469,11 @@ export function UserManagement({
                 ).length,
                 icon: Mail,
             },
+            {
+                label: 'Signed into portal',
+                value: users.filter((user) => user.sign_in_count > 0).length,
+                icon: ShieldCheck,
+            },
         ],
         [users],
     );
@@ -502,6 +536,8 @@ export function UserManagement({
                 user.full_name ?? "",
             role: user.role,
             active: user.active,
+            competitionId: user.competition_id ?? '',
+            competitionTeamId: user.competition_team_id ?? '',
         });
     }
 
@@ -546,6 +582,11 @@ export function UserManagement({
             );
             return;
         }
+        if (!isClubOrganisation && inviteValues.role === 'match_official' &&
+            (!inviteValues.competitionId || !inviteValues.competitionTeamId)) {
+            showAssignmentError();
+            return;
+        }
 
         if (
             users.some(
@@ -579,6 +620,8 @@ export function UserManagement({
                 fullName,
                 email,
                 role: inviteValues.role,
+                competitionId: inviteValues.competitionId,
+                competitionTeamId: inviteValues.competitionTeamId,
                 redirectUrl: `${adminBaseUrl}/admin/set-password?invitation=true&organisationId=${encodeURIComponent(
                     organisationId,
                 )}`,
@@ -613,6 +656,11 @@ export function UserManagement({
 
     async function saveUser() {
         if (!editingUser) {
+            return;
+        }
+        if (!isClubOrganisation && formValues.role === 'match_official' &&
+            (!formValues.competitionId || !formValues.competitionTeamId)) {
+            showAssignmentError();
             return;
         }
 
@@ -680,6 +728,8 @@ export function UserManagement({
                         user.full_name ?? "",
                     role: user.role,
                     active: !user.active,
+                    competitionId: user.competition_id ?? '',
+                    competitionTeamId: user.competition_team_id ?? '',
                 },
             );
 
@@ -724,6 +774,8 @@ export function UserManagement({
                         user.full_name ?? "",
                     email: user.email,
                     role: user.role,
+                    competitionId: user.competition_id,
+                    competitionTeamId: user.competition_team_id,
                     redirectUrl:
                         `${adminBaseUrl}/admin/set-password?invitation=true&organisationId=${encodeURIComponent(
                             organisationId,
@@ -824,7 +876,7 @@ export function UserManagement({
                 </button>
             </section>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {stats.map((stat) => {
                     const Icon = stat.icon;
 
@@ -911,6 +963,23 @@ export function UserManagement({
                                             {user.email ??
                                                 "Email not available"}
                                         </p>
+                                        <div className="mt-4 space-y-1 rounded-xl border border-lime-900/50 bg-black/20 p-3 text-sm text-slate-300">
+                                            <p><strong className="text-white">Invitation:</strong>{' '}
+                                                {user.accepted_at
+                                                    ? `Accepted ${formatDate(user.accepted_at)}`
+                                                    : user.invited_at
+                                                        ? 'Awaiting account setup'
+                                                        : 'Not tracked (existing user)'}</p>
+                                            {user.invited_at && <p>Sent {formatDate(user.invited_at)}
+                                                {user.invitation_send_count > 1 && ` · ${user.invitation_send_count} emails sent`}</p>}
+                                            <p><strong className="text-white">Portal sign-ins:</strong> {user.sign_in_count}
+                                                {user.last_signed_in_at && ` · Last ${formatDate(user.last_signed_in_at)}`}</p>
+                                            {user.competition_team_id && <p><strong className="text-white">Tournament team:</strong>{' '}
+                                                {(() => {
+                                                    const team = competitionTeams.find((item) => item.id === user.competition_team_id);
+                                                    return team ? `${team.competitionName} — ${team.name}` : 'Assigned team';
+                                                })()}</p>}
+                                        </div>
                                     </div>
 
                                     <div className="text-right text-xs text-slate-500">
@@ -1083,6 +1152,8 @@ export function UserManagement({
                                             ...current,
                                             role: event.target
                                                 .value as AdminRole,
+                                            competitionId: '',
+                                            competitionTeamId: '',
                                         }),
                                     )
                                 }
@@ -1100,6 +1171,9 @@ export function UserManagement({
                                 )}
                             </select>
                         </label>
+                        {!isClubOrganisation && inviteValues.role === 'match_official' &&
+                            assignmentSelector(inviteValues.competitionTeamId ?? '', (competitionId, competitionTeamId) =>
+                                setInviteValues((current) => ({ ...current, competitionId, competitionTeamId })))}
                     </div>
 
                     <div className="mt-5 rounded-2xl border border-lime-900/50 bg-black/20 p-4">
@@ -1185,6 +1259,8 @@ export function UserManagement({
                                             ...current,
                                             role: event.target
                                                 .value as AdminRole,
+                                            competitionId: '',
+                                            competitionTeamId: '',
                                         }),
                                     )
                                 }
@@ -1202,6 +1278,9 @@ export function UserManagement({
                                 )}
                             </select>
                         </label>
+                        {!isClubOrganisation && formValues.role === 'match_official' &&
+                            assignmentSelector(formValues.competitionTeamId ?? '', (competitionId, competitionTeamId) =>
+                                setFormValues((current) => ({ ...current, competitionId, competitionTeamId })))}
 
                         <label className="flex items-center gap-3 rounded-xl border border-lime-900/60 bg-[#071006] px-4 py-3 text-sm font-bold text-white">
                             <input

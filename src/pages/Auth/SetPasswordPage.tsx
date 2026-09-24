@@ -14,11 +14,6 @@ import { supabase } from '../../lib/supabaseClient'
 const ORGANISATION_STORAGE_KEY =
     'tournamenthq-current-organisation'
 
-type OrganisationDetails = {
-    id: string
-    name: string
-}
-
 type MembershipDetails = {
     organisationId: string
     organisationName: string
@@ -30,16 +25,6 @@ type MembershipRow = {
     role: string
     active: boolean
     created_at: string | null
-    organisations:
-        | {
-        id: string
-        name: string
-    }
-        | {
-        id: string
-        name: string
-    }[]
-        | null
 }
 
 function formatRole(role: string): string {
@@ -56,20 +41,6 @@ function formatRole(role: string): string {
             )
         })
         .join(' ')
-}
-
-function getOrganisation(
-    value: MembershipRow['organisations']
-): OrganisationDetails | null {
-    if (!value) {
-        return null
-    }
-
-    if (Array.isArray(value)) {
-        return value[0] ?? null
-    }
-
-    return value
 }
 
 function getOrganisationIdFromUrl(): string | null {
@@ -213,11 +184,7 @@ export function SetPasswordPage() {
                     organisation_id,
                     role,
                     active,
-                    created_at,
-                    organisations (
-                        id,
-                        name
-                    )
+                    created_at
                 `)
                 .eq('user_id', user.id)
                 .eq('active', true)
@@ -240,8 +207,9 @@ export function SetPasswordPage() {
             )
 
             if (error) {
+                console.error('Invitation membership lookup failed:', error)
                 throw new Error(
-                    'Your organisation access could not be verified.'
+                    `Your organisation access could not be verified${error.code ? ` (${error.code})` : ''}.`
                 )
             }
 
@@ -276,9 +244,21 @@ export function SetPasswordPage() {
             const selectedMembership =
                 memberships[0]
 
-            const organisation = getOrganisation(
-                selectedMembership.organisations
-            )
+            const {
+                data: organisation,
+                error: organisationError,
+            } = await supabase
+                .from('organisations')
+                .select('id, name')
+                .eq('id', selectedMembership.organisation_id)
+                .maybeSingle()
+
+            if (organisationError) {
+                console.error('Invitation organisation lookup failed:', organisationError)
+                throw new Error(
+                    `The organisation attached to this invitation could not be loaded${organisationError.code ? ` (${organisationError.code})` : ''}.`
+                )
+            }
 
             if (!organisation) {
                 throw new Error(
@@ -616,6 +596,16 @@ export function SetPasswordPage() {
                 throw new Error(
                     'TournamentHQ could not confirm which account was updated.'
                 )
+            }
+
+            // Password setup is the invitation acceptance event. A tracking
+            // outage must never undo a successful password change.
+            const { error: acceptanceError } = await supabase.rpc(
+                'accept_portal_invitation',
+                { p_organisation: membership.organisationId }
+            )
+            if (acceptanceError) {
+                console.error('Unable to record invitation acceptance:', acceptanceError)
             }
 
             /*

@@ -26,6 +26,8 @@ type InviteRequest = {
     fullName: string
     email: string
     role: AdminRole
+    competitionId?: string
+    competitionTeamId?: string
     redirectUrl?: string
 }
 
@@ -518,6 +520,8 @@ Deno.serve(async (request) => {
                 .toLowerCase()
 
         const role = body.role
+        const competitionId = body.competitionId?.trim()
+        const competitionTeamId = body.competitionTeamId?.trim()
 
         let parsedApplicationUrl: URL
 
@@ -670,6 +674,22 @@ Deno.serve(async (request) => {
             throw new Error(
                 'The selected organisation does not exist.',
             )
+        }
+
+        if (action === 'invite' && role === 'match_official' && organisation.organisation_type === 'competition_organiser') {
+            if (!competitionId || !competitionTeamId) {
+                throw new Error('Select a competition and team for this match official.')
+            }
+            const { data: assignedCompetition, error: assignedCompetitionError } = await adminClient
+                .from('competitions').select('id').eq('id', competitionId)
+                .eq('organisation_id', organisationId).maybeSingle()
+            if (assignedCompetitionError) throw assignedCompetitionError
+            if (!assignedCompetition) throw new Error('The competition does not belong to this organisation.')
+            const { data: assignedTeam, error: assignedTeamError } = await adminClient
+                .from('competition_teams').select('id')
+                .eq('id', competitionTeamId).eq('competition_id', competitionId).maybeSingle()
+            if (assignedTeamError) throw assignedTeamError
+            if (!assignedTeam) throw new Error('The selected team does not belong to this competition.')
         }
 
         if (
@@ -907,6 +927,21 @@ Deno.serve(async (request) => {
                 if (resetError) {
                     throw resetError
                 }
+            }
+
+            // A reset for an already tracked invitation updates the delivery
+            // history without erasing acceptance or inventing a new invite.
+            const { data: trackedInvite, error: trackedInviteError } = await adminClient
+                .from('portal_invitations').select('send_count')
+                .eq('organisation_id', organisationId).eq('user_id', existingProfile.id)
+                .maybeSingle()
+            if (trackedInviteError) throw trackedInviteError
+            if (trackedInvite) {
+                const { error: resendTrackingError } = await adminClient
+                    .from('portal_invitations')
+                    .update({ last_sent_at: new Date().toISOString(), send_count: trackedInvite.send_count + 1 })
+                    .eq('organisation_id', organisationId).eq('user_id', existingProfile.id)
+                if (resendTrackingError) throw resendTrackingError
             }
 
             return jsonResponse(
@@ -1160,6 +1195,23 @@ Deno.serve(async (request) => {
         if (membershipInsertError) {
             throw membershipInsertError
         }
+
+        if (action === 'invite' && role === 'match_official' && organisation.organisation_type === 'competition_organiser') {
+            const { error: assignmentError } = await adminClient
+                .from('competition_team_official_assignments')
+                .insert({ organisation_id: organisationId, competition_id: competitionId!,
+                    competition_team_id: competitionTeamId!, user_id: userId })
+            if (assignmentError) {
+                await adminClient.from('organisation_memberships').delete()
+                    .eq('organisation_id', organisationId).eq('user_id', userId)
+                throw assignmentError
+            }
+        }
+
+        const { error: invitationTrackingError } = await adminClient
+            .from('portal_invitations')
+            .insert({ organisation_id: organisationId, user_id: userId })
+        if (invitationTrackingError) throw invitationTrackingError
 
         return jsonResponse(
             {

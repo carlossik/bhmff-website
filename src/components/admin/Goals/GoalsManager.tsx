@@ -5,6 +5,7 @@ import {
 } from 'react'
 import { useCompetition } from '../../../contexts/CompetitionContext'
 import { useOrganisation } from '../../../context/OrganisationContext'
+import { writableCompetitionFixtures } from '../Results/competitionMatchAccess'
 import { ClubGoalsManager } from './ClubGoalsManager'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
@@ -32,6 +33,7 @@ type ToastType =
     | 'info'
 
 function CompetitionGoalsManager() {
+    const { currentOrganisation, currentRole, profile } = useOrganisation()
     const {
         currentCompetition,
         currentCompetitionId,
@@ -114,9 +116,12 @@ function CompetitionGoalsManager() {
                     ),
                 ])
 
-                setFixtures(fixtureRows)
+                const writableFixtures = await writableCompetitionFixtures(fixtureRows, competitionId,
+                    currentOrganisation.id, profile.id, currentRole)
+                const writableIds = new Set(writableFixtures.map((fixture) => fixture.id))
+                setFixtures(writableFixtures)
                 setTeams(teamRows)
-                setGoals(goalRows)
+                setGoals(goalRows.filter((goal) => !!goal.fixture_id && writableIds.has(goal.fixture_id)))
             } catch (error) {
                 clearGoalData()
 
@@ -130,7 +135,7 @@ function CompetitionGoalsManager() {
                 setIsLoading(false)
             }
         },
-        []
+        [currentOrganisation.id, currentRole, profile.id]
     )
 
     useEffect(() => {

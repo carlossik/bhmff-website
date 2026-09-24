@@ -70,3 +70,17 @@ export type FixtureFormValues = FixtureOfficialSelections & {
     status: FixtureStatus
     match_format?: MatchFormat
 }
+
+export type FixtureAuditEntry = {
+    id: string
+    fixture_id: string
+    action: 'INSERT' | 'UPDATE' | 'DELETE'
+    source: 'fixture' | 'official_assignment'
+    actor_user_id: string | null
+    actor_name: string | null
+    actor_email: string | null
+    changed_fields: string[]
+    before_data: Record<string, unknown> | null
+    after_data: Record<string, unknown> | null
+    changed_at: string
+}

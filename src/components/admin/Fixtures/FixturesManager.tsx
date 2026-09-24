@@ -6,6 +6,7 @@ import {
 } from 'react'
 import {
     CalendarDays,
+    History,
     FileSpreadsheet,
     Plus,
     Trash2,
@@ -25,6 +26,7 @@ import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { Toast } from '../../common/Toast'
 import { FixtureImportModal } from './FixtureImportModal'
 import { FixtureModal } from './FixtureModal'
+import { FixtureAuditHistory } from './FixtureAuditHistory'
 import { FixturesTable } from './FixturesTable'
 import { fixtureService } from './fixtureService'
 import type {
@@ -236,6 +238,8 @@ function CompetitionFixturesWorkspace() {
 
     const [showModal, setShowModal] =
         useState(false)
+    const [showAuditHistory, setShowAuditHistory] = useState(false)
+    const [fixtureTeamsLocked, setFixtureTeamsLocked] = useState(false)
 
     const [
         editingFixture,
@@ -392,6 +396,7 @@ function CompetitionFixturesWorkspace() {
 
     useEffect(() => {
         closeModal()
+        setShowAuditHistory(false)
         setFixtureToDelete(null)
         setShowDeleteAllConfirm(false)
         setToastMessage('')
@@ -411,6 +416,7 @@ function CompetitionFixturesWorkspace() {
     ])
 
     function openCreateModal() {
+        setFixtureTeamsLocked(false)
         if (!currentCompetitionId) {
             showToast(
                 'Select a competition before creating a fixture.',
@@ -428,6 +434,8 @@ function CompetitionFixturesWorkspace() {
         fixture: Fixture
     ) {
         try {
+            const hasMatchData = await fixtureService.hasRecordedMatchData(fixture.id)
+            setFixtureTeamsLocked(hasMatchData || fixture.status === 'completed')
             setEditingFixture(fixture)
 
             const assignments =
@@ -481,6 +489,12 @@ function CompetitionFixturesWorkspace() {
     }
 
     function validateFixture() {
+        if (editingFixture && fixtureTeamsLocked &&
+            (editingFixture.home_competition_team_id !== formValues.home_competition_team_id ||
+                editingFixture.away_competition_team_id !== formValues.away_competition_team_id)) {
+            showToast('Teams cannot be changed after results or goals are recorded.', 'error')
+            return false
+        }
         if (!currentCompetitionId) {
             showToast(
                 'Select a competition before saving a fixture.',
@@ -812,7 +826,7 @@ function CompetitionFixturesWorkspace() {
                 editingFixture
                     ? await fixtureService
                         .updateFixture(
-                            editingFixture.id,
+                            editingFixture,
                             formValues
                         )
                     : await fixtureService
@@ -1074,6 +1088,11 @@ function CompetitionFixturesWorkspace() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
+                    <button type="button" disabled={!currentCompetitionId}
+                        onClick={() => setShowAuditHistory(true)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--organisation-border)] px-5 py-3 text-sm font-bold text-white disabled:opacity-40">
+                        <History className="h-5 w-5" /> Audit History
+                    </button>
                     <button
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-3 text-sm font-bold text-red-300 transition hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
                         type="button"
@@ -1202,6 +1221,7 @@ function CompetitionFixturesWorkspace() {
             {showModal &&
                 currentCompetitionId && (
                     <FixtureModal
+                        teamsLocked={fixtureTeamsLocked}
                         mode={
                             editingFixture
                                 ? 'edit'
@@ -1229,6 +1249,9 @@ function CompetitionFixturesWorkspace() {
                         }
                     />
                 )}
+            {showAuditHistory && currentCompetitionId && <FixtureAuditHistory
+                competitionId={currentCompetitionId} teams={teams} venues={venues} officials={officials}
+                onClose={() => setShowAuditHistory(false)} />}
 
             {showDeleteAllConfirm &&
                 currentCompetitionId && (

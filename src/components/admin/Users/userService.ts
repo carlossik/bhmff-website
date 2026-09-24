@@ -14,6 +14,8 @@ export type InviteAdminUserValues = {
     fullName: string
     email: string
     role: AdminRole
+    competitionId?: string
+    competitionTeamId?: string
     redirectUrl: string
 }
 
@@ -38,6 +40,17 @@ type ProfileRow = {
     full_name: string | null
     email: string | null
     active: boolean
+}
+
+type AccessSummaryRow = {
+    user_id: string
+    invited_at: string | null
+    last_sent_at: string | null
+    accepted_at: string | null
+    send_count: number | null
+    sign_in_count: number
+    first_signed_in_at: string | null
+    last_signed_in_at: string | null
 }
 
 function throwSupabaseError(
@@ -129,6 +142,18 @@ export const userService = {
             ]),
         )
 
+        const { data: assignments, error: assignmentError } = await supabase
+            .from('competition_team_official_assignments')
+            .select('user_id,competition_id,competition_team_id')
+            .eq('organisation_id', organisationId)
+        throwSupabaseError(assignmentError, 'Failed to load team assignments')
+        const assignmentsByUser = new Map((assignments ?? []).map((row) => [row.user_id, row]))
+        const { data: accessSummary, error: accessSummaryError } = await supabase
+            .rpc('portal_access_summary', { p_organisation: organisationId })
+        throwSupabaseError(accessSummaryError, 'Failed to load invitation and sign-in activity')
+        const summaryByUser = new Map(((accessSummary ?? []) as AccessSummaryRow[])
+            .map((row) => [row.user_id, row]))
+
         return memberships.map(
             (membership): AdminUser => {
                 const profile =
@@ -169,6 +194,15 @@ export const userService = {
 
                     updated_at:
                     membership.updated_at,
+                    competition_id: assignmentsByUser.get(membership.user_id)?.competition_id,
+                    competition_team_id: assignmentsByUser.get(membership.user_id)?.competition_team_id,
+                    invited_at: summaryByUser.get(membership.user_id)?.invited_at ?? null,
+                    last_sent_at: summaryByUser.get(membership.user_id)?.last_sent_at ?? null,
+                    accepted_at: summaryByUser.get(membership.user_id)?.accepted_at ?? null,
+                    invitation_send_count: summaryByUser.get(membership.user_id)?.send_count ?? 0,
+                    sign_in_count: summaryByUser.get(membership.user_id)?.sign_in_count ?? 0,
+                    first_signed_in_at: summaryByUser.get(membership.user_id)?.first_signed_in_at ?? null,
+                    last_signed_in_at: summaryByUser.get(membership.user_id)?.last_signed_in_at ?? null,
                 }
             },
         )
@@ -203,6 +237,8 @@ export const userService = {
 
                     role:
                     values.role,
+                    competitionId: values.competitionId,
+                    competitionTeamId: values.competitionTeamId,
 
                     redirectUrl:
                     values.redirectUrl,
@@ -258,6 +294,15 @@ export const userService = {
         organisationId: string,
         values: UserAccessFormValues,
     ): Promise<void> {
+        if (values.role === 'match_official' && values.competitionId && values.competitionTeamId) {
+            const { error } = await supabase.rpc('set_competition_team_official_assignment', {
+                p_organisation: organisationId,
+                p_user: userId,
+                p_competition: values.competitionId,
+                p_team: values.competitionTeamId,
+            })
+            throwSupabaseError(error, 'Failed to assign official to a team')
+        }
         const fullName =
             values.fullName.trim()
 
@@ -306,6 +351,31 @@ export const userService = {
             membershipError,
             'Failed to update organisation access',
         )
+        if (values.role !== 'match_official' && values.competitionId === '') {
+            const { error } = await supabase.rpc('set_competition_team_official_assignment', {
+                p_organisation: organisationId, p_user: userId, p_competition: null, p_team: null,
+            })
+            throwSupabaseError(error, 'Failed to clear official assignment')
+        }
+    },
+
+    async getCompetitionTeams(organisationId: string) {
+        const { data: competitions, error } = await supabase.from('competitions')
+            .select('id,name').eq('organisation_id', organisationId).order('name')
+        throwSupabaseError(error, 'Failed to load competitions')
+        const ids = (competitions ?? []).map((competition) => competition.id)
+        if (!ids.length) return []
+        const { data: teams, error: teamsError } = await supabase.from('competition_teams')
+            .select('id,competition_id,teams(name)').in('competition_id', ids)
+        throwSupabaseError(teamsError, 'Failed to load competition teams')
+        return (teams ?? []).map((team) => {
+            const joined = team.teams as unknown as { name: string } | { name: string }[] | null
+            return {
+                id: team.id, competitionId: team.competition_id,
+                competitionName: competitions?.find((competition) => competition.id === team.competition_id)?.name ?? '',
+                name: (Array.isArray(joined) ? joined[0]?.name : joined?.name) ?? 'Unnamed team',
+            }
+        })
     },
 
     async removeUser(

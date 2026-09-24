@@ -11,6 +11,7 @@ import { Toast } from '../../common/Toast'
 import { ResultModal } from './ResultModal'
 import { ResultsTable } from './ResultsTable'
 import { resultService } from './resultService'
+import { writableCompetitionFixtures } from './competitionMatchAccess'
 import type {
     Result,
     ResultFixture,
@@ -33,6 +34,7 @@ type ToastType =
     | 'info'
 
 function CompetitionResultsManager() {
+    const { currentOrganisation, currentRole, profile } = useOrganisation()
     const {
         currentCompetition,
         currentCompetitionId,
@@ -113,9 +115,12 @@ function CompetitionResultsManager() {
                     ),
                 ])
 
-                setFixtures(fixtureRows)
+                const writableFixtures = await writableCompetitionFixtures(fixtureRows, competitionId,
+                    currentOrganisation.id, profile.id, currentRole)
+                const writableIds = new Set(writableFixtures.map((fixture) => fixture.id))
+                setFixtures(writableFixtures)
                 setTeams(teamRows)
-                setResults(resultRows)
+                setResults(resultRows.filter((result) => writableIds.has(result.fixture_id)))
             } catch (error) {
                 clearResultData()
 
@@ -129,7 +134,7 @@ function CompetitionResultsManager() {
                 setIsLoading(false)
             }
         },
-        []
+        [currentOrganisation.id, currentRole, profile.id]
     )
 
     useEffect(() => {

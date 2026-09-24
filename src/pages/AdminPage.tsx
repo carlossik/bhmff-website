@@ -167,6 +167,11 @@ export function AdminPage() {
                 profileRef.current
             ) {
                 setSession(activeSession)
+                void supabase.rpc('record_portal_session', {
+                    p_organisation: profileRef.current!.currentOrganisation.id,
+                }).then(({ error }) => {
+                    if (error) console.error('Unable to record portal sign-in:', error)
+                })
                 return
             }
 
@@ -200,6 +205,14 @@ export function AdminPage() {
 
                     setSession(activeSession)
                     setProfile(adminProfile)
+
+                    // The database deduplicates on the verified auth session
+                    // ID, so reloads and token refreshes do not add sign-ins.
+                    void supabase.rpc('record_portal_session', {
+                        p_organisation: adminProfile.currentOrganisation.id,
+                    }).then(({ error }) => {
+                        if (error) console.error('Unable to record portal sign-in:', error)
+                    })
                 } catch (error) {
                     if (
                         !isMountedRef.current

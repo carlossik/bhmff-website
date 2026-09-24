@@ -17,16 +17,29 @@ export type AdminUser = {
 
     created_at: string
     updated_at: string
+    competition_id?: string
+    competition_team_id?: string
+    invited_at: string | null
+    last_sent_at: string | null
+    accepted_at: string | null
+    invitation_send_count: number
+    sign_in_count: number
+    first_signed_in_at: string | null
+    last_signed_in_at: string | null
 }
 
 export type UserAccessFormValues = {
     fullName: string
     role: AdminRole
     active: boolean
+    competitionId?: string
+    competitionTeamId?: string
 }
 
 export type InviteUserFormValues = {
     fullName: string
     email: string
     role: AdminRole
+    competitionId?: string
+    competitionTeamId?: string
 }

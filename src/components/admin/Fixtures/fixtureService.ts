@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient'
+import { buildFixtureChanges } from './fixtureChanges'
 import type {
     Fixture,
     FixtureFormValues,
@@ -6,6 +7,7 @@ import type {
     FixtureGroupMembership,
     FixtureTeam,
     FixtureVenue,
+    FixtureAuditEntry,
 } from './fixtureTypes'
 
 type SupabaseErrorLike = { message: string }
@@ -48,6 +50,15 @@ function buildFixturePayload(values: FixtureFormValues) {
 }
 
 export const fixtureService = {
+    async getFixtureAudit(competitionId: string, offset: number): Promise<FixtureAuditEntry[]> {
+        const { data, error } = await supabase.from('fixture_audit_log')
+            .select('id,fixture_id,action,source,actor_user_id,actor_name,actor_email,changed_fields,before_data,after_data,changed_at')
+            .eq('competition_id', competitionId)
+            .order('changed_at', { ascending: false })
+            .range(offset, offset + 49)
+        throwSupabaseError(error, 'Failed to load fixture history')
+        return (data ?? []) as FixtureAuditEntry[]
+    },
     async getFixtures(competitionId: string): Promise<Fixture[]> {
         const { data, error } = await supabase
             .from('fixtures')
@@ -119,11 +130,21 @@ export const fixtureService = {
         return data as Fixture
     },
 
-    async updateFixture(fixtureId: string, values: FixtureFormValues): Promise<Fixture> {
+    async hasRecordedMatchData(fixtureId: string): Promise<boolean> {
+        const { data, error } = await supabase.rpc('fixture_has_match_data', { p_fixture: fixtureId })
+        throwSupabaseError(error, 'Failed to inspect fixture match data')
+        return data === true
+    },
+
+    async updateFixture(existing: Fixture, values: FixtureFormValues): Promise<Fixture> {
+        // Updating only changed columns preserves the original kickoff precision and
+        // every unrelated value (including data created by the scheduler).
+        const changes = buildFixtureChanges(existing, values)
+        if (!Object.keys(changes).length) return existing
         const { data, error } = await supabase
             .from('fixtures')
-            .update(buildFixturePayload(values))
-            .eq('id', fixtureId)
+            .update(changes)
+            .eq('id', existing.id)
             .select('*')
             .single()
         throwSupabaseError(error, 'Failed to update fixture')

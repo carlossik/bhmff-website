@@ -33,6 +33,7 @@ import type {
 
 type CompetitionFixtureModalProps = {
     mode: 'create' | 'edit'
+    teamsLocked?: boolean
     values: FixtureFormValues
     teams: FixtureTeam[]
     venues: FixtureVenue[]
@@ -153,6 +154,7 @@ function formatOfficialDisplayName(
 
 function CompetitionFixtureModal({
                                  mode,
+                                 teamsLocked = false,
                                  values,
                                  teams,
                                  venues,
@@ -475,6 +477,7 @@ function CompetitionFixtureModal({
                                     <select
                                         className={fieldClassName}
                                         value={values.stage}
+                                        disabled={teamsLocked}
                                         onChange={(event) =>
                                             handleStageChange(
                                                 event.target.value
@@ -551,6 +554,7 @@ function CompetitionFixtureModal({
                                         <select
                                             className={fieldClassName}
                                             value={values.group_id}
+                                            disabled={teamsLocked}
                                             onChange={(event) =>
                                                 handleGroupChange(
                                                     event.target.value
@@ -595,6 +599,16 @@ function CompetitionFixtureModal({
                             </div>
 
                             <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                {mode === 'edit' && <div className="md:col-span-2">
+                                    <button type="button" disabled={teamsLocked || isSaving || !values.home_competition_team_id || !values.away_competition_team_id}
+                                        className="rounded-xl border border-lime-500 px-4 py-2 text-sm font-bold text-lime-200 disabled:opacity-50"
+                                        onClick={() => onChange({ ...values,
+                                            home_competition_team_id: values.away_competition_team_id,
+                                            away_competition_team_id: values.home_competition_team_id })}>
+                                        Swap home and away teams
+                                    </button>
+                                    {teamsLocked && <p className="mt-2 text-sm text-amber-300">Teams are locked because this fixture is completed or has results or goals.</p>}
+                                </div>}
                                 <label className={labelClassName}>
                                     Home team
                                     <span className="ml-1 text-red-400">
@@ -607,6 +621,7 @@ function CompetitionFixtureModal({
                                             values.home_competition_team_id
                                         }
                                         disabled={
+                                            teamsLocked ||
                                             isGroupStage &&
                                             !values.group_id
                                         }
@@ -652,6 +667,7 @@ function CompetitionFixtureModal({
                                             values.away_competition_team_id
                                         }
                                         disabled={
+                                            teamsLocked ||
                                             isGroupStage &&
                                             !values.group_id
                                         }
