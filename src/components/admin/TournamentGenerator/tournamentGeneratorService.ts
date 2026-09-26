@@ -184,12 +184,13 @@ export const tournamentGeneratorService = {
     },
 
     async getVenues(
-        competitionId: string
+        _competitionId: string,
+        organisationId: string
     ): Promise<GeneratorVenue[]> {
         const { data, error } = await supabase
             .from('venues')
             .select('id, name')
-            .eq('competition_id', competitionId)
+            .eq('organisation_id', organisationId)
             .order('name', {
                 ascending: true,
             })

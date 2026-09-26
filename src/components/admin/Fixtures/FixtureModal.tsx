@@ -235,6 +235,11 @@ function CompetitionFixtureModal({
                 )
         )
 
+    const homeVenueId = teams.find(
+        team => team.competition_team_id === values.home_competition_team_id
+    )?.primary_home_venue_id
+    const homeVenue = venues.find(venue => venue.id === homeVenueId)
+
 
     const activeOfficials =
         officials
@@ -625,12 +630,22 @@ function CompetitionFixtureModal({
                                             isGroupStage &&
                                             !values.group_id
                                         }
-                                        onChange={(event) =>
-                                            updateField(
-                                                'home_competition_team_id',
-                                                event.target.value
+                                        onChange={(event) => {
+                                            const selectedTeam = teams.find(
+                                                team => team.competition_team_id === event.target.value
                                             )
-                                        }
+                                            onChange({
+                                                ...values,
+                                                home_competition_team_id: event.target.value,
+                                                // Preserve the assigned venue on existing fixtures,
+                                                // including when an administrator swaps the teams.
+                                                venue_id: mode === 'create'
+                                                    ? (venues.some(venue => venue.id === selectedTeam?.primary_home_venue_id)
+                                                        ? selectedTeam!.primary_home_venue_id!
+                                                        : '')
+                                                    : values.venue_id,
+                                            })
+                                        }}
                                     >
                                         <option value="">
                                             Select home team
@@ -790,7 +805,7 @@ function CompetitionFixtureModal({
                                     </h3>
 
                                     <p className="mt-1 text-sm leading-6 text-slate-400">
-                                        Select the pitch or venue for this fixture.
+                                        The home team's venue is suggested for a new fixture. You can select another venue for this match.
                                     </p>
                                 </div>
                             </div>
@@ -823,6 +838,18 @@ function CompetitionFixtureModal({
                                         )
                                     )}
                                 </select>
+                                {homeVenue && (
+                                    <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                                        Home venue: {homeVenue.name}
+                                        {values.venue_id !== homeVenue.id && (
+                                            <button type="button"
+                                                className="font-semibold text-lime-300 underline"
+                                                onClick={() => updateField('venue_id', homeVenue.id)}>
+                                                Use home venue
+                                            </button>
+                                        )}
+                                    </span>
+                                )}
                             </label>
                         </section>
 

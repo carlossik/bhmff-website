@@ -1,7 +1,7 @@
 export type Venue = {
     id: string
     organisation_id: string
-    competition_id: string
+    competition_id: string | null
     name: string
     address: string | null
     postcode: string | null
@@ -14,4 +14,10 @@ export type VenueFormValues = {
     address: string
     postcode: string
     notes: string
+}
+
+export type VenueHomeTeam = {
+    id: string
+    name: string
+    primary_home_venue_id: string | null
 }

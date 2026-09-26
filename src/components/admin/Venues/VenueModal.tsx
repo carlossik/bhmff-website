@@ -19,7 +19,7 @@ type VenueModalProps = {
     isSaving: boolean
     onChange: (values: VenueFormValues) => void
     onClose: () => void
-    onSave: () => void
+    onSave: (values: VenueFormValues) => void
 }
 
 type PostcodeLookupResult = {
@@ -207,7 +207,7 @@ export function VenueModal({
             return
         }
 
-        onChange({
+        const cleanedValues = {
             ...values,
             name: normaliseSpaces(
                 values.name
@@ -219,16 +219,16 @@ export function VenueModal({
                 values.postcode
             ),
             notes: values.notes.trim(),
-        })
+        }
 
-        onSave()
+        onSave(cleanedValues)
     }
 
     return (
         <EnterpriseModal
             title={mode === 'edit' ? 'Edit Venue' : 'Add Venue'}
             eyebrow="Venue administration"
-            description="Add the ground, location and access information organisers and teams will need."
+            description="Edit the name, address, postcode and access notes. Teams can use this venue as their home ground."
             closeDisabled={isSaving}
             onClose={onClose}
             maxWidthClassName="max-w-3xl"
@@ -238,6 +238,11 @@ export function VenueModal({
                     onSubmit={handleSubmit}
                 >
                     <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+                        {mode === 'edit' && (
+                            <p className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-5 text-amber-100">
+                                Changes to this venue appear on every fixture using it. For a one-off pitch change, edit that fixture's venue instead.
+                            </p>
+                        )}
                         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                             <label className={labelClassName}>
                                 Venue name{' '}

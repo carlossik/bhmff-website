@@ -12,6 +12,7 @@ import { venueService } from './venueService'
 import type {
     Venue,
     VenueFormValues,
+    VenueHomeTeam,
 } from './venueTypes'
 
 const emptyForm: VenueFormValues = {
@@ -56,6 +57,8 @@ export function VenuesManager() {
 
     const [venues, setVenues] =
         useState<Venue[]>([])
+
+    const [homeTeams, setHomeTeams] = useState<VenueHomeTeam[]>([])
 
     const [isLoading, setIsLoading] =
         useState(false)
@@ -110,15 +113,17 @@ export function VenuesManager() {
         setIsLoading(true)
 
         try {
-            const venueRows =
-                await venueService.getVenues(
+            const [venueRows, teamRows] =
+                await Promise.all([venueService.getVenues(
                     competitionId,
                     currentOrganisation.id
-                )
+                ), venueService.getHomeTeams(currentOrganisation.id)])
 
             setVenues(venueRows)
+            setHomeTeams(teamRows)
         } catch (error) {
             setVenues([])
+            setHomeTeams([])
 
             showToast(
                 error instanceof Error
@@ -134,6 +139,7 @@ export function VenuesManager() {
     useEffect(() => {
         if (!currentCompetition?.id) {
             setVenues([])
+            setHomeTeams([])
             setIsLoading(false)
             return
         }
@@ -192,7 +198,7 @@ export function VenuesManager() {
         setShowModal(false)
     }
 
-    async function saveVenue() {
+    async function saveVenue(submittedValues: VenueFormValues) {
         if (!currentCompetition?.id) {
             showToast(
                 'Select a competition before saving a venue.',
@@ -202,16 +208,16 @@ export function VenuesManager() {
         }
 
         const cleanedValues: VenueFormValues = {
-            name: formValues.name
+            name: submittedValues.name
                 .trim()
                 .replace(/\s+/g, ' '),
-            address: formValues.address
+            address: submittedValues.address
                 .trim()
                 .replace(/\s+/g, ' '),
             postcode: formatPostcode(
-                formValues.postcode
+                submittedValues.postcode
             ),
-            notes: formValues.notes.trim(),
+            notes: submittedValues.notes.trim(),
         }
 
         if (!cleanedValues.name) {
@@ -347,9 +353,9 @@ export function VenuesManager() {
                     <h3>Venues</h3>
 
                     <p className="muted">
-                        Manage the grounds and
-                        facilities available for the
-                        selected competition.
+                        Edit venue names, addresses, postcodes and access notes.
+                        Organisation home grounds are available across competitions.
+                        To assign or change a team's home ground, edit its Primary home venue in Teams.
                     </p>
 
                     {currentCompetition && (
@@ -392,6 +398,7 @@ export function VenuesManager() {
             ) : (
                 <VenuesTable
                     venues={venues}
+                    homeTeams={homeTeams}
                     onEdit={openEditModal}
                     onDelete={
                         setVenueToDelete

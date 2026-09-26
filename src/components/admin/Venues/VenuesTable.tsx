@@ -1,7 +1,8 @@
-import type { Venue } from './venueTypes'
+import type { Venue, VenueHomeTeam } from './venueTypes'
 
 type VenuesTableProps = {
     venues: Venue[]
+    homeTeams: VenueHomeTeam[]
     onEdit: (venue: Venue) => void
     onDelete: (venue: Venue) => void
 }
@@ -33,6 +34,7 @@ function renderNotes(notes: string | null) {
 
 export function VenuesTable({
                                 venues,
+                                homeTeams,
                                 onEdit,
                                 onDelete,
                             }: VenuesTableProps) {
@@ -54,6 +56,7 @@ export function VenuesTable({
                 <thead>
                 <tr>
                     <th>Venue</th>
+                    <th>Home teams</th>
                     <th>Address</th>
                     <th>Postcode</th>
                     <th>Notes</th>
@@ -66,6 +69,10 @@ export function VenuesTable({
                     <tr key={venue.id}>
                         <td>
                             <strong>{venue.name}</strong>
+                        </td>
+                        <td className="max-w-xs">
+                            {homeTeams.filter(team => team.primary_home_venue_id === venue.id)
+                                .map(team => team.name).join(', ') || '—'}
                         </td>
 
                         <td className="max-w-xs">
@@ -81,7 +88,7 @@ export function VenuesTable({
                         <td className="whitespace-nowrap">
                             <div className="flex flex-wrap gap-2">
                                 <button
-                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
+                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-40"
                                     type="button"
                                     onClick={() => onEdit(venue)}
                                 >
@@ -89,8 +96,12 @@ export function VenuesTable({
                                 </button>
 
                                 <button
-                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)]"
+                                    className="inline-flex items-center justify-center rounded-lg border border-[var(--organisation-border)] bg-[var(--organisation-background)] px-3 py-2 text-sm font-semibold text-[var(--organisation-text)] transition hover:border-[var(--organisation-accent)] disabled:cursor-not-allowed disabled:opacity-40"
                                     type="button"
+                                    disabled={homeTeams.some(team => team.primary_home_venue_id === venue.id)}
+                                    title={homeTeams.some(team => team.primary_home_venue_id === venue.id)
+                                        ? 'Assign another home venue to these teams before deleting'
+                                        : undefined}
                                     onClick={() => onDelete(venue)}
                                 >
                                     Delete

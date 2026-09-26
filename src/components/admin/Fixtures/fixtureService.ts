@@ -14,6 +14,7 @@ type SupabaseErrorLike = { message: string }
 type TeamJoin = {
     name: string | null
     logo_url: string | null
+    primary_home_venue_id: string | null
     clubs: { name: string | null } | { name: string | null }[] | null
 }
 type TeamJoinRow = {
@@ -72,7 +73,7 @@ export const fixtureService = {
     async getTeams(competitionId: string): Promise<FixtureTeam[]> {
         const { data, error } = await supabase
             .from('competition_teams')
-            .select(`id,team_id,teams(name,logo_url,clubs(name))`)
+            .select(`id,team_id,teams(name,logo_url,primary_home_venue_id,clubs(name))`)
             .eq('competition_id', competitionId)
             .order('team_id')
         throwSupabaseError(error, 'Failed to load teams')
@@ -82,6 +83,7 @@ export const fixtureService = {
             return {
                 competition_team_id: row.id,
                 team_id: row.team_id,
+                primary_home_venue_id: team?.primary_home_venue_id ?? null,
                 team_name: team?.name ?? '',
                 club_name: club?.name ?? null,
                 logo_url: team?.logo_url ?? null,
@@ -89,11 +91,11 @@ export const fixtureService = {
         })
     },
 
-    async getVenues(competitionId: string): Promise<FixtureVenue[]> {
+    async getVenues(_competitionId: string, organisationId: string): Promise<FixtureVenue[]> {
         const { data, error } = await supabase
             .from('venues')
             .select('id,name,address,postcode')
-            .eq('competition_id', competitionId)
+            .eq('organisation_id', organisationId)
             .order('name')
         throwSupabaseError(error, 'Failed to load venues')
         return (data ?? []) as FixtureVenue[]

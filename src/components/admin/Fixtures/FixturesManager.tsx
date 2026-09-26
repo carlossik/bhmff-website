@@ -323,7 +323,8 @@ function CompetitionFixturesWorkspace() {
                     competitionId
                 ),
                 fixtureService.getVenues(
-                    competitionId
+                    competitionId,
+                    currentOrganisation.id
                 ),
                 fixtureService.getGroups(
                     competitionId

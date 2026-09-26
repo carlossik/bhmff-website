@@ -37,6 +37,7 @@ export type Fixture = {
 export type FixtureTeam = {
     competition_team_id: string
     team_id: string
+    primary_home_venue_id: string | null
     team_name: string
     club_name: string | null
     logo_url: string | null

@@ -480,7 +480,9 @@ export function FixtureImportModal({
                         away.competition_team_id,
                     venue_id:
                         venue?.id ??
-                        '',
+                        (venues.some(item => item.id === home.primary_home_venue_id)
+                            ? home.primary_home_venue_id!
+                            : ''),
                     kickoff_time:
                         `${date}T${time}`,
                     status,
@@ -501,6 +503,7 @@ export function FixtureImportModal({
         teamMap,
         text,
         venueMap,
+        venues,
     ])
 
     const validRows =

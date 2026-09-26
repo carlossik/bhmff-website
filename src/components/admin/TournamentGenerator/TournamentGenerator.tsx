@@ -510,7 +510,8 @@ export function TournamentGenerator() {
                         currentCompetition.id
                     ),
                     tournamentGeneratorService.getVenues(
-                        currentCompetition.id
+                        currentCompetition.id,
+                        currentOrganisation.id
                     ),
                     tournamentGeneratorService.getExistingFixtures(
                         currentCompetition.id
