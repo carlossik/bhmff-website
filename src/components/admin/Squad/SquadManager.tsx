@@ -61,6 +61,7 @@ const emptyForm:
     ClubSquadMemberFormValues = {
         first_name: '',
         last_name: '',
+        photo_url: '',
         email: '',
         phone: '',
         squad_number: '',
@@ -310,6 +311,7 @@ export function SquadManager() {
         useState<
             ClubSquadMemberFormValues
         >(emptyForm)
+    const [photoFile, setPhotoFile] = useState<File | null>(null)
 
     const [error, setError] =
         useState<string | null>(
@@ -661,6 +663,7 @@ export function SquadManager() {
     function openCreate() {
         setEditingMember(null)
         setForm(emptyForm)
+        setPhotoFile(null)
         setShowForm(true)
         setError(null)
     }
@@ -669,6 +672,7 @@ export function SquadManager() {
         member: ClubSquadMember,
     ) {
         setEditingMember(member)
+        setPhotoFile(null)
 
         setForm({
             first_name:
@@ -677,6 +681,7 @@ export function SquadManager() {
             last_name:
                 member.player
                     .last_name,
+            photo_url: member.player.photo_url ?? '',
             email:
                 member.player.email ??
                 '',
@@ -737,32 +742,49 @@ export function SquadManager() {
         try {
             setSaving(true)
             setError(null)
+            let uploadedPath: string | null = null
+            let savedPhotoUrl = form.photo_url
+            try {
+                const uploaded = photoFile
+                    ? await clubSquadService.uploadPlayerPhoto(organisationId, photoFile)
+                    : null
+                uploadedPath = uploaded?.path ?? null
+                const values = { ...form, photo_url: uploaded?.url ?? form.photo_url }
+                savedPhotoUrl = values.photo_url
+                if (editingMember) {
+                    await clubSquadService.updateMember(editingMember, values)
+                } else {
+                    await clubSquadService.createMember(organisationId, seasonId, teamId, values)
+                }
+            } catch (saveError) {
+                if (uploadedPath) {
+                    try { await clubSquadService.removeUploadedPhoto(uploadedPath) }
+                    catch (cleanupError) { console.error('Photo cleanup failed:', cleanupError) }
+                }
+                throw saveError
+            }
 
-            if (editingMember) {
-                await clubSquadService
-                    .updateMember(
-                        editingMember,
-                        form,
+            let photoCleanupFailed = false
+            if (editingMember?.player.photo_url &&
+                editingMember.player.photo_url !== savedPhotoUrl) {
+                try {
+                    await clubSquadService.removePreviousPlayerPhoto(
+                        organisationId, editingMember.player.photo_url,
                     )
-            } else {
-                await clubSquadService
-                    .createMember(
-                        organisationId,
-                        seasonId,
-                        teamId,
-                        form,
-                    )
+                } catch (cleanupError) {
+                    console.error('Previous photo cleanup failed:', cleanupError)
+                    photoCleanupFailed = true
+                }
             }
 
             setShowForm(false)
             setEditingMember(null)
             setForm(emptyForm)
+            setPhotoFile(null)
 
-            setNotice(
-                editingMember
-                    ? 'Player updated.'
-                    : 'Player added to squad.',
-            )
+            setNotice(photoCleanupFailed
+                ? 'Player updated, but the old photo could not be removed from storage. Remove it in Supabase Storage.'
+                : editingMember ? 'Player updated.' : 'Player added to squad.')
 
             await loadSquad()
         } catch (caughtError) {
@@ -1067,6 +1089,7 @@ export function SquadManager() {
                                 row.first_name,
                             last_name:
                                 row.last_name,
+                            photo_url: '',
                             email:
                                 row.email,
                             phone:
@@ -1724,6 +1747,30 @@ export function SquadManager() {
                                         className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#071009] px-3 text-white"
                                     />
                                 </label>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-slate-300">
+                                        Player photo (optional)
+                                        <input type="file" accept="image/jpeg,image/png,image/webp"
+                                            onChange={event => setPhotoFile(event.target.files?.[0] ?? null)}
+                                            className="mt-2 block w-full rounded-xl border border-white/10 bg-[#071009] p-3 text-sm" />
+                                    </label>
+                                    <p className="mt-2 text-xs text-slate-400">
+                                        JPG, PNG or WebP, up to 5 MB. Photos will appear on the public squad page.
+                                        Only upload an image you have permission to publish.
+                                    </p>
+                                    {form.photo_url && !photoFile && (
+                                        <div className="mt-3 flex items-center gap-3">
+                                            <img src={form.photo_url} alt="Current player portrait"
+                                                className="h-16 w-16 rounded-lg object-cover" />
+                                            <button type="button" className="text-sm font-semibold underline"
+                                                onClick={() => updateForm('photo_url', '')}>
+                                                Remove photo
+                                            </button>
+                                        </div>
+                                    )}
+                                    {photoFile && <p className="mt-2 text-xs">{photoFile.name} selected</p>}
+                                </div>
 
                                 <label className="text-sm font-semibold text-slate-300">
                                     Email

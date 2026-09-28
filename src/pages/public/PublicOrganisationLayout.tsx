@@ -7,6 +7,7 @@ import {
 import {
     useLocation,
 } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 
 import {
     organisationPublicService,
@@ -148,6 +149,20 @@ export function PublicOrganisationLayout({
 }: PublicOrganisationLayoutProps) {
     const location =
         useLocation();
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    useEffect(() => {
+        setMobileMenuOpen(false);
+    }, [location.pathname, location.hash]);
+
+    useEffect(() => {
+        if (!mobileMenuOpen) return;
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setMobileMenuOpen(false);
+        };
+        document.addEventListener("keydown", closeOnEscape);
+        return () => document.removeEventListener("keydown", closeOnEscape);
+    }, [mobileMenuOpen]);
 
     const [
         publicData,
@@ -443,8 +458,10 @@ export function PublicOrganisationLayout({
               },
               {
                   label: "Squad",
-                  href: `${clubContentPath}#squad`,
-                  sectionId: "squad",
+                  href: selectedClubTeamId
+                      ? `${basePath}/teams/${encodeURIComponent(selectedClubTeamId)}/squad`
+                      : `${basePath}/squad`,
+                  sectionId: "",
               },
               {
                   label: "Statistics",
@@ -550,6 +567,7 @@ export function PublicOrganisationLayout({
 
     function renderClubHome(
         teamId: string | null = null,
+        squadOnly = false,
     ) {
         return (
             <ClubPublicHomePage
@@ -562,6 +580,7 @@ export function PublicOrganisationLayout({
                 selectedTeamId={
                     teamId
                 }
+                squadOnly={squadOnly}
                 articles={
                     resolvedPublicData.articles
                 }
@@ -578,7 +597,15 @@ export function PublicOrganisationLayout({
 
     function renderCurrentPage() {
         if (isClub) {
+            const squadPage =
+                location.pathname === `${basePath}/squad` ||
+                location.pathname === `${basePath}/squad/` ||
+                Boolean(selectedClubTeamId &&
+                    /^\/squad\/?$/.test(location.pathname.slice(
+                        `${basePath}/teams/${encodeURIComponent(selectedClubTeamId)}`.length
+                    )));
             if (
+                squadPage ||
                 selectedClubTeamId ||
                 location.pathname ===
                     `${basePath}/teams` ||
@@ -587,6 +614,7 @@ export function PublicOrganisationLayout({
             ) {
                 return renderClubHome(
                     selectedClubTeamId,
+                    squadPage,
                 );
             }
 
@@ -831,8 +859,8 @@ export function PublicOrganisationLayout({
                             `${theme.accentColour}30`,
                     }}
                 >
-                    <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-3">
-                        <div className="flex min-w-0 items-center gap-3">
+                    <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-3 py-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 xl:flex-none">
                             <a
                                 href={
                                     basePath || "/"
@@ -887,7 +915,7 @@ export function PublicOrganisationLayout({
                                     target="_blank"
                                     rel="noreferrer"
                                     aria-label="Visit TournamentHQ"
-                                    className="mt-1 flex w-fit items-center gap-2 text-xs font-semibold no-underline opacity-60 transition hover:opacity-100"
+                                    className="mt-1 hidden w-fit items-center gap-2 text-xs font-semibold no-underline opacity-60 transition hover:opacity-100 sm:flex"
                                     style={{
                                         color:
                                         theme.textColour,
@@ -910,9 +938,25 @@ export function PublicOrganisationLayout({
                             </div>
                         </div>
 
+                        {isClub && (
+                            <button
+                                type="button"
+                                className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border xl:hidden"
+                                style={{ borderColor: `${theme.accentColour}50` }}
+                                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                                aria-expanded={mobileMenuOpen}
+                                aria-controls="club-public-navigation"
+                                onClick={() => setMobileMenuOpen(open => !open)}
+                            >
+                                {mobileMenuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+                            </button>
+                        )}
                         <nav
+                            id={isClub ? "club-public-navigation" : undefined}
                             aria-label="Public site navigation"
-                            className="flex flex-wrap items-center justify-end gap-1"
+                            className={isClub
+                                ? `${mobileMenuOpen ? "grid" : "hidden"} max-h-[calc(100dvh-95px)] w-full grid-cols-2 gap-2 overflow-y-auto pb-3 sm:grid-cols-3 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end xl:gap-1 xl:overflow-visible xl:pb-0`
+                                : "flex flex-wrap items-center justify-end gap-1"}
                         >
                             {navigationItems.map(
                                 ({
@@ -958,6 +1002,7 @@ export function PublicOrganisationLayout({
                                             onClick={(
                                                 event,
                                             ) => {
+                                                setMobileMenuOpen(false);
                                                 if (
                                                     !sectionId ||
                                                     !currentPageMatches

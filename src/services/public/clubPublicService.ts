@@ -42,6 +42,7 @@ export type ClubPublicSquadMember = {
     squadNumber: number | null
     position: string | null
     playerName: string
+    photoUrl: string | null
 }
 
 export type ClubPublicGoal = {
@@ -222,6 +223,7 @@ function parseSquadMember(value: unknown): ClubPublicSquadMember {
                 : numberValue(squadNumberValue),
         position: nullableStringValue(value.position),
         playerName,
+        photoUrl: nullableStringValue(value.photoUrl),
     }
 }
 

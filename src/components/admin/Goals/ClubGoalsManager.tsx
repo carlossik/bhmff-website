@@ -18,6 +18,7 @@ type Fixture = {
 type Player = {
     id: string
     player_id: string
+    active: boolean
     club_players: {
         first_name: string
         last_name: string
@@ -84,10 +85,9 @@ export function ClubGoalsManager() {
                     .order('fixture_date'),
                 supabase
                     .from('club_squad_members')
-                    .select('id,player_id,club_players(first_name,last_name)')
+                    .select('id,player_id,active,club_players(first_name,last_name)')
                     .eq('organisation_id', currentOrganisation.id)
-                    .eq('season_id', id)
-                    .eq('active', true),
+                    .eq('season_id', id),
                 supabase
                     .from('club_goals')
                     .select(
@@ -141,13 +141,18 @@ export function ClubGoalsManager() {
 
     function startEdit(goal: Goal) {
         const nextGoalType = goal.goal_type
+        const currentPlayer = players.find(item => item.id === goal.squad_member_id)
 
         setEditingGoalId(goal.id)
         setFixtureId(goal.fixture_id)
         setGoalType(nextGoalType)
         setPlayerId(nextGoalType === 'player' ? goal.squad_member_id ?? '' : '')
         setPlayerName(
-            nextGoalType === 'own_goal' ? OWN_GOAL_LABEL : goal.player_name,
+            nextGoalType === 'own_goal'
+                ? OWN_GOAL_LABEL
+                : currentPlayer?.club_players
+                  ? `${currentPlayer.club_players.first_name} ${currentPlayer.club_players.last_name}`.trim()
+                  : goal.player_name,
         )
         setMinute(goal.minute === null ? '' : String(goal.minute))
         setVideo(goal.video_timestamp ?? '')
@@ -172,7 +177,8 @@ export function ClubGoalsManager() {
             return
         }
 
-        if (goalType === 'player' && (!playerId || !playerName.trim())) {
+        const selectedPlayer = players.find(player => player.id === playerId)
+        if (goalType === 'player' && !selectedPlayer?.club_players) {
             setMsg('Select the player who scored the goal.')
             return
         }
@@ -200,7 +206,11 @@ export function ClubGoalsManager() {
             season_id: seasonId,
             fixture_id: fixtureId,
             squad_member_id: goalType === 'player' ? playerId : null,
-            player_name: isOwnGoal ? OWN_GOAL_LABEL : playerName.trim(),
+            player_name: isOwnGoal
+                ? OWN_GOAL_LABEL
+                : selectedPlayer?.club_players && goalType === 'player'
+                  ? `${selectedPlayer.club_players.first_name} ${selectedPlayer.club_players.last_name}`.trim()
+                  : playerName.trim(),
             goal_type: goalType,
             minute: parsedMinute,
             video_timestamp: video.trim() || null,
@@ -391,7 +401,7 @@ export function ClubGoalsManager() {
                             <option className="bg-[#071009] text-white" value="">
                                 Select player
                             </option>
-                            {players.map((player) => (
+                            {players.filter(player => player.active || player.id === playerId).map((player) => (
                                 <option
                                     className="bg-[#071009] text-white"
                                     key={player.id}
@@ -496,7 +506,16 @@ export function ClubGoalsManager() {
                             >
                                 <div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <p className="font-medium">{goal.player_name}</p>
+                                        <p className="font-medium">
+                                            {goal.goal_type === 'player' && goal.squad_member_id
+                                                ? (() => {
+                                                    const linkedPlayer = players.find(player => player.id === goal.squad_member_id)
+                                                    return linkedPlayer?.club_players
+                                                        ? `${linkedPlayer.club_players.first_name} ${linkedPlayer.club_players.last_name}`.trim()
+                                                        : goal.player_name
+                                                })()
+                                                : goal.player_name}
+                                        </p>
                                         {isOwnGoal && (
                                             <span className="rounded-full border border-[var(--organisation-border)] px-2 py-0.5 text-xs font-semibold">
                                                 Own goal

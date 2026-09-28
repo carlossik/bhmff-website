@@ -29,6 +29,7 @@ type SquadJoinRow = {
         id: string
         first_name: string
         last_name: string
+        photo_url: string | null
         email: string | null
         phone: string | null
         active: boolean
@@ -112,6 +113,40 @@ function mapRow(
 }
 
 export const clubSquadService = {
+    async uploadPlayerPhoto(organisationId: string, file: File): Promise<{ url: string; path: string }> {
+        const extensions: Record<string, string> = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+        }
+        const extension = extensions[file.type]
+        if (!extension || file.size > 5 * 1024 * 1024 || file.size === 0) {
+            throw new Error('Choose a JPG, PNG or WebP photo smaller than 5 MB.')
+        }
+        const path = `${organisationId}/${crypto.randomUUID()}.${extension}`
+        const bucket = supabase.storage.from('club-player-photos')
+        const { error } = await bucket.upload(path, file, {
+            contentType: file.type,
+            upsert: false,
+        })
+        throwSupabaseError(error, 'Failed to upload player photo')
+        return { path, url: bucket.getPublicUrl(path).data.publicUrl }
+    },
+
+    async removeUploadedPhoto(path: string): Promise<void> {
+        const { error } = await supabase.storage.from('club-player-photos').remove([path])
+        throwSupabaseError(error, 'Failed to remove unused player photo')
+    },
+
+    async removePreviousPlayerPhoto(organisationId: string, photoUrl: string): Promise<void> {
+        const bucket = supabase.storage.from('club-player-photos')
+        const prefix = bucket.getPublicUrl(`${organisationId}/`).data.publicUrl
+        if (!photoUrl.startsWith(prefix)) return
+        const filename = photoUrl.slice(prefix.length)
+        if (!/^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(filename)) return
+        await this.removeUploadedPhoto(`${organisationId}/${filename}`)
+    },
+
     async getSquad(
         organisationId: string,
         seasonId: string,
@@ -141,6 +176,7 @@ export const clubSquadService = {
                         id,
                         first_name,
                         last_name,
+                        photo_url,
                         email,
                         phone,
                         active
@@ -197,6 +233,7 @@ export const clubSquadService = {
                         values.first_name.trim(),
                     last_name:
                         values.last_name.trim(),
+                    photo_url: optionalText(values.photo_url),
                     email: optionalText(
                         values.email,
                     ),
@@ -288,6 +325,7 @@ export const clubSquadService = {
                         values.first_name.trim(),
                     last_name:
                         values.last_name.trim(),
+                    photo_url: optionalText(values.photo_url),
                     email: optionalText(
                         values.email,
                     ),

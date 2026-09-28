@@ -55,6 +55,7 @@ export type ClubPublicHomePageProps = {
     accentTextColour?: string
     basePath?: string
     selectedTeamId?: string | null
+    squadOnly?: boolean
     articles?: PublicArticle[]
     media?: PublicMediaItem[]
     sponsors?: PublicSponsor[]
@@ -184,6 +185,7 @@ export function ClubPublicHomePage({
     accentTextColour = '#071006',
     basePath = '',
     selectedTeamId = null,
+    squadOnly = false,
     articles = [],
     media = [],
 }: ClubPublicHomePageProps) {
@@ -205,6 +207,7 @@ export function ClubPublicHomePage({
         useState<string | null>(null)
     const [showAllFixtures, setShowAllFixtures] =
         useState(false)
+    const [squadSearch, setSquadSearch] = useState('')
 
     const activeArticle = useMemo(
         () =>
@@ -389,6 +392,9 @@ export function ClubPublicHomePage({
 
     const topScorers = useMemo(() => {
         const totals = new Map<string, number>()
+        const squadNames = new Map(
+            clubData.squad.map(member => [member.id, member.playerName]),
+        )
 
         scopedGoals.forEach((goal) => {
             // Guest-player goals and opponent own goals have no TournamentHQ
@@ -398,16 +404,16 @@ export function ClubPublicHomePage({
                 return
             }
 
-            totals.set(
-                goal.playerName,
-                (totals.get(goal.playerName) ?? 0) + 1,
-            )
+            totals.set(goal.squadMemberId, (totals.get(goal.squadMemberId) ?? 0) + 1)
         })
 
         return [...totals.entries()]
             .sort((left, right) => right[1] - left[1])
             .slice(0, 5)
-    }, [scopedGoals])
+            .map(([id, count]) => [squadNames.get(id) ??
+                scopedGoals.find(goal => goal.squadMemberId === id)?.playerName ??
+                'Player', count] as const)
+    }, [clubData.squad, scopedGoals])
 
     const teamSummaries = useMemo(
         () =>
@@ -506,6 +512,95 @@ export function ClubPublicHomePage({
                 article={activeArticle}
                 onBack={() => setActiveArticleId(null)}
             />
+        )
+    }
+
+    if (squadOnly) {
+        const visiblePlayers = scopedSquad.filter(player =>
+            `${player.playerName} ${player.position ?? ''}`
+                .toLowerCase().includes(squadSearch.trim().toLowerCase()),
+        )
+        return (
+            <div className="min-h-[70vh] px-5 py-12 sm:py-16"
+                style={{ background: backgroundColour, color: textColour }}>
+                <div className="mx-auto max-w-7xl">
+                    <a className="text-sm font-semibold underline" style={{ color: accentColour }}
+                        href={selectedTeamId
+                            ? `${basePath}/teams/${encodeURIComponent(selectedTeamId)}`
+                            : basePath || '/'}>
+                        ← Back to {selectedTeam?.name ?? organisationName}
+                    </a>
+                    <p className="mt-10 text-xs font-black uppercase tracking-[0.14em]"
+                        style={{ color: accentColour }}>Players</p>
+                    <h1 className="mt-2 text-4xl font-black sm:text-5xl">
+                        {isMultiTeamOverview ? 'Club squads' : `${currentContextName} squad`}
+                    </h1>
+                    {loading ? (
+                        <p className="mt-8">Loading squad…</p>
+                    ) : isMultiTeamOverview ? (
+                        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {teamSummaries.map(summary => (
+                                <ClubTeamCard key={summary.team.id}
+                                    team={publicTeamById.get(summary.team.id) ?? summary.team}
+                                    href={`${basePath}/teams/${encodeURIComponent(summary.team.id)}/squad`}
+                                    accentColour={accentColour} surfaceColour={surfaceColour}
+                                    textColour={textColour} playerCount={summary.playerCount}
+                                    nextFixtureLabel={summary.nextFixtureLabel} />
+                            ))}
+                        </div>
+                    ) : (
+                        <>
+                            <p className="mt-3 text-sm opacity-70">
+                                {scopedSquad.length} {scopedSquad.length === 1 ? 'player' : 'players'}
+                            </p>
+                            {scopedSquad.length > 8 && (
+                                <label className="mt-6 block max-w-md text-sm font-semibold">
+                                    Search squad
+                                    <input className="mt-2 w-full rounded-xl border bg-transparent px-4 py-3"
+                                        style={{ borderColor: `${accentColour}50` }}
+                                        type="search" value={squadSearch}
+                                        onChange={event => setSquadSearch(event.target.value)}
+                                        placeholder="Player or position" />
+                                </label>
+                            )}
+                            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                {visiblePlayers.map(player => (
+                                    <article key={player.id} className="overflow-hidden rounded-2xl border"
+                                        style={cardStyle}>
+                                        <div className="flex aspect-[4/3] items-center justify-center"
+                                            style={{ background: `${accentColour}12` }}>
+                                            {player.photoUrl ? (
+                                                <img src={player.photoUrl}
+                                                    alt={player.playerName}
+                                                    loading="lazy" referrerPolicy="no-referrer"
+                                                    className="h-full w-full object-cover" />
+                                            ) : (
+                                                <span className="text-5xl font-black opacity-50"
+                                                    style={{ color: accentColour }} aria-hidden="true">
+                                                    {player.playerName.split(/\s+/).slice(0, 2)
+                                                        .map(part => part[0]?.toUpperCase()).join('')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="p-4">
+                                            <p className="text-lg font-bold">{player.playerName}</p>
+                                            <p className="mt-1 text-sm opacity-70">
+                                                {player.position || 'Squad member'}
+                                                {player.squadNumber !== null ? ` · #${player.squadNumber}` : ''}
+                                            </p>
+                                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                            {visiblePlayers.length === 0 && (
+                                <p className="mt-8 opacity-70">
+                                    {scopedSquad.length ? 'No players match that search.' : 'No squad members have been published yet.'}
+                                </p>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
         )
     }
 
@@ -953,69 +1048,17 @@ export function ClubPublicHomePage({
                     >
                         Players
                     </p>
-                    <h2 className="mt-1 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
-                        {isMultiTeamOverview ? 'Squads by team' : 'Squad'}
-                    </h2>
-
-                    {isMultiTeamOverview ? (
-                        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {teamSummaries.map((summary) => {
-                                const displayTeam =
-                                    publicTeamById.get(summary.team.id) ??
-                                    summary.team
-
-                                return (
-                                    <ClubTeamCard
-                                        key={`squad-${summary.team.id}`}
-                                        team={displayTeam}
-                                        href={`${basePath}/teams/${encodeURIComponent(
-                                            summary.team.id,
-                                        )}#squad`}
-                                        accentColour={accentColour}
-                                        surfaceColour={surfaceColour}
-                                        textColour={textColour}
-                                        playerCount={summary.playerCount}
-                                        nextFixtureLabel={summary.nextFixtureLabel}
-                                    />
-                                )
-                            })}
-                        </div>
-                    ) : (
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            {scopedSquad.slice(0, 20).map((player) => (
-                                <article
-                                    key={player.id}
-                                    className="rounded-xl border p-4"
-                                    style={cardStyle}
-                                >
-                                    <span
-                                        className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-black"
-                                        style={{
-                                            background: `${accentColour}15`,
-                                            color: accentColour,
-                                        }}
-                                    >
-                                        {player.squadNumber ?? '—'}
-                                    </span>
-                                    <p className="mt-3 font-bold">
-                                        {player.playerName}
-                                    </p>
-                                    <p className="mt-1 text-xs opacity-60">
-                                        {player.position ?? 'Squad member'}
-                                    </p>
-                                </article>
-                            ))}
-
-                            {scopedSquad.length === 0 && (
-                                <p
-                                    className="col-span-full rounded-xl border p-5 text-sm opacity-65"
-                                    style={cardStyle}
-                                >
-                                    No squad members have been published yet.
-                                </p>
-                            )}
-                        </div>
-                    )}
+                    <h2 className="mt-1 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Meet the squad</h2>
+                    <p className="mt-2 text-sm opacity-70">
+                        View the full squad, including player profiles and photos where available.
+                    </p>
+                    <a href={selectedTeamId
+                        ? `${basePath}/teams/${encodeURIComponent(selectedTeamId)}/squad`
+                        : `${basePath}/squad`}
+                        className="mt-5 inline-flex rounded-full px-5 py-3 text-sm font-bold no-underline"
+                        style={{ background: accentColour, color: accentTextColour }}>
+                        View squad
+                    </a>
                 </section>
 
                 <section
