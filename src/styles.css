@@ -3697,3 +3697,14 @@
     .bhmffPublicSite .bhmffHeroPartners { flex-wrap: wrap; }
     .bhmffPublicSite .bhmffHeroPlatformGrid img { height: auto; }
 }
+
+.bhmffMatchday { padding: 2rem 0; background: linear-gradient(135deg, #102515, #175522); }
+.bhmffMatchdayInner { width: min(1180px, calc(100% - 2rem)); margin-inline: auto; min-width: 0; }
+.bhmffMatchday h2 { font-size: clamp(1.7rem, 5vw, 3rem); margin-block: .5rem; }
+.bhmffMatchdayGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin-block: 1.25rem; }
+.bhmffMatchdayCard { min-width: 0; padding: 1rem; border: 1px solid rgba(185,242,141,.3); border-radius: 16px; background: #071006; overflow-wrap: anywhere; }
+.bhmffMatchdayStatus { color: #b8ff7a; font-weight: 800; }
+.bhmffMatchdayScore { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: .6rem; }
+.bhmffMatchdayScore > :last-child { text-align: right; }
+.bhmffMatchdayScore span { font-size: 1.4rem; font-weight: 900; color: #b8ff7a; }
+.bhmffMatchday .btn { margin: .4rem .5rem .4rem 0; max-width: 100%; }

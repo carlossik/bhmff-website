@@ -1,3 +1,4 @@
+import { TournamentMatchday } from './TournamentMatchday'
 import {
     useEffect,
     useMemo,
@@ -92,6 +93,8 @@ export function TournamentCountdown() {
         ],
         [countdown],
     )
+
+    if (countdown.hasStarted) return <TournamentMatchday />
 
     return (
         <section

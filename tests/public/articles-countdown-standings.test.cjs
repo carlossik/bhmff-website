@@ -31,13 +31,13 @@ test('countdown changes at the boundary, including on an already-open page',()=>
  const hooks={...React,useState(value){if(init){state=typeof value==='function'?value():value;init=false}return [state,value=>{state=value}]},useEffect(fn){fn()},useMemo:fn=>fn()};
  global.window={setInterval(fn){tick=fn;return 1},clearInterval(){}};
  try {
-  const {TournamentCountdown}=load('src/components/public/TournamentCountdown.tsx',{react:hooks});
+  const {TournamentCountdown}=load('src/components/public/TournamentCountdown.tsx',{react:hooks,'./TournamentMatchday':{TournamentMatchday:()=>React.createElement('section',null,'Today’s Matches')}});
   Date.now=()=>boundary-1000;
   let html=renderToStaticMarkup(React.createElement(TournamentCountdown));
   assert.match(html,/The Festival Begins In/);assert.match(html,/bhmffCountdownGrid/);
   Date.now=()=>boundary;tick();
   html=renderToStaticMarkup(React.createElement(TournamentCountdown));
-  assert.match(html,/The Festival Has Begun/);assert.doesNotMatch(html,/<div class="bhmffCountdownGrid"/);
+  assert.match(html,/Today’s Matches/);assert.doesNotMatch(html,/<div class="bhmffCountdownGrid"/);
  }finally{Date.now=realNow;delete global.window}
 });
 test('article direct lookup supports id, slug, loading and missing pages',()=>{
