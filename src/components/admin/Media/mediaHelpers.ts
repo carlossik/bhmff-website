@@ -47,7 +47,7 @@ export function extractYouTubeId(
         const url = new URL(trimmedValue);
 
         if (
-            url.hostname.includes("youtu.be")
+            url.hostname === "youtu.be"
         ) {
             return (
                 url.pathname
@@ -57,9 +57,7 @@ export function extractYouTubeId(
         }
 
         if (
-            url.hostname.includes(
-                "youtube.com",
-            )
+            ["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"].includes(url.hostname)
         ) {
             if (
                 url.pathname.startsWith(

@@ -1,3 +1,4 @@
+import { PublicMediaItemPage } from './PublicMediaItemPage';
 import { PublicGroupStandings } from '../../components/public/PublicGroupStandings'
 import { PublicArticlePage } from './PublicArticlePage'
 import {
@@ -598,6 +599,11 @@ export function PublicOrganisationLayout({
     }
 
     function renderCurrentPage() {
+        const mediaPrefix = `${basePath}/media/`;
+        if (location.pathname.startsWith(mediaPrefix)) {
+            let key = ''; try { key = decodeURIComponent(location.pathname.slice(mediaPrefix.length).replace(/\/$/, '')); } catch { /* unavailable */ }
+            return <PublicMediaItemPage item={resolvedPublicData.media.find(item => item.id === key || item.slug === key)} basePath={basePath} />;
+        }
         const articlePrefix = `${basePath}/articles/`;
         if (location.pathname.startsWith(articlePrefix)) {
             let articleKey = '';

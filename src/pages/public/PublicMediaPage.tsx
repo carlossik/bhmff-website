@@ -1,3 +1,4 @@
+import { MediaPlayer } from '../../components/public/MediaPlayer';
 import {
     useMemo,
     useState,
@@ -539,9 +540,9 @@ export function PublicMediaPage({
                                     </p>
                                 ) : null}
 
-                                {featuredItem.mediaUrl ? (
+                                {featuredItem.id ? (
                                     <a
-                                        href={featuredItem.mediaUrl}
+                                        href={`${basePath}/media/${featuredItem.id}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="mt-7 inline-flex w-fit items-center gap-2 rounded-xl px-5 py-3 font-black transition hover:opacity-90"
@@ -655,10 +656,10 @@ export function PublicMediaPage({
                                                 {item.description}
                                             </p>
 
-                                            {item.mediaUrl ? (
+                                            {item.id ? (
                                                 <div className="mt-auto pt-6">
                                                     <a
-                                                        href={item.mediaUrl}
+                                                        href={`${basePath}/media/${item.id}`}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                         className="inline-flex items-center gap-2 text-sm font-black no-underline"
@@ -745,6 +746,7 @@ function FeaturedMediaVisual({
     backgroundColour,
     accentColour,
 }: MediaVisualProps) {
+    if (item.mediaType === 'video') return <MediaPlayer url={item.mediaUrl || item.embedUrl} thumbnail={item.thumbnailUrl} title={item.title} />;
     const embedUrl =
         item.mediaType ===
         "video"

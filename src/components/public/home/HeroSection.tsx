@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import type { Competition } from '../../../types/competitionTypes'
 import type { PublicMediaItem } from '../../../services/public/organisationPublicService'
 import { Hero } from '../../Hero'
+import { selectFeaturedMatch } from '../../../utils/publicMedia'
 import { TournamentCountdown } from '../TournamentCountdown'
 import { useOptionalPublicOrganisation } from '../../../context/PublicOrganisationContext'
 
@@ -109,7 +110,7 @@ export function HeroSection({
         return (
             <>
                 <TournamentCountdown />
-                <Hero />
+                <Hero featuredMatch={selectFeaturedMatch(media)} basePath={basePath} />
             </>
         )
     }

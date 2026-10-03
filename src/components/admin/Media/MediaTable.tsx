@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useOrganisation } from '../../../context/OrganisationContext';
 import {
     formatStatusLabel,
     type MediaCategory,
@@ -17,6 +19,7 @@ export type DbMedia = {
     embed_url: string | null;
     thumbnail_url: string | null;
     thumbnail_alt: string | null;
+    image_urls?: string[];
     featured: boolean;
     fixture_id: string | null;
     published_at: string | null;
@@ -45,8 +48,14 @@ export default function MediaTable({
                                        onArchive,
                                        onDelete,
                                    }: MediaTableProps) {
+    const { currentOrganisation } = useOrganisation();
+    const [shareMessage, setShareMessage] = useState('');
+    const mediaLink = (id: string) => currentOrganisation?.slug === 'bhmff'
+        ? `https://bhmff.co.uk/media/${id}`
+        : `${window.location.origin}/o/${encodeURIComponent(currentOrganisation?.slug || '')}/media/${id}`;
     return (
         <section className="space-y-4">
+            <p role="status">{shareMessage}</p>
             <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-400">
                     Media Library
@@ -122,6 +131,7 @@ export default function MediaTable({
                                     {item.title}
                                 </h5>
 
+                                {item.status === 'published' && <div className="mt-2 flex gap-3"><a href={mediaLink(item.id)} target="_blank" rel="noreferrer">View public page</a><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(mediaLink(item.id)); setShareMessage('Media link copied'); } catch { setShareMessage(`Copy this link: ${mediaLink(item.id)}`); } }}>Copy share link</button></div>}
                                 <p className="mt-1 text-sm text-slate-500">
                                     /{item.slug}
                                 </p>

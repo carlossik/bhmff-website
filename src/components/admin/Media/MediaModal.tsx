@@ -15,6 +15,7 @@ import {
     mediaCategories,
     mediaStatuses,
 } from "./mediaHelpers";
+import { validateMediaFile } from '../../../utils/publicMedia';
 import type { MediaFormState } from "./mediaValidation";
 
 type MediaModalProps = {
@@ -61,6 +62,7 @@ export default function MediaModal({
                                        onSave,
                                        onCancel,
                                    }: MediaModalProps) {
+    const [uploadError, setUploadError] = useState('');
     const currentYear =
         new Date().getFullYear();
 
@@ -94,6 +96,7 @@ export default function MediaModal({
         }
 
         setShowPreview(false);
+        setUploadError('');
 
         const [datePart, timePart] =
             values.publishedAt.split("T");
@@ -596,7 +599,7 @@ export default function MediaModal({
                                 className="h-5 w-5 accent-[var(--organisation-accent)]"
                             />
 
-                            Featured media
+                            Featured media (Full Match Replay also selects the homepage match)
                         </label>
 
                         <label className={`${labelClassName} lg:col-span-2`}>
@@ -617,7 +620,15 @@ export default function MediaModal({
                         </label>
 
                         <label className={`${labelClassName} lg:col-span-2`}>
-                            YouTube URL
+                            Upload photos or an MP4
+                            <input className={fieldClassName} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4" disabled={saving} onChange={event => { const files = Array.from(event.target.files || []); setUploadError(files.map(validateMediaFile).find(Boolean) || ''); onChange('files', files); }} />
+                            <p className="mt-2 text-sm font-normal">Photos: up to 10 MB each, 20 per save. MP4: one video, up to 50 MB. Upload larger videos to YouTube or cloud storage, then paste a public viewing URL. Cloud folder links may open on the host rather than play here.</p>
+                            {uploadError && <p role="alert" className="text-red-500">{uploadError}</p>}
+                            {values.files.map((file, index) => <p key={index}>{file.name}</p>)}
+                            {values.imageUrls.map((url, index) => <div key={url} className="flex items-center gap-2"><img src={url} alt={`Photo ${index + 1}`} className="h-16 w-20 object-cover" /><button type="button" disabled={saving} onClick={() => { const images = values.imageUrls.filter((_, i) => i !== index); onChange('imageUrls', images); onChange('thumbnailUrl', images[0] || ''); }}>Remove photo</button></div>)}
+                        </label>
+                        <label className={`${labelClassName} lg:col-span-2`}>
+                            YouTube or public hosted video URL
                             <input
                                 type="url"
                                 value={

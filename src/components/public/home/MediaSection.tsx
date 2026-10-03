@@ -1,5 +1,7 @@
 import type { PublicMediaItem } from '../../../services/public/organisationPublicService'
 import { Section } from '../../Section'
+import { usePublicOrganisation } from '../../../context/PublicOrganisationContext'
+import { MediaPlayer } from '../MediaPlayer'
 
 export type MediaSectionProps = {
     media: PublicMediaItem[]
@@ -50,6 +52,8 @@ export function MediaSection({
                                  surfaceColour,
                                  textColour,
                              }: MediaSectionProps) {
+    const publicOrganisation = usePublicOrganisation()
+    const basePath = publicOrganisation?.basePath || ''
     return (
         <Section
             id="media"
@@ -94,38 +98,7 @@ export function MediaSection({
                                     color: textColour,
                                 }}
                             >
-                                {embedUrl ? (
-                                    <iframe
-                                        className="aspect-video w-full border-0"
-                                        src={embedUrl}
-                                        title={title}
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowFullScreen
-                                        loading="lazy"
-                                    />
-                                ) : imageUrl ? (
-                                    <img
-                                        className="aspect-video w-full object-cover"
-                                        src={imageUrl}
-                                        alt={title}
-                                        loading="lazy"
-                                    />
-                                ) : (
-                                    <div
-                                        className="grid aspect-video place-items-center px-6 text-center"
-                                        style={{
-                                            backgroundColor: `${accentColour}10`,
-                                        }}
-                                    >
-                                        <span
-                                            className="text-sm font-black uppercase tracking-[0.18em]"
-                                            style={{ color: accentColour }}
-                                        >
-                                            {mediaType}
-                                        </span>
-                                    </div>
-                                )}
-
+                                <MediaPlayer url={item.category === 'Photo Gallery' ? '' : mediaUrl || embedUrl} thumbnail={imageUrl} title={title} />
                                 <div className="p-5">
                                     <div className="flex flex-wrap gap-2">
                                         <span
@@ -159,9 +132,9 @@ export function MediaSection({
                                         {description}
                                     </p>
 
-                                    {mediaUrl && (
+                                    {item.id && (
                                         <a
-                                            href={mediaUrl}
+                                            href={`${basePath}/media/${item.id}`}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="mt-5 inline-flex rounded-xl border px-4 py-2 text-sm font-black no-underline transition-opacity hover:opacity-80"
@@ -170,7 +143,7 @@ export function MediaSection({
                                                 color: accentColour,
                                             }}
                                         >
-                                            Watch Media
+                                            View and share media
                                         </a>
                                     )}
                                 </div>

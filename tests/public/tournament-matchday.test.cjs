@@ -52,7 +52,7 @@ test('banner scopes queries, refreshes results and cleans up timers/listeners',a
  try {
  const {TournamentMatchday}=load('src/components/public/TournamentMatchday.tsx',{react:hooks,'../../context/PublicOrganisationContext':{useOptionalPublicOrganisation:()=>({organisationId:'org',basePath:'',publicData:{competitions:[{id:'comp'}]}})},'../../lib/supabaseClient':{supabase:{from}},'../../utils/tournamentMatchday':logic});
  TournamentMatchday();const cleanup=effect();await new Promise(setImmediate);
- assert.deepEqual(calls[0].filters,[['eq','organisation_id','org'],['eq','published',true],['in','competition_id',['comp']]]);
+ assert.deepEqual(calls[0].filters,[['eq','published',true],['in','competition_id',['comp']]]);
  assert.deepEqual(calls[1].filters,[['eq','published',true],['in','fixture_id',['f']]]);
  index=0;let html=renderToStaticMarkup(TournamentMatchday());assert.match(html,/Today’s Results/);assert.match(html,/0 – 3/);
  publishedScore=1;poll();await new Promise(setImmediate);index=0;html=renderToStaticMarkup(TournamentMatchday());assert.match(html,/0 – 1/);

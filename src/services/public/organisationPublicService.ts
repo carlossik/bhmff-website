@@ -53,6 +53,7 @@ export type PublicMediaItem = {
     embed_url?: string | null;
     thumbnail_url?: string | null;
     thumbnail_alt?: string | null;
+    image_urls?: string[] | null;
     featured?: boolean | null;
     status?: string | null;
     published_at?: string | null;
@@ -202,6 +203,7 @@ async function getPublishedMedia(
             embed_url,
             thumbnail_url,
             thumbnail_alt,
+            image_urls,
             featured,
             status,
             published_at,

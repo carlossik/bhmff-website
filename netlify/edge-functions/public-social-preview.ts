@@ -461,24 +461,26 @@ function createDescription(
 type ArticleMetadata = { title: string; summary: string | null; hero: string | null; image_url: string | null; image_alt: string | null }
 
 async function loadArticleMetadata(url: URL, organisation: PublicOrganisation): Promise<ArticleMetadata | null> {
-    const match = url.pathname.match(/\/articles\/([^/]+)\/?$/)
+    const match = url.pathname.match(/\/(articles|media)\/([^/]+)\/?$/)
     const credentials = getSupabaseCredentials()
     if (!match || !credentials || !organisation.id) return null
     try {
-        const key = decodeURIComponent(match[1])
+        const isMedia = match[1] === 'media'
+        const key = decodeURIComponent(match[2])
         const query = new URLSearchParams({
-            select: 'title,summary,hero,image_url,image_alt',
+            select: isMedia ? 'title,description,thumbnail_url,thumbnail_alt' : 'title,summary,hero,image_url,image_alt',
             organisation_id: `eq.${organisation.id}`, status: 'eq.published', limit: '1',
         })
         // UUID paths remain valid even if an editor changes the article slug.
         query.set(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key) ? 'id' : 'slug', `eq.${key}`)
-        const response = await fetch(`${credentials.url}/rest/v1/articles?${query}`, {
+        const response = await fetch(`${credentials.url}/rest/v1/${isMedia ? 'media' : 'articles'}?${query}`, {
             headers: { apikey: credentials.anonKey, Authorization: `Bearer ${credentials.anonKey}` },
             signal: AbortSignal.timeout(2500),
         })
         if (!response.ok) return null
         const rows = await response.json()
-        return Array.isArray(rows) && typeof rows[0]?.title === 'string' ? rows[0] : null
+        if (!Array.isArray(rows) || typeof rows[0]?.title !== 'string') return null
+        return isMedia ? { title: rows[0].title, summary: rows[0].description, hero: null, image_url: rows[0].thumbnail_url, image_alt: rows[0].thumbnail_alt } : rows[0]
     } catch { return null }
 }
 

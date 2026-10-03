@@ -1,10 +1,13 @@
 import {
-    extractYouTubeId,
     type MediaCategory,
     type MediaStatus,
 } from "./mediaHelpers";
 
+import { safeMediaUrl, validateMediaFile } from '../../../utils/publicMedia';
+
 export type MediaFormState = {
+    files: File[];
+    imageUrls: string[];
     title: string;
     slug: string;
     category: MediaCategory;
@@ -22,12 +25,13 @@ export function validateMedia(
     form: MediaFormState,
     organisationId: string | null,
     competitionId: string | null,
+    isClub = false,
 ) {
     if (!organisationId) {
         return "Select an organisation before adding media.";
     }
 
-    if (!competitionId) {
+    if (!competitionId && !isClub) {
         return "Select a competition before adding media.";
     }
 
@@ -39,23 +43,14 @@ export function validateMedia(
         return "Media slug is required.";
     }
 
-    if (
-        form.category !== "Photo Gallery" &&
-        form.category !== "Podcast" &&
-        !form.youtubeUrl.trim()
-    ) {
-        return "A YouTube URL is required for this media category.";
-    }
-
-    if (
-        form.youtubeUrl.trim() &&
-        !extractYouTubeId(
-            form.youtubeUrl,
-        )
-    ) {
-        return "Enter a valid YouTube URL.";
-    }
-
+    for (const file of form.files) { const error = validateMediaFile(file); if (error) return error; }
+    if (form.files.length > 20) return 'Choose no more than 20 files per save.';
+    if (form.files.some(file => file.type === 'video/mp4') && (form.files.length !== 1 || form.category === 'Photo Gallery')) return 'Upload one MP4 per video media item. Use separate items for photos.';
+    if (form.files.some(file => file.type.startsWith('image/')) && form.category !== 'Photo Gallery') return 'Choose Photo Gallery for image uploads.';
+    if (form.youtubeUrl.trim() && !safeMediaUrl(form.youtubeUrl.trim())) return 'Use a public HTTPS video URL.';
+    if (form.category !== 'Photo Gallery' && !form.youtubeUrl.trim() && !form.files.length) return 'Add a video URL or upload an MP4.';
+    if (form.category === 'Photo Gallery' && !form.files.length && !form.imageUrls.length && !form.thumbnailUrl.trim()) return 'Upload photos or provide an image URL.';
+    if (form.thumbnailUrl.trim() && !safeMediaUrl(form.thumbnailUrl.trim())) return 'Use an HTTPS image URL.';
     if (
         form.publishedAt &&
         Number.isNaN(

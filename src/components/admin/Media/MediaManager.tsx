@@ -29,6 +29,8 @@ import {
 } from "./mediaValidation";
 
 const initialFormState: MediaFormState = {
+    files: [],
+    imageUrls: [],
     title: "",
     slug: "",
     category: "Match Highlights",
@@ -139,6 +141,7 @@ export function MediaManager() {
                         embed_url,
                         thumbnail_url,
                         thumbnail_alt,
+                        image_urls,
                         featured,
                         fixture_id,
                         published_at,
@@ -305,6 +308,8 @@ export function MediaManager() {
         setEditingId(item.id);
 
         setForm({
+            files: [],
+            imageUrls: item.image_urls ?? [],
             title: item.title,
             slug: item.slug,
             category: item.category,
@@ -333,20 +338,7 @@ export function MediaManager() {
     }
 
     async function saveMedia() {
-        const validationError =
-            isClub
-                ? !organisationId
-                    ? "Select a club before adding media."
-                    : !form.title.trim()
-                        ? "Media title is required."
-                        : !form.slug.trim()
-                            ? "Media slug is required."
-                            : null
-                : validateMedia(
-                    form,
-                    organisationId,
-                    currentCompetitionId,
-                );
+        const validationError = validateMedia(form, organisationId, currentCompetitionId, isClub);
 
         if (validationError) {
             setErrorMessage(
@@ -368,8 +360,25 @@ export function MediaManager() {
         setErrorMessage(null);
 
         try {
-            const youtubeUrl =
-                form.youtubeUrl.trim();
+            let youtubeUrl = form.youtubeUrl.trim();
+            const imageUrls = [...form.imageUrls];
+            let uploadedCount = 0;
+            for (const file of form.files) {
+                setMessage(`Uploading file ${uploadedCount + 1} of ${form.files.length}…`);
+                const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4' }[file.type] || 'bin';
+                const path = `${organisationId}/${crypto.randomUUID()}.${extension}`;
+                const { error } = await supabase.storage.from('organisation-media').upload(path, file, { contentType: file.type, upsert: false });
+                if (error) throw error;
+                const url = supabase.storage.from('organisation-media').getPublicUrl(path).data.publicUrl;
+                if (file.type === 'video/mp4') youtubeUrl = url; else imageUrls.push(url);
+                uploadedCount++;
+                const retainedImages = [...imageUrls];
+                const retainedUrl = youtubeUrl;
+                const remainingFiles = form.files.slice(uploadedCount);
+                setForm(current => ({ ...current, files: remainingFiles, imageUrls: retainedImages, youtubeUrl: retainedUrl }));
+            }
+            // Retain successful uploads if the database save needs to be retried.
+            setForm(current => ({ ...current, files: [], imageUrls, youtubeUrl }));
 
             const embedUrl = youtubeUrl
                 ? createEmbedUrl(
@@ -378,7 +387,7 @@ export function MediaManager() {
                 : form.embedUrl.trim();
 
             const thumbnailUrl =
-                form.thumbnailUrl.trim() ||
+                imageUrls[0] || form.thumbnailUrl.trim() ||
                 createThumbnailUrl(
                     youtubeUrl,
                 );
@@ -426,6 +435,7 @@ export function MediaManager() {
                     form.thumbnailAlt.trim() ||
                     form.title.trim() ||
                     null,
+                image_urls: imageUrls,
                 featured: form.featured,
                 published_at:
                 publishedAt,

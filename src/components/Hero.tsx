@@ -6,7 +6,8 @@ import {
     useEffect,
     useState,
 } from 'react'
-import { lastYearFinalVideo } from '../data/festivalData'
+import type { PublicMediaItem } from '../services/public/organisationPublicService'
+import { MediaPlayer } from './public/MediaPlayer'
 import { supabase } from '../lib/supabaseClient'
 
 type HeroSponsor = {
@@ -16,7 +17,7 @@ type HeroSponsor = {
     website_url: string | null
 }
 
-export function Hero() {
+export function Hero({ featuredMatch, basePath = '' }: { featuredMatch?: PublicMediaItem | null; basePath?: string }) {
     const [sponsors, setSponsors] =
         useState<HeroSponsor[]>([])
 
@@ -639,35 +640,12 @@ export function Hero() {
                             Featured Match
                         </div>
 
-                        <iframe
-                            src={lastYearFinalVideo.embedUrl}
-                            title={lastYearFinalVideo.title}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                        />
+                        {featuredMatch ? <>
+                            <MediaPlayer url={String(featuredMatch.youtube_url || featuredMatch.embed_url || '')} thumbnail={String(featuredMatch.thumbnail_url || '')} title={featuredMatch.title || 'Featured match'} />
+                            <div className="heroVideoMeta premiumVideoMeta"><span>Official Tournament Coverage</span><strong>{featuredMatch.title}</strong><p>{featuredMatch.description}</p></div>
+                            <a className="watchLink" href={`${basePath}/media/${featuredMatch.id}`}>Watch and share this match →</a>
+                        </> : <div className="heroVideoMeta premiumVideoMeta"><strong>Match coverage coming soon</strong><p>Our latest featured full match will appear here when published.</p></div>}
 
-                        <div className="heroVideoMeta premiumVideoMeta">
-                            <span>
-                                Official Tournament Coverage
-                            </span>
-
-                            <strong>
-                                {lastYearFinalVideo.title}
-                            </strong>
-
-                            <p>
-                                {lastYearFinalVideo.subtitle}
-                            </p>
-                        </div>
-
-                        <a
-                            className="watchLink"
-                            href={lastYearFinalVideo.youtubeUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            Watch on YouTube →
-                        </a>
                     </div>
                 </div>
             </div>
