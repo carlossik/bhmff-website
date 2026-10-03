@@ -1,3 +1,4 @@
+import { SiteVisitorStats } from './admin/SiteVisitorStats'
 import {
     useCallback,
     useEffect,
@@ -2202,6 +2203,7 @@ export function AdminPortal({
                             </section>
                         ) : null}
 
+                        {(effectiveProfile.isPlatformAdmin || currentRole === 'super_admin' || currentRole === 'competition_manager') && <SiteVisitorStats organisationId={currentOrganisation.id} />}
                         <section>
                             <h4>
                                 {isClub

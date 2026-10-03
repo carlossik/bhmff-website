@@ -233,6 +233,7 @@ export function setSaasAnalyticsConsent(
     }
 
     writeConsentCookie(consent)
+    window.dispatchEvent(new Event('thq-analytics-consent-changed'))
     ensureDataLayer()
 
     gtagCommand(

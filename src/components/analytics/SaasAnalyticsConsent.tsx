@@ -41,7 +41,7 @@ export function SaasAnalyticsConsent() {
                         Help us improve TournamentHQ
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                        We use analytics cookies to understand which setup steps work well, where users get stuck and how to improve the platform.
+                        We use analytics cookies and browser storage to understand website visits, popular content and how to improve the platform.
                     </p>
                 </div>
 

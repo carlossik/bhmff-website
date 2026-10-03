@@ -1,3 +1,4 @@
+import { PublicVisitorCounter } from '../../components/public/PublicVisitorCounter';
 import { PublicMediaItemPage } from './PublicMediaItemPage';
 import { PublicGroupStandings } from '../../components/public/PublicGroupStandings'
 import { PublicArticlePage } from './PublicArticlePage'
@@ -1092,6 +1093,7 @@ export function PublicOrganisationLayout({
                 </header>
 
                 {renderCurrentPage()}
+                <PublicVisitorCounter organisationId={resolvedOrganisation.id} path={location.pathname.slice(basePath.length) || '/'} navigationKey={location.key} showCount={location.pathname === (basePath || '/') || location.pathname === `${basePath}/`} />
 
                 <footer
                     className="border-t"
