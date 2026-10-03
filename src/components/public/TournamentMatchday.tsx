@@ -46,7 +46,7 @@ export function TournamentMatchday() {
                         team:teams!competition_teams_team_id_fkey (name)
                     ),
                     venue:venues!fixtures_venue_id_fkey (name)
-                `).eq('organisation_id', organisationId).eq('published', true)
+                `).eq('published', true)
                     .in('competition_id', competitionIds.split(',')).order('kickoff_time')
                 if (response.error) throw response.error
                 const todayFixtures = (response.data ?? []).map(value => {
