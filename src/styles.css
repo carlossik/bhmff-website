@@ -3652,3 +3652,48 @@
     border-radius: 12px;
     padding: 10px 12px;
 }
+
+/* Keep public BHMFF content within the viewport, without hiding wide tables. */
+.bhmffPublicSite {
+    width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.bhmffPublicSite :where(section, article, div, nav, header, footer) {
+    min-width: 0;
+}
+.bhmffPublicSite .container {
+    width: min(1180px, calc(100% - 2rem));
+    max-width: 100%;
+    margin-inline: auto;
+}
+.bhmffPublicSite :where(img, video, iframe) {
+    max-width: 100%;
+}
+.bhmffPublicSite :where(.tableWrap, .leagueTableWrap, .goldenBootTableWrap) {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+.bhmffPublicSite .cardGrid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.bhmffPublicSite .cardGrid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 960px) {
+    .bhmffPublicSite .cardGrid.four,
+    .bhmffPublicSite .cardGrid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+    .bhmffPublicSite .cardGrid.four,
+    .bhmffPublicSite .cardGrid.three { grid-template-columns: minmax(0, 1fr); }
+    .bhmffPublicSite :where(.fixtureCard, .publicGroupStandingCard, .heroVideoCard) {
+        max-width: 100%;
+    }
+    .bhmffPublicSite .ctaRow .btn {
+        min-width: 0;
+        width: 100%;
+        white-space: normal;
+        text-align: center;
+    }
+    .bhmffPublicSite .bhmffHeroPartners { flex-wrap: wrap; }
+    .bhmffPublicSite .bhmffHeroPlatformGrid img { height: auto; }
+}

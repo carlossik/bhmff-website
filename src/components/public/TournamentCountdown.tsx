@@ -132,7 +132,8 @@ export function TournamentCountdown() {
                         line-height: 0.95;
                         letter-spacing: -0.035em;
                         text-transform: uppercase;
-                        white-space: nowrap;
+                        white-space: normal;
+                        overflow-wrap: anywhere;
                     }
 
                     .bhmffCountdownGrid {

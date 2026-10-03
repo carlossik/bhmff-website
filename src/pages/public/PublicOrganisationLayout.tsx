@@ -858,7 +858,7 @@ export function PublicOrganisationLayout({
         >
             <main
                 id="top"
-                className="min-h-screen"
+                className={`min-h-screen${isBhmff ? " bhmffPublicSite" : ""}`}
                 style={{
                     background:
                     theme.backgroundColour,
@@ -875,7 +875,7 @@ export function PublicOrganisationLayout({
                             `${theme.accentColour}30`,
                     }}
                 >
-                    <div className="mx-auto flex min-h-[76px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="mx-auto flex min-h-[76px] w-full max-w-[1240px] px-4 flex-wrap items-center justify-between gap-3 py-3">
                         <div className="flex min-w-0 flex-1 items-center gap-3 xl:flex-none">
                             <a
                                 href={
@@ -954,24 +954,24 @@ export function PublicOrganisationLayout({
                             </div>
                         </div>
 
-                        {isClub && (
+                        {(isClub || isBhmff) && (
                             <button
                                 type="button"
                                 className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border xl:hidden"
                                 style={{ borderColor: `${theme.accentColour}50` }}
                                 aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                                 aria-expanded={mobileMenuOpen}
-                                aria-controls="club-public-navigation"
+                                aria-controls="public-site-navigation"
                                 onClick={() => setMobileMenuOpen(open => !open)}
                             >
                                 {mobileMenuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
                             </button>
                         )}
                         <nav
-                            id={isClub ? "club-public-navigation" : undefined}
+                            id="public-site-navigation"
                             aria-label="Public site navigation"
-                            className={isClub
-                                ? `${mobileMenuOpen ? "grid" : "hidden"} max-h-[calc(100dvh-95px)] w-full grid-cols-2 gap-2 overflow-y-auto pb-3 sm:grid-cols-3 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end xl:gap-1 xl:overflow-visible xl:pb-0`
+                            className={isClub || isBhmff
+                                ? `${mobileMenuOpen ? "grid" : "hidden"} max-h-[calc(100dvh-95px)] w-full grid-cols-1 gap-2 min-[360px]:grid-cols-2 overflow-y-auto pb-3 sm:grid-cols-3 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end xl:gap-1 xl:overflow-visible xl:pb-0`
                                 : "flex flex-wrap items-center justify-end gap-1"}
                         >
                             {navigationItems.map(
@@ -1096,7 +1096,7 @@ export function PublicOrganisationLayout({
                         theme.surfaceColour,
                     }}
                 >
-                    <div className="mx-auto flex min-h-[150px] w-[min(1240px,calc(100%-2rem))] flex-wrap items-center justify-between gap-6 py-8">
+                    <div className="mx-auto flex min-h-[150px] w-full max-w-[1240px] px-4 flex-wrap items-center justify-between gap-6 py-8">
                         <div>
                             <strong>
                                 {

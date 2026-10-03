@@ -148,7 +148,7 @@ export function Hero() {
 
                         .bhmffHeroMainGrid {
                             display: grid;
-                            grid-template-columns: minmax(0, 1fr) 480px;
+                            grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
                             align-items: center;
                             gap: 2.5rem;
                             width: 100%;
@@ -171,7 +171,8 @@ export function Hero() {
 
                         .hero .bhmffHeroTitleLine {
                             display: block;
-                            white-space: nowrap;
+                            white-space: normal;
+                            overflow-wrap: anywhere;
                         }
 
                         .bhmffFeaturedMatch {
@@ -188,7 +189,7 @@ export function Hero() {
 
                         @media (max-width: 1080px) {
                             .bhmffHeroMainGrid {
-                                grid-template-columns: minmax(0, 1fr) 410px;
+                                grid-template-columns: minmax(0, 1fr) minmax(0, 410px);
                                 gap: 2rem;
                             }
 
@@ -204,7 +205,7 @@ export function Hero() {
                         @media (max-width: 980px) {
                             .bhmffHeroPlatformGrid,
                             .bhmffHeroMainGrid {
-                                grid-template-columns: 1fr;
+                                grid-template-columns: minmax(0, 1fr);
                             }
 
                             .bhmffHeroCopy {
@@ -315,7 +316,7 @@ export function Hero() {
 
                             .ctaRow {
                                 display: grid !important;
-                                grid-template-columns: 1fr;
+                                grid-template-columns: minmax(0, 1fr);
                                 gap: 0.7rem !important;
                             }
 
