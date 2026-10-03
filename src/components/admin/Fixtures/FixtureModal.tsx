@@ -866,7 +866,7 @@ function CompetitionFixtureModal({
                                         </h3>
 
                                         <p className="mt-1 text-sm leading-6 text-slate-400">
-                                            Select active officials for this fixture. Assignment saving will be enabled in Phase 3.
+                                            Select active officials for this fixture. Appointments are saved when you save the fixture.
                                         </p>
                                     </div>
                                 </div>
@@ -884,7 +884,12 @@ function CompetitionFixtureModal({
                             <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
                                 <label className={labelClassName}>
                                     Referee
-                                    <select className={fieldClassName} defaultValue="">
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.referee_official_id}
+                                        onChange={event => updateField('referee_official_id', event.target.value)}
+                                        disabled={isSaving}
+                                    >
                                         <option value="">
                                             {referees.length ? 'Select referee' : 'No active referees available'}
                                         </option>
@@ -898,7 +903,12 @@ function CompetitionFixtureModal({
 
                                 <label className={labelClassName}>
                                     Fourth Official
-                                    <select className={fieldClassName} defaultValue="">
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.fourth_official_id}
+                                        onChange={event => updateField('fourth_official_id', event.target.value)}
+                                        disabled={isSaving}
+                                    >
                                         <option value="">
                                             {fourthOfficials.length ? 'Select fourth official' : 'No active fourth officials available'}
                                         </option>
@@ -912,7 +922,12 @@ function CompetitionFixtureModal({
 
                                 <label className={labelClassName}>
                                     Assistant Referee 1
-                                    <select className={fieldClassName} defaultValue="">
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.assistant_referee_1_official_id}
+                                        onChange={event => updateField('assistant_referee_1_official_id', event.target.value)}
+                                        disabled={isSaving}
+                                    >
                                         <option value="">
                                             {assistantReferees.length ? 'Select assistant referee' : 'No active assistant referees available'}
                                         </option>
@@ -926,7 +941,12 @@ function CompetitionFixtureModal({
 
                                 <label className={labelClassName}>
                                     Assistant Referee 2
-                                    <select className={fieldClassName} defaultValue="">
+                                    <select
+                                        className={fieldClassName}
+                                        value={values.assistant_referee_2_official_id}
+                                        onChange={event => updateField('assistant_referee_2_official_id', event.target.value)}
+                                        disabled={isSaving}
+                                    >
                                         <option value="">
                                             {assistantReferees.length ? 'Select assistant referee' : 'No active assistant referees available'}
                                         </option>
