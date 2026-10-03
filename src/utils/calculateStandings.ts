@@ -55,7 +55,9 @@ export function calculateStandings(
         const homeTeam = table.get(result.homeTeamId)
         const awayTeam = table.get(result.awayTeamId)
 
-        if (!homeTeam || !awayTeam) {
+        if (!homeTeam || !awayTeam || homeTeam === awayTeam ||
+            !Number.isInteger(result.homeScore) || !Number.isInteger(result.awayScore) ||
+            result.homeScore < 0 || result.awayScore < 0) {
             return
         }
 

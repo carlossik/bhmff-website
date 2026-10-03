@@ -1,3 +1,5 @@
+import { PublicGroupStandings } from '../../components/public/PublicGroupStandings'
+import { PublicArticlePage } from './PublicArticlePage'
 import {
     useEffect,
     useMemo,
@@ -596,6 +598,12 @@ export function PublicOrganisationLayout({
     }
 
     function renderCurrentPage() {
+        const articlePrefix = `${basePath}/articles/`;
+        if (location.pathname.startsWith(articlePrefix)) {
+            let articleKey = '';
+            try { articleKey = decodeURIComponent(location.pathname.slice(articlePrefix.length).replace(/\/$/, '')); } catch { /* Show unavailable article for malformed URLs. */ }
+            return <PublicArticlePage articleKey={articleKey} basePath={basePath} />;
+        }
         if (isClub) {
             const squadPage =
                 location.pathname === `${basePath}/squad` ||
@@ -721,6 +729,14 @@ export function PublicOrganisationLayout({
                 );
 
             case `${basePath}/tables`:
+                if (isBhmff) return <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+                    <h1>Group standings</h1>
+                    <p>Calculated from published group-stage results. Updates every 15 seconds.</p>
+                    {resolvedPublicData.competitions.map(competition => <section key={competition.id}>
+                        <h2>{competition.name}</h2>
+                        <PublicGroupStandings competitionId={competition.id} />
+                    </section>)}
+                </main>;
                 return (
                     <PublicTablesPage
                         organisationId={

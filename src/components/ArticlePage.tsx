@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
     ArrowLeft,
     ExternalLink,
@@ -13,6 +14,12 @@ export function ArticlePage({
                                 article,
                                 onBack,
                             }: ArticlePageProps) {
+    const [shareStatus, setShareStatus] = useState('')
+    const articleUrl = new URL(window.location.pathname, window.location.origin).href
+    async function copyLink() {
+        try { await navigator.clipboard.writeText(articleUrl); setShareStatus('Article link copied.') }
+        catch { setShareStatus('Copy the article link from your browser address bar.') }
+    }
     const paragraphs = Array.isArray(
         article.body
     )
@@ -57,6 +64,11 @@ export function ArticlePage({
                     </div>
 
                     <h1>{article.title}</h1>
+                    <div className="articleActionLinks" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
+                        <button className="btn secondary" type="button" onClick={() => void copyLink()}>Copy article link</button>
+                        <a className="btn secondary" href={`https://wa.me/?text=${encodeURIComponent(`${article.title}\n${articleUrl}`)}`} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
+                    </div>
+                    <p role="status">{shareStatus}</p>
 
                     <p className="articleHero">
                         {article.hero}

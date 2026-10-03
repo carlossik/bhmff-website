@@ -116,12 +116,16 @@ export function PublicGroupStandings({
     const [blocks, setBlocks] =
         useState<GroupStandingBlock[]>([])
 
+    const [errorMessage, setErrorMessage] = useState('')
     const [isLoading, setIsLoading] =
         useState(true)
 
     useEffect(() => {
+        let disposed = false
+        let refreshing = false
         async function loadStandings() {
-            setIsLoading(true)
+            if (refreshing || disposed) return
+            refreshing = true
 
             try {
                 if (!competitionId) {
@@ -364,21 +368,35 @@ export function PublicGroupStandings({
                         }
                     })
 
-                setBlocks(standingBlocks)
+                if (!disposed) { setBlocks(standingBlocks); setErrorMessage('') }
             } catch (error) {
+                if (!disposed) setErrorMessage('Unable to refresh standings. Please try again shortly.')
                 console.error(
                     'Failed to load grouped standings:',
                     error
                 )
 
-                setBlocks([])
             } finally {
-                setIsLoading(false)
+                refreshing = false
+                if (!disposed) setIsLoading(false)
             }
         }
 
+        setIsLoading(true)
         void loadStandings()
+        const refresh = () => { if (!document.hidden) void loadStandings() }
+        const interval = window.setInterval(refresh, 15000)
+        window.addEventListener('focus', refresh)
+        document.addEventListener('visibilitychange', refresh)
+        return () => {
+            disposed = true
+            window.clearInterval(interval)
+            window.removeEventListener('focus', refresh)
+            document.removeEventListener('visibilitychange', refresh)
+        }
     }, [competitionId])
+
+    if (errorMessage && !blocks.length) return <p role="alert">{errorMessage}</p>
 
     if (isLoading) {
         return (

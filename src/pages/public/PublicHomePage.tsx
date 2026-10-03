@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 
 import type { Competition } from '../../types/competitionTypes'
@@ -14,7 +15,6 @@ import type { PublicGoal } from '../../components/GoldenBootTable'
 import { supabase } from '../../lib/supabaseClient'
 import { useOptionalPublicOrganisation } from '../../context/PublicOrganisationContext'
 import { usePublicArticles } from '../../hooks/usePublicArticles'
-import { ArticlePage } from '../../components/ArticlePage'
 import { HeroSection } from '../../components/public/home/HeroSection'
 import { CompetitionStandardsSection } from '../../components/public/home/CompetitionStandardsSection'
 import { CompetitionJourneySection } from '../../components/public/home/CompetitionJourneySection'
@@ -117,21 +117,14 @@ function CompetitionPublicHomePage({
         error: articlesError,
     } = usePublicArticles()
 
-    const [activeArticleId, setActiveArticleId] =
-        useState<string | null>(null)
+    const navigate = useNavigate()
     const [publicTeams, setPublicTeams] = useState<PublicTeam[]>([])
     const [publicFixtures, setPublicFixtures] = useState<PublicFixture[]>([])
     const [publicResults, setPublicResults] = useState<PublicResult[]>([])
     const [publicGoals, setPublicGoals] = useState<PublicGoal[]>([])
     const [loading, setLoading] = useState(true)
 
-    const activeArticle = useMemo(
-        () =>
-            publicArticles.find(
-                (article) => article.id === activeArticleId,
-            ),
-        [activeArticleId, publicArticles],
-    )
+
 
     useEffect(() => {
         let disposed = false
@@ -636,14 +629,7 @@ function CompetitionPublicHomePage({
         }
     }, [organisationId])
 
-    if (activeArticle && isBhmff) {
-        return (
-            <ArticlePage
-                article={activeArticle}
-                onBack={() => setActiveArticleId(null)}
-            />
-        )
-    }
+
 
     return (
         <>
@@ -718,7 +704,7 @@ function CompetitionPublicHomePage({
                 publicArticles={publicArticles}
                 articlesLoading={articlesLoading}
                 articlesError={articlesError}
-                onReadArticle={setActiveArticleId}
+                onReadArticle={(id) => navigate(`${basePath}/articles/${encodeURIComponent(id)}`)}
                 surfaceColour={surfaceColour}
                 textColour={textColour}
                 accentColour={accentColour}

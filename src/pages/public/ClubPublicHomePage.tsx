@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import {
     CircleDot,
     ShieldCheck,
@@ -11,7 +12,6 @@ import {
     useState,
 } from 'react'
 
-import { ArticlePage } from '../../components/ArticlePage'
 import { ArticlesSection } from '../../components/public/home/ArticlesSection'
 import {
     ClubNextMatchCountdown,
@@ -198,8 +198,7 @@ export function ClubPublicHomePage({
         error: articlesError,
     } = usePublicArticles()
 
-    const [activeArticleId, setActiveArticleId] =
-        useState<string | null>(null)
+    const navigate = useNavigate()
     const [clubData, setClubData] =
         useState<ClubPublicData>(emptyClubData)
     const [loading, setLoading] = useState(true)
@@ -209,13 +208,7 @@ export function ClubPublicHomePage({
         useState(false)
     const [squadSearch, setSquadSearch] = useState('')
 
-    const activeArticle = useMemo(
-        () =>
-            publicArticles.find(
-                (article) => article.id === activeArticleId,
-            ) ?? null,
-        [activeArticleId, publicArticles],
-    )
+
 
     useEffect(() => {
         const resolvedOrganisationId = organisationId ?? ''
@@ -506,14 +499,7 @@ export function ClubPublicHomePage({
         borderColor: `${accentColour}35`,
     }
 
-    if (activeArticle) {
-        return (
-            <ArticlePage
-                article={activeArticle}
-                onBack={() => setActiveArticleId(null)}
-            />
-        )
-    }
+
 
     if (squadOnly) {
         const visiblePlayers = scopedSquad.filter(player =>
@@ -1133,7 +1119,7 @@ export function ClubPublicHomePage({
                 publicArticles={publicArticles}
                 articlesLoading={articlesLoading}
                 articlesError={articlesError}
-                onReadArticle={setActiveArticleId}
+                onReadArticle={(id) => navigate(`${basePath}/articles/${encodeURIComponent(id)}`)}
                 surfaceColour={surfaceColour}
                 textColour={textColour}
                 accentColour={accentColour}

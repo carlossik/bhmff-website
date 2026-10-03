@@ -4,6 +4,7 @@ import type {
 } from '@netlify/edge-functions'
 
 type PublicOrganisation = {
+    id: string
     name: string
     slug: string
     logo_url: string | null
@@ -174,6 +175,9 @@ function getOrganisationRoute(
             .trim()
             .toLowerCase()
 
+    if (hostname === 'bhmff.co.uk' || hostname === 'www.bhmff.co.uk') {
+        return { slug: 'bhmff', canonicalUrl: `${url.protocol}//${url.host}${url.pathname}` }
+    }
     if (MARKETING_HOSTS.has(hostname)) {
         return null
     }
@@ -225,6 +229,7 @@ function isPublicOrganisation(
         value as Record<string, unknown>
 
     return (
+        typeof row.id === 'string' &&
         typeof row.name === 'string' &&
         typeof row.slug === 'string' &&
         (
@@ -259,7 +264,7 @@ async function loadPublicOrganisation(
     const query =
         new URLSearchParams({
             select:
-                'name,slug,logo_url,primary_colour,background_colour,organisation_type',
+                'id,name,slug,logo_url,primary_colour,background_colour,organisation_type',
             slug: `eq.${slug}`,
             public_site_enabled:
                 'eq.true',
@@ -410,6 +415,7 @@ function setCanonical(
 function resolveImageUrl(
     organisation: PublicOrganisation,
     requestUrl: URL,
+    article: ArticleMetadata | null = null,
 ): string {
     const logoUrl =
         organisation.logo_url?.trim() ?? ''
@@ -452,25 +458,50 @@ function createDescription(
     return `Official competition website for ${organisationName}, powered by TournamentHQ.`
 }
 
+type ArticleMetadata = { title: string; summary: string | null; hero: string | null; image_url: string | null; image_alt: string | null }
+
+async function loadArticleMetadata(url: URL, organisation: PublicOrganisation): Promise<ArticleMetadata | null> {
+    const match = url.pathname.match(/\/articles\/([^/]+)\/?$/)
+    const credentials = getSupabaseCredentials()
+    if (!match || !credentials || !organisation.id) return null
+    try {
+        const key = decodeURIComponent(match[1])
+        const query = new URLSearchParams({
+            select: 'title,summary,hero,image_url,image_alt',
+            organisation_id: `eq.${organisation.id}`, status: 'eq.published', limit: '1',
+        })
+        // UUID paths remain valid even if an editor changes the article slug.
+        query.set(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key) ? 'id' : 'slug', `eq.${key}`)
+        const response = await fetch(`${credentials.url}/rest/v1/articles?${query}`, {
+            headers: { apikey: credentials.anonKey, Authorization: `Bearer ${credentials.anonKey}` },
+            signal: AbortSignal.timeout(2500),
+        })
+        if (!response.ok) return null
+        const rows = await response.json()
+        return Array.isArray(rows) && typeof rows[0]?.title === 'string' ? rows[0] : null
+    } catch { return null }
+}
+
 function applySocialMetadata(
     html: string,
     organisation: PublicOrganisation,
     canonicalUrl: string,
     requestUrl: URL,
+    article: ArticleMetadata | null = null,
 ): string {
     const organisationName =
         organisation.name.trim()
 
     const title =
-        `${organisationName} | TournamentHQ`
+        article ? `${article.title} | ${organisationName}` : `${organisationName} | TournamentHQ`
 
     const description =
-        createDescription(
+        (article?.summary || article?.hero)?.trim() || createDescription(
             organisation,
         )
 
     const imageUrl =
-        resolveImageUrl(
+        article?.image_url ? new URL(article.image_url, requestUrl.origin).href : resolveImageUrl(
             organisation,
             requestUrl,
         )
@@ -547,7 +578,7 @@ function applySocialMetadata(
             attributeName: 'property',
             attributeValue:
                 'og:type',
-            content: 'website',
+            content: article ? 'article' : 'website',
         },
         {
             attributeName: 'property',
@@ -572,7 +603,7 @@ function applySocialMetadata(
             attributeValue:
                 'og:image:alt',
             content:
-                `${organisationName} logo`,
+                article ? (article.image_alt || article.title) : `${organisationName} logo`,
         },
         {
             attributeName: 'name',
@@ -604,7 +635,7 @@ function applySocialMetadata(
             attributeValue:
                 'twitter:image:alt',
             content:
-                `${organisationName} logo`,
+                article ? (article.image_alt || article.title) : `${organisationName} logo`,
         },
     ]
 
@@ -694,6 +725,7 @@ export default async function handler(
             organisation,
             route.canonicalUrl,
             requestUrl,
+            await loadArticleMetadata(requestUrl, organisation),
         )
 
     const headers =

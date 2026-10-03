@@ -8,6 +8,7 @@ const TOURNAMENT_START =
     new Date('2026-10-03T09:00:00+01:00')
 
 type CountdownValue = {
+    hasStarted: boolean
     days: number
     hours: number
     minutes: number
@@ -21,6 +22,7 @@ function calculateCountdown(): CountdownValue {
 
     if (difference <= 0) {
         return {
+            hasStarted: true,
             days: 0,
             hours: 0,
             minutes: 0,
@@ -32,6 +34,7 @@ function calculateCountdown(): CountdownValue {
         Math.floor(difference / 1000)
 
     return {
+        hasStarted: false,
         days: Math.floor(
             totalSeconds / 86400,
         ),
@@ -241,10 +244,10 @@ export function TournamentCountdown() {
                 </p>
 
                 <h2 className="bhmffCountdownTitle">
-                    The Festival Begins In
+                    {countdown.hasStarted ? 'The Festival Has Begun' : 'The Festival Begins In'}
                 </h2>
 
-                <div className="bhmffCountdownGrid">
+                {!countdown.hasStarted && <div className="bhmffCountdownGrid">
                     {items.map((item) => (
                         <div
                             key={item.label}
@@ -268,6 +271,8 @@ export function TournamentCountdown() {
                     ))}
                 </div>
 
+                }
+                {countdown.hasStarted && <p>Follow the fixtures, results and group standings throughout the festival.</p>}
                 <div className="bhmffCountdownMeta">
                     <span className="bhmffCountdownPill">
                         Saturday 3 October 2026

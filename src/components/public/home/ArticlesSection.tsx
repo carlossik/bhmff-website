@@ -182,7 +182,7 @@ export function ArticlesSection({
                                     </p>
 
                                     <a
-                                        href={`${basePath}/news`}
+                                        href={`${basePath}/articles/${encodeURIComponent(article.id)}`}
                                         className="mt-5 inline-flex text-sm font-black no-underline transition-opacity hover:opacity-75"
                                         style={{ color: accentColour }}
                                     >
