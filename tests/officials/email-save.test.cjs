@@ -1,0 +1,10 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const ts=require('typescript');
+const compiled=ts.transpileModule(fs.readFileSync('src/services/officialService.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+let calls=0,payload;
+const query={insert(value){payload=value;return this},update(value){payload=value;return this},select(){return this},eq(){return this},single:async()=>({data:{id:'1',...payload},error:null})};
+const moduleObject={exports:{}};
+new Function('require','module','exports',compiled)(()=>({supabase:{from(){calls++;return query}}}),moduleObject,moduleObject.exports);
+const {officialService}=moduleObject.exports;
+test('blank email and phone are saved as null',async()=>{for(const email of ['', '   ', null, undefined]){await officialService.create({first_name:'Test',last_name:'Official',email,phone:' '});assert.equal(payload.email,null);assert.equal(payload.phone,null)}});
+test('provided contacts are trimmed',async()=>{await officialService.create({first_name:'Test',last_name:'Official',email:' official@example.com ',phone:' 123 '});assert.equal(payload.email,'official@example.com');assert.equal(payload.phone,'123')});
+test('update can clear contacts and unrelated edits preserve them',async()=>{await officialService.update('1',{email:' ',phone:''});assert.equal(payload.email,null);assert.equal(payload.phone,null);await officialService.update('1',{city:'London'});assert.equal(Object.hasOwn(payload,'email'),false);assert.equal(Object.hasOwn(payload,'phone'),false)});

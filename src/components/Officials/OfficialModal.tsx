@@ -18,7 +18,7 @@ import {
     OfficialRole,
     OfficialStatus,
     VerificationStatus,
-} from '../../types/officialTypes';
+} from '../../../../../TournamentHQ-official-email-fix/src/types/officialTypes';
 import {
     Sport,
     SportOfficialRole,
@@ -98,6 +98,8 @@ const OfficialModal: React.FC<Props> = ({
     const [loadingRoles, setLoadingRoles] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
 
+    const [saveError, setSaveError] = useState<string | null>(null);
+
     const sportIsInherited = Boolean(competitionSportId);
 
     const selectedSport = useMemo(
@@ -149,6 +151,7 @@ const OfficialModal: React.FC<Props> = ({
     useEffect(() => {
         if (!open) return;
 
+        setSaveError(null);
         const inheritedSportId =
             competitionSportId ?? '';
 
@@ -342,29 +345,37 @@ const OfficialModal: React.FC<Props> = ({
             return;
         }
 
-        await onSave({
-            ...form,
-            sport_id: form.sport_id,
-            role: form.role as OfficialRole,
-            first_name: firstName,
-            last_name: lastName,
-            full_name:
-                `${firstName} ${lastName}`,
-            email:
-                form.email.trim(),
-            phone:
-                form.phone.trim() || null,
-            city:
-                form.city.trim() || null,
-            county:
-                form.county.trim() || null,
-            postcode:
-                form.postcode.trim() || null,
-            nationality:
-                form.nationality.trim() || null,
-            biography:
-                form.biography.trim() || null,
-        });
+        const email = form.email.trim();
+        setSaveError(null);
+        try {
+            await onSave({
+                ...form,
+                sport_id: form.sport_id,
+                role: form.role as OfficialRole,
+                first_name: firstName,
+                last_name: lastName,
+                full_name:
+                    `${firstName} ${lastName}`,
+                email:
+                    email || null,
+                phone:
+                    form.phone.trim() || null,
+                city:
+                    form.city.trim() || null,
+                county:
+                    form.county.trim() || null,
+                postcode:
+                    form.postcode.trim() || null,
+                nationality:
+                    form.nationality.trim() || null,
+                biography:
+                    form.biography.trim() || null,
+            });
+        } catch (error) {
+            const message = error && typeof error === 'object' && 'message' in error
+                ? String(error.message) : 'Unable to save the official. Please try again.';
+            setSaveError(message);
+        }
     };
 
     const inheritedSportLabel =
@@ -439,13 +450,13 @@ const OfficialModal: React.FC<Props> = ({
                     className="overflow-y-auto bg-[var(--organisation-surface)] px-6 py-6"
                     style={{ minHeight: 0 }}
                 >
-                    {loadError && (
+                    {(saveError || loadError) && (
                         <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
                             <AlertCircle
                                 size={18}
                                 className="mt-0.5 shrink-0"
                             />
-                            <span>{loadError}</span>
+                            <span role="alert">{saveError || loadError}</span>
                         </div>
                     )}
 
@@ -588,8 +599,8 @@ const OfficialModal: React.FC<Props> = ({
                         </div>
 
                         <div>
-                            <label className={labelClass}>Email</label>
-                            <input type="email" value={form.email} onChange={event => updateField('email', event.target.value)} className={inputClass} />
+                            <label className={labelClass} htmlFor="official-email">Email (optional)</label>
+                            <input id="official-email" type="email" value={form.email} onChange={event => updateField('email', event.target.value)} className={inputClass} />
                         </div>
 
                         <div>

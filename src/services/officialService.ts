@@ -14,7 +14,7 @@ import {
     OfficialRating,
     PaymentStatus,
     UUID,
-} from '../types/officialTypes'
+} from '../../../../TournamentHQ-official-email-fix/src/types/officialTypes'
 
 const OFFICIALS_TABLE = 'officials'
 const QUALIFICATIONS_TABLE = 'official_qualifications'
@@ -212,6 +212,8 @@ export const officialService = {
     },
 
     async create(input: CreateOfficialInput): Promise<Official> {
+        const email = input.email?.trim() || null;
+
         const fullName = input.full_name?.trim()
             ? input.full_name.trim()
             : `${input.first_name} ${input.last_name}`.trim()
@@ -221,6 +223,8 @@ export const officialService = {
             .insert({
                 ...input,
                 full_name: fullName,
+                email,
+                phone: input.phone?.trim() || null,
             })
             .select()
             .single()
@@ -232,6 +236,12 @@ export const officialService = {
 
     async update(id: string, updates: UpdateOfficialInput): Promise<Official> {
         const payload: UpdateOfficialInput = { ...updates }
+        if (updates.email !== undefined) {
+            const email = updates.email?.trim() || null;
+            payload.email = email;
+        }
+
+        if (updates.phone !== undefined) payload.phone = updates.phone?.trim() || null;
 
         if (updates.first_name !== undefined || updates.last_name !== undefined) {
             const current = await this.getById(id)

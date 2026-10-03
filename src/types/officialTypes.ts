@@ -135,7 +135,7 @@ export interface Official {
 
     full_name: string;
 
-    email: string;
+    email: string | null;
 
     phone?: string | null;
 
