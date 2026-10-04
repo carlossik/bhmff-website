@@ -93,14 +93,14 @@ export function ResultsList({
                         </span>
                     </div>
 
-                    <div className="grid gap-4 px-5 py-6 sm:px-6 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-                        <div className="flex items-center justify-between gap-4 lg:justify-end">
-                            <span className="text-base font-bold sm:text-lg">
+                    <div role="group" aria-label={`${result.homeTeam} ${result.homeScore}, ${result.awayTeam} ${result.awayScore}, full time`} className="grid gap-4 px-5 py-6 sm:px-6 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
+                        <div className="flex min-w-0 items-center justify-between gap-4 lg:justify-end">
+                            <span className="min-w-0 break-words text-base font-bold sm:text-lg">
                                 {result.homeTeam}
                             </span>
 
                             <strong
-                                className="text-3xl font-black sm:text-4xl"
+                                className="shrink-0 text-3xl font-black sm:text-4xl"
                                 style={{ color: accentColour }}
                             >
                                 {result.homeScore}
@@ -118,15 +118,15 @@ export function ResultsList({
                             Full Time
                         </div>
 
-                        <div className="flex items-center justify-between gap-4 lg:justify-start">
+                        <div className="flex min-w-0 flex-row-reverse items-center justify-between gap-4 lg:flex-row lg:justify-start">
                             <strong
-                                className="text-3xl font-black sm:text-4xl"
+                                className="shrink-0 text-3xl font-black sm:text-4xl"
                                 style={{ color: accentColour }}
                             >
                                 {result.awayScore}
                             </strong>
 
-                            <span className="text-base font-bold sm:text-lg">
+                            <span className="min-w-0 break-words text-base font-bold sm:text-lg">
                                 {result.awayTeam}
                             </span>
                         </div>
