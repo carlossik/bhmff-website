@@ -100,7 +100,7 @@ export const goalService = {
         competitionId: string,
         values: GoalFormValues
     ): Promise<void> {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('goals')
             .insert({
                 competition_id: competitionId,
@@ -115,11 +115,14 @@ export const goalService = {
                     values.video_timestamp.trim() ||
                     null,
             })
+            .select('id')
+            .single()
 
         throwSupabaseError(
             error,
             'Failed to create goal'
         )
+        if (!data) throw new Error('Goal was not saved. Refresh the page and try again.')
     },
 
     async updateGoal(

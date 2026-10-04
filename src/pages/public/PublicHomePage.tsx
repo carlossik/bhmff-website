@@ -128,6 +128,8 @@ function CompetitionPublicHomePage({
 
     useEffect(() => {
         let disposed = false
+        let refreshing = false
+        setLoading(true)
 
         async function loadHomepageData() {
             if (!organisationId) {
@@ -141,8 +143,6 @@ function CompetitionPublicHomePage({
 
                 return
             }
-
-            setLoading(true)
 
             const {
                 data: competition,
@@ -589,8 +589,7 @@ function CompetitionPublicHomePage({
                             !fixtureId ||
                             !teamId ||
                             !teamName ||
-                            !playerName ||
-                            minute === null
+                            !playerName
                         ) {
                             return null
                         }
@@ -622,10 +621,23 @@ function CompetitionPublicHomePage({
             setLoading(false)
         }
 
-        void loadHomepageData()
-
+        async function refresh() {
+            if (disposed || refreshing) return
+            refreshing = true
+            try { await loadHomepageData() }
+            catch (error) { console.error('Unable to refresh public match data:', error); if (!disposed) setLoading(false) }
+            finally { refreshing = false }
+        }
+        void refresh()
+        const onFocus = () => { if (!document.hidden) void refresh() }
+        const timer = window.setInterval(onFocus, 15000)
+        window.addEventListener('focus', onFocus)
+        document.addEventListener('visibilitychange', onFocus)
         return () => {
             disposed = true
+            window.clearInterval(timer)
+            window.removeEventListener('focus', onFocus)
+            document.removeEventListener('visibilitychange', onFocus)
         }
     }, [organisationId])
 
