@@ -453,3 +453,7 @@ verify_jwt = true
 
 [functions.trialist-response]
 verify_jwt = false
+
+# Meta authenticates callbacks with X-Hub-Signature-256, not a user JWT.
+[functions.whatsapp-webhook]
+verify_jwt = false

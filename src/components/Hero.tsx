@@ -6,7 +6,7 @@ import {
     useEffect,
     useState,
 } from 'react'
-import type { PublicMediaItem } from '../services/public/organisationPublicService'
+import type { PublicMediaItem } from '../../../../TournamentHQ-homepage-featured-video-20261007/src/services/public/organisationPublicService'
 import { MediaPlayer } from './public/MediaPlayer'
 import { supabase } from '../lib/supabaseClient'
 
@@ -637,13 +637,13 @@ export function Hero({ featuredMatch, basePath = '' }: { featuredMatch?: PublicM
 
                     <div className="heroVideoCard premiumVideoCard bhmffFeaturedMatch">
                         <div className="featuredLabel">
-                            Featured Match
+                            Featured Video
                         </div>
 
                         {featuredMatch ? <>
-                            <MediaPlayer url={String(featuredMatch.youtube_url || featuredMatch.embed_url || '')} thumbnail={String(featuredMatch.thumbnail_url || '')} title={featuredMatch.title || 'Featured match'} />
+                            <MediaPlayer url={String(featuredMatch.youtube_url || featuredMatch.embed_url || '')} thumbnail={String(featuredMatch.thumbnail_url || '')} title={featuredMatch.title || 'Featured video'} />
                             <div className="heroVideoMeta premiumVideoMeta"><span>Official Tournament Coverage</span><strong>{featuredMatch.title}</strong><p>{featuredMatch.description}</p></div>
-                            <a className="watchLink" href={`${basePath}/media/${featuredMatch.id}`}>Watch and share this match →</a>
+                            <a className="watchLink" href={`${basePath}/media/${featuredMatch.id}`}>Watch and share this video →</a>
                         </> : <div className="heroVideoMeta premiumVideoMeta"><strong>Match coverage coming soon</strong><p>Our latest featured full match will appear here when published.</p></div>}
 
                     </div>

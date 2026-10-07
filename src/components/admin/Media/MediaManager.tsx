@@ -41,6 +41,7 @@ const initialFormState: MediaFormState = {
     thumbnailUrl: "",
     thumbnailAlt: "",
     featured: false,
+    homepageFeatured: false,
     publishedAt: "",
 };
 
@@ -143,6 +144,7 @@ export function MediaManager() {
                         thumbnail_alt,
                         image_urls,
                         featured,
+                        homepage_featured,
                         fixture_id,
                         published_at,
                         created_at,
@@ -218,6 +220,7 @@ export function MediaManager() {
         setForm((current) => ({
             ...current,
             [key]: value,
+            ...(key === 'category' && value === 'Photo Gallery' ? { homepageFeatured: false } : {}),
         }));
     }
 
@@ -326,6 +329,7 @@ export function MediaManager() {
                 item.thumbnail_alt ?? "",
             featured:
                 item.featured ?? false,
+            homepageFeatured: item.homepage_featured ?? false,
             publishedAt:
                 toDateTimeLocal(
                     item.published_at,
@@ -437,6 +441,7 @@ export function MediaManager() {
                     null,
                 image_urls: imageUrls,
                 featured: form.featured,
+                homepage_featured: form.homepageFeatured,
                 published_at:
                 publishedAt,
             };

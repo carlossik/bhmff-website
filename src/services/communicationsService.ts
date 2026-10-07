@@ -125,6 +125,9 @@ async function invokeRead<T>(
 }
 
 export const communicationsService = {
+    whatsAppAction<T = Record<string, unknown>>(organisationId: string, action: string, input: Record<string, unknown> = {}): Promise<T> {
+        return invoke<T>({ ...input, action, organisationId })
+    },
     async getProviderStatus(
         organisationId: string,
     ): Promise<CommunicationProviderStatus[]> {

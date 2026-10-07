@@ -599,7 +599,15 @@ export default function MediaModal({
                                 className="h-5 w-5 accent-[var(--organisation-accent)]"
                             />
 
-                            Featured media (Full Match Replay also selects the homepage match)
+                            Featured in the media library
+                        </label>
+
+                        <label className="flex items-start gap-3 rounded-xl border border-[color:var(--organisation-border)] bg-[var(--organisation-background)] px-4 py-4 text-sm text-[var(--organisation-text)] lg:col-span-2">
+                            <input type="checkbox" checked={values.homepageFeatured}
+                                disabled={values.category === 'Photo Gallery' && !values.homepageFeatured}
+                                onChange={(event) => onChange('homepageFeatured', event.target.checked)}
+                                className="mt-1 h-5 w-5 shrink-0 accent-[var(--organisation-accent)]" />
+                            <span><strong>Show as homepage featured video</strong><span className="mt-1 block font-normal">Choose goals, highlights, interviews or a full match. Publishing this selection replaces the previous homepage video. Draft selections take effect when published. Photo galleries cannot be selected.</span></span>
                         </label>
 
                         <label className={`${labelClassName} lg:col-span-2`}>

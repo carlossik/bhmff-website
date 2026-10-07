@@ -13,7 +13,7 @@ function load(path, overrides = {}) {
 const logic = load('src/utils/publicMedia.ts');
 const helpers = load('src/components/admin/Media/mediaHelpers.ts');
 const { validateMedia } = load('src/components/admin/Media/mediaValidation.ts', { '../../../utils/publicMedia': logic, './mediaHelpers': helpers });
-const form = extra => ({ title: 'Match', slug: 'match', category: 'Full Match Replay', status: 'published', description: '', youtubeUrl: '', embedUrl: '', thumbnailUrl: '', thumbnailAlt: '', featured: true, publishedAt: '', files: [], imageUrls: [], ...extra });
+const form = extra => ({ title: 'Match', slug: 'match', category: 'Full Match Replay', status: 'published', description: '', youtubeUrl: '', embedUrl: '', thumbnailUrl: '', thumbnailAlt: '', featured: true, homepageFeatured: false, publishedAt: '', files: [], imageUrls: [], ...extra });
 test('upload limits reject oversized, empty and unsupported files before storage', () => {
  for (const [type, limit] of [['image/jpeg', logic.IMAGE_LIMIT], ['image/png', logic.IMAGE_LIMIT], ['image/webp', logic.IMAGE_LIMIT], ['video/mp4', logic.VIDEO_LIMIT]]) {
   assert.equal(logic.validateMediaFile({ type, size: limit }), null);
@@ -36,14 +36,16 @@ test('clubs and competitions accept images, MP4 or HTTPS hosted links with consi
   assert.ok(check({ files: [{ type: 'video/mp4', size: 100 }, { type: 'image/jpeg', size: 100 }] }));
  }
 });
-test('featured match selection excludes interviews and is deterministic across historical selections', () => {
- const selected = logic.selectFeaturedMatch([
-  { id: 'old', featured: true, category: 'Full Match Replay', published_at: '2025-10-01' },
-  { id: 'new', featured: true, category: 'Full Match Replay', published_at: '2026-10-03' },
-  { id: 'interview', featured: true, category: 'Player Interview', published_at: '2026-10-04' },
-  { id: 'other', featured: false, category: 'Full Match Replay', published_at: '2026-10-05' },
- ]);
- assert.equal(selected.id, 'new');
+test('homepage selection supports highlights and interviews without changing categories', () => {
+ const items = [
+  { id: 'old', featured: true, homepage_featured: false, homepageFeatured: false, category: 'Full Match Replay', published_at: '2026-10-05' },
+  { id: 'goals', homepage_featured: true, category: 'Match Highlights', status: 'published', published_at: '2026-10-03' },
+  { id: 'draft', homepage_featured: true, category: 'Player Interview', status: 'draft', published_at: '2026-10-06' },
+  { id: 'photos', homepage_featured: true, category: 'Photo Gallery', status: 'published', published_at: '2026-10-07' },
+ ];
+ assert.equal(logic.selectFeaturedMatch(items).id, 'goals');
+ assert.equal(logic.selectFeaturedMatch([{id:'interview', homepage_featured:true, category:'Player Interview', status:'published'}]).id, 'interview');
+ assert.equal(logic.selectFeaturedMatch([{id:'old', featured:true, category:'Full Match Replay'}]), null);
  assert.equal(logic.selectFeaturedMatch([]), null);
 });
 const player = load('src/components/public/MediaPlayer.tsx', { '../../utils/publicMedia': logic, '../admin/Media/mediaHelpers': helpers }).MediaPlayer;
@@ -122,4 +124,13 @@ test('BHMFF hero renders the selected match and never falls back to last year’
  assert.doesNotMatch(selected, /FZohdJg_8CU|Last Year/);
  assert.match(render(null), /Match coverage coming soon/);
  assert.doesNotMatch(render(null), /FZohdJg_8CU/);
+});
+
+test('actual media save persists homepage selection separately from library featuring', async () => {
+ const harness = saveHarness(form({ category:'Match Highlights', youtubeUrl:'https://youtu.be/abcdefghijk', homepageFeatured:true, featured:false }));
+ await harness.run();
+ assert.equal(harness.state.payload.category,'Match Highlights');
+ assert.equal(harness.state.payload.homepage_featured,true);
+ assert.equal(harness.state.payload.featured,false);
+ assert.match(validateMedia(form({ category:'Photo Gallery', homepageFeatured:true, thumbnailUrl:'https://image.example/photo.jpg' }), 'org','competition'), /video item/);
 });

@@ -27,6 +27,7 @@ import type {
     CommunicationProviderStatus,
     CommunicationRecipientDraft,
 } from '../../../types/communicationTypes'
+import { WhatsAppConnectionPanel } from './WhatsAppConnectionPanel'
 import { CommunicationComposerModal } from './CommunicationComposerModal'
 
 type RecipientMode =
@@ -257,6 +258,7 @@ export function CommunicationsManager() {
                 setProviders(providerResult.value)
             } else {
                 setProviders([])
+                setError(providerResult.reason instanceof Error ? providerResult.reason.message : 'Unable to check delivery channels. Refresh Communications and try again.')
             }
 
             if (historyResult.status === 'fulfilled') {
@@ -502,12 +504,14 @@ export function CommunicationsManager() {
                 </div>
             )}
 
+            {isClub && organisationId && <WhatsAppConnectionPanel key={organisationId} organisationId={organisationId} onChanged={() => void load(true)} />}
+
             {providers.length > 0 && (
                 <section className="grid gap-4 md:grid-cols-3">
                     {providers.map((provider) => {
                         const Icon = channelIcon(provider.channel)
                         const ready =
-                            provider.configured &&
+                            provider.channel !== 'sms' && provider.configured &&
                             !provider.dryRun &&
                             provider.provider !== 'mock' &&
                             provider.provider !== 'unconfigured'
@@ -533,23 +537,24 @@ export function CommunicationsManager() {
                                         ) : (
                                             <CircleAlert className="h-3.5 w-3.5" />
                                         )}
-                                        {provider.dryRun
-                                            ? 'Test mode'
+                                        {provider.channel === 'sms' || !provider.configured || provider.provider === 'unconfigured' ? 'Not available' : provider.dryRun
+                                            ? 'Delivery paused'
                                             : ready
                                                 ? 'Ready'
                                                 : 'Not available'}
                                     </span>
                                 </div>
                                 <h3 className="mt-4 text-lg font-black capitalize text-white">
-                                    {provider.channel}
+                                    {provider.channel === 'whatsapp' ? 'Direct WhatsApp' : provider.channel}
                                 </h3>
+                                <p className="mt-2 text-sm text-slate-300">{provider.channel === 'sms' ? 'SMS is currently disabled.' : provider.detail}</p>
                             </article>
                         )
                     })}
                 </section>
             )}
 
-            <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+            <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <div className="rounded-2xl border border-white/10 bg-[#08120c] p-5 sm:p-6">
                     <h3 className="text-xl font-black text-white">
                         {isClub
@@ -782,8 +787,17 @@ export function CommunicationsManager() {
                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#8cf566] px-4 py-3 text-sm font-black text-[#061008] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <MessagesSquare className="h-4 w-4" />
-                            Review message
+                            Review direct message
                         </button>
+                        {isClub && <>
+                            <a href={messageBody.trim() ? `https://wa.me/?text=${encodeURIComponent(messageBody.trim())}` : undefined}
+                                target="_blank" rel="noopener noreferrer" aria-disabled={!messageBody.trim()}
+                                onClick={(event) => { if (!messageBody.trim()) event.preventDefault() }}
+                                className={`inline-flex w-full justify-center rounded-xl border border-[#8cf566]/30 px-4 py-3 text-sm font-black text-[#8cf566] ${!messageBody.trim() ? 'pointer-events-none opacity-50' : ''}`}>
+                                Share to WhatsApp
+                            </a>
+                            <p className="text-xs leading-5 text-slate-400">Choose your existing group or contact in WhatsApp and press send. This manual share is not recorded as a delivered message in TournamentHQ.</p>
+                        </>}
                     </div>
                 </div>
 

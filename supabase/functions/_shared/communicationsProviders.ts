@@ -4,6 +4,7 @@ export type ProviderChannel =
     | 'whatsapp'
 
 export type ProviderName =
+    | 'meta'
     | 'resend'
     | 'twilio'
     | 'sent'
@@ -97,11 +98,8 @@ function providerForChannel(
     )
 }
 
-function dryRunEnabled(): boolean {
-    return envBoolean(
-        'THQ_COMMUNICATIONS_DRY_RUN',
-        false,
-    )
+export function channelDryRunEnabled(channel: ProviderChannel): boolean {
+    return envBoolean(`THQ_${channel.toUpperCase()}_DRY_RUN`, envBoolean('THQ_COMMUNICATIONS_DRY_RUN', false))
 }
 
 function safeSenderName(value: string): string {
@@ -641,12 +639,13 @@ function providerConfigured(
 }
 
 export function getProviderStatuses(): ProviderStatus[] {
-    const dryRun = dryRunEnabled()
 
     return (
         ['email', 'sms', 'whatsapp'] as const
     ).map((channel) => {
         const provider = providerForChannel(channel)
+        const dryRun = channelDryRunEnabled(channel)
+        if (channel === 'sms' && !envBoolean('THQ_SMS_ENABLED', true)) return { channel, provider, configured: false, dryRun: false, detail: 'SMS is currently disabled.' }
         const status = providerConfigured(
             channel,
             provider,
@@ -662,7 +661,7 @@ export function getProviderStatuses(): ProviderStatus[] {
                 status.configured,
             dryRun: channelDryRun,
             detail: dryRun
-                ? `${status.detail} Global dry-run is ON, so no external message will be sent.`
+                ? `${status.detail} Delivery is paused for this channel; no external message will be sent.`
                 : provider === 'mock'
                     ? `${status.detail} No external message will be sent.`
                     : status.detail,
@@ -683,7 +682,8 @@ export async function sendWithProvider(
         request.channel,
     )
 
-    if (dryRunEnabled()) {
+    if (request.channel === 'sms' && !envBoolean('THQ_SMS_ENABLED', true)) throw new Error('SMS is currently disabled.')
+    if (channelDryRunEnabled(request.channel)) {
         return {
             provider:
                 provider === 'unconfigured'

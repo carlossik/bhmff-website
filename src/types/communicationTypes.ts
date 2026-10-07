@@ -4,6 +4,7 @@ export type CommunicationChannel =
     | 'whatsapp'
 
 export type CommunicationProvider =
+    | 'meta'
     | 'resend'
     | 'twilio'
     | 'sent'
@@ -83,6 +84,8 @@ export type SendCommunicationInput = {
      * switch channels when the sender has chosen a method.
      */
     channels?: CommunicationChannel[]
+    whatsappConsentConfirmed?: boolean
+    whatsappTemplate?: { name: string; language: string; parameters: Record<string, string> }
     recipients: CommunicationRecipientDraft[]
     subject?: string | null
     body?: string | null

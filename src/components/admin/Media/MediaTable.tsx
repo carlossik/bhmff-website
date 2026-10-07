@@ -21,6 +21,7 @@ export type DbMedia = {
     thumbnail_alt: string | null;
     image_urls?: string[];
     featured: boolean;
+    homepage_featured?: boolean;
     fixture_id: string | null;
     published_at: string | null;
     created_at: string;
@@ -127,6 +128,7 @@ export default function MediaTable({
                                     )}
                                 </div>
 
+                                {item.homepage_featured && <p className="mt-2 text-sm font-bold text-lime-300">{item.status === 'published' ? 'Homepage featured video' : 'Homepage selection pending publication'}</p>}
                                 <h5 className="mt-4 text-xl font-black text-white">
                                     {item.title}
                                 </h5>

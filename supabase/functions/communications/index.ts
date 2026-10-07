@@ -1,16 +1,29 @@
-import {
-    createClient,
-    type SupabaseClient,
-    type User,
-} from 'npm:@supabase/supabase-js@^2'
+// @ts-ignore
+import { createClient } from 'npm:@supabase/supabase-js@^2'
+// @ts-ignore
+import { type SupabaseClient } from 'npm:@supabase/supabase-js@^2'
+// @ts-ignore
+import {type User} from 'npm:@supabase/supabase-js@^2'
 
 import {
     getProviderStatuses,
+    channelDryRunEnabled,
     getSelectedProvider,
     sendWithProvider,
     type ProviderChannel,
     type ProviderName,
+// @ts-ignore -- Deno requires explicit .ts paths; the React IDE configuration does not allow them.
 } from '../_shared/communicationsProviders.ts'
+
+// @ts-ignore -- Deno requires explicit .ts paths.
+import { loadWhatsAppConnection, connectionReady, whatsAppReadinessDetail, metaConfigured, metaEnvironment, metaVersion, connectWhatsApp, listWhatsAppTemplates, buildWhatsAppTemplate, renderWhatsAppTemplate, sendClubWhatsApp, type WhatsAppConnection, type WhatsAppTemplate, type WhatsAppSelection } from '../_shared/clubWhatsApp.ts'
+
+// Minimal module-local typing for editors using the React TypeScript project.
+// Runtime remains Deno; deno check verifies the full function and its imports.
+declare const Deno: {
+    env: { get(name: string): string | undefined }
+    serve(handler: (request: Request) => Response | Promise<Response>): unknown
+}
 
 type CommunicationAction =
     | 'provider_status'
@@ -18,6 +31,11 @@ type CommunicationAction =
     | 'recipient_directory'
     | 'history'
     | 'send'
+    | 'whatsapp_status'
+    | 'whatsapp_begin'
+    | 'whatsapp_connect'
+    | 'whatsapp_disconnect'
+    | 'whatsapp_templates'
 
 type MessageClass = 'service' | 'marketing'
 
@@ -238,9 +256,10 @@ function actionValue(value: string): CommunicationAction {
         value === 'list_templates' ||
         value === 'recipient_directory' ||
         value === 'history' ||
-        value === 'send'
+        value === 'send' ||
+        ['whatsapp_status', 'whatsapp_begin', 'whatsapp_connect', 'whatsapp_disconnect', 'whatsapp_templates'].includes(value)
     ) {
-        return value
+        return value as CommunicationAction
     }
 
     throw new CommunicationsError(
@@ -323,7 +342,10 @@ function preferredChannelOrder(
 
 function liveProviderAvailable(
     channel: ProviderChannel,
+    context: AccessContext,
+    connection: WhatsAppConnection | null,
 ): boolean {
+    if (channel === 'whatsapp' && context.organisationType === 'club') return connectionReady(connection)
     const provider = getSelectedProvider(channel)
     if (provider === 'mock' || provider === 'unconfigured') {
         return false
@@ -583,7 +605,7 @@ async function requireAccess(
         }
 
         canSendFinance = (financeRows ?? []).some(
-            (row) =>
+            (row: { role: string }) =>
                 row.role === 'treasurer' ||
                 row.role === 'finance_admin',
         )
@@ -800,9 +822,14 @@ async function handleProviderStatus(
     context: AccessContext,
 ): Promise<Response> {
     const settings = await loadSettings(context)
-
+    const connection = context.organisationType === 'club' ? await loadWhatsAppConnection(context.admin, context.organisationId) : null
+    const statuses = getProviderStatuses().map((item) => item.channel === 'whatsapp' && context.organisationType === 'club' ? {
+        ...item, provider: connection ? 'meta' as const : 'unconfigured' as const,
+        dryRun: channelDryRunEnabled('whatsapp'),
+        configured: connectionReady(connection), detail: whatsAppReadinessDetail(connection),
+    } : item)
     return jsonResponse({
-        providers: getProviderStatuses().map((item) => ({
+        providers: statuses.map((item) => ({
             ...item,
             configured:
                 item.configured &&
@@ -812,6 +839,49 @@ async function handleProviderStatus(
                 : `${item.detail} This channel is disabled for the organisation.`,
         })),
     })
+}
+
+async function handleWhatsAppAction(context: AccessContext, action: CommunicationAction, body: JsonRecord): Promise<Response> {
+    if (context.organisationType !== 'club') throw new CommunicationsError(403, 'Club WhatsApp connections are available to club organisations only.')
+    const connection = await loadWhatsAppConnection(context.admin, context.organisationId)
+    if (action === 'whatsapp_status') return jsonResponse({
+        setupAvailable: metaConfigured(), connected: Boolean(connection), ready: connectionReady(connection),
+        canManage: context.canSendGeneral,
+        sender: connection ? { displayPhoneNumber: connection.display_phone_number, verifiedName: connection.verified_name,
+            onboardingMode: connection.onboarding_mode, tokenExpiresAt: connection.token_expires_at } : null,
+    })
+    if (action === 'whatsapp_templates') {
+        if (!connectionReady(connection)) throw new CommunicationsError(400, 'Connect or reconnect the club WhatsApp account before selecting templates.')
+        return jsonResponse({ templates: await listWhatsAppTemplates(connection!) })
+    }
+    if (!context.canSendGeneral) throw new CommunicationsError(403, 'Organisation administrator access is required to manage the WhatsApp connection.')
+    if (action === 'whatsapp_disconnect') {
+        // Leave WABA subscriptions intact: other club numbers may share the same account.
+        const { error } = await context.admin.from('organisation_whatsapp_connections').delete().eq('organisation_id', context.organisationId)
+        if (error) throw new CommunicationsError(500, 'Unable to disconnect WhatsApp.')
+        await context.admin.from('whatsapp_onboarding_sessions').delete().eq('organisation_id', context.organisationId)
+        return jsonResponse({ disconnected: true })
+    }
+    if (!metaConfigured()) throw new CommunicationsError(400, 'The platform WhatsApp connection setup is not yet configured.')
+    if (action === 'whatsapp_begin') {
+        const mode = requiredString(body, 'onboardingMode')
+        if (mode !== 'business_app' && mode !== 'platform') throw new CommunicationsError(400, 'Select a valid WhatsApp account type.')
+        const { error: cleanupError } = await context.admin.from('whatsapp_onboarding_sessions').delete()
+            .eq('organisation_id', context.organisationId).eq('user_id', context.user.id).lt('expires_at', new Date().toISOString())
+        if (cleanupError) throw new CommunicationsError(500, 'Unable to start the WhatsApp connection.')
+        const { data, error } = await context.admin.from('whatsapp_onboarding_sessions').insert({
+            organisation_id: context.organisationId, user_id: context.user.id, onboarding_mode: mode,
+        }).select('id').single()
+        if (error || !data) throw new CommunicationsError(500, 'Unable to start the WhatsApp connection.')
+        return jsonResponse({ sessionId: data.id, appId: metaEnvironment('THQ_META_APP_ID'),
+            configId: mode === 'business_app' ? Deno.env.get('THQ_META_COEXISTENCE_CONFIG_ID')?.trim() || metaEnvironment('THQ_META_SIGNUP_CONFIG_ID') : metaEnvironment('THQ_META_SIGNUP_CONFIG_ID'),
+            graphVersion: metaVersion() })
+    }
+    await connectWhatsApp(context.admin, context.organisationId, context.user.id, {
+        code: requiredString(body, 'code'), wabaId: requiredString(body, 'wabaId'),
+        phoneNumberId: requiredString(body, 'phoneNumberId'), sessionId: requiredString(body, 'sessionId'),
+    })
+    return jsonResponse({ connected: true })
 }
 
 async function handleTemplates(
@@ -926,8 +996,8 @@ async function handleRecipientDirectory(
     }
 
     const seasonIds = (seasonData ?? [])
-        .map((row) => scalarVariable((row as JsonRecord).id))
-        .filter((id) => id.length > 0)
+        .map((row: JsonRecord) => scalarVariable((row as JsonRecord).id))
+        .filter((id: string | any[]) => id.length > 0)
 
     if (seasonIds.length === 0) {
         return jsonResponse({
@@ -1149,7 +1219,7 @@ async function syncPendingResendDeliveries(
         return
     }
 
-    await Promise.all((data ?? []).map(async (row) => {
+    await Promise.all((data ?? []).map(async (row: unknown) => {
         const delivery = row as unknown as JsonRecord
         const deliveryId = scalarVariable(delivery.id)
         const providerMessageId =
@@ -1271,18 +1341,18 @@ async function handleHistory(
         )
     }
 
-    const history = (data ?? []).map((row) => {
+    const history = (data ?? []).map((row: unknown) => {
         const record = row as unknown as JsonRecord
         const message = isRecord(record.communication_messages)
             ? record.communication_messages
             : Array.isArray(record.communication_messages) &&
-                isRecord(record.communication_messages[0])
+            isRecord(record.communication_messages[0])
                 ? record.communication_messages[0]
                 : {}
         const recipient = isRecord(record.communication_recipients)
             ? record.communication_recipients
             : Array.isArray(record.communication_recipients) &&
-                isRecord(record.communication_recipients[0])
+            isRecord(record.communication_recipients[0])
                 ? record.communication_recipients[0]
                 : {}
 
@@ -1366,7 +1436,7 @@ async function insertDelivery(
         throw new CommunicationsError(
             500,
             error?.message ??
-                'Unable to create communication delivery audit record.',
+            'Unable to create communication delivery audit record.',
         )
     }
 
@@ -1482,6 +1552,28 @@ async function handleSend(
         template?.body_template ??
         ''
 
+    const whatsappConnection = context.organisationType === 'club'
+        ? await loadWhatsAppConnection(context.admin, context.organisationId) : null
+    const scopedProvider = (channel: ProviderChannel): ProviderName => channel === 'whatsapp' && context.organisationType === 'club'
+        ? whatsappConnection ? 'meta' : 'unconfigured' : getSelectedProvider(channel)
+    let whatsappTemplate: WhatsAppTemplate | null = null
+    let whatsappSelection: WhatsAppSelection | null = null
+    const wantsClubWhatsApp = context.organisationType === 'club' && explicitChannels.includes('whatsapp')
+    // Club-owned API messages require an explicit review. Auto-routing never sends a different template silently.
+    if (wantsClubWhatsApp) {
+        if (explicitChannels.length !== 1) throw new CommunicationsError(400, 'Send the reviewed WhatsApp template separately from other delivery channels.')
+        if (!connectionReady(whatsappConnection)) throw new CommunicationsError(400, 'Connect or reconnect the club WhatsApp account before sending.')
+        if (body.whatsappConsentConfirmed !== true) throw new CommunicationsError(400, 'Confirm that recipients have agreed to receive these WhatsApp service messages.')
+        if (!isRecord(body.whatsappTemplate) || !isRecord(body.whatsappTemplate.parameters)) throw new CommunicationsError(400, 'Select an approved WhatsApp service template.')
+        whatsappSelection = {
+            name: requiredString(body.whatsappTemplate, 'name'), language: requiredString(body.whatsappTemplate, 'language'),
+            parameters: body.whatsappTemplate.parameters as Record<string, string>,
+        }
+        const approved = await listWhatsAppTemplates(whatsappConnection!)
+        whatsappTemplate = approved.find((item) => item.name === whatsappSelection!.name && item.language === whatsappSelection!.language) ?? null
+        if (!whatsappTemplate) throw new CommunicationsError(400, 'This WhatsApp template is no longer approved or supported. Refresh the template list.')
+        buildWhatsAppTemplate(whatsappTemplate, whatsappSelection.parameters)
+    }
     const now = new Date().toISOString()
 
     const {
@@ -1497,7 +1589,7 @@ async function handleSend(
             source_type: sourceType,
             source_id: sourceId,
             subject_template: baseSubject,
-            body_template: baseBody,
+            body_template: whatsappTemplate && whatsappSelection ? renderWhatsAppTemplate(whatsappTemplate, whatsappSelection.parameters) : baseBody,
             status: 'processing',
             created_by: context.user.id,
             updated_at: now,
@@ -1509,7 +1601,7 @@ async function handleSend(
         throw new CommunicationsError(
             500,
             messageError?.message ??
-                'Unable to create communication audit record.',
+            'Unable to create communication audit record.',
         )
     }
 
@@ -1591,7 +1683,8 @@ async function handleSend(
         const channels = routingMode === 'auto'
             ? preferredChannelOrder(settings).filter((channel) => {
                 if (!channelEnabled(settings, channel)) return false
-                if (!liveProviderAvailable(channel)) return false
+                if (channel === 'whatsapp' && context.organisationType === 'club') return false
+                if (!liveProviderAvailable(channel, context, whatsappConnection)) return false
                 return Boolean(
                     targetForChannel(
                         channel,
@@ -1613,7 +1706,7 @@ async function handleSend(
                     : phone
                         ? 'sms'
                         : 'email'
-            const provider = getSelectedProvider(fallbackChannel)
+            const provider = scopedProvider(fallbackChannel)
 
             await insertDelivery(context, {
                 messageId,
@@ -1636,7 +1729,7 @@ async function handleSend(
             }
 
             requestedDeliveries += 1
-            const provider = getSelectedProvider(channel)
+            const provider = scopedProvider(channel)
             const target = targetForChannel(
                 channel,
                 recipient,
@@ -1676,7 +1769,7 @@ async function handleSend(
 
             if (
                 routingMode === 'auto' &&
-                !liveProviderAvailable(channel)
+                !liveProviderAvailable(channel, context, whatsappConnection)
             ) {
                 continue
             }
@@ -1693,11 +1786,27 @@ async function handleSend(
             )
 
             try {
-                const providerResult =
-                    await sendWithProvider({
+                if (provider === 'meta') {
+                    if (!whatsappConnection || !whatsappTemplate || !whatsappSelection) throw new Error('Review the club WhatsApp template before sending.')
+                    // Respect stored service opt-outs even when a caller confirms consent.
+                    const { data: optedOut, error: consentError } = await context.admin.from('communication_contacts').select('id')
+                        .eq('organisation_id', context.organisationId).eq('operational_whatsapp_enabled', false)
+                        .or(`whatsapp_e164.eq.${whatsappPhone},phone_e164.eq.${whatsappPhone}`)
+                    if (consentError) throw new Error('Unable to verify WhatsApp contact preferences.')
+                    if (optedOut?.length) throw new Error('This contact has opted out of WhatsApp service messages.')
+                    const { error: snapshotError } = await context.admin.from('communication_deliveries').update({
+                        whatsapp_phone_number_id: whatsappConnection.phone_number_id,
+                        whatsapp_template_name: whatsappTemplate.name, whatsapp_template_language: whatsappTemplate.language,
+                        whatsapp_consent_confirmed_by: context.user.id, whatsapp_consent_confirmed_at: now,
+                    }).eq('id', deliveryId).eq('organisation_id', context.organisationId)
+                    if (snapshotError) throw new Error('Unable to record the WhatsApp sender and consent confirmation.')
+                }
+                const providerResult = provider === 'meta'
+                    ? await sendClubWhatsApp(whatsappConnection!, whatsappPhone!, whatsappTemplate!, whatsappSelection!.parameters, deliveryId)
+                    : await sendWithProvider({
                         channel,
                         recipientName:
-                            recipient.recipientName,
+                        recipient.recipientName,
                         email:
                             channel === 'email'
                                 ? recipient.email
@@ -1714,7 +1823,7 @@ async function handleSend(
                             settings.sender_name?.trim() ||
                             context.organisationName,
                         replyToEmail:
-                            settings.reply_to_email,
+                        settings.reply_to_email,
                         providerTemplateRef:
                             providerTemplateRef(
                                 template,
@@ -1724,16 +1833,21 @@ async function handleSend(
                         variables,
                     })
 
-                await updateDelivery(
+                if (provider === 'meta') {
+                    const { error: receiptError } = await context.admin.rpc('record_meta_whatsapp_submission', {
+                        p_delivery_id: deliveryId, p_organisation_id: context.organisationId, p_message_id: providerResult.providerMessageId,
+                    })
+                    if (receiptError) throw new Error('Meta accepted the message but its receipt could not be saved. Check history before retrying.')
+                } else await updateDelivery(
                     context,
                     deliveryId,
                     {
                         provider: providerResult.provider,
                         status: providerResult.status,
                         provider_message_id:
-                            providerResult.providerMessageId,
+                        providerResult.providerMessageId,
                         provider_request_id:
-                            providerResult.providerRequestId,
+                        providerResult.providerRequestId,
                         sent_at:
                             providerResult.status === 'sent'
                                 ? new Date().toISOString()
@@ -1750,7 +1864,12 @@ async function handleSend(
                         ? sendError.message
                         : 'The provider rejected this message.'
 
-                await updateDelivery(
+                if (provider === 'meta') {
+                    // A signed callback may have already advanced this row while the HTTP response was in flight.
+                    await context.admin.from('communication_deliveries').update({ status: 'failed',
+                        error_message: messageText, failed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+                    }).eq('id', deliveryId).eq('organisation_id', context.organisationId).eq('status', 'queued')
+                } else await updateDelivery(
                     context,
                     deliveryId,
                     {
@@ -1803,7 +1922,7 @@ function providerResultProviderPlaceholder(
     return provider
 }
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request) => {
     if (request.method === 'OPTIONS') {
         return new Response(null, {
             status: 204,
@@ -1839,14 +1958,18 @@ Deno.serve(async (request) => {
             )
         }
 
+        if (action.startsWith('whatsapp_')) {
+            return await handleWhatsAppAction(context, action, body)
+        }
+
         if (action === 'provider_status') {
-            return handleProviderStatus(context)
+            return await handleProviderStatus(context)
         }
         if (action === 'list_templates') {
-            return handleTemplates(context)
+            return await handleTemplates(context)
         }
         if (action === 'recipient_directory') {
-            return handleRecipientDirectory(context)
+            return await handleRecipientDirectory(context)
         }
         if (action === 'history') {
             if (!context.canSendGeneral) {
@@ -1855,9 +1978,9 @@ Deno.serve(async (request) => {
                     'Organisation administrator access is required to view the communications history.',
                 )
             }
-            return handleHistory(context, body)
+            return await handleHistory(context, body)
         }
-        return handleSend(context, body)
+        return await handleSend(context, body)
     } catch (error) {
         console.error(
             'TournamentHQ Communications request failed:',

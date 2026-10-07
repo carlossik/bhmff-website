@@ -12,6 +12,8 @@ import {
     X,
 } from 'lucide-react'
 
+import { whatsAppConnectionService, whatsAppTemplateFields, previewWhatsAppTemplate, type WhatsAppTemplate } from '../../../services/whatsAppConnectionService'
+import { loadWhatsAppFixtures, fixtureUpdateTemplate, fixtureParameters, type WhatsAppFixture } from '../../../services/whatsAppFixtureService'
 import { communicationsService } from '../../../services/communicationsService'
 import type {
     CommunicationChannel,
@@ -136,14 +138,13 @@ function coverageCount(
     ).length
 }
 
-function isLiveProvider(
+function isSelectableProvider(
     provider: CommunicationProviderStatus | undefined,
 ): boolean {
     return Boolean(
         provider?.configured &&
-        !provider.dryRun &&
-        provider.provider !== 'mock' &&
-        provider.provider !== 'unconfigured',
+        provider.provider !== 'unconfigured' &&
+        (provider.dryRun || provider.provider !== 'mock'),
     )
 }
 
@@ -184,9 +185,42 @@ export function CommunicationComposerModal({
     const [sending, setSending] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
+    const [whatsAppFixtures, setWhatsAppFixtures] = useState<WhatsAppFixture[]>([])
+    const [whatsAppFixtureId, setWhatsAppFixtureId] = useState('')
+    const [whatsAppTemplates, setWhatsAppTemplates] = useState<WhatsAppTemplate[]>([])
+    const [whatsAppTemplateKey, setWhatsAppTemplateKey] = useState('')
+    const [whatsAppParameters, setWhatsAppParameters] = useState<Record<string, string>>({})
+    const [whatsAppConsent, setWhatsAppConsent] = useState(false)
+    const [whatsAppLoading, setWhatsAppLoading] = useState(false)
+    const selectedWhatsAppTemplate = whatsAppTemplates.find((item) => `${item.name}|${item.language}` === whatsAppTemplateKey) ?? null
+    const usesClubWhatsApp = selectedChannel === 'whatsapp' && providers.some((item) => item.channel === 'whatsapp' && item.provider === 'meta')
+
+    useEffect(() => {
+        if (!open || !usesClubWhatsApp) return
+        let active = true
+        setWhatsAppLoading(true)
+        setWhatsAppTemplates([])
+        setWhatsAppTemplateKey('')
+        setWhatsAppParameters({})
+        setWhatsAppConsent(false)
+        setWhatsAppFixtures([])
+        setWhatsAppFixtureId('')
+        void Promise.all([whatsAppConnectionService.templates(organisationId), loadWhatsAppFixtures(organisationId)]).then(([items, fixtures]) => {
+            if (active) {
+                setWhatsAppTemplates(items)
+                const template = fixtureUpdateTemplate(items)
+                setWhatsAppTemplateKey(template ? `${template.name}|${template.language}` : '')
+                setWhatsAppFixtures(fixtures)
+            }
+        }).catch((caught) => {
+            if (active) setError(caught instanceof Error ? caught.message : 'Unable to load approved WhatsApp templates.')
+        }).finally(() => { if (active) setWhatsAppLoading(false) })
+        return () => { active = false }
+    }, [open, organisationId, usesClubWhatsApp])
 
     useEffect(() => {
         if (!open) return
+        let active = true
 
         setTemplateCode(defaultTemplateCode ?? '')
         setMessageBody(initialMessageBody)
@@ -203,6 +237,7 @@ export function CommunicationComposerModal({
                 organisationId,
             ),
         ]).then(([templateResult, providerResult]) => {
+            if (!active) return
             if (templateResult.status === 'fulfilled') {
                 setTemplates(templateResult.value)
             } else {
@@ -213,10 +248,12 @@ export function CommunicationComposerModal({
                 setProviders(providerResult.value)
             } else {
                 setProviders([])
+                setError(providerResult.reason instanceof Error ? providerResult.reason.message : 'Unable to check delivery channels. Refresh Communications and try again.')
             }
         }).finally(() => {
-            setLoading(false)
+            if (active) setLoading(false)
         })
+        return () => { active = false }
     }, [
         defaultTemplateCode,
         initialMessageBody,
@@ -252,12 +289,14 @@ export function CommunicationComposerModal({
         [messageBody, organisationName, recipients],
     )
 
-    const previewSubject = renderTemplate(
+    const previewSubject = usesClubWhatsApp ? null : renderTemplate(
         selectedTemplate?.subjectTemplate ?? null,
         previewVariables,
     )
 
-    const previewBody = selectedTemplate
+    const previewBody = usesClubWhatsApp
+        ? selectedWhatsAppTemplate ? previewWhatsAppTemplate(selectedWhatsAppTemplate, whatsAppParameters) : 'Select a fixture to preview its update.'
+        : selectedTemplate
         ? renderTemplate(
             selectedTemplate.bodyTemplate,
             previewVariables,
@@ -280,16 +319,16 @@ export function CommunicationComposerModal({
             recipients,
         )
 
-        if (covered === 0) return false
+        if (channel === 'sms' || covered === 0) return false
 
         const provider = providerFor(channel)
 
         // Email is already the proven live TournamentHQ channel. If the
         // status lookup is temporarily unavailable, keep Email usable but
-        // do not expose SMS/WhatsApp until their provider is confirmed live.
+        // do not expose SMS/WhatsApp until their provider is configured.
         if (!provider) return channel === 'email'
 
-        return isLiveProvider(provider)
+        return isSelectableProvider(provider)
     }
 
     function channelStatusText(
@@ -301,6 +340,7 @@ export function CommunicationComposerModal({
         )
         const provider = providerFor(channel)
         const meta = channelMeta[channel]
+        if (channel === 'sms') return 'Currently unavailable'
 
         if (covered === 0) {
             return recipients.length === 1
@@ -312,9 +352,11 @@ export function CommunicationComposerModal({
             return 'Not available yet'
         }
 
-        if (provider && !isLiveProvider(provider)) {
-            return 'Not available yet'
+        if (provider && !isSelectableProvider(provider)) {
+            return provider.detail || 'Not available yet'
         }
+
+        if (provider?.dryRun) return `Delivery paused · ${covered}/${recipients.length} recipients`
 
         if (recipients.length === 1) {
             return `${meta.contactLabel} available`
@@ -348,7 +390,7 @@ export function CommunicationComposerModal({
         const selectedProvider = providerFor(selectedChannel)
         if (
             selectedProvider &&
-            !isLiveProvider(selectedProvider)
+            !isSelectableProvider(selectedProvider)
         ) {
             setError(
                 `${channelMeta[selectedChannel].label} is not available yet. Choose another method.`,
@@ -356,7 +398,7 @@ export function CommunicationComposerModal({
             return
         }
 
-        if (isGeneralMessage && !messageBody.trim()) {
+        if (!usesClubWhatsApp && isGeneralMessage && !messageBody.trim()) {
             setError('Enter the message you want to send.')
             return
         }
@@ -370,6 +412,13 @@ export function CommunicationComposerModal({
             return
         }
 
+        if (usesClubWhatsApp) {
+            if (!selectedWhatsAppTemplate || whatsAppLoading) { setError('Select a fixture to preview its update.'); return }
+            if (!whatsAppConsent) { setError('Confirm that recipients have agreed to receive WhatsApp service messages.'); return }
+            if (whatsAppTemplateFields(selectedWhatsAppTemplate).some((field) => !whatsAppParameters[field]?.trim())) {
+                setError('This fixture needs both team names, a date, kickoff time and venue. Update its details in Fixtures, then reopen this message.'); return
+            }
+        }
         setSending(true)
         setError(null)
         setSuccess(null)
@@ -384,6 +433,7 @@ export function CommunicationComposerModal({
                 sourceId,
                 routingMode: 'explicit',
                 channels: [selectedChannel],
+                ...(usesClubWhatsApp && selectedWhatsAppTemplate ? { whatsappConsentConfirmed: whatsAppConsent, whatsappTemplate: { name: selectedWhatsAppTemplate.name, language: selectedWhatsAppTemplate.language, parameters: whatsAppParameters } } : {}),
                 recipients: recipients.map((recipient) => ({
                     ...recipient,
                     variables: {
@@ -403,7 +453,9 @@ export function CommunicationComposerModal({
                 result.skipped + result.failed
 
             setSuccess(
-                unsuccessful > 0
+                providerFor(selectedChannel)?.dryRun
+                    ? `Workflow checked: ${result.accepted} accepted, ${result.skipped} skipped, ${result.failed} failed. No message was delivered. Check the test entry in Message history.`
+                    : unsuccessful > 0
                     ? `${result.accepted} message${result.accepted === 1 ? '' : 's'} submitted by ${channelMeta[selectedChannel].label}. ${unsuccessful} recipient${unsuccessful === 1 ? '' : 's'} could not be sent. Delivery status will update in Message history.`
                     : `${result.accepted} message${result.accepted === 1 ? '' : 's'} submitted by ${channelMeta[selectedChannel].label}. Delivery status will update in Message history.`,
             )
@@ -478,7 +530,7 @@ export function CommunicationComposerModal({
                         </div>
                     ) : (
                         <>
-                            {!isGeneralMessage && (
+                            {!usesClubWhatsApp && !isGeneralMessage && (
                                 <section>
                                     <label className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
                                         Message template
@@ -506,7 +558,7 @@ export function CommunicationComposerModal({
                                 </section>
                             )}
 
-                            {isGeneralMessage && (
+                            {!usesClubWhatsApp && isGeneralMessage && (
                                 <section>
                                     <label className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
                                         Message
@@ -524,6 +576,35 @@ export function CommunicationComposerModal({
                                 </section>
                             )}
 
+                            {usesClubWhatsApp && <section className="space-y-3">
+                                <p className="text-sm text-slate-300">{providerFor('whatsapp')?.detail}</p>
+                                <label className="block text-sm font-bold text-slate-300">Message category
+                                    <select value="fixture_update" disabled className="mt-2 w-full rounded-xl border border-white/10 bg-[#0b1710] px-4 py-3 text-white">
+                                        <option value="fixture_update">Fixture update</option>
+                                    </select>
+                                </label>
+                                <p className="text-xs text-slate-400">Choose the updated fixture. Its match details will populate the message automatically. Other categories will become available when configured.</p>
+                                <label className="block text-sm font-bold text-slate-300">Fixture
+                                    <select value={whatsAppFixtureId} disabled={whatsAppLoading || sending || !selectedWhatsAppTemplate}
+                                        onChange={(event) => {
+                                            const fixture = whatsAppFixtures.find(item => item.id === event.target.value)
+                                            setWhatsAppFixtureId(event.target.value)
+                                            setWhatsAppParameters(fixture ? fixtureParameters(fixture) : {})
+                                            setWhatsAppConsent(false)
+                                            setError(null)
+                                        }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#0b1710] px-4 py-3 text-white">
+                                        <option value="">{whatsAppLoading ? 'Loading fixtures…' : 'Select a fixture'}</option>
+                                        {whatsAppFixtures.map(fixture => <option key={fixture.id} value={fixture.id}>{fixture.date} · {fixture.match || 'Team details missing'} · {fixture.kickoff || 'Kickoff missing'}</option>)}
+                                    </select>
+                                </label>
+                                {!whatsAppLoading && !selectedWhatsAppTemplate && <p className="text-sm text-amber-200">Fixture updates are not configured for this sender. Ask your administrator to configure the approved fixture update message.</p>}
+                                {!whatsAppLoading && selectedWhatsAppTemplate && !whatsAppFixtures.length && <p className="text-sm text-amber-200">No scheduled or confirmed club fixtures were found. Add a fixture in Fixtures first, then reopen this message.</p>}
+                                <label className="flex items-start gap-3 text-sm text-slate-300">
+                                    <input type="checkbox" checked={whatsAppConsent} disabled={sending} onChange={(event) => setWhatsAppConsent(event.target.checked)} className="mt-1" />
+                                    I confirm these recipients have agreed to receive WhatsApp service messages from this club.
+                                </label>
+                                <p className="text-xs text-slate-400">The fixture update shown below is sent to every selected recipient.</p>
+                            </section>}
                             <section>
                                 <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
                                     Send by
@@ -531,6 +612,7 @@ export function CommunicationComposerModal({
                                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                                     {channelOrder.map((channel) => {
                                         const meta = channelMeta[channel]
+        if (channel === 'sms') return 'Currently unavailable'
                                         const Icon = meta.icon
                                         const selectable =
                                             channelIsSelectable(channel)
@@ -579,7 +661,7 @@ export function CommunicationComposerModal({
                                 )}
                             </section>
 
-                            {(selectedTemplate || isGeneralMessage) && (
+                            {(usesClubWhatsApp || selectedTemplate || isGeneralMessage) && (
                                 <section className="rounded-2xl border border-white/10 bg-black/20 p-4">
                                     <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
                                         Preview · first recipient
@@ -613,11 +695,12 @@ export function CommunicationComposerModal({
                         disabled={
                             loading ||
                             sending ||
+                            (usesClubWhatsApp && (whatsAppLoading || !selectedWhatsAppTemplate || !whatsAppFixtureId || !whatsAppConsent)) ||
                             !selectedChannel ||
                             selectedCoverage === 0 ||
                             (
                                 Boolean(providerFor(selectedChannel)) &&
-                                !isLiveProvider(
+                                !isSelectableProvider(
                                     providerFor(selectedChannel),
                                 )
                             )

@@ -15,7 +15,7 @@ export function safeMediaUrl(value: string): boolean {
 export function directVideoUrl(value: string): boolean {
     try { return /\.mp4$/i.test(new URL(value).pathname) && safeMediaUrl(value) } catch { return false }
 }
-export function selectFeaturedMatch<T extends { category?: string | null; featured?: boolean | null; published_at?: string | null; id: string }>(items: T[]): T | null {
-    return items.filter(item => item.featured && item.category === 'Full Match Replay')
+export function selectFeaturedMatch<T extends { category?: string | null; homepage_featured?: boolean | null; status?: string | null; published_at?: string | null; id: string }>(items: T[]): T | null {
+    return items.filter(item => item.homepage_featured && item.category !== 'Photo Gallery' && (!item.status || item.status === 'published'))
         .sort((a,b) => (b.published_at || '').localeCompare(a.published_at || '') || a.id.localeCompare(b.id))[0] || null
 }

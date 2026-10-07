@@ -18,6 +18,7 @@ export type MediaFormState = {
     thumbnailUrl: string;
     thumbnailAlt: string;
     featured: boolean;
+    homepageFeatured: boolean;
     publishedAt: string;
 };
 
@@ -42,6 +43,8 @@ export function validateMedia(
     if (!form.slug.trim()) {
         return "Media slug is required.";
     }
+
+    if (form.homepageFeatured && form.category === 'Photo Gallery') return 'Choose a video item for the homepage featured video.';
 
     for (const file of form.files) { const error = validateMediaFile(file); if (error) return error; }
     if (form.files.length > 20) return 'Choose no more than 20 files per save.';
