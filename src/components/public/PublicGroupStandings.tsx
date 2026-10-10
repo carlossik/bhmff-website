@@ -180,7 +180,7 @@ export function PublicGroupStandings({
                         `),
 
                     supabase
-                        .from('results')
+                        .from('public_results')
                         .select(`
                             home_score,
                             away_score,

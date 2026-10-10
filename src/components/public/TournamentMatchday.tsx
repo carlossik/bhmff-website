@@ -61,7 +61,7 @@ export function TournamentMatchday() {
                 }).filter(fixture => fixture.kickoff_time && londonDay(fixture.kickoff_time) === londonDay(requestedAt))
                 let todayResults: MatchdayResult[] = []
                 if (todayFixtures.length) {
-                    const resultResponse = await supabase.from('results')
+                    const resultResponse = await supabase.from('public_results')
                         .select('fixture_id, home_score, away_score, published').eq('published', true)
                         .in('fixture_id', todayFixtures.map(fixture => fixture.id))
                     if (resultResponse.error) throw resultResponse.error

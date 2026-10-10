@@ -241,7 +241,7 @@ function CompetitionPublicHomePage({
                     }),
 
                 supabase
-                    .from('results')
+                    .from('public_results')
                     .select(`
                         id,
                         fixture_id,
@@ -527,7 +527,7 @@ function CompetitionPublicHomePage({
                 data: goalsData,
                 error: goalsError,
             } = await supabase
-                .from('goals')
+                .from('public_goals')
                 .select(`
                     id,
                     fixture_id,
