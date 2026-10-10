@@ -41,6 +41,13 @@ export function EnterpriseModal({
     const dialogRef =
         useRef<HTMLElement | null>(null)
 
+    // Keep the keyboard handler current without restarting the modal's
+    // focus/scroll lifecycle on every controlled form update.
+    const closeStateRef = useRef({ onClose, closeDisabled })
+    useEffect(() => {
+        closeStateRef.current = { onClose, closeDisabled }
+    }, [onClose, closeDisabled])
+
     useEffect(() => {
         const html = document.documentElement
         const body = document.body
@@ -61,7 +68,9 @@ export function EnterpriseModal({
                 ? document.activeElement
                 : null
 
-        window.requestAnimationFrame(() => {
+        const focusFrame = window.requestAnimationFrame(() => {
+            // React autofocus, or an early tap, may already have focused a field.
+            if (dialogRef.current?.contains(document.activeElement)) return
             const firstFocusable =
                 dialogRef.current?.querySelector<HTMLElement>(
                     focusableSelector,
@@ -70,9 +79,9 @@ export function EnterpriseModal({
         })
 
         function handleKeyDown(event: KeyboardEvent) {
-            if (event.key === 'Escape' && !closeDisabled) {
+            if (event.key === 'Escape' && !closeStateRef.current.closeDisabled) {
                 event.preventDefault()
-                onClose()
+                closeStateRef.current.onClose()
                 return
             }
 
@@ -122,13 +131,14 @@ export function EnterpriseModal({
         window.addEventListener('keydown', handleKeyDown)
 
         return () => {
+            window.cancelAnimationFrame(focusFrame)
             window.removeEventListener('keydown', handleKeyDown)
             html.style.overflow = previousHtmlOverflow
             body.style.overflow = previousBodyOverflow
             body.style.paddingRight = previousBodyPaddingRight
-            previouslyFocused?.focus()
+            if (previouslyFocused?.isConnected) previouslyFocused.focus()
         }
-    }, [closeDisabled, onClose])
+    }, [])
 
     return (
         <div
