@@ -241,7 +241,7 @@ function CompetitionPublicHomePage({
                     }),
 
                 supabase
-                    .from('results')
+                    .from('public_results')
                     .select(`
                         id,
                         fixture_id,
