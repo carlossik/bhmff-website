@@ -403,9 +403,11 @@ export function ClubPublicHomePage({
         return [...totals.entries()]
             .sort((left, right) => right[1] - left[1])
             .slice(0, 5)
-            .map(([id, count]) => [squadNames.get(id) ??
+            .map(([id, count]) => [
                 scopedGoals.find(goal => goal.squadMemberId === id)?.playerName ??
-                'Player', count] as const)
+                'Player (name hidden)',
+                count,
+            ] as const)
     }, [clubData.squad, scopedGoals])
 
     const teamSummaries = useMemo(
