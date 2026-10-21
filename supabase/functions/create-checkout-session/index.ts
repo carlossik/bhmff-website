@@ -1,3 +1,4 @@
+// @ts-ignore
 import Stripe from 'npm:stripe@^22.0.0'
 
 import {
@@ -5,7 +6,7 @@ import {
     errorResponse,
     HttpError,
     jsonResponse,
-} from '../_shared/http.ts'
+}  from '../_shared/http.ts'
 import {
     requireBillingAdmin,
 } from '../_shared/auth.ts'
@@ -90,6 +91,7 @@ function parseRequest(
 function getRequiredEnvironment(
     name: string,
 ): string {
+    // @ts-ignore
     const value = Deno.env.get(name)?.trim()
 
     if (!value) {
@@ -141,6 +143,11 @@ function isLocalDevelopmentOrigin(
 function getAppUrl(
     request: Request,
 ): string {
+    // @ts-ignore
+
+
+    // @ts-ignore
+    // @ts-ignore
     const configuredValue =
         Deno.env.get(
             'TOURNAMENTHQ_APP_URL',
@@ -223,7 +230,8 @@ function isCurrentSubscription(
     )
 }
 
-Deno.serve(async (request) => {
+// @ts-ignore
+Deno.serve(async (request: Request) => {
     if (request.method === 'OPTIONS') {
         return new Response('ok', {
             headers: corsHeaders,
@@ -254,7 +262,7 @@ Deno.serve(async (request) => {
             error: organisationError,
         } = await admin
             .from('organisations')
-            .select('id, name')
+            .select('id, name, pilot_expires_at')
             .eq('id', body.organisationId)
             .maybeSingle()
 
@@ -273,6 +281,10 @@ Deno.serve(async (request) => {
                 404,
                 'TournamentHQ organisation not found.',
             )
+        }
+
+        if ((organisationData as {pilot_expires_at?:string}).pilot_expires_at && new Date((organisationData as {pilot_expires_at:string}).pilot_expires_at).getTime() > Date.now()) {
+            throw new HttpError(409, 'Your free season pass is already active. No payment is needed before it ends.')
         }
 
         const {

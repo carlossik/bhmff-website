@@ -32,6 +32,7 @@ export interface ClubSquadMember {
         first_name: string
         last_name: string
         photo_url: string | null
+        public_name_enabled: boolean
         email: string | null
         phone: string | null
         active: boolean
@@ -42,6 +43,7 @@ export interface ClubSquadMemberFormValues {
     first_name: string
     last_name: string
     photo_url: string
+    public_name_enabled: boolean
     email: string
     phone: string
     squad_number: string

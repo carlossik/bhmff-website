@@ -24,6 +24,7 @@ type Result = {
     away_score: number
     player_of_the_match: string | null
     match_report: string | null
+    public_names_enabled: boolean
     published: boolean
 }
 
@@ -39,6 +40,7 @@ export function ClubResultsManager() {
     const [pom, setPom] = useState('')
     const [report, setReport] = useState('')
     const [published, setPublished] = useState(false)
+    const [publicNames,setPublicNames] = useState(false)
     const [saving, setSaving] = useState(false)
     const [msg, setMsg] = useState('')
 
@@ -49,6 +51,7 @@ export function ClubResultsManager() {
         setPom('')
         setReport('')
         setPublished(false)
+        setPublicNames(false)
     }, [])
 
     const load = useCallback(
@@ -72,7 +75,7 @@ export function ClubResultsManager() {
                 supabase
                     .from('club_results')
                     .select(
-                        'id,fixture_id,home_score,away_score,player_of_the_match,match_report,published',
+                        'id,fixture_id,home_score,away_score,player_of_the_match,match_report,published,public_names_enabled',
                     )
                     .eq('organisation_id', currentOrganisation.id)
                     .eq('season_id', id),
@@ -129,6 +132,7 @@ export function ClubResultsManager() {
         setPom(existing?.player_of_the_match ?? '')
         setReport(existing?.match_report ?? '')
         setPublished(existing?.published ?? false)
+        setPublicNames(existing?.public_names_enabled === true)
         setMsg(existing ? 'Editing recorded result.' : '')
     }
 
@@ -162,6 +166,7 @@ export function ClubResultsManager() {
             player_of_the_match: pom.trim() || null,
             match_report: report.trim() || null,
             published,
+            public_names_enabled: publicNames,
             updated_at: new Date().toISOString(),
         }
 
@@ -267,6 +272,7 @@ export function ClubResultsManager() {
                 </select>
             </div>
 
+            <label className="my-3 flex items-start gap-3 text-sm"><input type="checkbox" checked={publicNames} onChange={e=>setPublicNames(e.target.checked)}/><span>Allow player-of-the-match name publicly. Confirm permission before enabling. Hidden by default.</span></label>
             {msg && (
                 <p className="rounded-xl border border-[var(--organisation-border)] p-3">
                     {msg}

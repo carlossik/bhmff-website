@@ -1,3 +1,4 @@
+import { communicationsService } from './communicationsService'
 import { supabase } from '../lib/supabaseClient'
 import type { WhatsAppTemplate } from './whatsAppConnectionService'
 
@@ -11,7 +12,11 @@ export function fixtureUpdateTemplate(templates: WhatsAppTemplate[]): WhatsAppTe
 export function fixtureParameters(fixture: WhatsAppFixture): Record<string, string> {
     return { 'body:1': fixture.match, 'body:2': fixture.date, 'body:3': fixture.kickoff, 'body:4': fixture.venue }
 }
-export async function loadWhatsAppFixtures(organisationId: string): Promise<WhatsAppFixture[]> {
+export async function loadWhatsAppFixtures(organisationId: string, competitionId?: string): Promise<WhatsAppFixture[]> {
+    if (competitionId) {
+        const result = await communicationsService.whatsAppAction<{ fixtures: WhatsAppFixture[] }>(organisationId, 'tournament_fixtures', { competitionId })
+        return result.fixtures
+    }
     const { data, error } = await supabase.from('club_fixtures')
         .select('id,team_id,opponent_id,fixture_date,kickoff_time,home_away,venue_name,venue_address,status')
         .eq('organisation_id', organisationId).in('status', ['scheduled', 'confirmed'])

@@ -46,6 +46,9 @@ export type Organisation = {
     subscription_plan: SubscriptionPlan
     subscription_status: SubscriptionStatus
     trial_end: string | null
+    pilot_expires_at?: string | null
+    pilot_campaign?: string | null
+    pilot_max_teams?: number | null
     max_users: number
     max_competitions: number
     enabled_modules: string[]
@@ -87,6 +90,7 @@ export type AdminModule =
     | 'Competitions'
     | 'Tournament Rules'
     | 'Seasons'
+    | 'Calendar'
     | 'Clubs'
     | 'Teams'
     | 'Competition Teams'
@@ -118,6 +122,7 @@ const organisationOwnerModules: readonly AdminModule[] = [
     'Competitions',
     'Tournament Rules',
     'Seasons',
+    'Calendar',
     'Clubs',
     'Teams',
     'Competition Teams',
@@ -153,6 +158,7 @@ const roleModules: Record<
     ],
 
     match_official: [
+        'Calendar',
         'Dashboard',
         'Results',
         'Goals',
@@ -165,6 +171,7 @@ const roleModules: Record<
         'Competitions',
         'Tournament Rules',
         'Seasons',
+    'Calendar',
         'Clubs',
         'Teams',
         'Competition Teams',
@@ -257,6 +264,7 @@ const moduleCapabilities: Partial<
     Competitions: 'competition_management',
     'Tournament Rules': 'competition_management',
     Seasons: 'season_management',
+    Calendar: 'season_management',
     Clubs: 'club_management',
     Teams: 'team_management',
     'Competition Teams': 'competition_management',
@@ -648,6 +656,9 @@ export async function getCurrentAdminProfile():
             subscription_plan,
             subscription_status,
             trial_end,
+            pilot_expires_at,
+            pilot_campaign,
+            pilot_max_teams,
             max_users,
             max_competitions,
             enabled_modules,

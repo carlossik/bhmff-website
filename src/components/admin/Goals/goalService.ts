@@ -108,6 +108,7 @@ export const goalService = {
                 team_id: values.team_id,
                 player_name:
                     values.player_name.trim(),
+                public_names_enabled: values.public_names_enabled === true,
                 minute: values.minute
                     ? Number(values.minute)
                     : null,
@@ -138,6 +139,7 @@ export const goalService = {
                 team_id: values.team_id,
                 player_name:
                     values.player_name.trim(),
+                public_names_enabled: values.public_names_enabled === true,
                 minute: values.minute
                     ? Number(values.minute)
                     : null,

@@ -6,7 +6,7 @@ import {
     useEffect,
     useState,
 } from 'react'
-import type { PublicMediaItem } from '../../../../TournamentHQ-homepage-featured-video-20261007/src/services/public/organisationPublicService'
+import type { PublicMediaItem } from '../services/public/organisationPublicService'
 import { MediaPlayer } from './public/MediaPlayer'
 import { supabase } from '../lib/supabaseClient'
 

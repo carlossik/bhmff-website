@@ -1,3 +1,6 @@
+import { ClubCalendarManager } from './admin/Calendar/ClubCalendarManager'
+import { NextSessionCard } from './admin/Calendar/NextSessionCard'
+import { BexleyPilotManager } from './admin/PlatformOperations/BexleyPilotManager'
 import { SiteVisitorStats } from './admin/SiteVisitorStats'
 import {
     useCallback,
@@ -71,6 +74,7 @@ import { CompetitionRulesGate } from './admin/CompetitionRules/CompetitionRulesG
 import { PlatformOperationsDashboard } from './admin/PlatformOperations/PlatformOperationsDashboard'
 import { ClubFinanceDashboard } from './admin/ClubFinance/ClubFinanceDashboard'
 import { CommunicationsManager } from './admin/Communications/CommunicationsManager'
+import { TournamentCommunications } from './admin/Communications/TournamentCommunications'
 import { TournamentHQBrand } from './common/TournamentHQBrand'
 import '../styles/adminTournamentHQTheme.css'
 
@@ -224,6 +228,10 @@ const navigationSections: readonly NavigationSection[] = [
         title: 'Match Operations',
         icon: CalendarDays,
         items: [
+            {
+                module: 'Calendar',
+                icon: CalendarDays,
+            },
             {
                 module: 'Fixtures',
                 icon: CalendarDays,
@@ -749,7 +757,8 @@ export function AdminPortal({
         !effectiveProfile.isPlatformAdmin &&
         (
             subscriptionStatus === 'suspended' ||
-            subscriptionStatus === 'cancelled'
+            subscriptionStatus === 'cancelled' ||
+            Boolean(subscriptionStatus === 'trial' && effectiveProfile.currentOrganisation.pilot_expires_at && new Date(effectiveProfile.currentOrganisation.pilot_expires_at).getTime() <= Date.now())
         )
 
     const canViewBillingDetails =
@@ -1969,6 +1978,8 @@ export function AdminPortal({
             case 'Dashboard':
                 return (
                     <div>
+                        {isClub && !subscriptionAccessLocked && canUseModule('Calendar') && <NextSessionCard onOpen={() => setActiveTab('Calendar')} />}
+
                         <div className="adminWorkspaceHeader">
                             <div>
                                 <h3>
@@ -2046,7 +2057,7 @@ export function AdminPortal({
                                     </h4>
 
                                     <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--thq-admin-muted)]">
-                                        {getSubscriptionSummary(
+                                        {effectiveProfile.currentOrganisation.pilot_campaign && subscriptionStatus === 'trial' ? 'Bexley Borough free season pass: full Professional club functionality for three teams through 30 June 2027. No automatic renewal or charge.' : getSubscriptionSummary(
                                             subscriptionPlan,
                                             subscriptionStatus,
                                             billingSummary,
@@ -2140,7 +2151,8 @@ export function AdminPortal({
                                                 href="/onboarding"
                                                 className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--thq-admin-accent)] px-5 py-3 text-sm font-black text-[var(--thq-admin-on-accent)] no-underline transition hover:brightness-110"
                                             >
-                                                {subscriptionStatus === 'cancelled'
+                                                {subscriptionStatus === 'cancelled' ||
+            Boolean(subscriptionStatus === 'trial' && effectiveProfile.currentOrganisation.pilot_expires_at && new Date(effectiveProfile.currentOrganisation.pilot_expires_at).getTime() <= Date.now())
                                                     ? 'Restart Subscription'
                                                     : 'Complete Subscription'}
                                             </a>
@@ -2329,6 +2341,9 @@ export function AdminPortal({
                     <CompetitionRulesManager />
                 )
 
+            case 'Calendar':
+                return <ClubCalendarManager />
+
             case 'Seasons':
                 return <ClubSeasonsManager />
 
@@ -2395,7 +2410,7 @@ export function AdminPortal({
                 return <ClubFinanceDashboard />
 
             case 'Communications':
-                return <CommunicationsManager />
+                return currentOrganisation?.organisation_type === 'club' ? <CommunicationsManager /> : <TournamentCommunications />
 
             case 'Sponsors':
                 return <SponsorsManager />
@@ -2422,7 +2437,7 @@ export function AdminPortal({
 
             case 'Platform Operations':
                 return (
-                    <PlatformOperationsDashboard />
+                    <><BexleyPilotManager /><PlatformOperationsDashboard /></>
                 )
 
             case 'User Access':

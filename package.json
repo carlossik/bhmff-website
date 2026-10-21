@@ -2,7 +2,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "node ./node_modules/vite/bin/vite.js build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:post-demo": "node --test tests/post-demo/*.test.*",
+    "test:whatsapp": "deno test --allow-env tests/whatsapp/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
@@ -17,9 +19,13 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^26.6.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "deno": "^2.9.6",
+    "playwright": "^1.64.0",
+    "stripe": "^22.6.2",
     "supabase": "^2.109.1"
   }
 }

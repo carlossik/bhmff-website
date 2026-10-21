@@ -26,6 +26,7 @@ const emptyForm: ResultFormValues = {
     player_of_match: '',
     match_report: '',
     published: false,
+    public_names_enabled: false,
 }
 
 type ToastType =
@@ -193,6 +194,7 @@ function CompetitionResultsManager() {
             match_report:
                 result.match_report ?? '',
             published: result.published,
+            public_names_enabled: result.public_names_enabled === true,
         })
 
         setShowModal(true)

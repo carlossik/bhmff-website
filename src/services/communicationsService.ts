@@ -130,10 +130,12 @@ export const communicationsService = {
     },
     async getProviderStatus(
         organisationId: string,
+        competitionId?: string,
     ): Promise<CommunicationProviderStatus[]> {
         const response = await invokeRead<StatusResponse>({
             action: 'provider_status',
             organisationId,
+            competitionId,
         })
 
         return response.providers
@@ -164,10 +166,12 @@ export const communicationsService = {
     async getHistory(
         organisationId: string,
         limit = 50,
+        competitionId?: string,
     ): Promise<CommunicationHistoryItem[]> {
         const response = await invokeRead<HistoryResponse>({
             action: 'history',
             organisationId,
+            competitionId,
             limit,
         })
 

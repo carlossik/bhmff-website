@@ -457,3 +457,9 @@ verify_jwt = false
 # Meta authenticates callbacks with X-Hub-Signature-256, not a user JWT.
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[functions.redeem-season-pilot]
+verify_jwt = true
+
+[functions.calendar-reminders]
+verify_jwt = false

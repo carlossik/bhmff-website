@@ -21,6 +21,7 @@ export type TeamModalDraft = {
     clubId: string
     teamName: string
     ageGroup: string
+    showPublicPlayerNames: boolean
     yearGroup: string
     gender: string
     division: string
@@ -40,6 +41,7 @@ type TeamModalProps = {
     clubId: string
     teamName: string
     ageGroup: string
+    showPublicPlayerNames: boolean
     yearGroup: string
     gender: string
     division: string
@@ -63,6 +65,17 @@ type TeamModalProps = {
     onSave: (draft: TeamModalDraft) => void
 }
 
+// Preserve existing ages when editing older teams, without rewriting data in bulk.
+function normalizeAgeGroup(value: string): string {
+    const age = value.trim().toLowerCase()
+    if (/^(adult|adults|senior|seniors)$/.test(age)) return 'Adults'
+    if (/^(vets|vet|veteran|veterans|old men)$/.test(age)) return 'Vets'
+    const youth = age.match(/^(?:u|under[\s-]*)(1[0-8]|[6-9])$/)
+    if (youth) return `U${youth[1]}`
+    // 'Youth' alone does not identify the age band; request a specific choice.
+    return ''
+}
+
 const fieldClassName =
     'mt-2 w-full rounded-xl border border-[color:var(--thq-accent,#84cc16)]/25 bg-black/10 px-4 py-3 text-sm font-medium text-[var(--thq-text,#ffffff)] outline-none transition placeholder:font-normal placeholder:opacity-45 focus:border-[var(--thq-accent,#84cc16)] focus:ring-2 focus:ring-[var(--thq-accent,#84cc16)]/15 disabled:cursor-not-allowed disabled:opacity-60'
 
@@ -78,6 +91,7 @@ const labelClassName =
 type TeamModalFieldErrors = Partial<Record<
     | 'clubId'
     | 'teamName'
+    | 'ageGroup'
     | 'yearGroup'
     | 'primaryHomeVenueId'
     | 'groundName'
@@ -105,6 +119,7 @@ export function TeamModal({
                               clubId,
                               teamName,
                               ageGroup,
+                              showPublicPlayerNames,
                               yearGroup,
                               gender,
                               division,
@@ -140,7 +155,8 @@ export function TeamModal({
         useState<TeamModalDraft>(() => ({
             clubId,
             teamName,
-            ageGroup,
+            ageGroup: normalizeAgeGroup(ageGroup),
+            showPublicPlayerNames,
             yearGroup,
             gender,
             division,
@@ -224,6 +240,7 @@ export function TeamModal({
 
             if (key === 'clubId') delete next.clubId
             if (key === 'teamName') delete next.teamName
+            if (key === 'ageGroup') delete next.ageGroup
             if (key === 'yearGroup') delete next.yearGroup
             if (key === 'primaryHomeVenueId') {
                 delete next.primaryHomeVenueId
@@ -244,6 +261,10 @@ export function TeamModal({
 
         if (!draft.teamName.trim()) {
             nextErrors.teamName = 'Enter the team name.'
+        }
+
+        if (!draft.ageGroup) {
+            nextErrors.ageGroup = 'Select Adults, Vets or a youth age group.'
         }
 
         if (draft.yearGroup.trim()) {
@@ -283,6 +304,7 @@ export function TeamModal({
         const order: Array<keyof TeamModalFieldErrors> = [
             'clubId',
             'teamName',
+            'ageGroup',
             'yearGroup',
             'primaryHomeVenueId',
             'groundName',
@@ -295,6 +317,7 @@ export function TeamModal({
         const idByField: Record<keyof TeamModalFieldErrors, string> = {
             clubId: 'team-club',
             teamName: 'team-name',
+            ageGroup: 'team-age-group',
             yearGroup: 'team-year-group',
             primaryHomeVenueId: 'team-home-venue',
             groundName: 'team-new-venue-name',
@@ -529,19 +552,45 @@ export function TeamModal({
 
                         <label className={labelClassName}>
                             Age group
-                            <input
-                                className={fieldClassName}
+                            <select
+                                id="team-age-group"
+                                className={validatedSelectClassName(Boolean(fieldErrors.ageGroup))}
                                 value={draft.ageGroup}
-                                placeholder="e.g. U15"
+                                aria-invalid={Boolean(fieldErrors.ageGroup)}
                                 disabled={isSaving}
-                                onChange={(event) =>
-                                    updateDraft(
-                                        'ageGroup',
-                                        event.currentTarget.value
-                                    )
-                                }
-                            />
+                                onChange={(event) => {
+                                    const value = event.currentTarget.value
+                                    updateDraft('ageGroup', value)
+                                    // Adult and vets default visible; U18–U6 default private.
+                                    // The administrator can override this with the checkbox.
+                                    updateDraft('showPublicPlayerNames', value === 'Adults' || value === 'Vets')
+                                }}
+                            >
+                                <option className={optionClassName} value="">Select age group</option>
+                                <option className={optionClassName} value="Adults">Adults</option>
+                                <option className={optionClassName} value="Vets">Vets</option>
+                                {['U18', 'U16', 'U15', 'U14', 'U13', 'U12', 'U11', 'U10', 'U9', 'U8', 'U7', 'U6'].map(age => (
+                                    <option key={age} className={optionClassName} value={age}>{age}</option>
+                                ))}
+                            </select>
+                            {fieldErrors.ageGroup && (
+                                <span className={errorTextClassName}>{fieldErrors.ageGroup}</span>
+                            )}
                         </label>
+
+                        <label className="flex items-center gap-3 text-sm font-semibold">
+                            <input
+                                type="checkbox"
+                                checked={draft.showPublicPlayerNames}
+                                disabled={isSaving}
+                                onChange={event => updateDraft('showPublicPlayerNames', event.currentTarget.checked)}
+                            />
+                            Show player names publicly
+                        </label>
+                        <p className="text-xs opacity-75">
+                            For youth teams, enable only after confirming appropriate permission to publish player details.
+                            This setting controls the public club site, including scorer names.
+                        </p>
 
                         <label className={labelClassName}>
                             Year group

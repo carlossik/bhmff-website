@@ -82,7 +82,8 @@ Deno.test('club status never advertises the central sender; non-club providers s
     const festival = await request('provider_status')
     const provider = festival.body.providers.find((item: any) => item.channel === 'whatsapp')
     assert(provider.provider === 'twilio' && provider.configured)
-    assert((await request('whatsapp_begin', { onboardingMode: 'platform' })).status === 403)
+    assert((await request('whatsapp_status')).status === 200, 'organisation onboarding must not require a competition')
+    assert((await request('whatsapp_begin', { onboardingMode: 'platform' })).status === 200, 'authorised owners can start organisation signup without a competition')
 }))
 Deno.test('club direct sends reject missing connections and consent before creating a message', () => fixture(async (state) => {
     assert((await request('send', { ...sendInput, whatsappConsentConfirmed: true })).status === 400)

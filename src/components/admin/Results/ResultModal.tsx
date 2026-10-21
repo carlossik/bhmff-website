@@ -138,6 +138,10 @@ export function ResultModal({
 
                 <label className="md:col-span-2">
                     <span>Match Report</span>
+                    <label className="flex flex-row items-start gap-3 text-sm">
+                        <input type="checkbox" checked={values.public_names_enabled} onChange={event => updateField('public_names_enabled', event.target.checked)} />
+                        <span>Allow player-of-the-match name and match report on the public site. Confirm permission for any named players. Hidden by default.</span>
+                    </label>
                     <textarea
                         value={values.match_report}
                         onChange={(event) =>

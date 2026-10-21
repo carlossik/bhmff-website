@@ -42,6 +42,9 @@ export interface Organisation {
     subscription_status: SubscriptionStatus
 
     trial_end: string | null
+    pilot_expires_at?: string | null
+    pilot_campaign?: string | null
+    pilot_max_teams?: number | null
 
     max_users: number
     max_competitions: number

@@ -430,7 +430,7 @@ export function PublicTablesPage({
                     data,
                     error,
                 } = await supabase
-                    .from("results")
+                    .from("public_results")
                     .select(
                         `
                             *,

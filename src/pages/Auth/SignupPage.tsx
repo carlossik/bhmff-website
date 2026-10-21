@@ -808,10 +808,8 @@ export function SignupPage() {
                                     />
 
                                     <span>
-                                        I agree to the
-                                        TournamentHQ Terms
-                                        of Service and
-                                        Privacy Policy.
+                                        I agree to the TournamentHQ Terms of Service and{' '}
+                                        <a href="https://tournamenthq.co.uk/privacy-policy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>.
                                     </span>
                                 </label>
 

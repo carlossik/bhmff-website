@@ -8,11 +8,11 @@ try {
     const userId = metaEnvironment('THQ_DEMO_ADMIN_USER_ID')
     const admin = createClient(metaEnvironment('SUPABASE_URL'), metaEnvironment('SUPABASE_SERVICE_ROLE_KEY'),
         { auth: { persistSession: false, autoRefreshToken: false } })
-    const { data: org, error: orgError } = await admin.from('organisations').select('id,organisation_type').eq('id', organisationId).single()
-    if (orgError || org?.organisation_type !== 'club') throw new Error('Choose an existing demo club organisation.')
+    const { data: org, error: orgError } = await admin.from('organisations').select('id,organisation_type,status').eq('id', organisationId).single()
+    if (orgError || !org || org.status !== 'active') throw new Error('Choose an existing active club or tournament organiser organisation.')
     const { data: member, error: memberError } = await admin.from('organisation_memberships').select('user_id,role')
         .eq('organisation_id', organisationId).eq('user_id', userId).eq('active', true).maybeSingle()
-    if (memberError || !member || !['super_admin', 'competition_manager'].includes(member.role)) throw new Error('Choose an active administrator of the demo club.')
+    if (memberError || !member || !['super_admin', 'competition_manager'].includes(member.role)) throw new Error('Choose an active administrator of the demo organisation.')
     await provisionWhatsAppConnection(admin, organisationId, userId, {
         token: metaEnvironment('THQ_DEMO_META_ACCESS_TOKEN'), wabaId: metaEnvironment('THQ_DEMO_WABA_ID'),
         phoneNumberId: metaEnvironment('THQ_DEMO_PHONE_NUMBER_ID'), onboardingMode: 'platform',
@@ -28,3 +28,4 @@ try {
     console.error(error instanceof Error ? error.message : 'Unable to configure the sender.')
     Deno.exit(1)
 }
+

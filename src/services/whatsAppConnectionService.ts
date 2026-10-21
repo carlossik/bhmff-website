@@ -5,6 +5,7 @@ export type WhatsAppConnectionStatus = {
     connected: boolean
     ready: boolean
     canManage: boolean
+    canRefreshToken?: boolean
     sender: { displayPhoneNumber: string; verifiedName: string; onboardingMode: 'business_app' | 'platform'; tokenExpiresAt: string | null } | null
 }
 export type WhatsAppTemplate = {
@@ -42,20 +43,21 @@ function loadSdk(): Promise<FacebookSdk> {
 }
 
 export const whatsAppConnectionService = {
-    status: (organisationId: string) => communicationsService.whatsAppAction<WhatsAppConnectionStatus>(organisationId, 'whatsapp_status'),
-    templates: async (organisationId: string): Promise<WhatsAppTemplate[]> => {
-        const result = await communicationsService.whatsAppAction<{ templates: WhatsAppTemplate[] }>(organisationId, 'whatsapp_templates')
+    status: (organisationId: string, competitionId?: string) => communicationsService.whatsAppAction<WhatsAppConnectionStatus>(organisationId, 'whatsapp_status', { competitionId }),
+    templates: async (organisationId: string, competitionId?: string): Promise<WhatsAppTemplate[]> => {
+        const result = await communicationsService.whatsAppAction<{ templates: WhatsAppTemplate[] }>(organisationId, 'whatsapp_templates', { competitionId })
         return result.templates
     },
-    disconnect: (organisationId: string) => communicationsService.whatsAppAction(organisationId, 'whatsapp_disconnect'),
-    async prepare(organisationId: string, onboardingMode: 'business_app' | 'platform'): Promise<PreparedWhatsAppSignup> {
-        const signup = await communicationsService.whatsAppAction<Signup>(organisationId, 'whatsapp_begin', { onboardingMode })
+    refreshToken: (organisationId: string, accessToken: string, competitionId?: string) => communicationsService.whatsAppAction<{ updated: boolean }>(organisationId, 'whatsapp_refresh_token', { accessToken, competitionId }),
+    disconnect: (organisationId: string, competitionId?: string) => communicationsService.whatsAppAction(organisationId, 'whatsapp_disconnect', { competitionId }),
+    async prepare(organisationId: string, onboardingMode: 'business_app' | 'platform', competitionId?: string): Promise<PreparedWhatsAppSignup> {
+        const signup = await communicationsService.whatsAppAction<Signup>(organisationId, 'whatsapp_begin', { onboardingMode, competitionId })
         const sdk = await loadSdk()
         sdk.init({ appId: signup.appId, version: signup.graphVersion, autoLogAppEvents: false, xfbml: false })
         return { signup, sdk, onboardingMode, preparedAt: Date.now() }
     },
     // Called synchronously from the click so browsers permit the Meta popup.
-    connect(organisationId: string, prepared: PreparedWhatsAppSignup) {
+    connect(organisationId: string, prepared: PreparedWhatsAppSignup, competitionId?: string) {
         let cancelled = false
         let cleanup = () => {}
         const promise = new Promise<void>((resolve, reject) => {
@@ -70,7 +72,7 @@ export const whatsAppConnectionService = {
                 completing = true
                 cleanup()
                 void communicationsService.whatsAppAction(organisationId, 'whatsapp_connect', {
-                    ...ids, code, sessionId: prepared.signup.sessionId,
+                    ...ids, code, competitionId, sessionId: prepared.signup.sessionId,
                 }).then(() => resolve(), reject)
             }
             const onMessage = (event: MessageEvent) => {

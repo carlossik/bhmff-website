@@ -23,6 +23,7 @@ const emptyForm: GoalFormValues = {
     fixture_id: '',
     team_id: '',
     player_name: '',
+    public_names_enabled: false,
     minute: '',
     video_timestamp: '',
 }
@@ -190,6 +191,7 @@ function CompetitionGoalsManager() {
                 goal.team_id ?? '',
             player_name:
             goal.player_name,
+            public_names_enabled: goal.public_names_enabled === true,
             minute:
                 goal.minute !== null
                     ? String(goal.minute)

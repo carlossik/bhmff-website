@@ -16,7 +16,7 @@ import {
 } from '../_shared/communicationsProviders.ts'
 
 // @ts-ignore -- Deno requires explicit .ts paths.
-import { loadWhatsAppConnection, connectionReady, whatsAppReadinessDetail, metaConfigured, metaEnvironment, metaVersion, connectWhatsApp, listWhatsAppTemplates, buildWhatsAppTemplate, renderWhatsAppTemplate, sendClubWhatsApp, type WhatsAppConnection, type WhatsAppTemplate, type WhatsAppSelection } from '../_shared/clubWhatsApp.ts'
+import { loadWhatsAppConnection, connectionReady, whatsAppReadinessDetail, metaConfigured, metaMessagingConfigured, provisionWhatsAppConnection, metaEnvironment, metaVersion, connectWhatsApp, listWhatsAppTemplates, buildWhatsAppTemplate, renderWhatsAppTemplate, sendClubWhatsApp, type WhatsAppConnection, type WhatsAppTemplate, type WhatsAppSelection } from '../_shared/clubWhatsApp.ts'
 
 // Minimal module-local typing for editors using the React TypeScript project.
 // Runtime remains Deno; deno check verifies the full function and its imports.
@@ -25,7 +25,15 @@ declare const Deno: {
     serve(handler: (request: Request) => Response | Promise<Response>): unknown
 }
 
+// @ts-ignore -- Deno requires explicit .ts paths.
+import { requireCompetition, tournamentDirectory, tournamentFixtures, resolveTournamentRecipients, TournamentCommunicationError } from '../_shared/tournamentCommunications.ts'
+
 type CommunicationAction =
+    | 'tournament_directory'
+    | 'tournament_fixtures'
+    | 'tournament_contact'
+    | 'tournament_external_save'
+    | 'tournament_external_delete'
     | 'provider_status'
     | 'list_templates'
     | 'recipient_directory'
@@ -34,6 +42,7 @@ type CommunicationAction =
     | 'whatsapp_status'
     | 'whatsapp_begin'
     | 'whatsapp_connect'
+    | 'whatsapp_refresh_token'
     | 'whatsapp_disconnect'
     | 'whatsapp_templates'
 
@@ -68,6 +77,7 @@ type TemplateRow = {
 }
 
 type RecipientInput = {
+    officialUserId?: string | null
     recipientName: string
     email: string | null
     phone: string | null
@@ -84,8 +94,10 @@ type AccessContext = {
     organisationId: string
     organisationName: string
     organisationType: string
+    competitionId?: string
     canSendGeneral: boolean
     canSendFinance: boolean
+    isPlatformAdmin: boolean
 }
 
 class CommunicationsError extends Error {
@@ -188,7 +200,7 @@ async function requestBody(
         }
         return value
     } catch (error) {
-        if (error instanceof CommunicationsError) {
+        if (error instanceof CommunicationsError || error instanceof TournamentCommunicationError) {
             throw error
         }
         throw new CommunicationsError(
@@ -252,12 +264,13 @@ function numberValue(
 
 function actionValue(value: string): CommunicationAction {
     if (
+        ['tournament_directory', 'tournament_fixtures', 'tournament_contact', 'tournament_external_save', 'tournament_external_delete'].includes(value) ||
         value === 'provider_status' ||
         value === 'list_templates' ||
         value === 'recipient_directory' ||
         value === 'history' ||
         value === 'send' ||
-        ['whatsapp_status', 'whatsapp_begin', 'whatsapp_connect', 'whatsapp_disconnect', 'whatsapp_templates'].includes(value)
+        ['whatsapp_status', 'whatsapp_begin', 'whatsapp_connect', 'whatsapp_refresh_token', 'whatsapp_disconnect', 'whatsapp_templates'].includes(value)
     ) {
         return value as CommunicationAction
     }
@@ -345,7 +358,7 @@ function liveProviderAvailable(
     context: AccessContext,
     connection: WhatsAppConnection | null,
 ): boolean {
-    if (channel === 'whatsapp' && context.organisationType === 'club') return connectionReady(connection)
+    if (channel === 'whatsapp' && (context.organisationType === 'club' || Boolean(context.competitionId))) return connectionReady(connection)
     const provider = getSelectedProvider(channel)
     if (provider === 'mock' || provider === 'unconfigured') {
         return false
@@ -430,6 +443,7 @@ function recipientValue(value: unknown): RecipientInput {
     }
 
     return {
+        officialUserId: stringValue(value, 'officialUserId'),
         recipientName:
             requiredString(value, 'recipientName'),
         email:
@@ -556,6 +570,7 @@ async function requireAccess(
             organisationType: organisation.organisation_type,
             canSendGeneral: true,
             canSendFinance: true,
+            isPlatformAdmin: true,
         }
     }
 
@@ -619,6 +634,7 @@ async function requireAccess(
         organisationType: organisation.organisation_type,
         canSendGeneral,
         canSendFinance,
+        isPlatformAdmin: false,
     }
 }
 
@@ -822,8 +838,8 @@ async function handleProviderStatus(
     context: AccessContext,
 ): Promise<Response> {
     const settings = await loadSettings(context)
-    const connection = context.organisationType === 'club' ? await loadWhatsAppConnection(context.admin, context.organisationId) : null
-    const statuses = getProviderStatuses().map((item) => item.channel === 'whatsapp' && context.organisationType === 'club' ? {
+    const connection = (context.organisationType === 'club' || Boolean(context.competitionId)) ? await loadWhatsAppConnection(context.admin, context.organisationId) : null
+    const statuses = getProviderStatuses().map((item) => item.channel === 'whatsapp' && (context.organisationType === 'club' || Boolean(context.competitionId)) ? {
         ...item, provider: connection ? 'meta' as const : 'unconfigured' as const,
         dryRun: channelDryRunEnabled('whatsapp'),
         configured: connectionReady(connection), detail: whatsAppReadinessDetail(connection),
@@ -842,19 +858,32 @@ async function handleProviderStatus(
 }
 
 async function handleWhatsAppAction(context: AccessContext, action: CommunicationAction, body: JsonRecord): Promise<Response> {
-    if (context.organisationType !== 'club') throw new CommunicationsError(403, 'Club WhatsApp connections are available to club organisations only.')
+    // The sender belongs to the organisation; onboarding does not require a competition.
     const connection = await loadWhatsAppConnection(context.admin, context.organisationId)
     if (action === 'whatsapp_status') return jsonResponse({
         setupAvailable: metaConfigured(), connected: Boolean(connection), ready: connectionReady(connection),
-        canManage: context.canSendGeneral,
+        canManage: context.canSendGeneral, canRefreshToken: context.isPlatformAdmin,
         sender: connection ? { displayPhoneNumber: connection.display_phone_number, verifiedName: connection.verified_name,
             onboardingMode: connection.onboarding_mode, tokenExpiresAt: connection.token_expires_at } : null,
     })
     if (action === 'whatsapp_templates') {
-        if (!connectionReady(connection)) throw new CommunicationsError(400, 'Connect or reconnect the club WhatsApp account before selecting templates.')
+        if (!connectionReady(connection)) throw new CommunicationsError(400, 'Connect or reconnect the organisation WhatsApp account before selecting templates.')
         return jsonResponse({ templates: await listWhatsAppTemplates(connection!) })
     }
     if (!context.canSendGeneral) throw new CommunicationsError(403, 'Organisation administrator access is required to manage the WhatsApp connection.')
+    if (action === 'whatsapp_refresh_token') {
+        // Only verified platform admins may inject a developer/system-user token.
+        // Club admins must use Meta Embedded Signup; never expose secrets in responses.
+        if (!context.isPlatformAdmin) throw new CommunicationsError(403, 'Platform administrator access is required.')
+        if (!metaMessagingConfigured()) throw new CommunicationsError(400, 'Meta sender settings are incomplete on the server.')
+        if (!connection || connection.onboarding_mode !== 'platform') throw new CommunicationsError(400, 'A platform sender must already be connected.')
+        const token = requiredString(body, 'accessToken')
+        if (token.length > 8192) throw new CommunicationsError(400, 'Invalid access token.')
+        await provisionWhatsAppConnection(context.admin, context.organisationId, context.user.id, {
+            token, wabaId: connection.waba_id, phoneNumberId: connection.phone_number_id, onboardingMode: 'platform',
+        })
+        return jsonResponse({ updated: true })
+    }
     if (action === 'whatsapp_disconnect') {
         // Leave WABA subscriptions intact: other club numbers may share the same account.
         const { error } = await context.admin.from('organisation_whatsapp_connections').delete().eq('organisation_id', context.organisationId)
@@ -1299,10 +1328,7 @@ async function handleHistory(
 
     await syncPendingResendDeliveries(context)
 
-    const {
-        data,
-        error,
-    } = await context.admin
+    let historyQuery = context.admin
         .from('communication_deliveries')
         .select(`
             id,
@@ -1324,15 +1350,17 @@ async function handleHistory(
             updated_at,
             communication_messages!inner (
                 template_code,
-                source_type
+                source_type,
+                competition_id
             ),
             communication_recipients!inner (
                 recipient_name
             )
         `)
         .eq('organisation_id', context.organisationId)
-        .order('queued_at', { ascending: false })
-        .limit(limit)
+
+    if (context.competitionId) historyQuery = historyQuery.eq('communication_messages.competition_id', context.competitionId)
+    const { data, error } = await historyQuery.order('queued_at', { ascending: false }).limit(limit)
 
     if (error) {
         throw new CommunicationsError(
@@ -1496,9 +1524,14 @@ async function handleSend(
     const explicitChannels = routingMode === 'explicit'
         ? channelsValue(body.channels)
         : []
-    const recipients = recipientsValue(body.recipients)
+    const recipients = context.competitionId
+        ? resolveTournamentRecipients(body.recipients, await tournamentDirectory({ ...context, competitionId: context.competitionId }), explicitChannels.includes('whatsapp')).map(r => ({ ...r, variables: {} }))
+        : recipientsValue(body.recipients)
     const customSubject = stringValue(body, 'subject')
     const customBody = stringValue(body, 'body')
+    if (context.competitionId && !explicitChannels.includes('whatsapp') && !customBody) {
+        throw new CommunicationsError(400, 'Enter an operational message before sending.')
+    }
 
     if (messageClass !== 'service') {
         throw new CommunicationsError(
@@ -1552,17 +1585,17 @@ async function handleSend(
         template?.body_template ??
         ''
 
-    const whatsappConnection = context.organisationType === 'club'
+    const whatsappConnection = (context.organisationType === 'club' || Boolean(context.competitionId))
         ? await loadWhatsAppConnection(context.admin, context.organisationId) : null
-    const scopedProvider = (channel: ProviderChannel): ProviderName => channel === 'whatsapp' && context.organisationType === 'club'
+    const scopedProvider = (channel: ProviderChannel): ProviderName => channel === 'whatsapp' && (context.organisationType === 'club' || Boolean(context.competitionId))
         ? whatsappConnection ? 'meta' : 'unconfigured' : getSelectedProvider(channel)
     let whatsappTemplate: WhatsAppTemplate | null = null
     let whatsappSelection: WhatsAppSelection | null = null
-    const wantsClubWhatsApp = context.organisationType === 'club' && explicitChannels.includes('whatsapp')
+    const wantsClubWhatsApp = (context.organisationType === 'club' || Boolean(context.competitionId)) && explicitChannels.includes('whatsapp')
     // Club-owned API messages require an explicit review. Auto-routing never sends a different template silently.
     if (wantsClubWhatsApp) {
         if (explicitChannels.length !== 1) throw new CommunicationsError(400, 'Send the reviewed WhatsApp template separately from other delivery channels.')
-        if (!connectionReady(whatsappConnection)) throw new CommunicationsError(400, 'Connect or reconnect the club WhatsApp account before sending.')
+        if (!connectionReady(whatsappConnection)) throw new CommunicationsError(400, 'Connect or reconnect the organisation WhatsApp account before sending.')
         if (body.whatsappConsentConfirmed !== true) throw new CommunicationsError(400, 'Confirm that recipients have agreed to receive these WhatsApp service messages.')
         if (!isRecord(body.whatsappTemplate) || !isRecord(body.whatsappTemplate.parameters)) throw new CommunicationsError(400, 'Select an approved WhatsApp service template.')
         whatsappSelection = {
@@ -1572,6 +1605,23 @@ async function handleSend(
         const approved = await listWhatsAppTemplates(whatsappConnection!)
         whatsappTemplate = approved.find((item) => item.name === whatsappSelection!.name && item.language === whatsappSelection!.language) ?? null
         if (!whatsappTemplate) throw new CommunicationsError(400, 'This WhatsApp template is no longer approved or supported. Refresh the template list.')
+        if (context.competitionId) {
+            const fixtureId = stringValue(body, 'fixtureId')
+            const fixtures = await tournamentFixtures({ ...context, competitionId: context.competitionId })
+            const fixture = fixtures.find(f => f.id === fixtureId)
+            if (!fixture) throw new CommunicationsError(400, 'Select a fixture from this competition.')
+            const expectedBody = 'Your scheduled fixture has been updated.\n\nMatch: {{1}}\nDate: {{2}}\nKick-off: {{3}}\nVenue: {{4}}\n\nPlease check these updated details before travelling.'
+            if (whatsappTemplate.name !== 'fixture_update' || whatsappTemplate.language !== 'en' ||
+                whatsappTemplate.components.filter(c => c.text).length !== 1 ||
+                !whatsappTemplate.components.some(c => c.type.toUpperCase() === 'BODY' && c.text?.replace(/\r\n/g, '\n').trim() === expectedBody)) {
+                throw new CommunicationsError(400, 'The organiser needs the supported approved fixture_update (en) template.')
+            }
+            const parameters = { 'body:1': fixture.match, 'body:2': fixture.date, 'body:3': fixture.kickoff, 'body:4': fixture.venue }
+            if (Object.entries(parameters).some(([key, value]) => value !== whatsappSelection!.parameters[key])) {
+                throw new CommunicationsError(409, 'Fixture details have changed. Close the review and select the fixture again.')
+            }
+            whatsappSelection.parameters = parameters
+        }
         buildWhatsAppTemplate(whatsappTemplate, whatsappSelection.parameters)
     }
     const now = new Date().toISOString()
@@ -1586,8 +1636,9 @@ async function handleSend(
             template_id: template?.id ?? null,
             template_code: template?.code ?? templateCode,
             message_class: messageClass,
-            source_type: sourceType,
-            source_id: sourceId,
+            source_type: context.competitionId ? 'competition_communication' : sourceType,
+            source_id: context.competitionId ?? sourceId,
+            ...(context.competitionId ? { competition_id: context.competitionId } : {}),
             subject_template: baseSubject,
             body_template: whatsappTemplate && whatsappSelection ? renderWhatsAppTemplate(whatsappTemplate, whatsappSelection.parameters) : baseBody,
             status: 'processing',
@@ -1629,6 +1680,7 @@ async function handleSend(
             .insert({
                 message_id: messageId,
                 organisation_id: context.organisationId,
+                ...(context.competitionId ? { official_user_id: recipient.officialUserId, tournament_contact_id: recipient.tournamentContactId ?? null } : {}),
                 contact_id:
                     isUuid(recipient.contactId)
                         ? recipient.contactId
@@ -1683,7 +1735,7 @@ async function handleSend(
         const channels = routingMode === 'auto'
             ? preferredChannelOrder(settings).filter((channel) => {
                 if (!channelEnabled(settings, channel)) return false
-                if (channel === 'whatsapp' && context.organisationType === 'club') return false
+                if (channel === 'whatsapp' && (context.organisationType === 'club' || Boolean(context.competitionId))) return false
                 if (!liveProviderAvailable(channel, context, whatsappConnection)) return false
                 return Boolean(
                     targetForChannel(
@@ -1787,7 +1839,7 @@ async function handleSend(
 
             try {
                 if (provider === 'meta') {
-                    if (!whatsappConnection || !whatsappTemplate || !whatsappSelection) throw new Error('Review the club WhatsApp template before sending.')
+                    if (!whatsappConnection || !whatsappTemplate || !whatsappSelection) throw new Error('Review the organisation WhatsApp template before sending.')
                     // Respect stored service opt-outs even when a caller confirms consent.
                     const { data: optedOut, error: consentError } = await context.admin.from('communication_contacts').select('id')
                         .eq('organisation_id', context.organisationId).eq('operational_whatsapp_enabled', false)
@@ -1958,6 +2010,69 @@ Deno.serve(async (request: Request) => {
             )
         }
 
+        const rawCompetitionId = stringValue(body, 'competitionId')
+        if (rawCompetitionId) {
+            if (!isUuid(rawCompetitionId)) throw new CommunicationsError(400, 'A valid competition is required.')
+            if (!context.canSendGeneral) throw new CommunicationsError(403, 'Competition manager or administrator access is required.')
+            context.competitionId = rawCompetitionId
+            await requireCompetition({ ...context, competitionId: rawCompetitionId })
+        }
+        if (action === 'send' && context.organisationType !== 'club' && !context.competitionId) {
+            throw new CommunicationsError(400, 'Select a competition before sending tournament communications.')
+        }
+        if (action.startsWith('tournament_')) {
+            if (!context.competitionId) throw new CommunicationsError(400, 'Select a competition first.')
+            const scope = { ...context, competitionId: context.competitionId }
+            if (action === 'tournament_directory') return jsonResponse({ recipients: await tournamentDirectory(scope) })
+            if (action === 'tournament_fixtures') return jsonResponse({ fixtures: await tournamentFixtures(scope) })
+            if (action === 'tournament_external_save') {
+                const name = requiredString(body, 'name').trim()
+                const role = requiredString(body, 'role')
+                if (name.length > 120 || !['referee','organiser','match_official','other'].includes(role)) throw new CommunicationsError(400, 'Enter a valid name and contact role.')
+                const email = stringValue(body, 'email')?.trim().toLowerCase() || null
+                if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new CommunicationsError(400, 'Enter a valid email address.')
+                const rawPhone = stringValue(body, 'phone')
+                const phone = rawPhone ? normalisePhone(rawPhone, '44') : null
+                if (rawPhone && !phone) throw new CommunicationsError(400, 'Enter a valid international mobile number.')
+                if (!email && !phone) throw new CommunicationsError(400, 'Provide an email address or telephone number.')
+                if (typeof body.whatsappOptIn !== 'boolean') throw new CommunicationsError(400, 'Select the WhatsApp consent preference.')
+                const id = stringValue(body, 'tournamentContactId')
+                const values = { organisation_id: context.organisationId, competition_id: context.competitionId, name, role, email,
+                    phone_e164: phone, whatsapp_opt_in: body.whatsappOptIn, consent_recorded_by: context.user.id,
+                    consent_recorded_at: body.whatsappOptIn ? new Date().toISOString() : null, active: true }
+                if (id && !isUuid(id)) throw new CommunicationsError(400, 'Invalid contact identifier.')
+                const query = id ? context.admin.from('competition_external_contacts').update(values)
+                    .eq('id', id).eq('organisation_id', context.organisationId).eq('competition_id', context.competitionId)
+                    : context.admin.from('competition_external_contacts').insert(values)
+                const { data, error } = await query.select('id').single()
+                if (error) throw new CommunicationsError(400, 'Unable to save contact: ' + error.message)
+                return jsonResponse({ saved: true, id: data.id })
+            }
+            if (action === 'tournament_external_delete') {
+                const id = requiredString(body, 'tournamentContactId')
+                if (!isUuid(id)) throw new CommunicationsError(400, 'Invalid contact identifier.')
+                const { data, error } = await context.admin.from('competition_external_contacts').update({ active: false })
+                    .eq('id', id).eq('organisation_id', context.organisationId).eq('competition_id', context.competitionId).select('id')
+                if (error) throw new CommunicationsError(500, error.message)
+                if (!data?.length) throw new CommunicationsError(404, 'Contact not found.')
+                return jsonResponse({ deleted: true })
+            }
+            const userId = requiredString(body, 'officialUserId')
+            const directory = await tournamentDirectory(scope)
+            if (!directory.some(r => r.officialUserId === userId)) throw new CommunicationsError(403, 'Official is not assigned to this competition.')
+            const rawPhone = stringValue(body, 'phone')
+            const phone = rawPhone ? normalisePhone(rawPhone, '44') : null
+            if (rawPhone && !phone) throw new CommunicationsError(400, 'Enter a valid international mobile number.')
+            if (typeof body.whatsappOptIn !== 'boolean') throw new CommunicationsError(400, 'Select the WhatsApp consent preference.')
+            const { error } = await context.admin.from('competition_communication_contacts').upsert({
+                organisation_id: context.organisationId, competition_id: context.competitionId, user_id: userId,
+                phone_e164: phone, whatsapp_opt_in: body.whatsappOptIn,
+                consent_recorded_by: context.user.id, consent_recorded_at: new Date().toISOString(),
+            }, { onConflict: 'competition_id,user_id' })
+            if (error) throw new CommunicationsError(500, error.message)
+            return jsonResponse({ saved: true })
+        }
+
         if (action.startsWith('whatsapp_')) {
             return await handleWhatsAppAction(context, action, body)
         }
@@ -1987,7 +2102,7 @@ Deno.serve(async (request: Request) => {
             error,
         )
 
-        if (error instanceof CommunicationsError) {
+        if (error instanceof CommunicationsError || error instanceof TournamentCommunicationError) {
             return jsonResponse(
                 { error: error.message },
                 error.status,

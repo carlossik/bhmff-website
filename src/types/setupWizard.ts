@@ -4,6 +4,7 @@ export const SETUP_WIZARD_STEPS = [
     'billing',
     'branding',
     'competition',
+    'whatsapp',
     'finish',
 ] as const
 

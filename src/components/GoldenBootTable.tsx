@@ -48,6 +48,7 @@ export function GoldenBootTable({
     const scorerMap = new Map<string, GoldenBootEntry>()
 
     goals.forEach((goal) => {
+        if (goal.playerName === 'Player (name hidden)') return
         const normalisedName = goal.playerName.trim().toLowerCase()
         const key = `${goal.teamId}:${normalisedName}`
         const existing = scorerMap.get(key)

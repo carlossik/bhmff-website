@@ -385,10 +385,6 @@ export function ClubPublicHomePage({
 
     const topScorers = useMemo(() => {
         const totals = new Map<string, number>()
-        const squadNames = new Map(
-            clubData.squad.map(member => [member.id, member.playerName]),
-        )
-
         scopedGoals.forEach((goal) => {
             // Guest-player goals and opponent own goals have no TournamentHQ
             // squad member. They still contribute to the match score, but must
@@ -400,15 +396,25 @@ export function ClubPublicHomePage({
             totals.set(goal.squadMemberId, (totals.get(goal.squadMemberId) ?? 0) + 1)
         })
 
+        // Show every registered scorer, including players tied below fifth place.
+        // The public API is responsible for redacting youth player names.
+        const namesByMember = new Map<string, string>()
+        for (const goal of scopedGoals) {
+            if (goal.squadMemberId && !namesByMember.has(goal.squadMemberId)) {
+                namesByMember.set(goal.squadMemberId, goal.playerName)
+            }
+        }
+
         return [...totals.entries()]
-            .sort((left, right) => right[1] - left[1])
-            .slice(0, 5)
+            .sort((left, right) =>
+                right[1] - left[1] ||
+                (namesByMember.get(left[0]) ?? '').localeCompare(namesByMember.get(right[0]) ?? ''),
+            )
             .map(([id, count]) => [
-                scopedGoals.find(goal => goal.squadMemberId === id)?.playerName ??
-                'Player (name hidden)',
+                namesByMember.get(id) ?? 'Player (name hidden)',
                 count,
             ] as const)
-    }, [clubData.squad, scopedGoals])
+    }, [scopedGoals])
 
     const teamSummaries = useMemo(
         () =>

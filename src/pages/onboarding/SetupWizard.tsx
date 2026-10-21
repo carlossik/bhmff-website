@@ -1,3 +1,4 @@
+import { WhatsAppSetupStep } from '../../components/onboarding/WhatsAppSetupStep'
 import {
     useEffect,
     useState,
@@ -388,7 +389,7 @@ export function SetupWizard() {
                             wizard.goBack
                         }
                         onFinish={
-                            wizard.finish
+                            wizard.goForward
                         }
                     />
                 ) : (
@@ -412,10 +413,12 @@ export function SetupWizard() {
                             )
                         }
                         onFinish={
-                            wizard.finish
+                            wizard.goForward
                         }
                     />
                 ))}
+
+            {wizard.currentStep === 'whatsapp' && <WhatsAppSetupStep organisationId={wizard.draft.organisationId} onBack={wizard.goBack} onContinue={wizard.finish} />}
 
             {wizard.currentStep ===
                 'finish' && (

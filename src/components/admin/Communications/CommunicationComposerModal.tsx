@@ -26,6 +26,7 @@ import type {
 export type CommunicationComposerModalProps = {
     open: boolean
     organisationId: string
+    competitionId?: string
     organisationName: string
     recipients: CommunicationRecipientDraft[]
     defaultTemplateCode?: string | null
@@ -161,6 +162,7 @@ function templateDisplayName(
 export function CommunicationComposerModal({
     open,
     organisationId,
+    competitionId,
     organisationName,
     recipients,
     defaultTemplateCode = null,
@@ -205,7 +207,7 @@ export function CommunicationComposerModal({
         setWhatsAppConsent(false)
         setWhatsAppFixtures([])
         setWhatsAppFixtureId('')
-        void Promise.all([whatsAppConnectionService.templates(organisationId), loadWhatsAppFixtures(organisationId)]).then(([items, fixtures]) => {
+        void Promise.all([whatsAppConnectionService.templates(organisationId, competitionId), loadWhatsAppFixtures(organisationId, competitionId)]).then(([items, fixtures]) => {
             if (active) {
                 setWhatsAppTemplates(items)
                 const template = fixtureUpdateTemplate(items)
@@ -216,7 +218,7 @@ export function CommunicationComposerModal({
             if (active) setError(caught instanceof Error ? caught.message : 'Unable to load approved WhatsApp templates.')
         }).finally(() => { if (active) setWhatsAppLoading(false) })
         return () => { active = false }
-    }, [open, organisationId, usesClubWhatsApp])
+    }, [open, organisationId, competitionId, usesClubWhatsApp])
 
     useEffect(() => {
         if (!open) return
@@ -235,6 +237,7 @@ export function CommunicationComposerModal({
             ),
             communicationsService.getProviderStatus(
                 organisationId,
+                competitionId,
             ),
         ]).then(([templateResult, providerResult]) => {
             if (!active) return
@@ -259,6 +262,7 @@ export function CommunicationComposerModal({
         initialMessageBody,
         open,
         organisationId,
+        competitionId,
     ])
 
     const selectedTemplate = useMemo(
@@ -426,6 +430,8 @@ export function CommunicationComposerModal({
         try {
             const result = await communicationsService.send({
                 organisationId,
+                competitionId,
+                ...(competitionId && usesClubWhatsApp ? { fixtureId: whatsAppFixtureId } : {}),
                 templateCode:
                     selectedTemplate?.code ?? null,
                 messageClass: 'service',
@@ -444,7 +450,7 @@ export function CommunicationComposerModal({
                     },
                 })),
                 body:
-                    !selectedTemplate && isGeneralMessage
+                    (competitionId || !selectedTemplate) && isGeneralMessage
                         ? messageBody.trim()
                         : null,
             })
@@ -695,7 +701,7 @@ export function CommunicationComposerModal({
                         disabled={
                             loading ||
                             sending ||
-                            (usesClubWhatsApp && (whatsAppLoading || !selectedWhatsAppTemplate || !whatsAppFixtureId || !whatsAppConsent)) ||
+                            (usesClubWhatsApp && (whatsAppLoading || !selectedWhatsAppTemplate || !whatsAppFixtureId || !whatsAppConsent || Object.values(whatsAppParameters).length !== 4 || Object.values(whatsAppParameters).some(value => !value.trim()))) ||
                             !selectedChannel ||
                             selectedCoverage === 0 ||
                             (

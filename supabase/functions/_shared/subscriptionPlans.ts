@@ -38,6 +38,7 @@ const STARTER_CLUB_MODULES = [
     'Dashboard',
     'Club Profile & Website',
     'Seasons',
+    'Calendar',
     'Teams',
     'Opponents',
     'Squad',

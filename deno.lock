@@ -664,16 +664,20 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@electric-sql/pglite@~0.5.8",
         "npm:@supabase/supabase-js@^2.108.2",
         "npm:@tailwindcss/vite@^4.3.3",
         "npm:@types/node@^26.6.3",
         "npm:@types/react-dom@^19.2.3",
         "npm:@types/react@^19.2.17",
         "npm:@vitejs/plugin-react@latest",
+        "npm:deno@^2.9.6",
         "npm:lucide-react@latest",
+        "npm:playwright@^1.64.0",
         "npm:react-dom@latest",
         "npm:react-router-dom@^7.18.1",
         "npm:react@latest",
+        "npm:stripe@^22.6.2",
         "npm:supabase@^2.109.1",
         "npm:tailwindcss@^4.3.3",
         "npm:typescript@latest",

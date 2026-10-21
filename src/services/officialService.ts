@@ -14,7 +14,7 @@ import {
     OfficialRating,
     PaymentStatus,
     UUID,
-} from '../../../../TournamentHQ-official-email-fix/src/types/officialTypes'
+} from '../types/officialTypes'
 
 const OFFICIALS_TABLE = 'officials'
 const QUALIFICATIONS_TABLE = 'official_qualifications'

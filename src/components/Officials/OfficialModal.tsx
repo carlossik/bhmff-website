@@ -18,7 +18,7 @@ import {
     OfficialRole,
     OfficialStatus,
     VerificationStatus,
-} from '../../../../../TournamentHQ-official-email-fix/src/types/officialTypes';
+} from '../../types/officialTypes';
 import {
     Sport,
     SportOfficialRole,

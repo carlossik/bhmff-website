@@ -98,14 +98,14 @@ export async function loadWhatsAppConnection(admin: SupabaseClient, organisation
         .select('*').eq('organisation_id', organisationId).maybeSingle()
     // Preserve existing email/SMS deployments before the new migration is applied.
     if (error && ['42P01', 'PGRST205'].includes(error.code)) return null
-    if (error) throw new Error('Unable to read the club WhatsApp connection.')
+    if (error) throw new Error('Unable to read the organisation WhatsApp connection.')
     return data as WhatsAppConnection | null
 }
 export function whatsAppReadinessDetail(connection: WhatsAppConnection | null): string {
-    if (!connection) return 'No WhatsApp sender is saved for this club. Configure the club sender first.'
+    if (!connection) return 'No WhatsApp sender is saved for this organisation. Configure the organiser or club sender first.'
     const missing = ['THQ_META_APP_ID', 'THQ_META_APP_SECRET', 'THQ_META_GRAPH_VERSION', 'THQ_WHATSAPP_ENCRYPTION_KEY', 'THQ_META_WEBHOOK_VERIFY_TOKEN'].filter(key => !Deno.env.get(key)?.trim())
     if (missing.length) return `WhatsApp backend configuration is incomplete: ${missing.join(', ')}. Update the Supabase function secrets.`
-    if (connection.token_expires_at && !(new Date(connection.token_expires_at).getTime() > Date.now())) return 'The saved WhatsApp access token has expired or has an invalid expiry. Renew it and rerun the sender configuration script.'
+    if (connection.token_expires_at && !(new Date(connection.token_expires_at).getTime() > Date.now())) return 'The saved WhatsApp access token has expired or has an invalid expiry. Ask a platform administrator to renew it under WhatsApp Connections.'
     return `Direct messages from ${connection.verified_name} (${connection.display_phone_number}).`
 }
 
@@ -165,7 +165,7 @@ export async function provisionWhatsAppConnection(admin: SupabaseClient, organis
     const { data: existing, error: existingError } = await admin.from('organisation_whatsapp_connections')
         .select('organisation_id').eq('phone_number_id', input.phoneNumberId).maybeSingle()
     if (existingError) throw new Error('Unable to verify the sender assignment.')
-    if (existing && existing.organisation_id !== organisationId) throw new Error('This WhatsApp number is already connected to another club.')
+    if (existing && existing.organisation_id !== organisationId) throw new Error('This WhatsApp number is already connected to another organisation.')
     const ciphertext = await encryptToken(token, organisationId)
     const subscription = await metaRequest(`${input.wabaId}/subscribed_apps`, token, 'POST', {})
     if (subscription.success !== true) throw new Error('Meta did not confirm delivery tracking for this WhatsApp account.')
@@ -177,7 +177,7 @@ export async function provisionWhatsAppConnection(admin: SupabaseClient, organis
         token_expires_at: expires.length ? new Date(Math.min(...expires) * 1000).toISOString() : null,
         onboarding_mode: input.onboardingMode, connected_by: userId, updated_at: new Date().toISOString(),
     }, { onConflict: 'organisation_id' })
-    if (error) throw new Error('Unable to save this WhatsApp connection. A sender can belong to only one club.')
+    if (error) throw new Error('Unable to save this WhatsApp connection. A sender can belong to only one organisation.')
 }
 
 export async function listWhatsAppTemplates(connection: WhatsAppConnection): Promise<WhatsAppTemplate[]> {
@@ -235,7 +235,7 @@ export function renderWhatsAppTemplate(template: WhatsAppTemplate, parameters: R
 
 export async function sendClubWhatsApp(connection: WhatsAppConnection, phone: string, template: WhatsAppTemplate,
     parameters: Record<string, string>, deliveryId: string) {
-    if (!connectionReady(connection)) throw new Error('Reconnect the club WhatsApp account before sending.')
+    if (!connectionReady(connection)) throw new Error('Reconnect the organisation WhatsApp account before sending.')
     const payload = { messaging_product: 'whatsapp', to: phone.replace(/^\+/, ''), type: 'template',
         template: buildWhatsAppTemplate(template, parameters), biz_opaque_callback_data: deliveryId }
     if (channelDryRunEnabled('whatsapp')) {

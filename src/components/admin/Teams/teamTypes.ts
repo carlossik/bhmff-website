@@ -9,6 +9,7 @@ export type DbTeam = {
     organisation_id: string
     club_id: string | null
     name: string
+    show_public_player_names: boolean | null
     age_group: string | null
     year_group: number | null
     gender: string | null

@@ -466,7 +466,7 @@ export function PublicResultsPage({
                     data,
                     error,
                 } = await supabase
-                    .from("results")
+                    .from("public_results")
                     .select(
                         `
                             *,

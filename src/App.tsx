@@ -1,15 +1,16 @@
+
 import {
     Navigate,
     useLocation,
 } from 'react-router-dom'
-
+import { CalendarResponsePage } from './pages/public/CalendarResponsePage'
+import { SetupWizard } from './pages/onboarding/SetupWizard'
 import { AdminPage } from './pages/AdminPage'
 import { SetPasswordPage } from './pages/Auth/SetPasswordPage'
 import { ForgotPasswordPage } from './pages/Auth/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/Auth/ResetPasswordPage'
 import { SignupPage } from './pages/Auth/SignupPage'
 import { HomePage } from './pages/Home/HomePage'
-import { SetupWizard } from './pages/onboarding/SetupWizard'
 import { PublicOrganisationLayout } from './pages/public/PublicOrganisationLayout'
 import { TournamentHqSupportLink } from './components/support/TournamentHqSupportLink'
 
@@ -27,6 +28,7 @@ const RESERVED_PUBLIC_PATHS =
         'robots.txt',
         'set-password',
         'signup',
+    'calendar',
         'sitemap.xml',
     ])
 
@@ -102,6 +104,9 @@ function isCleanOrganisationPath(
 function App() {
     const location =
         useLocation()
+
+
+    if (location.pathname === '/calendar/respond') return <CalendarResponsePage />
 
     if (
         location.pathname ===

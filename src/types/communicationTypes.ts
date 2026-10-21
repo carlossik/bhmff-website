@@ -48,6 +48,7 @@ export type CommunicationTemplate = {
 }
 
 export type CommunicationRecipientDraft = {
+    officialUserId?: string
     recipientName: string
     email?: string | null
     phone?: string | null
@@ -73,6 +74,8 @@ export type CommunicationDirectoryRecipient = {
 }
 
 export type SendCommunicationInput = {
+    competitionId?: string
+    fixtureId?: string
     organisationId: string
     templateCode?: string | null
     messageClass?: CommunicationMessageClass

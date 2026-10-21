@@ -30,6 +30,7 @@ function getStepLabels(
         billing: 'Plan & Billing',
         branding: 'Branding',
         competition: 'Quick Start',
+        whatsapp: 'WhatsApp (optional)',
         finish: 'Finish',
     }
 }
@@ -49,7 +50,7 @@ export function SetupWizardProgress({
         )
 
     return (
-        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
             {SETUP_WIZARD_STEPS.map(
                 (step, index) => {
                     const completed =

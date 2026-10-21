@@ -34,6 +34,7 @@ type Goal = {
     player_name: string
     minute: number | null
     video_timestamp: string | null
+    public_names_enabled: boolean
     goal_type: GoalType
 }
 
@@ -50,6 +51,7 @@ export function ClubGoalsManager() {
     const [goalType, setGoalType] = useState<GoalType>('player')
     const [playerId, setPlayerId] = useState('')
     const [playerName, setPlayerName] = useState('')
+    const [publicNames,setPublicNames] = useState(false)
     const [minute, setMinute] = useState('')
     const [video, setVideo] = useState('')
     const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
@@ -61,6 +63,7 @@ export function ClubGoalsManager() {
         setGoalType('player')
         setPlayerId('')
         setPlayerName('')
+        setPublicNames(false)
         setMinute('')
         setVideo('')
         setEditingGoalId(null)
@@ -91,7 +94,7 @@ export function ClubGoalsManager() {
                 supabase
                     .from('club_goals')
                     .select(
-                        'id,fixture_id,squad_member_id,player_name,minute,video_timestamp,goal_type',
+                        'id,fixture_id,squad_member_id,player_name,minute,video_timestamp,goal_type,public_names_enabled',
                     )
                     .eq('organisation_id', currentOrganisation.id)
                     .eq('season_id', id)
@@ -143,6 +146,7 @@ export function ClubGoalsManager() {
         const nextGoalType = goal.goal_type
         const currentPlayer = players.find(item => item.id === goal.squad_member_id)
 
+        setPublicNames(goal.public_names_enabled === true)
         setEditingGoalId(goal.id)
         setFixtureId(goal.fixture_id)
         setGoalType(nextGoalType)
@@ -212,6 +216,7 @@ export function ClubGoalsManager() {
                   ? `${selectedPlayer.club_players.first_name} ${selectedPlayer.club_players.last_name}`.trim()
                   : playerName.trim(),
             goal_type: goalType,
+            public_names_enabled: publicNames,
             minute: parsedMinute,
             video_timestamp: video.trim() || null,
         }
@@ -318,6 +323,7 @@ export function ClubGoalsManager() {
                 </select>
             </div>
 
+            <label className="my-3 flex items-start gap-3 text-sm"><input type="checkbox" checked={publicNames} onChange={e=>setPublicNames(e.target.checked)}/><span>Allow guest or own-goal name publicly. Confirm permission first. Registered-player names follow the Squad privacy setting.</span></label>
             {msg && (
                 <p className="rounded-xl border border-[var(--organisation-border)] p-3">
                     {msg}

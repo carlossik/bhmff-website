@@ -15,7 +15,7 @@ import {
     mediaCategories,
     mediaStatuses,
 } from "./mediaHelpers";
-import { validateMediaFile } from '../../../utils/publicMedia';
+import { directVideoUrl, validateMediaFile } from '../../../utils/publicMedia';
 import type { MediaFormState } from "./mediaValidation";
 
 type MediaModalProps = {
@@ -63,6 +63,19 @@ export default function MediaModal({
                                        onCancel,
                                    }: MediaModalProps) {
     const [uploadError, setUploadError] = useState('');
+    // Local files are not uploaded until Save; preview them with a temporary URL.
+    const previewFile = values.files[0];
+    const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+    useEffect(() => {
+        if (!open || !previewFile) {
+            setLocalPreviewUrl(null);
+            return;
+        }
+        const objectUrl = URL.createObjectURL(previewFile);
+        setLocalPreviewUrl(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+    }, [open, previewFile]);
+
     const currentYear =
         new Date().getFullYear();
 
@@ -215,7 +228,29 @@ export default function MediaModal({
                             "Untitled media"}
                     </h1>
 
-                    {values.embedUrl ? (
+                    {localPreviewUrl && previewFile?.type === "video/mp4" ? (
+                        <div className="mt-8 overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-black">
+                            <video src={localPreviewUrl} controls playsInline preload="metadata" className="aspect-video w-full" aria-label={values.title || "Selected video preview"} />
+                        </div>
+                    ) : localPreviewUrl && previewFile?.type.startsWith("image/") ? (
+                        <img src={localPreviewUrl} alt={values.title || "Selected image preview"} className="mt-8 max-h-[520px] w-full rounded-3xl object-contain" />
+                    ) : values.category === "Photo Gallery" && values.imageUrls.length > 0 ? (
+                        <img src={values.imageUrls[0]} alt={values.thumbnailAlt || values.title || "Uploaded image preview"} className="mt-8 max-h-[520px] w-full rounded-3xl object-contain" />
+                    ) : directVideoUrl(values.youtubeUrl) ? (
+                        <div className="mt-8 overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-black">
+                            <video
+                                src={values.youtubeUrl}
+                                controls
+                                playsInline
+                                preload="metadata"
+                                poster={values.thumbnailUrl || undefined}
+                                className="aspect-video w-full"
+                                aria-label={values.title || "Uploaded video preview"}
+                            >
+                                Your browser does not support HTML5 video playback.
+                            </video>
+                        </div>
+                    ) : values.embedUrl ? (
                         <div className="mt-8 overflow-hidden rounded-3xl border border-[color:var(--organisation-border)] bg-black">
                             <iframe
                                 src={

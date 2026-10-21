@@ -30,6 +30,7 @@ type SquadJoinRow = {
         first_name: string
         last_name: string
         photo_url: string | null
+        public_name_enabled: boolean
         email: string | null
         phone: string | null
         active: boolean
@@ -177,6 +178,7 @@ export const clubSquadService = {
                         first_name,
                         last_name,
                         photo_url,
+                        public_name_enabled,
                         email,
                         phone,
                         active
@@ -234,6 +236,7 @@ export const clubSquadService = {
                     last_name:
                         values.last_name.trim(),
                     photo_url: optionalText(values.photo_url),
+                    public_name_enabled: values.public_name_enabled === true,
                     email: optionalText(
                         values.email,
                     ),
@@ -326,6 +329,7 @@ export const clubSquadService = {
                     last_name:
                         values.last_name.trim(),
                     photo_url: optionalText(values.photo_url),
+                    public_name_enabled: values.public_name_enabled === true,
                     email: optionalText(
                         values.email,
                     ),

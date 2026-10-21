@@ -109,6 +109,7 @@ export const resultService = {
                 match_report:
                     values.match_report.trim() || null,
                 published: values.published,
+                public_names_enabled: values.public_names_enabled === true,
             })
 
         throwSupabaseError(
@@ -134,6 +135,7 @@ export const resultService = {
                 match_report:
                     values.match_report.trim() || null,
                 published: values.published,
+                public_names_enabled: values.public_names_enabled === true,
             })
             .eq('id', resultId)
             .eq('competition_id', competitionId)

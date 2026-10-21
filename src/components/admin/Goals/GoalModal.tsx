@@ -97,6 +97,10 @@ export function GoalModal({
             }
             onClose={onClose}
         >
+            <label className="mb-4 flex items-start gap-3 text-sm">
+                <input type="checkbox" checked={values.public_names_enabled} onChange={event => updateField('public_names_enabled', event.target.checked)} />
+                <span>Allow this scorer’s name on the public site. Confirm permission before enabling; names are hidden by default.</span>
+            </label>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-[var(--organisation-text)] [&_input]:rounded-xl [&_input]:border [&_input]:border-[var(--organisation-border)] [&_input]:bg-[var(--organisation-background)] [&_input]:px-4 [&_input]:py-3 [&_input]:text-[var(--organisation-text)] [&_input]:outline-none [&_input]:focus:border-[var(--organisation-accent)] [&_select]:rounded-xl [&_select]:border [&_select]:border-[var(--organisation-border)] [&_select]:bg-[var(--organisation-background)] [&_select]:px-4 [&_select]:py-3 [&_select]:text-[var(--organisation-text)] [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-[var(--organisation-border)] [&_textarea]:bg-[var(--organisation-background)] [&_textarea]:px-4 [&_textarea]:py-3 [&_textarea]:text-[var(--organisation-text)]">
                 <label className="md:col-span-2">
                     <span>Fixture</span>

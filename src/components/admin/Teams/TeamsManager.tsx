@@ -92,6 +92,8 @@ export function TeamsManager({
     const [ageGroup, setAgeGroup] =
         useState('')
 
+    const [showPublicPlayerNames, setShowPublicPlayerNames] = useState(false)
+
     const [yearGroup, setYearGroup] =
         useState('')
 
@@ -250,6 +252,7 @@ export function TeamsManager({
         setClubId('')
         setTeamName('')
         setAgeGroup('')
+        setShowPublicPlayerNames(false)
         setYearGroup('')
         setGender('Mixed')
         setDivision('')
@@ -284,9 +287,8 @@ export function TeamsManager({
         setEditingTeam(team)
         setClubId(team.club_id ?? '')
         setTeamName(team.name)
-        setAgeGroup(
-            team.age_group ?? ''
-        )
+        setAgeGroup(team.age_group ?? '')
+        setShowPublicPlayerNames(team.show_public_player_names === true)
         setYearGroup(
             team.year_group?.toString() ??
             ''
@@ -519,9 +521,8 @@ export function TeamsManager({
                 currentOrganisation.id,
                 club_id: effectiveClubId,
                 name: draft.teamName.trim(),
-                age_group:
-                    draft.ageGroup.trim() ||
-                    null,
+                age_group: draft.ageGroup.trim() || null,
+                show_public_player_names: draft.showPublicPlayerNames,
                 year_group:
                 parsedYearGroup,
                 gender:
@@ -751,6 +752,7 @@ export function TeamsManager({
                     clubId={clubId}
                     teamName={teamName}
                     ageGroup={ageGroup}
+                    showPublicPlayerNames={showPublicPlayerNames}
                     yearGroup={yearGroup}
                     gender={gender}
                     division={division}

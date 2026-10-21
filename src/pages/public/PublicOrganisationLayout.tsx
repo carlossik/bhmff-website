@@ -1119,6 +1119,10 @@ export function PublicOrganisationLayout({
                             </p>
                         </div>
 
+                        <div className="flex flex-wrap gap-4 text-sm">
+                            <a href="https://tournamenthq.co.uk/privacy-policy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>
+                            <a href="https://tournamenthq.co.uk/data-deletion" target="_blank" rel="noreferrer" className="underline">Data Deletion</a>
+                        </div>
                         <a
                             href="https://tournamenthq.co.uk"
                             target="_blank"

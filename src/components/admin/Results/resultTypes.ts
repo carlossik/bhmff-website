@@ -7,6 +7,7 @@ export type Result = {
     player_of_match: string | null
     match_report: string | null
     published: boolean
+    public_names_enabled: boolean
     created_at: string | null
 }
 
@@ -31,4 +32,5 @@ export type ResultFormValues = {
     player_of_match: string
     match_report: string
     published: boolean
+    public_names_enabled: boolean
 }

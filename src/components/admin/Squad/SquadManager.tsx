@@ -62,6 +62,7 @@ const emptyForm:
         first_name: '',
         last_name: '',
         photo_url: '',
+        public_name_enabled: false,
         email: '',
         phone: '',
         squad_number: '',
@@ -682,6 +683,7 @@ export function SquadManager() {
                 member.player
                     .last_name,
             photo_url: member.player.photo_url ?? '',
+            public_name_enabled: member.player.public_name_enabled === true,
             email:
                 member.player.email ??
                 '',
@@ -1090,6 +1092,7 @@ export function SquadManager() {
                             last_name:
                                 row.last_name,
                             photo_url: '',
+        public_name_enabled: false,
                             email:
                                 row.email,
                             phone:
@@ -1748,6 +1751,13 @@ export function SquadManager() {
                                     />
                                 </label>
 
+                                <label className="md:col-span-2 flex items-start gap-3 rounded-xl border border-white/10 p-4 text-sm text-slate-300">
+                                    <input type="checkbox" checked={form.public_name_enabled}
+                                        onChange={event => updateForm('public_name_enabled', event.target.checked)} />
+                                    <span>Allow this player’s name and photo on the public website.
+                                        <span className="mt-1 block text-xs text-slate-400">Hidden by default. Confirm the appropriate permission before enabling, including parent or guardian permission for a minor. Staff can always see the name privately.</span>
+                                    </span>
+                                </label>
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-semibold text-slate-300">
                                         Player photo (optional)
@@ -1756,7 +1766,7 @@ export function SquadManager() {
                                             className="mt-2 block w-full rounded-xl border border-white/10 bg-[#071009] p-3 text-sm" />
                                     </label>
                                     <p className="mt-2 text-xs text-slate-400">
-                                        JPG, PNG or WebP, up to 5 MB. Photos will appear on the public squad page.
+                                        JPG, PNG or WebP, up to 5 MB. Photos appear publicly only when public display is enabled below.
                                         Only upload an image you have permission to publish.
                                     </p>
                                     {form.photo_url && !photoFile && (

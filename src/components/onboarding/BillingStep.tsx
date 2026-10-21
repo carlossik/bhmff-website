@@ -1,3 +1,4 @@
+import { SeasonPilotCode } from './SeasonPilotCode'
 import {
     useCallback,
     useEffect,
@@ -171,6 +172,7 @@ function readBillingReturnState(): BillingReturnState {
 function hasBillingEntitlement(
     organisation: Organisation,
 ): boolean {
+    if (organisation.subscription_status === 'trial' && organisation.trial_end && new Date(organisation.trial_end).getTime() <= Date.now()) return false
     return (
         organisation.subscription_status ===
             'trial' ||
@@ -596,6 +598,7 @@ export function BillingStep({
 
         return (
             <div className="space-y-6">
+                {!billingReady && organisationId && <SeasonPilotCode organisationId={organisationId} onActivated={() => { void loadOrganisation() }} />}
                 <header>
                     <div className="inline-flex items-center gap-2 rounded-full border border-lime-400/30 bg-lime-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-lime-300">
                         <BadgeCheck className="h-4 w-4" />
@@ -617,7 +620,7 @@ export function BillingStep({
                     </div>
 
                     <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400 sm:text-[15px]">
-                        {isTrial
+                        {organisation.pilot_campaign ? 'Your free Bexley Borough season pass is active for three teams through 30 June 2027.' : isTrial
                             ? `Your ${TRIAL_DAYS}-day free trial is active. No subscription charge is due today.`
                             : 'Your TournamentHQ subscription is active.'}
                     </p>
@@ -640,12 +643,12 @@ export function BillingStep({
                                     lineHeight: 1.2,
                                 }}
                             >
-                                {isTrial
+                                {organisation.pilot_campaign ? 'Season pass active' : isTrial
                                     ? 'Free trial active'
                                     : 'Subscription active'}
                             </div>
                             <p className="mt-2 text-sm leading-6 text-slate-400">
-                                {isTrial && trialEnd
+                                {organisation.pilot_campaign ? 'Your season pass ends on 30 June 2027. No automatic payment will be taken; choose a paid plan if you wish to continue afterwards.' : isTrial && trialEnd
                                     ? `Your trial runs until ${trialEnd}. Stripe will attempt the first subscription payment when the trial ends unless you cancel before then.`
                                     : isTrial
                                       ? 'Stripe will attempt the first subscription payment when the trial ends unless you cancel before then.'
@@ -691,6 +694,7 @@ export function BillingStep({
 
     return (
         <div className="space-y-6">
+                {!billingReady && organisationId && <SeasonPilotCode organisationId={organisationId} onActivated={() => { void loadOrganisation() }} />}
             <header>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--organisation-border)] bg-black/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--organisation-accent,#84cc16)]">
                     <Sparkles className="h-4 w-4" />

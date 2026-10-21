@@ -205,7 +205,7 @@ Deno.test('successful connection saves only encrypted credentials and Meta-verif
         assert(await decryptToken(saved) === 'private-business-token')
         saved = null
         otherClub = true
-        await rejects(() => connectWhatsApp(fakeAdmin as any, 'club-a', 'user-a', input), 'another club')
+        await rejects(() => connectWhatsApp(fakeAdmin as any, 'club-a', 'user-a', input), 'another organisation')
         assert(saved === null && subscriptions === 1)
     } finally { globalThis.fetch = original }
 })

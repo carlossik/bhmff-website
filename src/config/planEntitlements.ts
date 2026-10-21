@@ -10,6 +10,7 @@ export type PlanModuleKey =
     | 'Competitions'
     | 'Tournament Rules'
     | 'Seasons'
+    | 'Calendar'
     | 'Clubs'
     | 'Teams'
     | 'Competition Teams'
@@ -63,6 +64,7 @@ const STARTER_CLUB_MODULES: readonly PlanModuleKey[] = [
     'Dashboard',
     'Club Profile & Website',
     'Seasons',
+    'Calendar',
     'Teams',
     'Opponents',
     'Squad',
@@ -102,6 +104,7 @@ const PROFESSIONAL_CLUB_MODULES: readonly PlanModuleKey[] = [
 ]
 
 export const PLAN_MODULE_DEFINITIONS: readonly PlanModuleDefinition[] = [
+    {key: 'Calendar',label: 'Calendar',description: 'Training, recurring events, attendance and reminders.'},
     {
         key: 'Dashboard',
         label: 'Dashboard',
