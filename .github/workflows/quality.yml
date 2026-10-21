@@ -1,0 +1,76 @@
+name: TournamentHQ quality
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: thq-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-regression:
+    name: Build and offline regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: Repository security and safeguarding contracts
+        run: node --test tests/quality/repository-security.test.cjs tests/quality/safeguarding-contract.test.cjs
+      - name: Existing public and admin source tests
+        run: |
+          node --test \
+            tests/public/goals-regression.test.cjs \
+            tests/public/articles-countdown-standings.test.cjs \
+            tests/public/media-publishing.test.cjs \
+            tests/public/result-score-pairing.test.cjs \
+            tests/public/site-visitors.test.cjs \
+            tests/public/tournament-matchday.test.cjs \
+            tests/admin/modal-focus.test.cjs \
+            tests/officials/email-save.test.cjs
+      - name: Isolated database tests
+        run: node --test tests/post-demo/database.test.mjs tests/whatsapp/tournamentCommunicationsDb.test.mjs
+  browser-staging:
+    name: Staging public browser regression
+    if: ${{ vars.THQ_STAGING_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      THQ_BASE_URL: ${{ vars.THQ_STAGING_URL }}
+      THQ_BHMFF_SLUG: ${{ vars.THQ_BHMFF_SLUG || 'bhmff' }}
+      THQ_PETTSWOOD_SLUG: ${{ vars.THQ_PETTSWOOD_SLUG || 'pettswood-vets1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node --test tests/public/publicSiteRegression.test.cjs
+  dependency-audit:
+    name: Dependency audit (report-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Audit report (non-blocking initially)
+        run: npm audit --omit=dev --audit-level=high --json > audit.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audit
+          path: audit.json

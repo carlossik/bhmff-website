@@ -1,0 +1,27 @@
+name: TournamentHQ staging performance baseline
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+permissions:
+  contents: read
+jobs:
+  baseline:
+    if: ${{ vars.THQ_STAGING_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      THQ_BASE_URL: ${{ vars.THQ_STAGING_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/public-performance-baseline.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: thq-performance-baseline
+          path: performance-results.json
