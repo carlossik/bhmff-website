@@ -198,8 +198,7 @@ export function PublicTeamsPage({
                                 clubs (
                                     id,
                                     name,
-                                    badge_url,
-                                    logo_url
+                                    badge_url
                                 ),
                                 venues (
                                     id,
