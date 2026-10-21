@@ -69,6 +69,7 @@ export type CompetitionJourneySectionProps = {
     surfaceColour: string
     textColour: string
     accentColour: string
+    basePath: string
 }
 
 export function CompetitionJourneySection({
@@ -79,8 +80,14 @@ export function CompetitionJourneySection({
                                               surfaceColour,
                                               textColour,
                                               accentColour,
+                                              basePath,
                                           }: CompetitionJourneySectionProps) {
     const journey = isBhmff ? bhmffJourney : genericJourney
+    const upcoming = fixtures.filter(item => {
+        const time = Date.parse(item.kickoffTime ?? '')
+        return Number.isFinite(time) && time >= Date.now() && !/complete|finish|cancel/i.test(item.status ?? '')
+    }).sort((a,b)=>Date.parse(a.kickoffTime ?? '') - Date.parse(b.kickoffTime ?? ''))
+    const featuredFixtures = isBhmff ? upcoming.slice(0,2) : fixtures
 
     return (
         <Section
@@ -136,25 +143,18 @@ export function CompetitionJourneySection({
                 ))}
             </div>
 
-            <div className="mt-10">
-                <h3 className="text-xl font-black sm:text-2xl">
-                    Confirmed Fixtures
-                </h3>
-
-                <div className="mt-5">
-                    {loading ? (
-                        <p className="text-sm opacity-70">
-                            Loading fixtures...
-                        </p>
-                    ) : (
-                        <FixtureList
-                            fixtures={fixtures}
-                            surfaceColour={surfaceColour}
-                            textColour={textColour}
-                            accentColour={accentColour}
-                        />
-                    )}
-                </div>
+            <div className="mt-6">
+                <h3 className="text-xl font-black sm:text-2xl">{isBhmff ? 'Upcoming Fixtures' : 'Confirmed Fixtures'}</h3>
+                {loading ? <p className="mt-3 text-sm opacity-70">Loading fixtures...</p> : (
+                    <>
+                        {featuredFixtures.length > 0 ? <div className="mt-4"><FixtureList fixtures={featuredFixtures} surfaceColour={surfaceColour} textColour={textColour} accentColour={accentColour} /></div> : <p className="mt-3 text-sm opacity-70">No upcoming fixtures. View the completed competition matches below.</p>}
+                        {isBhmff && <details className="mt-5 rounded-xl border p-4" style={{borderColor:`${accentColour}40`,backgroundColor:surfaceColour}}>
+                            <summary className="cursor-pointer font-bold">Show all confirmed and previous fixtures ({fixtures.length})</summary>
+                            <div className="mt-4"><FixtureList fixtures={fixtures} surfaceColour={surfaceColour} textColour={textColour} accentColour={accentColour} /></div>
+                        </details>}
+                        {isBhmff && <a href={`${basePath}/fixtures`} className="mt-4 inline-flex rounded-lg border px-4 py-2 text-sm font-bold" style={{borderColor:accentColour,color:accentColour}}>Browse Fixtures &amp; Results</a>}
+                    </>
+                )}
             </div>
         </Section>
     )

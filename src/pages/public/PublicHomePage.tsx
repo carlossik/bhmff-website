@@ -25,6 +25,7 @@ import { MediaSection } from '../../components/public/home/MediaSection'
 import { ArticlesSection } from '../../components/public/home/ArticlesSection'
 import { SponsorsSection } from '../../components/public/home/SponsorsSection'
 import { ClubPublicHomePage } from './ClubPublicHomePage'
+import { BhmffKnockoutSpotlight } from '../../components/public/home/BhmffKnockoutSpotlight'
 
 type PublicHomePageProps = {
     organisationName: string
@@ -645,6 +646,26 @@ function CompetitionPublicHomePage({
 
     return (
         <>
+            {isBhmff && <style>{`
+                .bhmff-tight-sections .hero { min-height: 0 !important; padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; margin-bottom: 0 !important; }
+                .bhmff-tight-sections > section { margin-top: 0 !important; margin-bottom: 0 !important; }
+                .bhmff-tight-sections > section + section { padding-top: 1.5rem !important; }
+                #festival, #fixtures, #results { min-height: 0 !important; padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important; }
+                #festival .container, #fixtures .container, #results .container { min-height: 0 !important; }
+            `}</style>}
+            {isBhmff && (
+                <BhmffKnockoutSpotlight
+                    fixtures={publicFixtures}
+                    results={publicResults}
+                    teams={publicTeams}
+                    basePath={basePath}
+                    surfaceColour={surfaceColour}
+                    accentColour={accentColour}
+                    textColour={textColour}
+                />
+            )}
+
+            <div className={isBhmff ? 'bhmff-tight-sections' : undefined}>
             <HeroSection
                 organisationName={organisationName}
                 backgroundColour={backgroundColour}
@@ -665,8 +686,10 @@ function CompetitionPublicHomePage({
                 accentColour={accentColour}
             />
 
+            </div>
             <CompetitionJourneySection
                 isBhmff={isBhmff}
+                basePath={basePath}
                 competitionName={competitionName}
                 fixtures={publicFixtures}
                 loading={loading}
@@ -676,6 +699,7 @@ function CompetitionPublicHomePage({
             />
 
             <ResultsSection
+                isBhmff={isBhmff}
                 organisationName={organisationName}
                 results={publicResults}
                 surfaceColour={surfaceColour}

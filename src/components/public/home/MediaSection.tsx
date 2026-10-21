@@ -61,7 +61,7 @@ export function MediaSection({
             intro={`Featured matches, highlights, interviews and organiser updates from ${organisationName}.`}
         >
             {media.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div className="columns-1 gap-6 md:columns-2 xl:columns-3">
                     {media.map((item) => {
                         const embedUrl = getPublicString(item, ['embed_url'])
                         const imageUrl = getPublicString(item, [
@@ -89,7 +89,7 @@ export function MediaSection({
                         return (
                             <article
                                 key={item.id}
-                                className="overflow-hidden rounded-2xl border shadow-sm"
+                                className="mb-6 inline-block w-full break-inside-avoid overflow-hidden rounded-2xl border align-top shadow-sm"
                                 style={{
                                     backgroundColor: surfaceColour,
                                     borderColor: featured
@@ -128,7 +128,8 @@ export function MediaSection({
                                         {title}
                                     </h3>
 
-                                    <p className="mt-3 text-sm leading-6 opacity-75">
+                                    <p className="mt-3 text-sm leading-6 opacity-75"
+                                        style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                         {description}
                                     </p>
 

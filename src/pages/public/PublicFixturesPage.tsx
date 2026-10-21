@@ -101,6 +101,8 @@ type FixtureViewModel = {
     scheduledAt: string;
     status: string;
     roundLabel: string;
+    homeScore?: number | null;
+    awayScore?: number | null;
     officials: PublicFixtureOfficial[];
 };
 
@@ -469,6 +471,7 @@ export function PublicFixturesPage({
     accentTextColour,
     basePath,
 }: PublicFixturesPageProps) {
+    const [publishedScores, setPublishedScores] = useState<Record<string, {home: number; away: number}>>({});
     const [fixtures, setFixtures] =
         useState<FixtureViewModel[]>([]);
 
@@ -481,6 +484,8 @@ export function PublicFixturesPage({
     const [searchTerm, setSearchTerm] =
         useState("");
 
+    const [fixtureView, setFixtureView] = useState<'upcoming' | 'results' | 'all'>('upcoming');
+
     const [
         selectedCompetitionId,
         setSelectedCompetitionId,
@@ -492,81 +497,66 @@ export function PublicFixturesPage({
             setErrorMessage("");
 
             try {
-                const { data, error } =
-                    await supabase
-                        .from("fixtures")
-                        .select(
-                            `
-                                *,
-                                home_team:teams!fixtures_home_team_id_fkey (
-                                    id,
-                                    name,
-                                    team_name,
-                                    badge_url,
-                                    logo_url,
-                                    clubs (
-                                        name,
-                                        badge_url,
-                                        logo_url
-                                    )
-                                ),
-                                away_team:teams!fixtures_away_team_id_fkey (
-                                    id,
-                                    name,
-                                    team_name,
-                                    badge_url,
-                                    logo_url,
-                                    clubs (
-                                        name,
-                                        badge_url,
-                                        logo_url
-                                    )
-                                ),
-                                venue:venues (
-                                    id,
-                                    name,
-                                    address
-                                ),
-                                competition:competitions (
-                                    id,
-                                    name,
-                                    title
-                                )
-                            `,
-                        )
-                        .eq(
-                            "organisation_id",
-                            organisationId,
-                        )
-                        .order(
-                            "scheduled_at",
-                            {
-                                ascending: true,
-                                nullsFirst: false,
-                            },
-                        );
-
-                if (error) {
-                    console.error(
-                        "Failed to load public fixtures:",
-                        error,
-                    );
-
+                // Fixtures belong to competitions, not directly to organisations.
+                // Reuse the same competition-team joins as the working public homepage.
+                const competitionIds = competitions.map((item) => item.id).filter(Boolean);
+                if (competitionIds.length === 0) {
                     setFixtures([]);
-                    setErrorMessage(
-                        "Unable to load fixtures right now.",
-                    );
                     return;
                 }
 
-                const rows =
-                    (data ?? []) as PublicFixtureRow[];
+                const { data, error } = await supabase
+                    .from("fixtures")
+                    .select(`
+                        id, competition_id, stage, kickoff_time, status, venue_id,
+                        home_competition_team:competition_teams!fixtures_home_competition_team_fkey (
+                            id, team_id, team:teams!competition_teams_team_id_fkey (id, name, logo_url)
+                        ),
+                        away_competition_team:competition_teams!fixtures_away_competition_team_fkey (
+                            id, team_id, team:teams!competition_teams_team_id_fkey (id, name, logo_url)
+                        ),
+                        venue:venues!fixtures_venue_id_fkey (id, name, address, postcode)
+                    `)
+                    .in("competition_id", competitionIds)
+                    .neq("status", "cancelled")
+                    .order("kickoff_time", { ascending: true, nullsFirst: false });
 
-                const visibleRows =
-                    rows.filter(
-                        (fixture) =>
-                            fixture.published !== false,
-                    );
+                if (error) {
+                    console.error("Failed to load public fixtures:", error);
+                    setFixtures([]);
+                    setErrorMessage("Unable to load fixtures right now.");
+                    return;
+                }
+
+                // The existing query filters by the current organisation's competition IDs.
+                // Do not depend on the non-existent fixtures.organisation_id column.
+                const records = (data ?? []) as unknown as Array<Record<string, unknown>>;
+                const unpack = (value: unknown): Record<string, unknown> => {
+                    const entry = Array.isArray(value) ? value[0] : value;
+                    return entry && typeof entry === 'object'
+                        ? entry as Record<string, unknown> : {};
+                };
+                const label = (value: unknown) => typeof value === 'string' ? value : '';
+                const visibleRows: PublicFixtureRow[] = records.map((record) => {
+                    const homeLink = unpack(record.home_competition_team);
+                    const awayLink = unpack(record.away_competition_team);
+                    const home = unpack(homeLink.team);
+                    const away = unpack(awayLink.team);
+                    const venue = unpack(record.venue);
+                    const competitionId = label(record.competition_id);
+                    const sourceCompetition = competitions.find(item => item.id === competitionId);
+                    return {
+                        id: label(record.id),
+                        competition_id: competitionId,
+                        competition: { id: competitionId, name: sourceCompetition?.name ?? 'Competition' },
+                        home_team: { id: label(home.id), name: label(home.name), logo_url: label(home.logo_url) },
+                        away_team: { id: label(away.id), name: label(away.name), logo_url: label(away.logo_url) },
+                        venue: { id: label(venue.id), name: label(venue.name), address: [label(venue.address),label(venue.postcode)].filter(Boolean).join(', ') },
+                        scheduled_at: label(record.kickoff_time),
+                        status: label(record.status) || 'scheduled',
+                        round_name: label(record.stage).replace(/_/g,' '),
+                    };
+                }).filter(item=>item.id);
 
                 const fixtureIds =
                     visibleRows.map(
@@ -633,6 +623,23 @@ export function PublicFixturesPage({
                     }
                 }
 
+                // Published results are the source of truth for completed matches.
+                const { data: resultRows, error: resultError } = await supabase
+                    .from("public_results")
+                    .select("fixture_id, home_score, away_score, published")
+                    .in("competition_id", competitionIds);
+                if (resultError) {
+                    console.error("Failed to load published scores:", resultError);
+                    setPublishedScores({});
+                } else {
+                    const scores: Record<string, {home: number; away: number}> = {};
+                    for (const result of resultRows ?? []) {
+                        if (result.published === false || !result.fixture_id ||
+                            typeof result.home_score !== "number" || typeof result.away_score !== "number") continue;
+                        scores[result.fixture_id] = {home: result.home_score, away: result.away_score};
+                    }
+                    setPublishedScores(scores);
+                }
                 setFixtures(
                     visibleRows.map(
                         (fixture) =>
@@ -700,7 +707,8 @@ export function PublicFixturesPage({
                     .trim()
                     .toLowerCase();
 
-            return fixtures.filter(
+            const now = Date.now();
+            const visible = fixtures.filter(
                 (fixture) => {
                     const competitionMatches =
                         selectedCompetitionId ===
@@ -731,16 +739,26 @@ export function PublicFixturesPage({
                                 normalisedSearch,
                             );
 
-                    return (
-                        competitionMatches &&
-                        searchMatches
-                    );
+                    if (!competitionMatches || !searchMatches) return false;
+                    const matchTime = Date.parse(fixture.scheduledAt);
+                    const hasPublishedResult = Object.prototype.hasOwnProperty.call(publishedScores, fixture.id);
+                    const completed = hasPublishedResult || /completed|finished|played|full.time/i.test(fixture.status);
+                    if (fixtureView === 'upcoming') return !completed && (!Number.isFinite(matchTime) || matchTime >= now);
+                    if (fixtureView === 'results') return completed;
+                    return true;
                 },
             );
+            return [...visible].sort((a, b) => {
+                const aTime = Date.parse(a.scheduledAt) || 0;
+                const bTime = Date.parse(b.scheduledAt) || 0;
+                return fixtureView === 'upcoming' ? aTime - bTime : bTime - aTime;
+            });
         }, [
             fixtures,
             selectedCompetitionId,
             searchTerm,
+            fixtureView,
+            publishedScores,
         ]);
 
     const pageWidth =
@@ -757,7 +775,7 @@ export function PublicFixturesPage({
             }}
         >
             <section
-                className="border-b py-16"
+                className="border-b py-8 sm:py-10"
                 style={{
                     borderColor:
                         `${accentColour}30`,
@@ -780,12 +798,12 @@ export function PublicFixturesPage({
                         Match Centre
                     </p>
 
-                    <h1 className="mt-3 max-w-4xl text-4xl font-black leading-tight sm:text-6xl">
-                        Fixtures
+                    <h1 className="mt-2 max-w-4xl text-3xl font-black leading-tight sm:text-4xl">
+                        Fixtures &amp; Results
                     </h1>
 
-                    <p className="mt-5 max-w-3xl text-base leading-7 opacity-75 sm:text-lg">
-                        View confirmed fixtures,
+                    <p className="mt-3 max-w-3xl text-sm leading-6 opacity-75 sm:text-base">
+                        View upcoming fixtures and published results,
                         kick-off times, venues and appointed officials for{" "}
                         <strong>
                             {organisationName}
@@ -795,13 +813,25 @@ export function PublicFixturesPage({
                 </div>
             </section>
 
-            <section className="py-10">
+            <section className="py-6">
                 <div
                     className="mx-auto"
                     style={{
                         width: pageWidth,
                     }}
                 >
+                    <div className="mb-5 flex flex-wrap gap-2" aria-label="Fixture view">
+                        {([['upcoming', 'Fixtures'], ['results', 'Results'], ['all', 'All Matches']] as const).map(([key, label]) => (
+                            <button key={key} type="button" onClick={() => setFixtureView(key)}
+                                aria-pressed={fixtureView === key}
+                                className="rounded-xl border px-4 py-2 text-sm font-bold"
+                                style={{ background: fixtureView === key ? accentColour : surfaceColour,
+                                    color: fixtureView === key ? accentTextColour : textColour,
+                                    borderColor: `${accentColour}55` }}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                     <div
                         className="flex flex-col gap-4 rounded-2xl border p-4 lg:flex-row lg:items-center lg:justify-between"
                         style={{
@@ -919,7 +949,7 @@ export function PublicFixturesPage({
                             />
 
                             <h2 className="mt-5 text-2xl font-black">
-                                No fixtures found
+                                {fixtureView === 'upcoming' ? 'No upcoming fixtures' : fixtureView === 'results' ? 'No results found' : 'No fixtures found'}
                             </h2>
 
                             <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 opacity-70">
@@ -993,8 +1023,14 @@ export function PublicFixturesPage({
 
                                             <div className="text-center">
                                                 <strong className="block text-2xl font-black">
-                                                    VS
+                                                    {publishedScores[fixture.id]
+                                                        ? `${publishedScores[fixture.id].home} - ${publishedScores[fixture.id].away}`
+                                                        : "VS"}
                                                 </strong>
+                                                {publishedScores[fixture.id] && <>
+                                                    <span className="block text-xs font-bold opacity-70">FULL TIME</span>
+                                                    <a className="mt-2 inline-block text-xs font-bold underline" href={`${basePath}/results`} style={{ color: accentColour }}>View results</a>
+                                                </>}
 
                                                 <div className="mt-3 space-y-2 text-sm opacity-70">
                                                     <p className="flex items-center justify-center gap-2">

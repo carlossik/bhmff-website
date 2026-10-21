@@ -10,6 +10,7 @@ export type ResultsSectionProps = {
     surfaceColour: string
     textColour: string
     accentColour: string
+    isBhmff?: boolean
 }
 
 export function ResultsSection({
@@ -18,6 +19,7 @@ export function ResultsSection({
                                    surfaceColour,
                                    textColour,
                                    accentColour,
+                                   isBhmff = false,
                                }: ResultsSectionProps) {
     return (
         <Section
@@ -26,12 +28,10 @@ export function ResultsSection({
             intro={`Confirmed and published match results from ${organisationName}.`}
         >
             {results.length > 0 ? (
-                <ResultsList
-                    results={results}
-                    surfaceColour={surfaceColour}
-                    textColour={textColour}
-                    accentColour={accentColour}
-                />
+                isBhmff ? <details className="rounded-xl border p-4" style={{borderColor:`${accentColour}40`, background:surfaceColour}}>
+                    <summary className="cursor-pointer font-bold">Show all published results ({results.length})</summary>
+                    <div className="mt-4"><ResultsList results={results} surfaceColour={surfaceColour} textColour={textColour} accentColour={accentColour}/></div>
+                </details> : <ResultsList results={results} surfaceColour={surfaceColour} textColour={textColour} accentColour={accentColour}/>
             ) : (
                 <PublicEmptyState
                     title="No published results yet"

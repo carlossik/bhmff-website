@@ -88,13 +88,14 @@ export function ArticlesSection({
                     {!articlesLoading &&
                         !articlesError &&
                         publicArticles.length > 0 && (
-                            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="columns-1 gap-6 sm:columns-2 xl:columns-4">
                                 {publicArticles.map((article) => (
-                                    <ArticleCard
-                                        key={article.id}
-                                        article={article}
-                                        onRead={onReadArticle}
-                                    />
+                                    <div key={article.id} className="mb-6 inline-block w-full break-inside-avoid align-top">
+                                        <ArticleCard
+                                            article={article}
+                                            onRead={onReadArticle}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         )}
@@ -122,7 +123,7 @@ export function ArticlesSection({
                         )}
                 </>
             ) : articles.length > 0 ? (
-                <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="columns-1 gap-6 sm:columns-2 xl:columns-4">
                     {articles.map((article) => {
                         const title =
                             getPublicString(article, ['title']) ||
@@ -146,7 +147,7 @@ export function ArticlesSection({
                         return (
                             <article
                                 key={article.id}
-                                className="overflow-hidden rounded-2xl border shadow-sm"
+                                className="mb-6 inline-block w-full break-inside-avoid overflow-hidden rounded-2xl border align-top shadow-sm"
                                 style={{
                                     backgroundColor: surfaceColour,
                                     borderColor: `${accentColour}30`,
@@ -177,7 +178,8 @@ export function ArticlesSection({
                                         {title}
                                     </h3>
 
-                                    <p className="mt-3 text-sm leading-6 opacity-75">
+                                    <p className="mt-3 text-sm leading-6 opacity-75"
+                                        style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                         {summary}
                                     </p>
 

@@ -642,7 +642,33 @@ export function Hero({ featuredMatch, basePath = '' }: { featuredMatch?: PublicM
 
                         {featuredMatch ? <>
                             <MediaPlayer url={String(featuredMatch.youtube_url || featuredMatch.embed_url || '')} thumbnail={String(featuredMatch.thumbnail_url || '')} title={featuredMatch.title || 'Featured video'} />
-                            <div className="heroVideoMeta premiumVideoMeta"><span>Official Tournament Coverage</span><strong>{featuredMatch.title}</strong><p>{featuredMatch.description}</p></div>
+                            <div className="heroVideoMeta premiumVideoMeta">
+                                <span>Official Tournament Coverage</span>
+                                <strong
+                                    style={{
+                                        display: '-webkit-box',
+                                        WebkitBoxOrient: 'vertical',
+                                        WebkitLineClamp: 2,
+                                        overflow: 'hidden',
+                                        overflowWrap: 'anywhere',
+                                    }}
+                                >
+                                    {featuredMatch.title}
+                                </strong>
+                                {featuredMatch.description && (
+                                    <p
+                                        style={{
+                                            display: '-webkit-box',
+                                            WebkitBoxOrient: 'vertical',
+                                            WebkitLineClamp: 3,
+                                            overflow: 'hidden',
+                                            overflowWrap: 'anywhere',
+                                        }}
+                                    >
+                                        {featuredMatch.description.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()}
+                                    </p>
+                                )}
+                            </div>
                             <a className="watchLink" href={`${basePath}/media/${featuredMatch.id}`}>Watch and share this video →</a>
                         </> : <div className="heroVideoMeta premiumVideoMeta"><strong>Match coverage coming soon</strong><p>Our latest featured full match will appear here when published.</p></div>}
 
