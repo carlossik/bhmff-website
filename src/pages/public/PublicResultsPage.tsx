@@ -457,154 +457,138 @@ export function PublicResultsPage({
     ] = useState("all");
 
     useEffect(() => {
+        let active = true;
+
         async function loadResults() {
             setLoading(true);
             setErrorMessage("");
 
             try {
-                const {
-                    data,
-                    error,
-                } = await supabase
-                    .from("public_results")
-                    .select(
-                        `
-                            *,
-                            home_team:teams!results_home_team_id_fkey (
-                                id,
-                                name,
-                                team_name,
-                                badge_url,
-                                logo_url,
-                                clubs (
-                                    name,
-                                    badge_url,
-                                    logo_url
-                                )
-                            ),
-                            away_team:teams!results_away_team_id_fkey (
-                                id,
-                                name,
-                                team_name,
-                                badge_url,
-                                logo_url,
-                                clubs (
-                                    name,
-                                    badge_url,
-                                    logo_url
-                                )
-                            ),
-                            venue:venues (
-                                id,
-                                name,
-                                address
-                            ),
-                            competition:competitions (
-                                id,
-                                name,
-                                title
-                            ),
-                            fixture:fixtures (
-                                id,
-                                scheduled_at,
-                                fixture_date,
-                                kickoff_time,
-                                home_team:teams!fixtures_home_team_id_fkey (
-                                    id,
-                                    name,
-                                    team_name,
-                                    badge_url,
-                                    logo_url,
-                                    clubs (
-                                        name,
-                                        badge_url,
-                                        logo_url
-                                    )
-                                ),
-                                away_team:teams!fixtures_away_team_id_fkey (
-                                    id,
-                                    name,
-                                    team_name,
-                                    badge_url,
-                                    logo_url,
-                                    clubs (
-                                        name,
-                                        badge_url,
-                                        logo_url
-                                    )
-                                ),
-                                venue:venues (
-                                    id,
-                                    name,
-                                    address
-                                ),
-                                competition:competitions (
-                                    id,
-                                    name,
-                                    title
-                                )
-                            )
-                        `,
-                    )
-                    .eq(
-                        "organisation_id",
-                        organisationId,
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending:
-                                false,
-                        },
-                    );
+                // Scope every subsequent request by competitions owned by this organisation.
+                const { data: competitionData, error: competitionError } = await supabase
+                    .from("competitions")
+                    .select("*")
+                    .eq("organisation_id", organisationId);
+                if (competitionError) throw competitionError;
 
-                if (error) {
-                    console.error(
-                        "Failed to load public results:",
-                        error,
-                    );
-
-                    setResults([]);
-                    setErrorMessage(
-                        "Unable to load results right now.",
-                    );
+                const competitionRows = (competitionData ?? []) as Record<string, any>[];
+                const competitionIds = competitionRows.map((row) => String(row.id));
+                if (!competitionIds.length) {
+                    if (active) setResults([]);
                     return;
                 }
 
-                const rows =
-                    (data ?? []) as PublicResultRow[];
+                // public_results exposes fixture_id + competition_id, NOT direct team relationships.
+                const { data: resultData, error: resultError } = await supabase
+                    .from("public_results")
+                    .select("*")
+                    .in("competition_id", competitionIds)
+                    .eq("published", true)
+                    .order("created_at", { ascending: false });
+                if (resultError) throw resultError;
 
-                const visibleRows =
-                    rows.filter(
-                        (result) =>
-                            result.published !== false,
-                    );
+                const resultRows = (resultData ?? []) as Record<string, any>[];
+                const fixtureIds = [...new Set(resultRows.map((row) => row.fixture_id).filter(Boolean))] as string[];
+                if (!fixtureIds.length) {
+                    if (active) setResults([]);
+                    return;
+                }
 
-                setResults(
-                    visibleRows.map(
-                        mapResult,
-                    ),
-                );
+                const { data: fixtureData, error: fixtureError } = await supabase
+                    .from("fixtures")
+                    .select("*")
+                    .in("id", fixtureIds)
+                    .in("competition_id", competitionIds);
+                if (fixtureError) throw fixtureError;
+
+                const fixtureRows = (fixtureData ?? []) as Record<string, any>[];
+                const fixturesById = new Map(fixtureRows.map((row) => [String(row.id), row]));
+                const competitionTeamIds = [...new Set(fixtureRows.flatMap((row) => [
+                    row.home_competition_team_id,
+                    row.away_competition_team_id,
+                ]).filter(Boolean))] as string[];
+
+                let competitionTeamRows: Record<string, any>[] = [];
+                if (competitionTeamIds.length) {
+                    const { data, error } = await supabase
+                        .from("competition_teams")
+                        .select("id, team_id, competition_id")
+                        .in("id", competitionTeamIds)
+                        .in("competition_id", competitionIds);
+                    if (error) throw error;
+                    competitionTeamRows = (data ?? []) as Record<string, any>[];
+                }
+                const competitionTeamsById = new Map(competitionTeamRows.map((row) => [String(row.id), row]));
+                const teamIds = [...new Set(competitionTeamRows.map((row) => row.team_id).filter(Boolean))] as string[];
+
+                let teamRows: Record<string, any>[] = [];
+                if (teamIds.length) {
+                    const { data, error } = await supabase
+                        .from("teams")
+                        .select("*")
+                        .in("id", teamIds);
+                    if (error) throw error;
+                    teamRows = (data ?? []) as Record<string, any>[];
+                }
+                const teamsById = new Map(teamRows.map((row) => [String(row.id), row]));
+
+                const venueIds = [...new Set(fixtureRows.map((row) => row.venue_id).filter(Boolean))] as string[];
+                let venueRows: Record<string, any>[] = [];
+                if (venueIds.length) {
+                    const { data, error } = await supabase
+                        .from("venues")
+                        .select("*")
+                        .in("id", venueIds);
+                    if (error) throw error;
+                    venueRows = (data ?? []) as Record<string, any>[];
+                }
+                const venuesById = new Map(venueRows.map((row) => [String(row.id), row]));
+                const competitionsById = new Map(competitionRows.map((row) => [String(row.id), row]));
+
+                const mapped = resultRows.flatMap((row) => {
+                    const fixture = fixturesById.get(String(row.fixture_id));
+                    // Never expose a row if its fixture cannot be proven to belong to this organisation.
+                    if (!fixture || String(fixture.competition_id) !== String(row.competition_id)) return [];
+                    const homeEntry = competitionTeamsById.get(String(fixture.home_competition_team_id));
+                    const awayEntry = competitionTeamsById.get(String(fixture.away_competition_team_id));
+                    const homeTeam = homeEntry ? teamsById.get(String(homeEntry.team_id)) : null;
+                    const awayTeam = awayEntry ? teamsById.get(String(awayEntry.team_id)) : null;
+                    const competition = competitionsById.get(String(row.competition_id));
+                    const venue = venuesById.get(String(fixture.venue_id));
+                    const displayRow = {
+                        ...row,
+                        home_team: homeTeam ?? null,
+                        away_team: awayTeam ?? null,
+                        competition: competition ?? null,
+                        venue: venue ?? null,
+                        status: fixture.status ?? 'completed',
+                        round_name: fixture.stage ?? null,
+                        fixture: {
+                            id: fixture.id,
+                            kickoff_time: fixture.kickoff_time ?? null,
+                            scheduled_at: fixture.kickoff_time ?? null,
+                            competition: competition ?? null,
+                            venue: venue ?? null,
+                        },
+                    } as PublicResultRow;
+                    return [mapResult(displayRow)];
+                });
+
+                if (active) setResults(mapped);
             } catch (error) {
-                console.error(
-                    "Unexpected error while loading public results:",
-                    error,
-                );
-
-                setResults([]);
-                setErrorMessage(
-                    error instanceof Error
-                        ? error.message
-                        : "Unable to load results right now.",
-                );
+                console.error("Failed to load public results:", error);
+                if (active) {
+                    setResults([]);
+                    setErrorMessage("Unable to load results right now.");
+                }
             } finally {
-                setLoading(false);
+                if (active) setLoading(false);
             }
         }
 
         void loadResults();
+        return () => { active = false; };
     }, [organisationId]);
-
     const competitionOptions =
         useMemo(
             () => [
