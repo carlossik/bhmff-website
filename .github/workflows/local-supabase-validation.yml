@@ -1,0 +1,32 @@
+name: TournamentHQ local Supabase validation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-local-schema:
+    name: Apply migrations to disposable local Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Confirm safe, isolated project configuration
+        run: node scripts/assert-local-test-config.cjs
+      - name: Start local Supabase (Docker)
+        run: npx supabase start
+      - name: Apply migrations to local database only
+        run: npx supabase db reset --local --yes
+      - name: Show local services (no secrets)
+        run: |
+          echo "Local migrations completed. Supabase is disposable and will be destroyed with this runner."
+      - name: Stop local services
+        if: always()
+        run: npx supabase stop --no-backup || true
