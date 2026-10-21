@@ -22,6 +22,7 @@ import {
 import {
     useOrganisation,
 } from "../../../context/OrganisationContext";
+import { getOrganisationPublicSiteUrl } from "../../../config/organisationContent";
 
 type ColourKey =
     | "primary_colour"
@@ -176,10 +177,10 @@ export function ClubWebsiteSettingsManager() {
         );
     }
 
-    const publicUrl =
-        `${window.location.origin}/${encodeURIComponent(
-            currentOrganisation.slug,
-        )}`;
+    const publicUrl = getOrganisationPublicSiteUrl(
+        window.location.origin,
+        currentOrganisation.slug,
+    );
 
     function updateColour(
         key: ColourKey,

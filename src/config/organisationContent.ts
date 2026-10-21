@@ -59,13 +59,11 @@ export function getOrganisationPublicSiteUrl(
     origin: string,
     organisationSlug: string,
 ): string {
-    const normalisedOrigin =
-        origin.replace(/\/$/, "");
-
-    const encodedSlug =
-        encodeURIComponent(
-            organisationSlug.trim(),
-        );
-
-    return `${normalisedOrigin}/${encodedSlug}`;
+    const url = new URL(origin);
+    // Only local development uses the current origin. All published
+    // organisation websites belong on the TournamentHQ application.
+    const isLocal = ["localhost", "127.0.0.1"].includes(url.hostname);
+    const publicOrigin = isLocal ? url.origin : "https://app.tournamenthq.co.uk";
+    const encodedSlug = encodeURIComponent(organisationSlug.trim());
+    return `${publicOrigin}/${encodedSlug}`;
 }
