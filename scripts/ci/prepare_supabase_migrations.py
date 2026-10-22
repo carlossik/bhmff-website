@@ -14,6 +14,10 @@ PATTERN = re.compile(r"^(\d{8}|\d{14})_(.+)\.sql$")
 
 def normalize(directory: Path) -> list[tuple[str, str]]:
     migrations = sorted(directory.glob("*.sql"), key=lambda p: p.name)
+    # Reconstruct verified same-day prerequisite order in the ephemeral CI copy.
+    # The organisation_type migration must run before club public-profile backfill.
+    priority = {"20260812_add_organisation_type.sql": 0}
+    migrations.sort(key=lambda p: (p.name[:8], priority.get(p.name, 1), p.name))
     parsed = []
     for file in migrations:
         match = PATTERN.fullmatch(file.name)
