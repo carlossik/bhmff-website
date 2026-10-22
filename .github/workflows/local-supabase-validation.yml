@@ -25,6 +25,8 @@ jobs:
           test -f tests/ci/20260716000000_legacy_schema_baseline.sql
           test ! -e supabase/migrations/20260716000000_legacy_schema_baseline.sql
           cp tests/ci/20260716000000_legacy_schema_baseline.sql supabase/migrations/20260716000000_legacy_schema_baseline.sql
+      - name: Normalize legacy migration filenames for CI only
+        run: python3 scripts/ci/prepare_supabase_migrations.py
       - name: Start local Supabase (Docker)
         run: npx supabase start
       - name: Apply migrations to local database only
