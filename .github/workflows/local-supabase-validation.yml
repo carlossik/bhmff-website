@@ -28,6 +28,9 @@ jobs:
           test -f tests/ci/20260807000000_legacy_officials_catalogue.sql
           test ! -e supabase/migrations/20260807000000_legacy_officials_catalogue.sql
           cp tests/ci/20260807000000_legacy_officials_catalogue.sql supabase/migrations/20260807000000_legacy_officials_catalogue.sql
+          test -f tests/ci/20260809000000_legacy_media_ownership.sql
+          test ! -e supabase/migrations/20260809000000_legacy_media_ownership.sql
+          cp tests/ci/20260809000000_legacy_media_ownership.sql supabase/migrations/20260809000000_legacy_media_ownership.sql
       - name: Normalize legacy migration filenames for CI only
         run: python3 scripts/ci/prepare_supabase_migrations.py
       - name: Start local Supabase (Docker)
