@@ -139,3 +139,36 @@ create table public.media (
     created_at timestamptz default now(),
     updated_at timestamptz
 );
+
+-- Legacy commercial enquiry tables, required by 20260802_add_enquiry_organisation_id.sql.
+-- organisation_id is intentionally omitted: that migration adds it.
+-- sponsor_enquiries.competition_id must exist before its backfill executes.
+create table public.sponsor_enquiries (
+    id uuid primary key default gen_random_uuid(),
+    created_at timestamptz default now(),
+    company_name text not null,
+    contact_name text not null,
+    email text not null,
+    phone text,
+    sponsorship_interest text,
+    estimated_budget text,
+    message text not null,
+    status text default 'new',
+    internal_notes text,
+    competition_id uuid
+);
+
+create table public.demo_requests (
+    id uuid primary key default gen_random_uuid(),
+    organisation text not null,
+    contact_name text not null,
+    email text not null,
+    phone text,
+    competition_type text not null,
+    number_of_teams integer,
+    message text not null,
+    status text not null default 'new',
+    internal_notes text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
