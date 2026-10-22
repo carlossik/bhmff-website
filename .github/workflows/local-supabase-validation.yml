@@ -20,6 +20,11 @@ jobs:
         run: npm ci
       - name: Confirm safe, isolated project configuration
         run: node scripts/assert-local-test-config.cjs
+      - name: Insert candidate historical schema on CI runner only
+        run: |
+          test -f tests/ci/20260716000000_legacy_schema_baseline.sql
+          test ! -e supabase/migrations/20260716000000_legacy_schema_baseline.sql
+          cp tests/ci/20260716000000_legacy_schema_baseline.sql supabase/migrations/20260716000000_legacy_schema_baseline.sql
       - name: Start local Supabase (Docker)
         run: npx supabase start
       - name: Apply migrations to local database only
