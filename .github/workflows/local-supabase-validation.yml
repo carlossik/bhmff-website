@@ -20,11 +20,14 @@ jobs:
         run: npm ci
       - name: Confirm safe, isolated project configuration
         run: node scripts/assert-local-test-config.cjs
-      - name: Insert candidate historical schema on CI runner only
+      - name: Insert CI-only reconstructed legacy schemas
         run: |
           test -f tests/ci/20260716000000_legacy_schema_baseline.sql
           test ! -e supabase/migrations/20260716000000_legacy_schema_baseline.sql
           cp tests/ci/20260716000000_legacy_schema_baseline.sql supabase/migrations/20260716000000_legacy_schema_baseline.sql
+          test -f tests/ci/20260807000000_legacy_officials_catalogue.sql
+          test ! -e supabase/migrations/20260807000000_legacy_officials_catalogue.sql
+          cp tests/ci/20260807000000_legacy_officials_catalogue.sql supabase/migrations/20260807000000_legacy_officials_catalogue.sql
       - name: Normalize legacy migration filenames for CI only
         run: python3 scripts/ci/prepare_supabase_migrations.py
       - name: Start local Supabase (Docker)
