@@ -16,8 +16,14 @@ def normalize(directory: Path) -> list[tuple[str, str]]:
     migrations = sorted(directory.glob("*.sql"), key=lambda p: p.name)
     # Reconstruct verified same-day prerequisite order in the ephemeral CI copy.
     # The organisation_type migration must run before club public-profile backfill.
-    priority = {"20260812_add_organisation_type.sql": 0}
-    migrations.sort(key=lambda p: (p.name[:8], priority.get(p.name, 1), p.name))
+    priority = {
+        "20260812_add_organisation_type.sql": 0,
+        "20260812_add_club_public_profile.sql": 1,
+        "20260812_create_club_fixture_programme.sql": 2,
+        "20260812_create_club_squad.sql": 3,
+        "20260812_add_club_results_and_goals.sql": 4,
+    }
+    migrations.sort(key=lambda p: (p.name[:8], priority.get(p.name, 50), p.name))
     parsed = []
     for file in migrations:
         match = PATTERN.fullmatch(file.name)
