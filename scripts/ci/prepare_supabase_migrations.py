@@ -56,6 +56,22 @@ def normalize(directory: Path) -> list[tuple[str, str]]:
     for old, new in mapping:
         old.rename(new)
 
+    # CI-only repair of a verified obsolete column reference in the
+    # 20260812 club-results migration. Production uses organisations.status,
+    # not organisations.active. Do not silently rewrite other SQL.
+    matches = list(directory.glob("*_add_club_results_and_goals.sql"))
+    if len(matches) != 1:
+        raise ValueError("Expected exactly one club-results migration")
+    path = matches[0]
+    before = path.read_text(encoding="utf-8")
+    wrong = "o.active=true"
+    count = before.count(wrong)
+    if count != 2:
+        raise ValueError(f"Unexpected club-results policy shape: {count} obsolete references")
+    after = before.replace(wrong, "o.status='active'")
+    path.write_text(after, encoding="utf-8")
+    print(f"CI-only correction: {path.name}: 2 organisation status checks")
+
     versions = []
     for file in directory.glob("*.sql"):
         match = PATTERN.fullmatch(file.name)
