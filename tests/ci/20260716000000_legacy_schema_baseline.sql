@@ -172,3 +172,14 @@ create table public.demo_requests (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+-- CI-only reconstruction from production catalogue: platform_admins is a
+-- pre-existing prerequisite for the 20260812 club RLS policies.
+-- No synthetic admin users and no permissive RLS policies are introduced.
+create table public.platform_admins (
+    user_id uuid primary key references auth.users(id) on delete cascade,
+    active boolean not null default true,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+alter table public.platform_admins enable row level security;
