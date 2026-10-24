@@ -7,11 +7,44 @@ BEGIN;
 
 -- Two published teams in one public club. The youth team starts private;
 -- the adult team is explicitly opted in by the synthetic administrator.
+-- The actual billing trigger (20260824_paid_starter_trial_guard.sql) forces
+-- public_site_enabled=false on new unprivileged organisations until billing
+-- provisioning completes. Stage this synthetic, already-provisioned club in a
+-- service_role CLAIM context *only for fixture creation*; no real service key
+-- is used, the DB session remains postgres, and the actual read tests below
+-- run as the anon database role. Do not weaken the billing trigger.
+SELECT set_config('request.jwt.claim.role', 'service_role', true);
 INSERT INTO public.organisations
   (id, name, slug, status, organisation_type, public_site_enabled)
 VALUES
   ('e0000000-0000-4000-8000-000000000001', 'CI Safeguarding Club', 'ci-safeguarding-club',
    'active', 'club', true);
+-- End privileged synthetic provisioning immediately. These claims apply only
+-- inside the enclosing test transaction and will be rolled back.
+SELECT set_config('request.jwt.claim.role', '', true);
+
+-- Catch fixture/provisioning mistakes explicitly BEFORE checking safeguarding.
+-- If the test club is not public, the public RPC correctly returns NULL and
+-- we would otherwise misdiagnose it as an issue with player-name visibility.
+DO $$
+DECLARE
+  actual_status text;
+  actual_type text;
+  actual_public boolean;
+BEGIN
+  SELECT o.status, o.organisation_type::text, o.public_site_enabled
+  INTO actual_status, actual_type, actual_public
+  FROM public.organisations o
+  WHERE o.id = 'e0000000-0000-4000-8000-000000000001';
+  IF NOT FOUND OR actual_status IS DISTINCT FROM 'active'
+     OR actual_type IS DISTINCT FROM 'club'
+     OR actual_public IS DISTINCT FROM true THEN
+    RAISE EXCEPTION
+      'FAIL [safeguarding-fixture] expected provisioned active public club; got status=%, type=%, public_site_enabled=%',
+      actual_status, actual_type, actual_public;
+  END IF;
+  RAISE NOTICE 'PASS [safeguarding-fixture] synthetic club is active, public and provisioned';
+END $$;
 
 INSERT INTO public.club_seasons
   (id, organisation_id, name, season_label, status, start_date)
