@@ -32,6 +32,11 @@ required.update({
         r"competition_rules_public_select",
     ],
 })
+required["20260820000000_legacy_club_goal_squad_link.sql"] = [
+    r"add\s+column\s+if\s+not\s+exists\s+squad_member_id\s+uuid",
+    r"foreign\s+key\s*\(squad_member_id\)\s*references\s+public\.club_squad_members\(id\)\s*on\s+delete\s+set\s+null",
+    r"create\s+index\s+if\s+not\s+exists\s+idx_club_goals_squad_member_id",
+]
 files = sorted(M.glob("*.sql"))
 versions = [f.name[:14] for f in files]
 assert len(versions) == len(set(versions)), "Duplicate migration versions"
@@ -61,4 +66,9 @@ assert pos("add_media_competition_id") < pos("public_media_rls")
 assert pos("public_media_rls") < pos("fix_media_multitenant_uniqueness")
 assert pos("add_competition_rules_acceptance") < pos("extend_competition_rules_public_audit")
 
-print("CI migration preflight passed: restored original officials, platform-admin, media, rules, Phase 2/finance dependencies and unique versions.")
+assert pos("add_club_results_and_goals") < pos("legacy_club_goal_squad_link")
+assert pos("legacy_club_goal_squad_link") < pos("public_club_data_rpc")
+assert pos("legacy_club_goal_squad_link") < pos("add_club_goal_type")
+assert pos("legacy_club_goal_squad_link") < pos("club_squad_photos_and_goal_attribution")
+
+print("CI migration preflight passed: original modules, nested migrations, finance prerequisites and restored registered-scorer link.")

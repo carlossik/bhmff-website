@@ -52,6 +52,11 @@ jobs:
           test -f supabase/migrations/supabase/migrations/20260918_extend_competition_rules_public_audit.sql
           test ! -e supabase/migrations/20260918000001_extend_competition_rules_public_audit.sql
           cp supabase/migrations/supabase/migrations/20260918_extend_competition_rules_public_audit.sql supabase/migrations/20260918000001_extend_competition_rules_public_audit.sql
+      - name: Restore missing registered goal scorer link (CI only)
+        run: |
+          test -f tests/ci/20260820000000_legacy_club_goal_squad_link.sql
+          test ! -e supabase/migrations/20260820000000_legacy_club_goal_squad_link.sql
+          cp tests/ci/20260820000000_legacy_club_goal_squad_link.sql supabase/migrations/20260820000000_legacy_club_goal_squad_link.sql
       - name: Normalize legacy migration filenames for CI only
         run: python3 scripts/ci/prepare_supabase_migrations.py
       - name: Verify restored migration dependencies before Docker
