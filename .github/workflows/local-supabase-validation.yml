@@ -70,6 +70,19 @@ jobs:
         run: npx supabase start
       - name: Apply migrations to local database only
         run: npx supabase db reset --local --yes
+      - name: Run real RLS, role and tenant-isolation smoke tests
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "staging"
+          test -f tests/security/rls_tenant_smoke.sql
+          # The hosted runner is disposable; accept exactly one local Supabase DB.
+          mapfile -t dbs < <(docker ps --format '{{.Names}}' | grep '^supabase_db_' || true)
+          if [ "${#dbs[@]}" -ne 1 ]; then
+            echo "Expected exactly one disposable local Supabase database container, found ${#dbs[@]}." >&2
+            exit 1
+          fi
+          docker exec -i "${dbs[0]}" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            < tests/security/rls_tenant_smoke.sql
       - name: Show local services (no secrets)
         run: |
           echo "Local migrations completed. Supabase is disposable and will be destroyed with this runner."
