@@ -2,7 +2,8 @@
 -- CI ONLY: invoked in disposable local Supabase on GitHub's staging runner.
 -- Tests query as database roles `authenticated`/`anon` with synthetic JWT claims.
 -- No service_role keys or live network access; all writes are rolled back.
--- Fail closed: a missing grant, policy, function or expected row throws an error.
+-- Missing baseline table grants are reported before temporary CI-only grants;
+-- policy/function failures and unexpected rows still fail the test.
 
 \set ON_ERROR_STOP on
 BEGIN;
@@ -63,6 +64,61 @@ BEGIN
     RAISE EXCEPTION 'FAIL [RLS-enabled] missing RLS: %', missing_rls;
   END IF;
   RAISE NOTICE 'PASS [RLS-enabled] organisation, competition, player and finance tables';
+END $$;
+
+-- PRIVILEGE AUDIT (performed BEFORE harness-only grants):
+-- Reconstructed historical migrations may predate Supabase's stricter default
+-- grants. Capture the gaps rather than quietly treating them as valid.
+-- This is a real privilege audit, not an RLS policy check; a missing GRANT can
+-- break intended application reads even when a correct RLS policy exists.
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'public.organisations',
+    'public.competitions',
+    'public.club_finance_payers'
+  ] LOOP
+    IF NOT has_table_privilege('authenticated', table_name, 'SELECT') THEN
+      RAISE WARNING 'BASELINE GRANT GAP: authenticated lacks SELECT on %. Temporary CI grant will test RLS independently; production grants still require review.', table_name;
+    ELSE
+      RAISE NOTICE 'BASELINE GRANT OK: authenticated has SELECT on %', table_name;
+    END IF;
+  END LOOP;
+END $$;
+
+-- RLS POLICY TEST HARNESS, NOT A PRODUCTION SCHEMA FIX.
+-- Minimum SELECT privileges for the three tables queried by this particular
+-- smoke suite. GRANT on a table does NOT bypass its row-level security policy.
+-- GRANTs are inside BEGIN / ROLLBACK and never persist beyond this smoke test.
+-- Do not use GRANT ALL, ALTER TABLE DISABLE ROW LEVEL SECURITY, or service_role.
+GRANT SELECT ON TABLE
+    public.organisations,
+    public.competitions,
+    public.club_finance_payers
+TO authenticated;
+
+-- Guardrails: real RLS still enabled and the test role has expected table
+-- privileges before switching to authenticated. This cannot prove that the
+-- original migrations provision all necessary privileges in production.
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'public.organisations',
+    'public.competitions',
+    'public.club_finance_payers'
+  ] LOOP
+    IF NOT has_table_privilege('authenticated', table_name, 'SELECT') THEN
+      RAISE EXCEPTION 'FAIL [CI grant setup] authenticated cannot SELECT %', table_name;
+    END IF;
+    IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = table_name::regclass) THEN
+      RAISE EXCEPTION 'FAIL [RLS setup] RLS disabled on %', table_name;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'PASS [RLS grant setup] SELECT privileges present; RLS remains enabled';
 END $$;
 
 -- Test using the real authenticated database role; postgres / service_role
