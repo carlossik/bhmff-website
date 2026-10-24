@@ -37,6 +37,13 @@ required["20260820000000_legacy_club_goal_squad_link.sql"] = [
     r"foreign\s+key\s*\(squad_member_id\)\s*references\s+public\.club_squad_members\(id\)\s*on\s+delete\s+set\s+null",
     r"create\s+index\s+if\s+not\s+exists\s+idx_club_goals_squad_member_id",
 ]
+required["20260920000000_ci_results_goals_competition_scope.sql"] = [
+    r"alter\s+table\s+public\.results\s+add\s+column\s+if\s+not\s+exists\s+competition_id\s+uuid",
+    r"alter\s+table\s+public\.goals\s+add\s+column\s+if\s+not\s+exists\s+competition_id\s+uuid",
+    r"alter\s+table\s+public\.results\s+alter\s+column\s+competition_id\s+set\s+not\s+null",
+    r"alter\s+table\s+public\.goals\s+alter\s+column\s+competition_id\s+set\s+not\s+null",
+    r"foreign\s+key\s*\(competition_id\)\s*references\s+public\.competitions\(id\)\s+on\s+delete\s+cascade",
+]
 files = sorted(M.glob("*.sql"))
 versions = [f.name[:14] for f in files]
 assert len(versions) == len(set(versions)), "Duplicate migration versions"
@@ -71,4 +78,7 @@ assert pos("legacy_club_goal_squad_link") < pos("public_club_data_rpc")
 assert pos("legacy_club_goal_squad_link") < pos("add_club_goal_type")
 assert pos("legacy_club_goal_squad_link") < pos("club_squad_photos_and_goal_attribution")
 
-print("CI migration preflight passed: original modules, nested migrations, finance prerequisites and restored registered-scorer link.")
+assert pos("add_competition_rules_acceptance") < pos("ci_results_goals_competition_scope")
+assert pos("ci_results_goals_competition_scope") < pos("team_match_access_and_fixture_safety")
+
+print("CI migration preflight passed: restored original modules, media/rules, finance, goal squad link and match competition scope.")

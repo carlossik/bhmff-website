@@ -57,6 +57,11 @@ jobs:
           test -f tests/ci/20260820000000_legacy_club_goal_squad_link.sql
           test ! -e supabase/migrations/20260820000000_legacy_club_goal_squad_link.sql
           cp tests/ci/20260820000000_legacy_club_goal_squad_link.sql supabase/migrations/20260820000000_legacy_club_goal_squad_link.sql
+      - name: Restore match result and goal competition scope (CI only)
+        run: |
+          test -f tests/ci/20260920000000_ci_results_goals_competition_scope.sql
+          test ! -e supabase/migrations/20260920000000_ci_results_goals_competition_scope.sql
+          cp tests/ci/20260920000000_ci_results_goals_competition_scope.sql supabase/migrations/20260920000000_ci_results_goals_competition_scope.sql
       - name: Normalize legacy migration filenames for CI only
         run: python3 scripts/ci/prepare_supabase_migrations.py
       - name: Verify restored migration dependencies before Docker
