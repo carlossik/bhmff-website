@@ -17,6 +17,21 @@ required = {
         r"create\s+table\s+if\s+not\s+exists\s+public\.club_match_events\b",
     ],
 }
+required.update({
+    "20260805000001_platform_admin_isolation.sql": [
+        r"create\s+or\s+replace\s+function\s+public\.is_platform_admin\b",
+        r"create\s+or\s+replace\s+function\s+public\.is_organisation_super_admin\b",
+    ],
+    "20260809000001_add_media_competition_id.sql": [
+        r"media_competition_id_fkey",
+    ],
+    "20260809000002_public_media_rls.sql": [
+        r"create\s+policy",
+    ],
+    "20260918000001_extend_competition_rules_public_audit.sql": [
+        r"competition_rules_public_select",
+    ],
+})
 files = sorted(M.glob("*.sql"))
 versions = [f.name[:14] for f in files]
 assert len(versions) == len(set(versions)), "Duplicate migration versions"
@@ -40,4 +55,10 @@ assert pos("create_club_squad") < pos("phase2_multiteam_club_payments_match_cent
 assert pos("phase2_multiteam_club_payments_match_centre") < pos("club_finance_foundation")
 assert pos("club_finance_foundation") < pos("club_finance_engine")
 assert pos("club_finance_engine") < pos("club_finance_fee_rules")
-print("CI migration preflight passed: original officials, Phase 2 foundations, finance ordering and unique versions verified.")
+assert pos("platform_admin_isolation") < pos("allow_organisation_owned_venues")
+assert pos("legacy_media_ownership") < pos("add_media_competition_id")
+assert pos("add_media_competition_id") < pos("public_media_rls")
+assert pos("public_media_rls") < pos("fix_media_multitenant_uniqueness")
+assert pos("add_competition_rules_acceptance") < pos("extend_competition_rules_public_audit")
+
+print("CI migration preflight passed: restored original officials, platform-admin, media, rules, Phase 2/finance dependencies and unique versions.")

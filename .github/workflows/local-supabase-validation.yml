@@ -36,6 +36,22 @@ jobs:
           test -f tests/ci/20260809000000_legacy_media_ownership.sql
           test ! -e supabase/migrations/20260809000000_legacy_media_ownership.sql
           cp tests/ci/20260809000000_legacy_media_ownership.sql supabase/migrations/20260809000000_legacy_media_ownership.sql
+
+          # Recover original migrations accidentally stored under a nested folder.
+          # Media migrations are placed after the CI-only media ownership prerequisite.
+          # Copies are temporary and exist only on the disposable GitHub runner.
+          test -f supabase/migrations/supabase/migrations/20260805_platform_admin_isolation.sql
+          test ! -e supabase/migrations/20260805000001_platform_admin_isolation.sql
+          cp supabase/migrations/supabase/migrations/20260805_platform_admin_isolation.sql supabase/migrations/20260805000001_platform_admin_isolation.sql
+          test -f supabase/migrations/supabase/migrations/20260802_add_media_competition_id.sql
+          test ! -e supabase/migrations/20260809000001_add_media_competition_id.sql
+          cp supabase/migrations/supabase/migrations/20260802_add_media_competition_id.sql supabase/migrations/20260809000001_add_media_competition_id.sql
+          test -f supabase/migrations/supabase/migrations/20260802_public_media_rls.sql
+          test ! -e supabase/migrations/20260809000002_public_media_rls.sql
+          cp supabase/migrations/supabase/migrations/20260802_public_media_rls.sql supabase/migrations/20260809000002_public_media_rls.sql
+          test -f supabase/migrations/supabase/migrations/20260918_extend_competition_rules_public_audit.sql
+          test ! -e supabase/migrations/20260918000001_extend_competition_rules_public_audit.sql
+          cp supabase/migrations/supabase/migrations/20260918_extend_competition_rules_public_audit.sql supabase/migrations/20260918000001_extend_competition_rules_public_audit.sql
       - name: Normalize legacy migration filenames for CI only
         run: python3 scripts/ci/prepare_supabase_migrations.py
       - name: Verify restored migration dependencies before Docker
