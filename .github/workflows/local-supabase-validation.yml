@@ -25,14 +25,21 @@ jobs:
           test -f tests/ci/20260716000000_legacy_schema_baseline.sql
           test ! -e supabase/migrations/20260716000000_legacy_schema_baseline.sql
           cp tests/ci/20260716000000_legacy_schema_baseline.sql supabase/migrations/20260716000000_legacy_schema_baseline.sql
-          test -f tests/ci/20260807000000_legacy_officials_catalogue.sql
-          test ! -e supabase/migrations/20260807000000_legacy_officials_catalogue.sql
-          cp tests/ci/20260807000000_legacy_officials_catalogue.sql supabase/migrations/20260807000000_legacy_officials_catalogue.sql
+          # Restore original missing Sports Officials migration rather than the CI placeholder.
+          test -f tests/ci/20260730000000_create_sports_officials_module.sql
+          test ! -e supabase/migrations/20260730000000_create_sports_officials_module.sql
+          cp tests/ci/20260730000000_create_sports_officials_module.sql supabase/migrations/20260730000000_create_sports_officials_module.sql
+          # Restore original Phase 2 club payments and match-centre foundation.
+          test -f tests/ci/20260814000000_phase2_multiteam_club_payments_match_centre.sql
+          test ! -e supabase/migrations/20260814000000_phase2_multiteam_club_payments_match_centre.sql
+          cp tests/ci/20260814000000_phase2_multiteam_club_payments_match_centre.sql supabase/migrations/20260814000000_phase2_multiteam_club_payments_match_centre.sql
           test -f tests/ci/20260809000000_legacy_media_ownership.sql
           test ! -e supabase/migrations/20260809000000_legacy_media_ownership.sql
           cp tests/ci/20260809000000_legacy_media_ownership.sql supabase/migrations/20260809000000_legacy_media_ownership.sql
       - name: Normalize legacy migration filenames for CI only
         run: python3 scripts/ci/prepare_supabase_migrations.py
+      - name: Verify restored migration dependencies before Docker
+        run: python3 scripts/ci/verify_migration_dependencies.py
       - name: Start local Supabase (Docker)
         run: npx supabase start
       - name: Apply migrations to local database only

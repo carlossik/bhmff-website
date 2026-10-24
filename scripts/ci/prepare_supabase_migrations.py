@@ -22,6 +22,9 @@ def normalize(directory: Path) -> list[tuple[str, str]]:
         "20260812_create_club_fixture_programme.sql": 2,
         "20260812_create_club_squad.sql": 3,
         "20260812_add_club_results_and_goals.sql": 4,
+        # Foundation creates club_finance_audit_log before engine hardens it.
+        "20260816_club_finance_foundation.sql": 0,
+        "20260816_club_finance_engine.sql": 1,
     }
     migrations.sort(key=lambda p: (p.name[:8], priority.get(p.name, 50), p.name))
     parsed = []
