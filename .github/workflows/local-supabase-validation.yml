@@ -62,6 +62,12 @@ jobs:
           test -f tests/ci/20260920000000_ci_results_goals_competition_scope.sql
           test ! -e supabase/migrations/20260920000000_ci_results_goals_competition_scope.sql
           cp tests/ci/20260920000000_ci_results_goals_competition_scope.sql supabase/migrations/20260920000000_ci_results_goals_competition_scope.sql
+      - name: Align historical club-results award field with deployed schema (CI only)
+        run: |
+          test "$GITHUB_REF_NAME" = "staging"
+          test -f tests/ci/20260820000001_ci_club_result_award_column.sql
+          test ! -e supabase/migrations/20260820000001_ci_club_result_award_column.sql
+          cp tests/ci/20260820000001_ci_club_result_award_column.sql supabase/migrations/20260820000001_ci_club_result_award_column.sql
       - name: Normalize legacy migration filenames for CI only
         run: python3 scripts/ci/prepare_supabase_migrations.py
       - name: Verify restored migration dependencies before Docker

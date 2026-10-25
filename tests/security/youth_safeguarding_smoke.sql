@@ -111,7 +111,7 @@ VALUES
 
 INSERT INTO public.club_results
   (id, organisation_id, season_id, fixture_id, home_score, away_score,
-   player_of_match, published)
+   player_of_the_match, published)
 VALUES
   ('e0000000-0000-4000-8000-000000000051',
    'e0000000-0000-4000-8000-000000000001',
@@ -123,20 +123,18 @@ VALUES
    'e0000000-0000-4000-8000-000000000042', 2, 0, 'CIPublicAdult Example', true);
 
 INSERT INTO public.club_goals
-  (id, organisation_id, season_id, fixture_id, player_id, squad_member_id,
+  (id, organisation_id, season_id, fixture_id, squad_member_id,
    player_name, goal_type, minute)
 VALUES
   ('e0000000-0000-4000-8000-000000000061',
    'e0000000-0000-4000-8000-000000000001',
    'e0000000-0000-4000-8000-000000000002',
    'e0000000-0000-4000-8000-000000000041',
-   'e0000000-0000-4000-8000-000000000021',
    'e0000000-0000-4000-8000-000000000031', 'CIPrivateYouth Example', 'player', 10),
   ('e0000000-0000-4000-8000-000000000062',
    'e0000000-0000-4000-8000-000000000001',
    'e0000000-0000-4000-8000-000000000002',
    'e0000000-0000-4000-8000-000000000042',
-   'e0000000-0000-4000-8000-000000000022',
    'e0000000-0000-4000-8000-000000000032', 'CIPublicAdult Example', 'player', 15);
 
 -- Use the anonymous database role (rather than service_role/postgres),
