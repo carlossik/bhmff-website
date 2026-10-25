@@ -208,6 +208,7 @@ function CompetitionPublicHomePage({
                     .from('fixtures')
                     .select(`
                         id,
+                        competition_id,
                         stage,
                         kickoff_time,
                         status,
@@ -241,40 +242,22 @@ function CompetitionPublicHomePage({
                         nullsFirst: false,
                     }),
 
+                // Query the public view directly: PostgREST does not guarantee
+                // that a view exposes the FK relationship used for nested joins.
+                // Published results are joined to already-scoped public fixtures below.
                 supabase
                     .from('public_results')
                     .select(`
                         id,
                         fixture_id,
+                        competition_id,
                         home_score,
                         away_score,
                         player_of_match,
-                        match_report,
-                        fixture:fixtures!results_fixture_id_fkey!inner (
-                            id,
-                            competition_id,
-                            stage,
-                            kickoff_time,
-                            home_competition_team:competition_teams!fixtures_home_competition_team_fkey (
-                                id,
-                                team_id,
-                                team:teams!competition_teams_team_id_fkey (
-                                    id,
-                                    name
-                                )
-                            ),
-                            away_competition_team:competition_teams!fixtures_away_competition_team_fkey (
-                                id,
-                                team_id,
-                                team:teams!competition_teams_team_id_fkey (
-                                    id,
-                                    name
-                                )
-                            )
-                        )
+                        match_report
                     `)
-                    .eq('published', true)
-                    .eq('fixture.competition_id', competition.id),
+                    .eq('competition_id', competition.id)
+                    .eq('published', true),
             ])
 
             if (disposed) {
@@ -405,25 +388,37 @@ function CompetitionPublicHomePage({
 
             let mappedResults: PublicResult[] = []
 
-            if (resultsResponse.error) {
+            if (resultsResponse.error || fixturesResponse.error) {
                 console.error(
-                    'Failed to load public results:',
-                    resultsResponse.error,
+                    'Failed to load public results or their fixtures:',
+                    resultsResponse.error ?? fixturesResponse.error,
                 )
                 setPublicResults([])
             } else {
+                // Only match results to fixtures already retrieved for this
+                // published competition; never trust an unscoped fixture id.
+                const fixturesById = new Map<string, UnknownRecord>()
+                for (const fixtureRow of fixturesResponse.data ?? []) {
+                    if (!isRecord(fixtureRow)) continue
+                    const id = getString(fixtureRow, 'id')
+                    if (id && getString(fixtureRow, 'competition_id') === competition.id) {
+                        fixturesById.set(id, fixtureRow)
+                    }
+                }
+
                 mappedResults = (resultsResponse.data ?? [])
                     .map((result): PublicResult | null => {
                         const resultRecord = isRecord(result)
                             ? result
                             : null
-                        const fixture = firstRecord(
-                            resultRecord?.fixture,
-                        )
+                        if (!resultRecord ||
+                            getString(resultRecord, 'competition_id') !== competition.id
+                        ) return null
 
-                        if (!resultRecord || !fixture) {
-                            return null
-                        }
+                        const fixture = fixturesById.get(
+                            getString(resultRecord, 'fixture_id'),
+                        ) ?? null
+                        if (!fixture) return null
 
                         const homeCompetitionTeam = firstRecord(
                             fixture.home_competition_team,

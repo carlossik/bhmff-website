@@ -29,8 +29,11 @@ export function BhmffKnockoutSpotlight({fixtures, results, teams, basePath, surf
   const [selected,setSelected] = useState(0)
   const [paused,setPaused] = useState(false)
   useEffect(() => {const id = window.setInterval(()=>setNow(Date.now()),1000); return ()=>window.clearInterval(id)}, [])
-  const recent = useMemo(() => results.filter(r => (r.kickoffTime ? Date.parse(r.kickoffTime) <= FIRST_SEMI : true))
+  // The carousel must include published semi-final results after kick-off;
+  // the FIRST_SEMI timestamp is solely for the countdown, not a result cutoff.
+  const recent = useMemo(() => [...results]
     .sort((a,b)=>(Date.parse(b.kickoffTime ?? '') || 0)-(Date.parse(a.kickoffTime ?? '') || 0)).slice(0,12),[results])
+  const resultsByFixtureId = useMemo(() => new Map(results.map(r => [r.fixtureId, r])), [results])
   useEffect(() => {
     if(paused || recent.length < 2) return
     const id = window.setInterval(()=>setSelected(s=>(s+1)%recent.length),5000)
@@ -55,9 +58,22 @@ export function BhmffKnockoutSpotlight({fixtures, results, teams, basePath, surf
         {now < FIRST_SEMI ? <><p className="mt-6 text-sm font-bold uppercase">Countdown to first kick-off</p>
           <div className="mx-auto mt-3 grid max-w-lg grid-cols-4 gap-2">{[days,hours,minutes,seconds].map((n,i)=><div key={i} className="rounded-xl bg-white/10 p-2 sm:p-3"><div className="text-2xl font-black tabular-nums sm:text-4xl">{String(n).padStart(2,'0')}</div><div className="text-xs uppercase">{['Days','Hours','Mins','Secs'][i]}</div></div>)}</div></> :
           <p className="mt-4 text-lg font-bold">Semi-final matchday has arrived — see fixtures and published results below.</p>}
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">{semifinalFixtures.map(f=><article key={f.id} className="rounded-xl border border-white/20 bg-white/10 p-4">
-          <div className="flex items-center justify-between gap-2"><div className="w-2/5 text-center">{badge(f.homeTeam) && <img src={badge(f.homeTeam)} alt="" className="mx-auto mb-2 h-14 w-14 object-contain"/>}<p className="font-bold">{f.homeTeam}</p></div><div className="text-center"><span className="text-lg font-black" style={{color:'#F4CA48'}}>{dateLabel(f.kickoffTime).split(',').pop()?.trim()}</span><div className="text-xs">VS</div></div><div className="w-2/5 text-center">{badge(f.awayTeam) && <img src={badge(f.awayTeam)} alt="" className="mx-auto mb-2 h-14 w-14 object-contain"/>}<p className="font-bold">{f.awayTeam}</p></div></div>
-          <p className="mt-3 text-sm">{f.venueName || 'Birchmere Park'} • Southwood Road, London SE28 8GB</p></article>)}</div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">{semifinalFixtures.map(f => {
+          const publishedScore = resultsByFixtureId.get(f.id)
+          return <article key={f.id} className="rounded-xl border border-white/20 bg-white/10 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="w-2/5 text-center">{badge(f.homeTeam) && <img src={badge(f.homeTeam)} alt="" className="mx-auto mb-2 h-14 w-14 object-contain"/>}<p className="font-bold">{f.homeTeam}</p></div>
+              <div className="text-center">
+                <span className="text-lg font-black tabular-nums" style={{color:'#F4CA48'}}>
+                  {publishedScore ? `${publishedScore.homeScore} – ${publishedScore.awayScore}` : dateLabel(f.kickoffTime).split(',').pop()?.trim()}
+                </span>
+                <div className="text-xs">{publishedScore ? 'FULL TIME' : 'VS'}</div>
+              </div>
+              <div className="w-2/5 text-center">{badge(f.awayTeam) && <img src={badge(f.awayTeam)} alt="" className="mx-auto mb-2 h-14 w-14 object-contain"/>}<p className="font-bold">{f.awayTeam}</p></div>
+            </div>
+            <p className="mt-3 text-sm">{f.venueName || 'Birchmere Park'} • Southwood Road, London SE28 8GB</p>
+          </article>
+        })}</div>
         {semifinalFixtures.length===0 && <p className="mt-5">Visit Fixtures for confirmed kick-off times and venue details.</p>}
         <a href={`${basePath}/fixtures`} className="mt-6 inline-block rounded-full bg-yellow-400 px-6 py-3 font-black text-green-950">View semi-final fixtures</a>
       </div>
@@ -77,7 +93,7 @@ export function BhmffKnockoutSpotlight({fixtures, results, teams, basePath, surf
           <p className="text-xs font-bold uppercase opacity-60">{dateLabel(scores.kickoffTime)} • FULL TIME</p>
           <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3"><span className="font-extrabold">{scores.homeTeam}</span><span className="text-2xl font-black tabular-nums">{scores.homeScore} – {scores.awayScore}</span><span className="font-extrabold">{scores.awayTeam}</span></div>
           <div className="mt-4 flex justify-center gap-4"><button type="button" onClick={()=>setSelected(v=>(v-1+recent.length)%recent.length)} aria-label="Previous result" className="rounded-lg border px-3 py-1">‹</button><span className="text-sm">{selected+1} / {recent.length}</span><button type="button" onClick={()=>setSelected(v=>(v+1)%recent.length)} aria-label="Next result" className="rounded-lg border px-3 py-1">›</button></div>
-        </div>:<p className="mt-4">Published group-stage results will appear here automatically.</p>}
+        </div>:<p className="mt-4">Published match results will appear here once confirmed by the organisers.</p>}
       </div>
     </div>
   </section>
