@@ -96,7 +96,7 @@ export function BhmffKnockoutSpotlight({ fixtures, results, teams, basePath, sur
         <p className="mt-2 text-xl font-black uppercase" style={{ color: '#F4CA48' }}>Saturday 31 October 2026</p>
         <p className="mt-1 font-semibold text-white/85">The championship is on the line</p>
         {now < kickoff && !finalMatch.publishedResult && <>
-          <p className="mt-6 text-xs font-black uppercase tracking-wider text-white/80">Countdown to the Championship Final</p>
+          <p className="mt-6 text-xs font-black uppercase tracking-wider text-white/80">Countdown to the Tournament Final</p>
           <div className="mx-auto mt-3 grid max-w-lg grid-cols-4 gap-2">
             {[days, hours, minutes, seconds].map((number, index) => <div key={index} className="rounded-xl border border-white/10 bg-white/10 p-2 sm:p-3">
               <div className="text-2xl font-black tabular-nums sm:text-3xl">{String(number).padStart(2, '0')}</div>
