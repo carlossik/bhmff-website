@@ -63,6 +63,15 @@ export function BhmffKnockoutSpotlight({ fixtures, results, teams, basePath, sur
   const mode = getBhmffSpotlightMode(now, publishedSemiCount)
   const finalMatch = useMemo(() => getBhmffFinalMatch(fixtures, results), [fixtures, results])
   const thirdPlace = useMemo(() => getBhmffThirdPlace(fixtures), [fixtures])
+  // BHMFF_2026_CHAMPIONS_RELEASE: verified one-off result pending structured penalties.
+  const championsAnnounced = Boolean(
+    finalMatch.fixture?.id === '38fc5a0c-34dc-463e-8c4b-dedf0566c521' &&
+    finalMatch.publishedResult?.fixtureId === finalMatch.fixture?.id &&
+    finalMatch.publishedResult?.homeScore === 3 &&
+    finalMatch.publishedResult?.awayScore === 3 &&
+    finalMatch.home.name.trim().toLowerCase() === 'erith park' &&
+    finalMatch.away.name.trim().toLowerCase() === 'naija best'
+  )
   const kickoff = finalMatch.fixture?.kickoffTime && Number.isFinite(Date.parse(finalMatch.fixture.kickoffTime))
     ? Date.parse(finalMatch.fixture.kickoffTime) : ANNOUNCED_FINAL_KICKOFF
   const finalKickoffTime = new Date(kickoff).toISOString()
@@ -87,14 +96,27 @@ export function BhmffKnockoutSpotlight({ fixtures, results, teams, basePath, sur
     borderColor: '#DBAD46', color: '#fff',
   }
 
-  return <section id="super-sunday" aria-label={mode === 'final-day' ? 'BHMFF Final Day fixtures' : 'Super Sunday semi-finals'} className="py-8 sm:py-12" style={{ color: textColour }}>
+  return <section id="super-sunday" aria-label={championsAnnounced ? 'BHMFF 2026 champions' : mode === 'final-day' ? 'BHMFF Final Day fixtures' : 'Super Sunday semi-finals'} className="py-8 sm:py-12" style={{ color: textColour }}>
     <div className="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6">
       {mode === 'final-day' ? <div id="bhmff-final" className="rounded-3xl border p-5 text-center shadow-2xl sm:p-8" style={spotlightStyle}>
         <p className="text-xs font-black uppercase tracking-[0.2em] sm:text-sm" style={{ color: '#F4CA48' }}>Black History Month Football Festival 2026</p>
-        <div className="mx-auto mt-4 w-fit rounded-full border border-yellow-400/40 bg-yellow-400/10 px-5 py-2 text-xs font-black uppercase tracking-widest" style={{ color: '#F4CA48' }}>🏆 Road to Glory</div>
-        <h2 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">Final Day</h2>
+        <div className="mx-auto mt-4 w-fit rounded-full border border-yellow-400/40 bg-yellow-400/10 px-5 py-2 text-xs font-black uppercase tracking-widest" style={{ color: '#F4CA48' }}>{championsAnnounced ? '🏆 CROWNED CHAMPIONS' : '🏆 Road to Glory'}</div>
+        <h2 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">{championsAnnounced ? 'NAIJA BEST — 2026 CHAMPIONS!' : 'Final Day'}</h2>
         <p className="mt-2 text-xl font-black uppercase" style={{ color: '#F4CA48' }}>Saturday 31 October 2026</p>
-        <p className="mt-1 font-semibold text-white/85">The championship is on the line</p>
+        <p className="mt-1 font-semibold text-white/85">{championsAnnounced ? 'A spectacular tournament. A thrilling final. Our champions have been crowned!' : 'The championship is on the line'}</p>
+        {championsAnnounced && <div className="relative mx-auto mt-6 max-w-3xl overflow-hidden rounded-2xl border border-yellow-400/60 bg-gradient-to-br from-yellow-500/25 via-green-700/30 to-black/30 px-5 py-8" aria-live="polite">
+          <style>{`@keyframes bhmffChampionsEntrance {from {opacity:0;transform:translateY(20px) scale(.96)} to {opacity:1;transform:translateY(0) scale(1)}} @keyframes bhmffGoldRain {0% {transform:translateY(-20px) rotate(0);opacity:0} 20%{opacity:1} 100%{transform:translateY(180px) rotate(160deg);opacity:0}} @media (prefers-reduced-motion: no-preference) {.bhmff-champions-entrance{animation:bhmffChampionsEntrance 1s ease-out both}.bhmff-gold-rain{animation:bhmffGoldRain 3s ease-in-out 1 both}}`}</style>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 flex justify-around text-2xl text-yellow-300"><span className="bhmff-gold-rain">✦</span><span className="bhmff-gold-rain" style={{animationDelay:'0.3s'}}>✦</span><span className="bhmff-gold-rain" style={{animationDelay:'0.6s'}}>✦</span><span className="bhmff-gold-rain" style={{animationDelay:'0.9s'}}>✦</span><span className="bhmff-gold-rain" style={{animationDelay:'1.2s'}}>✦</span></div>
+          <div className="bhmff-champions-entrance relative">
+            <div className="text-5xl" aria-hidden="true">🏆</div>
+            <h3 className="mt-3 text-3xl font-black uppercase tracking-wide text-yellow-300 sm:text-5xl">Naija Best FC</h3>
+            <p className="mt-2 text-xl font-extrabold uppercase tracking-widest text-white sm:text-2xl">Black History Month Football Champions 2026</p>
+            <div className="mx-auto mt-4 w-fit"><MatchBadge teams={teams} name={finalMatch.away.name} large /></div>
+            <p className="mt-4 text-2xl font-black text-white">Erith Park 3–3 Naija Best</p>
+            <p className="mt-2 text-xl font-black text-yellow-300">Naija Best win 5–4 on penalties</p>
+            <p className="mt-4 text-sm font-semibold text-white/85">Football · Heritage · Culture · Community</p>
+          </div>
+        </div>}
         {now < kickoff && !finalMatch.publishedResult && <>
           <p className="mt-6 text-xs font-black uppercase tracking-wider text-white/80">Countdown to the Tournament Final</p>
           <div className="mx-auto mt-3 grid max-w-lg grid-cols-4 gap-2">
@@ -105,7 +127,7 @@ export function BhmffKnockoutSpotlight({ fixtures, results, teams, basePath, sur
           </div>
         </>}
         <article className="mx-auto mt-6 max-w-4xl rounded-2xl border border-yellow-400/40 bg-black/20 p-4 shadow-lg sm:p-7">
-          <p className="mb-5 text-sm font-black uppercase tracking-[0.22em]" style={{ color: '#F4CA48' }}>🏆 Championship Final</p>
+          <p className="mb-5 text-sm font-black uppercase tracking-[0.22em]" style={{ color: '#F4CA48' }}>{championsAnnounced ? '🏆 OFFICIAL FINAL RESULT' : '🏆 Championship Final'}</p>
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-5">
             <div className="min-w-0 text-center">
               <MatchBadge teams={teams} name={finalMatch.home.name} large />
@@ -113,7 +135,7 @@ export function BhmffKnockoutSpotlight({ fixtures, results, teams, basePath, sur
             </div>
             <div className="min-w-[65px] text-center">
               <p className="text-3xl font-black tabular-nums sm:text-5xl" style={{ color: '#F4CA48' }}>{finalMatch.publishedResult ? `${finalMatch.publishedResult.homeScore} – ${finalMatch.publishedResult.awayScore}` : 'VS'}</p>
-              <p className="mt-2 text-xs font-black uppercase tracking-wider">{finalMatch.publishedResult ? 'FULL TIME' : timeLabel(finalKickoffTime)}</p>
+              <p className="mt-2 text-xs font-black uppercase tracking-wider">{finalMatch.publishedResult ? 'FULL TIME' : timeLabel(finalKickoffTime)}</p>{championsAnnounced && <p className="mt-2 text-xs font-black text-yellow-300">Naija Best win 5–4 on penalties</p>}
             </div>
             <div className="min-w-0 text-center">
               <MatchBadge teams={teams} name={finalMatch.away.name} large />
@@ -136,8 +158,8 @@ export function BhmffKnockoutSpotlight({ fixtures, results, teams, basePath, sur
           </div>
           <p className="mt-3 text-xs text-white/80">{dateLabel(thirdPlace.kickoffTime)} • {thirdPlace.venueName}</p>
         </article>}
-        <p className="mt-5 text-sm font-semibold text-white/85">The semi-final results remain available in the Results section below.</p>
-        <a href={`${basePath}/fixtures`} className="mt-5 inline-block rounded-full bg-yellow-400 px-6 py-3 font-black text-green-950 hover:bg-yellow-300">View final day fixtures</a>
+        <p className="mt-5 text-sm font-semibold text-white/85">{championsAnnounced ? 'Congratulations to Naija Best and Erith Park. Thank you to every player, official, supporter, organiser and sponsor.' : 'The semi-final results remain available in the Results section below.'}</p>
+        <a href={`${basePath}/${championsAnnounced ? 'results' : 'fixtures'}`} className="mt-5 inline-block rounded-full bg-yellow-400 px-6 py-3 font-black text-green-950 hover:bg-yellow-300">{championsAnnounced ? 'View all results' : 'View final day fixtures'}</a>
       </div> : <div className="rounded-3xl border p-5 text-center shadow-xl sm:p-8" style={spotlightStyle}>
         <p className="text-xs font-black uppercase tracking-[0.2em] sm:text-sm" style={{ color: '#F4CA48' }}>Black History Month Football Festival 2026</p>
         <h2 className="mt-3 text-4xl font-black uppercase sm:text-6xl">Super Sunday</h2>
