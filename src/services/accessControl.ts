@@ -36,6 +36,7 @@ export type Organisation = {
     slug: string
     status: OrganisationStatus
     organisation_type: OrganisationType
+    participant_terminology?: string | null
     logo_url: string | null
     primary_colour: string | null
     secondary_colour: string | null
@@ -646,6 +647,7 @@ export async function getCurrentAdminProfile():
             slug,
             status,
             organisation_type,
+            participant_terminology,
             logo_url,
             primary_colour,
             secondary_colour,

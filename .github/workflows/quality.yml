@@ -25,6 +25,8 @@ jobs:
         run: npm run build
       - name: Repository security and safeguarding contracts
         run: node --test tests/quality/repository-security.test.cjs tests/quality/safeguarding-contract.test.cjs
+      - name: Phase 1 participant fixture and contact regression contracts
+        run: node --test tests/quality/thq-phase1-regressions.test.cjs
       - name: Existing public and admin source tests
         run: |
           node --test \
