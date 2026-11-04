@@ -3708,3 +3708,17 @@
 .bhmffMatchdayScore > :last-child { text-align: right; }
 .bhmffMatchdayScore span { font-size: 1.4rem; font-weight: 900; color: #b8ff7a; }
 .bhmffMatchday .btn { margin: .4rem .5rem .4rem 0; max-width: 100%; }
+
+
+/* THQ sponsorship select contrast regression fix */
+/* Native option menus may use an OS-controlled light popup. Specify both colours. */
+.thq-public-contact-page select {
+  color-scheme: dark;
+  background-color: #10190f;
+  color: #ffffff;
+}
+.thq-public-contact-page select option,
+.thq-public-contact-page select optgroup {
+  background-color: #10190f;
+  color: #ffffff;
+}

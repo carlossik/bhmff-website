@@ -5,6 +5,7 @@ import {
     type FormEvent,
 } from 'react'
 import { ImageUpload } from '../../common/ImageUpload'
+import type { ParticipantLabels } from '../../../config/participantTerminology'
 import { EnterpriseModal } from '../../common/EnterpriseModal'
 import {
     emptyClubForm,
@@ -15,6 +16,7 @@ type ClubModalProps = {
     open: boolean
     mode: 'create' | 'edit'
     organisationId: string
+    labels: ParticipantLabels
     initialValues?: ClubFormValues | null
     isSaving: boolean
     onClose: () => void
@@ -31,6 +33,7 @@ export function ClubModal({
                               open,
                               mode,
                               organisationId,
+                              labels,
                               initialValues,
                               isSaving,
                               onClose,
@@ -84,9 +87,9 @@ export function ClubModal({
 
     return (
         <EnterpriseModal
-            title={mode === 'edit' ? 'Edit Club' : 'Add Club'}
-            eyebrow="Club administration"
-            description="Add the club details and badge used across the competition."
+            title={mode === 'edit' ? `Edit ${labels.singular}` : `Add ${labels.singular}`}
+            eyebrow={`${labels.singular} administration`}
+            description={`Add the ${labels.lower} details and badge used across the competition.`}
             closeDisabled={isSaving}
             onClose={onClose}
             maxWidthClassName="max-w-5xl"
@@ -98,7 +101,7 @@ export function ClubModal({
                     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
                         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                             <label className={labelClassName}>
-                                Club Name{' '}
+                                {labels.singular} Name{' '}
                                 <span className="text-red-600">*</span>
                                 <input
                                     ref={nameInputRef}

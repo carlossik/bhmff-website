@@ -410,7 +410,7 @@ export function PublicContactPage({
 
     return (
         <div
-            className="min-h-screen"
+            className="thq-public-contact-page min-h-screen"
             style={{
                 background:
                 backgroundColour,

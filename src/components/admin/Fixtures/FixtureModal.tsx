@@ -101,20 +101,6 @@ function combineKickoffDateAndTime(
 
     return `${date}T${time || defaultKickoffTime}`
 }
-function getTodayLocalDate() {
-    const today = new Date()
-
-    const year = today.getFullYear()
-    const month = String(
-        today.getMonth() + 1
-    ).padStart(2, '0')
-    const day = String(
-        today.getDate()
-    ).padStart(2, '0')
-
-    return `${year}-${month}-${day}`
-}
-
 function formatTeamDisplayName(
     team: FixtureTeam
 ) {
@@ -178,10 +164,6 @@ function CompetitionFixtureModal({
         getKickoffClockTime(
             values.kickoff_time
         )
-    const minimumFixtureDate =
-        mode === 'create'
-            ? getTodayLocalDate()
-            : undefined
 
     const groupCompetitionTeamIds =
         groupMemberships
@@ -745,31 +727,11 @@ function CompetitionFixtureModal({
                                     <input
                                         className={fieldClassName}
                                         type="date"
-                                        min={minimumFixtureDate}
                                         value={kickoffDate}
                                         required
-                                        onChange={(event) => {
-                                            const selectedDate =
-                                                event.target.value
-
-                                            if (
-                                                mode === 'create' &&
-                                                selectedDate &&
-                                                selectedDate <
-                                                getTodayLocalDate()
-                                            ) {
-                                                onChange({
-                                                    ...values,
-                                                    kickoff_time: '',
-                                                })
-
-                                                return
-                                            }
-
-                                            handleKickoffDateChange(
-                                                selectedDate
-                                            )
-                                        }}
+                                        onChange={(event) =>
+                                            handleKickoffDateChange(event.target.value)
+                                        }
                                     />
                                 </label>
 

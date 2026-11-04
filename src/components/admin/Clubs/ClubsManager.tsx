@@ -5,6 +5,7 @@ import {
 } from 'react'
 import { supabase } from '../../../lib/supabaseClient'
 import { useOrganisation } from '../../../context/OrganisationContext'
+import { getParticipantLabels } from '../../../config/participantTerminology'
 import { ConfirmDialog } from '../../common/ConfirmDialog/ConfirmDialog'
 import { ClubModal } from './ClubModal'
 import { ClubsTable } from './ClubsTable'
@@ -42,6 +43,7 @@ function parseFoundedYear(value: string) {
 
 export function ClubsManager() {
     const { currentOrganisation } = useOrganisation()
+    const labels = getParticipantLabels(currentOrganisation?.participant_terminology)
 
     const [clubs, setClubs] = useState<DbClub[]>([])
     const [loading, setLoading] = useState(true)
@@ -154,7 +156,7 @@ export function ClubsManager() {
         const name = formValues.name.trim()
 
         if (!name) {
-            alert('Club name is required.')
+            alert(`${labels.singular} name is required.`)
             return
         }
 
@@ -255,7 +257,7 @@ export function ClubsManager() {
             alert(
                 saveError instanceof Error
                     ? saveError.message
-                    : 'The club could not be saved.'
+                    : `The ${labels.lower} could not be saved.`
             )
         } finally {
             setIsSaving(false)
@@ -314,7 +316,7 @@ export function ClubsManager() {
             alert(
                 deleteError instanceof Error
                     ? deleteError.message
-                    : 'The club could not be deleted.'
+                    : `The ${labels.lower} could not be deleted.`
             )
         } finally {
             setIsDeleting(false)
@@ -337,15 +339,15 @@ export function ClubsManager() {
             <section className="mb-6 flex flex-col gap-5 rounded-3xl border border-[color:var(--organisation-border)] bg-[var(--organisation-surface)] p-6 shadow-xl sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--organisation-accent)]">
-                        Club administration
+                        {labels.singular} administration
                     </p>
 
                     <h2 className="mt-2 text-3xl font-black tracking-tight text-[var(--organisation-text)] sm:text-4xl">
-                        Clubs
+                        {labels.plural}
                     </h2>
 
                     <p className="mt-2 text-sm leading-6 text-[color:var(--organisation-text)]/70">
-                        Manage clubs belonging to{' '}
+                        Manage {labels.plural.toLowerCase()} belonging to{' '}
                         <strong className="font-semibold text-[var(--organisation-text)]">
                             {currentOrganisation.name}
                         </strong>.
@@ -357,12 +359,13 @@ export function ClubsManager() {
                     type="button"
                     onClick={openCreateModal}
                 >
-                    Add Club
+                    Add {labels.singular}
                 </button>
             </section>
 
             <ClubsTable
                 clubs={clubs}
+                labels={labels}
                 loading={loading}
                 onEdit={openEditModal}
                 onDelete={requestDeleteClub}
@@ -376,6 +379,7 @@ export function ClubsManager() {
                         : 'create'
                 }
                 organisationId={organisationId}
+                labels={labels}
                 initialValues={modalInitialValues}
                 isSaving={isSaving}
                 onClose={closeModal}
@@ -384,13 +388,13 @@ export function ClubsManager() {
 
             <ConfirmDialog
                 open={clubToDelete !== null}
-                title="Delete club?"
+                title={`Delete ${labels.lower}?`}
                 message={
                     clubToDelete
                         ? `You are about to delete ${clubToDelete.name}. This action cannot be undone.`
                         : ''
                 }
-                confirmLabel="Delete club"
+                confirmLabel={`Delete ${labels.lower}`}
                 cancelLabel="Cancel"
                 isProcessing={isDeleting}
                 onConfirm={confirmDeleteClub}

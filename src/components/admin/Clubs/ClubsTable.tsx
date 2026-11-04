@@ -1,7 +1,9 @@
 import type { DbClub } from './clubTypes'
+import type { ParticipantLabels } from '../../../config/participantTerminology'
 
 type ClubsTableProps = {
     clubs: DbClub[]
+    labels: ParticipantLabels
     loading: boolean
     onEdit: (club: DbClub) => void
     onDelete: (club: DbClub) => void
@@ -9,6 +11,7 @@ type ClubsTableProps = {
 
 export function ClubsTable({
                                clubs,
+                               labels,
                                loading,
                                onEdit,
                                onDelete,
@@ -16,7 +19,7 @@ export function ClubsTable({
     if (loading) {
         return (
             <div className="rounded-2xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[var(--organisation-text)] [&_h3]:text-xl [&_h3]:font-bold [&_h4]:text-lg [&_h4]:font-bold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-400">
-                <p>Loading clubs...</p>
+                <p>Loading {labels.plural.toLowerCase()}...</p>
             </div>
         )
     }
@@ -24,10 +27,10 @@ export function ClubsTable({
     if (!clubs.length) {
         return (
             <div className="rounded-2xl border border-dashed border-[var(--organisation-border)] bg-[var(--organisation-surface)] px-6 py-12 text-center text-[var(--organisation-text)] [&_h3]:text-xl [&_h3]:font-bold [&_h4]:text-lg [&_h4]:font-bold [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-400">
-                <h4>No clubs added yet</h4>
+                <h4>No {labels.plural.toLowerCase()} added yet</h4>
 
                 <p>
-                    Add the first club for this
+                    Add the first {labels.lower} for this
                     competition.
                 </p>
             </div>
@@ -39,7 +42,7 @@ export function ClubsTable({
             <table className="min-w-full divide-y divide-[var(--organisation-border)] text-left text-sm text-[var(--organisation-text)] [&_thead]:bg-[var(--organisation-background)] [&_th]:px-5 [&_th]:py-4 [&_th]:text-xs [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wider [&_td]:px-5 [&_td]:py-4 [&_tbody_tr]:border-t [&_tbody_tr]:border-[var(--organisation-border)]">
                 <thead>
                 <tr>
-                    <th>Club</th>
+                    <th>{labels.singular}</th>
                     <th>Short Name</th>
                     <th>Contact</th>
                     <th>Manager</th>
@@ -56,7 +59,7 @@ export function ClubsTable({
                                 {club.badge_url ? (
                                     <img
                                         src={club.badge_url}
-                                        alt={`${club.name} badge`}
+                                        alt={`${club.name} ${labels.lower} badge`}
                                         className="h-11 w-11 rounded-xl border border-[var(--organisation-border)] object-contain"
                                     />
                                 ) : (
