@@ -20,13 +20,42 @@ test('club registry retains clubs persistence and uses configurable UI terminolo
  assert.match(read('src/components/admin/Clubs/ClubModal.tsx'),/labels\.singular/);
  assert.match(read('src/components/admin/Clubs/ClubsTable.tsx'),/labels\.plural/);
 });
-test('fixture date field accepts past dates for previously played matches',()=>{
- const s=read('src/components/admin/Fixtures/FixtureModal.tsx');
- assert.match(s,/type="date"/);
- assert.match(s,/handleKickoffDateChange\(event\.target\.value\)/);
- assert.doesNotMatch(s,/min=\{minimumFixtureDate\}/);
- assert.doesNotMatch(s,/selectedDate <\s*getTodayLocalDate\(/);
+
+test('fixture date picker supports historical dates without native input', () => {
+ const modal = read(
+     'src/components/admin/Fixtures/FixtureModal.tsx'
+ );
+ const picker = read(
+     'src/components/admin/Fixtures/FixtureDatePicker.tsx'
+ );
+
+ // Competition fixtures use the new date-picker component.
+ assert.match(
+     modal,
+     /import\s*\{\s*FixtureDatePicker\s*\}/
+ );
+ assert.match(modal, /<FixtureDatePicker\b/);
+
+ // Retain the existing fixture date update handler.
+ assert.match(
+     modal,
+     /function handleKickoffDateChange\(/
+ );
+
+ // Prevent the old minimum-date restriction returning.
+ assert.doesNotMatch(
+     modal,
+     /min=\{minimumFixtureDate\}/
+ );
+ assert.doesNotMatch(
+     modal,
+     /selectedDate\s*<\s*getTodayLocalDate\(/
+ );
+
+ // Ensure the replacement component has been implemented.
+ assert.match(picker, /export\s+(?:function|const)\s+FixtureDatePicker\b/);
 });
+
 test('public sponsorship selects have explicit readable foreground and background colours',()=>{
  const page=read('src/pages/public/PublicContactPage.tsx');
  const css=read('src/styles.css');

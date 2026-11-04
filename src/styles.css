@@ -3722,3 +3722,15 @@
   background-color: #10190f;
   color: #ffffff;
 }
+
+/* Public Sponsors modal: readable native select popups in Chrome/Windows. */
+.thq-sponsorship-select {
+    color-scheme: dark;
+    background-color: #10190f;
+    color: #ffffff;
+}
+.thq-sponsorship-select option,
+.thq-sponsorship-select optgroup {
+    background-color: #10190f;
+    color: #ffffff;
+}
