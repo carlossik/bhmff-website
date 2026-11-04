@@ -1,0 +1,26 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const root = path.resolve(__dirname, '../..')
+const modal = fs.readFileSync(path.join(root, 'src/components/admin/Fixtures/FixtureModal.tsx'), 'utf8')
+const picker = fs.readFileSync(path.join(root, 'src/components/admin/Fixtures/FixtureDatePicker.tsx'), 'utf8')
+
+test('competition fixture uses custom date picker rather than native date input', () => {
+  assert.match(modal, /import \{ FixtureDatePicker \}/)
+  assert.match(modal, /<FixtureDatePicker[\s\S]*value=\{kickoffDate\}/)
+  assert.doesNotMatch(modal, /type="date"\s+value=\{kickoffDate\}/)
+})
+test('date picker preserves incomplete text and commits only complete valid dates', () => {
+  assert.match(picker, /type="text"/)
+  assert.match(picker, /setText\(next\)/)
+  assert.match(picker, /if \(iso && iso !== value\) onChange\(iso\)/)
+  assert.match(picker, /parseBritishDate/)
+  assert.match(picker, /getFullYear\(\) === year/)
+})
+test('date picker supports accessible calendar navigation and dates before today', () => {
+  assert.match(picker, /aria-label="Open fixture calendar"/)
+  assert.match(picker, /Previous month/)
+  assert.match(picker, /Next month/)
+  assert.doesNotMatch(picker, /min=\{|getTodayLocalDate/)
+})

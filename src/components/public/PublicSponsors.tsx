@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "../../lib/supabaseClient";
+import { ThemedSelect } from "../common/ThemedSelect";
 import { useOptionalPublicOrganisation } from "../../context/PublicOrganisationContext";
 
 type PublicSponsor = {
@@ -1177,110 +1178,46 @@ export function PublicSponsors({
                                             />
                                         </label>
 
-                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
+                                        <div className="block text-sm font-bold text-[var(--organisation-text)]">
                                             Partnership interest
 
-                                            <select
-                                                value={
-                                                    form.sponsorshipInterest
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    updateForm(
-                                                        "sponsorshipInterest",
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                disabled={
-                                                    isSubmitting
-                                                }
-                                                className={
-                                                    inputClassName
-                                                }
-                                            >
-                                                <option value="">
-                                                    Select an option
-                                                </option>
-                                                <option
-                                                    value={
-                                                        sponsorshipContent.primaryInterestValue
-                                                    }
-                                                >
-                                                    {
-                                                        sponsorshipContent.primaryInterestLabel
-                                                    }
-                                                </option>
-                                                <option value="Match sponsorship">
-                                                    Match sponsorship
-                                                </option>
-                                                <option value="Finals sponsorship">
-                                                    Finals sponsorship
-                                                </option>
-                                                <option value="Health and welfare partnership">
-                                                    Health and welfare partnership
-                                                </option>
-                                                <option value="Media and livestream sponsorship">
-                                                    Media and livestream sponsorship
-                                                </option>
-                                                <option value="Community partnership">
-                                                    Community partnership
-                                                </option>
-                                                <option value="Open to discussion">
-                                                    Open to discussion
-                                                </option>
-                                            </select>
-                                        </label>
+                                            <ThemedSelect
+                                                label="Partnership interest"
+                                                value={form.sponsorshipInterest}
+                                                onChange={(value) => updateForm('sponsorshipInterest', value)}
+                                                disabled={isSubmitting}
+                                                options={[
+                                                    { value: '', label: 'Select an option' },
+                                                    { value: sponsorshipContent.primaryInterestValue, label: sponsorshipContent.primaryInterestLabel },
+                                                    { value: 'Match sponsorship', label: 'Match sponsorship' },
+                                                    { value: 'Finals sponsorship', label: 'Finals sponsorship' },
+                                                    { value: 'Health and welfare partnership', label: 'Health and welfare partnership' },
+                                                    { value: 'Media and livestream sponsorship', label: 'Media and livestream sponsorship' },
+                                                    { value: 'Community partnership', label: 'Community partnership' },
+                                                    { value: 'Open to discussion', label: 'Open to discussion' },
+                                                ]}
+                                            />
+                                        </div>
 
-                                        <label className="block text-sm font-bold text-[var(--organisation-text)]">
+                                        <div className="block text-sm font-bold text-[var(--organisation-text)]">
                                             Estimated budget
 
-                                            <select
-                                                value={
-                                                    form.estimatedBudget
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    updateForm(
-                                                        "estimatedBudget",
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                disabled={
-                                                    isSubmitting
-                                                }
-                                                className={
-                                                    inputClassName
-                                                }
-                                            >
-                                                <option value="">
-                                                    Select an option
-                                                </option>
-                                                <option value="Under £1,000">
-                                                    Under £1,000
-                                                </option>
-                                                <option value="£1,000 - £2,500">
-                                                    £1,000 - £2,500
-                                                </option>
-                                                <option value="£2,500 - £5,000">
-                                                    £2,500 - £5,000
-                                                </option>
-                                                <option value="£5,000 - £10,000">
-                                                    £5,000 - £10,000
-                                                </option>
-                                                <option value="Over £10,000">
-                                                    Over £10,000
-                                                </option>
-                                                <option value="Open to discussion">
-                                                    Open to discussion
-                                                </option>
-                                            </select>
-                                        </label>
+                                            <ThemedSelect
+                                                label="Estimated budget"
+                                                value={form.estimatedBudget}
+                                                onChange={(value) => updateForm('estimatedBudget', value)}
+                                                disabled={isSubmitting}
+                                                options={[
+                                                    { value: '', label: 'Select an option' },
+                                                    { value: 'Under £1,000', label: 'Under £1,000' },
+                                                    { value: '£1,000 - £2,500', label: '£1,000 - £2,500' },
+                                                    { value: '£2,500 - £5,000', label: '£2,500 - £5,000' },
+                                                    { value: '£5,000 - £10,000', label: '£5,000 - £10,000' },
+                                                    { value: 'Over £10,000', label: 'Over £10,000' },
+                                                    { value: 'Open to discussion', label: 'Open to discussion' },
+                                                ]}
+                                            />
+                                        </div>
 
                                         <label className="block text-sm font-bold text-[var(--organisation-text)] sm:col-span-2">
                                             Message

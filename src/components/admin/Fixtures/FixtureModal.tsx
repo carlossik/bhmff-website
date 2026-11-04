@@ -12,6 +12,7 @@ import {
     X,
 } from 'lucide-react'
 import { TournamentHQBrand } from '../../common/TournamentHQBrand'
+import { FixtureDatePicker } from './FixtureDatePicker'
 import type { Official } from '../../../types/officialTypes'
 
 import type {
@@ -724,14 +725,10 @@ function CompetitionFixtureModal({
                                         *
                                     </span>
 
-                                    <input
-                                        className={fieldClassName}
-                                        type="date"
+                                    <FixtureDatePicker
                                         value={kickoffDate}
-                                        required
-                                        onChange={(event) =>
-                                            handleKickoffDateChange(event.target.value)
-                                        }
+                                        onChange={handleKickoffDateChange}
+                                        className={fieldClassName}
                                     />
                                 </label>
 
